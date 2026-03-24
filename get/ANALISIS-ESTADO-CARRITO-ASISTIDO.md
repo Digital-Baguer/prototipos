@@ -1,65 +1,43 @@
-# Analisis: Estado del Carrito de Venta Asistida
+# Analisis: Anulacion de Carrito, Trazabilidad de Productos y Confirmacion de Cobro
 
 > **Fecha**: 2026-03-23
 > **Estado**: En revision
-> **Alcance**: Agregar maquina de estados al carrito de venta asistida,
-> flujo de anulacion, y modales de confirmacion de cobro.
+> **Requerimiento**: `docs/tasks/planes/REQ-GETWEB-005-estado-carrito-anulacion-confirmacion.md`
 
 ---
 
 ## 1. Problema actual
 
-El estado de un carrito de venta asistida se infiere cruzando 5 campos
-booleanos independientes:
+1. **El mensajero no puede anular un pedido cuando el cliente devuelve
+   todo.** Si un cliente no desea quedarse con ningun producto, el
+   mensajero devuelve toda la bolsa pero no tiene la opcion de anular
+   el carrito. El boton COBRAR queda deshabilitado y el mensajero no
+   puede cerrar la entrega.
 
-| Para saber si... | Hay que revisar |
-|-------------------|-----------------|
-| Es venta asistida | `es_venta_asistida = 1` |
-| Esta confirmado | `carrito_asistido_confirmado IS NOT NULL` |
-| Fue convertido a pedido | `pedido_id_convertido IS NOT NULL AND != 0` |
-| Esta anulado | `carrito_asistido_anulado = 1` (nunca se escribe hoy) |
-| Esta cerrado | `carrito_cerrado = 1 AND carrito_bloqueado = 1` |
+2. **Se pierde la traza de productos devueltos en pedidos parciales.**
+   Si un cliente devuelve al menos un producto y el mensajero cobra el
+   resto, el pedido se crea correctamente con los productos no devueltos.
+   Pero el sistema elimina fisicamente los productos devueltos de la
+   base de datos. No queda registro de que esos productos estuvieron
+   en el carrito y fueron devueltos.
 
-Esto genera:
-- Queries complejas con multiples condiciones para filtrar carritos
-- Ambiguedad en estados intermedios (ej: confirmado pero no convertido ¿esta activo?)
-- No hay forma de anular un carrito y registrar quien, cuando y por que
-- No hay forma de archivar carritos viejos sin eliminarlos
-- No hay forma de distinguir un carrito abandonado de uno activo
+3. **No hay confirmacion antes de crear el pedido.** Acciones sensibles
+   como la creacion del pedido — ya sea cuando el cliente confirma desde
+   el link de confirmacion (pago anticipado) o cuando el mensajero
+   genera el link de pago — se ejecutan con un solo clic sin una
+   ventana que confirme el proceso. Se sugiere un paso intermedio que
+   muestre "vas a cobrar X productos por $YYY" para evitar que se
+   haga clic por error sin haber revisado.
 
 ---
 
 ## 2. Solucion propuesta
 
-### 2.1 Nueva columna `estado_asistido`
+### 2.1 Anulacion: `carrito_asistido_anulado` + metadata
 
-```sql
-ALTER TABLE store_carrito ADD COLUMN estado_asistido
-    ENUM('borrador','confirmado','convertido','anulado','abandonado','archivado')
-    NULL DEFAULT NULL
-    AFTER es_venta_asistida;
-
-ALTER TABLE store_carrito ADD INDEX idx_estado_asistido (estado_asistido);
-```
-
-| Estado | Significado | Equivalencia actual |
-|--------|-------------|---------------------|
-| `borrador` | Asesor esta armando el carrito | `es_venta_asistida=1`, sin confirmar, sin convertir |
-| `confirmado` | Cliente confirmo el listado | `carrito_asistido_confirmado IS NOT NULL` |
-| `convertido` | Se creo pedido asociado | `pedido_id_convertido IS NOT NULL AND != 0` |
-| `anulado` | Asesor o mensajero anulo | `carrito_asistido_anulado = 1` (sin uso hoy) |
-| `abandonado` | Sin actividad 24h+ sin confirmar | No existe hoy |
-| `archivado` | Asesor archivo o 30 dias sin convertir | No existe hoy |
-
-**`NULL`** = No es venta asistida (carritos normales de tienda online).
-Solo se escribe cuando `es_venta_asistida = 1`.
-
-**Nota**: `convertido` indica que el carrito genero un pedido. No implica
-que el pedido este pagado — el estado de pago le pertenece al pedido
-(`shop_pedidos.estado_pedido_id`), no al carrito. El ciclo de vida del
-carrito termina al convertirse.
-
-### 2.2 Columnas de metadata de anulacion
+La columna `carrito_asistido_anulado` ya existe en `store_carrito`
+(tinyint, NULL) pero nunca se escribe. Se reutiliza para marcar la
+anulacion y se agregan 3 columnas de metadata:
 
 ```sql
 ALTER TABLE store_carrito ADD COLUMN anulado_por INT NULL AFTER carrito_asistido_anulado;
@@ -69,72 +47,43 @@ ALTER TABLE store_carrito ADD COLUMN anulado_motivo VARCHAR(255) NULL AFTER anul
 
 | Columna | Tipo | Descripcion |
 |---------|------|-------------|
-| `anulado_por` | INT NULL | `user_id` del usuario que anulo (asesor o mensajero) |
-| `anulado_fecha` | DATETIME NULL | Fecha y hora de la anulacion |
-| `anulado_motivo` | VARCHAR(255) NULL | Motivo de la anulacion |
+| `carrito_asistido_anulado` | tinyint (ya existe) | `1` = carrito anulado |
+| `anulado_por` | INT NULL (nueva) | `user_id` del usuario que anulo |
+| `anulado_fecha` | DATETIME NULL (nueva) | Fecha y hora de la anulacion |
+| `anulado_motivo` | VARCHAR(255) NULL (nueva) | Motivo de la anulacion |
 
-### 2.3 Motivos de anulacion predefinidos
+**Motivos predefinidos**:
 
 | Origen | Motivo por defecto |
 |--------|--------------------|
 | Mensajero (devuelve todo) | "Cliente no acepto ningun producto en la entrega" |
-| Asesor (desde panel) | Seleccionable: "Cliente desistio", "Error en el pedido", "Productos agotados", "Otro" + campo libre |
+| Asesor (futuro, desde panel) | Seleccionable: "Cliente desistio", "Error en el pedido", "Productos agotados", "Otro" + campo libre |
+
+### 2.2 Archivado: `carrito_asistido_archivado`
+
+Para que un asesor pueda ocultar un carrito de su lista sin eliminarlo:
+
+```sql
+ALTER TABLE store_carrito ADD COLUMN carrito_asistido_archivado DATETIME NULL AFTER anulado_motivo;
+```
+
+| Columna | Tipo | Descripcion |
+|---------|------|-------------|
+| `carrito_asistido_archivado` | DATETIME NULL | Fecha en que se archivo. `NULL` = visible |
+
+- El asesor hace clic en "Archivar" → se escribe `now()`
+- El listado de carritos filtra `carrito_asistido_archivado IS NULL`
+- Si el asesor quiere verlos, usa un filtro "Mostrar archivados"
+
+### 2.3 Impacto
+
+- Los flujos existentes (crear carrito, confirmar, convertir) no se tocan
+- Solo se agregan escrituras nuevas: al anular y al archivar
+- get-api no lee ninguno de estos campos — sin impacto
 
 ---
 
-## 3. Diagrama de transiciones
-
-```
-                    ┌──────────────┐
-                    │              │
-          ┌────────►│  abandonado  │
-          │ (cron   │              │
-          │  24h)   └──────────────┘
-          │
-    ┌─────┴─────┐     confirmar     ┌─────────────┐     checkout      ┌─────────────┐
-    │           ├──────────────────►│             ├──────────────────►│             │
-    │ borrador  │                   │ confirmado  │                   │ convertido  │
-    │           │◄──────────────────┤             │                   │             │
-    └─────┬─────┘   desconfirmar    └──────┬──────┘                   └─────────────┘
-          │          (solo admin)          │
-          │                               │
-          │         ┌──────────────┐      │
-          │         │              │      │
-          ├────────►│   anulado    │◄─────┘
-          │ anular  │              │  anular
-          │         └──────────────┘
-          │
-          │         ┌──────────────┐
-          │         │              │
-          └────────►│  archivado   │
-            archivar│              │
-            (manual └──────────────┘
-             o cron
-             30 dias)
-```
-
-**Transiciones permitidas**:
-
-| Desde | Hacia | Quien | Cuando |
-|-------|-------|-------|--------|
-| `borrador` | `confirmado` | Cliente (via link confirmacion) | Al confirmar el listado |
-| `borrador` | `anulado` | Asesor | Decide no continuar con la venta |
-| `borrador` | `abandonado` | Cron (api-crontab-v2) | 24h sin actividad del cliente |
-| `borrador` | `archivado` | Asesor manual o cron 30 dias | Limpieza |
-| `confirmado` | `convertido` | Sistema (checkout) | Al crear pedido via `processCartPayment()` |
-| `confirmado` | `anulado` | Asesor o mensajero | Cliente desiste o devuelve todo |
-| `confirmado` | `borrador` | Admin | `desconfirmarCarrito()` (backdoor existente) |
-| `abandonado` | `borrador` | Asesor | Reactivar carrito abandonado |
-
-**Transiciones NO permitidas** (estados finales):
-- Desde `convertido`: el carrito ya cumplio su ciclo. Cualquier accion posterior
-  es sobre el **pedido** (cancelar, modificar via `modifyOrder()`).
-- Desde `anulado`: estado final. Si se quiere reactivar, se duplica el carrito.
-- Desde `archivado`: estado final. Mismo criterio que anulado.
-
----
-
-## 4. Tracking de productos devueltos
+## 3. Tracking de productos devueltos
 
 ### Situacion actual
 
@@ -169,11 +118,12 @@ tabla adicional.
    `devuelto_mensajeria = 1` (endpoint existente `marcarDevolucionProducto`)
 4. Si quedan productos activos: mensajero cobra normalmente
 5. Si **todos** fueron devueltos: aparece boton "Anular pedido" →
-   modal de confirmacion → se marca `estado_asistido = 'anulado'`
+   modal de confirmacion → se marca `carrito_asistido_anulado = 1`
+   con metadata (anulado_por, anulado_fecha, anulado_motivo)
 
 ---
 
-## 5. Pedidos parciales (cobro con productos devueltos)
+## 4. Pedidos parciales (cobro con productos devueltos)
 
 ### Escenario
 
@@ -280,16 +230,15 @@ No hay cambio necesario en el recalculo.
 
 ---
 
-## 6. Impacto en los 4 repositorios
+## 5. Impacto en los 4 repositorios
 
 ### get-web (se modifica)
 
 | Archivo | Cambio |
 |---------|--------|
-| `Carrito.php` (modelo) | Agregar accessor `getEstadoDisplay()`, actualizar `esEditable()` |
-| `VentaAsistidaController.php` | Escribir `estado_asistido` en `crearCarrito()` y `confirmarVenta()` |
-| `EntregasController.php` | Nuevo metodo `anularEntregaMensajeria()`, escribir estado en anulacion |
-| `Index.vue` | Badge de estado, filtro por estado |
+| `Carrito.php` (modelo) | Agregar metodo `estaAnulado()`, actualizar `esEditable()` |
+| `EntregasController.php` | Nuevo metodo `anularEntregaMensajeria()`, escribir anulacion |
+| `Index.vue` | Badge de anulado, filtro para ocultar archivados |
 | `MensajeriaDetalle.vue` | Footer dinamico COBRAR/ANULAR |
 | `AnularPedidoModal.vue` | **Nuevo componente** |
 | `ConfirmarCobroModal.vue` | **Nuevo componente** |
@@ -297,18 +246,10 @@ No hay cambio necesario en el recalculo.
 
 ### get-api (no se modifica)
 
-get-api no conoce `estado_asistido`. Sus scopes globales (`cartOpen`,
-`storeSelected`) siguen funcionando con `carrito_cerrado` y
-`pedido_id_convertido`. La nueva columna no afecta ningun query existente.
-
-**Unico punto de contacto**: cuando get-api ejecuta `markAsConverted()`,
-get-web deberia actualizar `estado_asistido = 'convertido'`. Esto se
-puede hacer:
-- **Opcion A**: En el controller de get-web despues de llamar a
-  `procesarVenta()` del CarritoService (recomendada — get-web ya
-  tiene el contexto)
-- **Opcion B**: Que get-api tambien escriba la columna (no recomendada —
-  acopla get-api a un campo que solo usa get-web)
+get-api no lee `carrito_asistido_anulado` ni `carrito_asistido_archivado`.
+Sus scopes globales (`cartOpen`, `storeSelected`) siguen funcionando con
+`carrito_cerrado` y `pedido_id_convertido`. Las nuevas columnas no
+afectan ningun query existente.
 
 ### get-api (se modifica — un solo cambio)
 
@@ -398,54 +339,22 @@ Esto es opcional y se puede implementar despues.
 
 ---
 
-## 7. Migracion de datos existentes
+## 6. Migracion de datos existentes
 
-Para carritos de venta asistida existentes, se puede ejecutar un script
-unico que infiera el estado a partir de los campos actuales:
-
-```sql
--- Carritos convertidos a pedido
-UPDATE store_carrito
-SET estado_asistido = 'convertido'
-WHERE es_venta_asistida = 1
-  AND pedido_id_convertido IS NOT NULL
-  AND pedido_id_convertido != 0;
-
--- Carritos confirmados pero no convertidos
-UPDATE store_carrito
-SET estado_asistido = 'confirmado'
-WHERE es_venta_asistida = 1
-  AND carrito_asistido_confirmado IS NOT NULL
-  AND (pedido_id_convertido IS NULL OR pedido_id_convertido = 0)
-  AND (carrito_asistido_anulado IS NULL OR carrito_asistido_anulado = 0);
-
--- Carritos anulados (si hubiera alguno)
-UPDATE store_carrito
-SET estado_asistido = 'anulado'
-WHERE es_venta_asistida = 1
-  AND carrito_asistido_anulado = 1;
-
--- El resto: borradores
-UPDATE store_carrito
-SET estado_asistido = 'borrador'
-WHERE es_venta_asistida = 1
-  AND estado_asistido IS NULL;
-```
+No se requiere migracion de datos. Los campos nuevos son nullable y
+los campos existentes (`carrito_asistido_anulado`, etc.) ya tienen
+sus valores correctos. Los carritos existentes no anulados tienen
+`carrito_asistido_anulado IS NULL`, que es el valor esperado.
 
 ---
 
-## 8. Reflejo del estado en la UI
+## 7. Reflejo en la UI
 
 ### Listado de carritos (Index.vue)
 
-| Estado | Badge | Color | Visible en lista principal |
-|--------|-------|-------|---------------------------|
-| `borrador` | Borrador | Gris | Si |
-| `confirmado` | Confirmado | Azul | Si |
-| `convertido` | Pedido creado | Verde | Si |
-| `anulado` | Anulado | Rojo | No (pestaña "Anulados") |
-| `abandonado` | Abandonado | Amarillo | Si (pestaña "Abandonados" o filtro) |
-| `archivado` | — | — | No (solo visible con filtro explicito) |
+- Si `carrito_asistido_anulado = 1`: badge rojo "Anulado"
+- Si `carrito_asistido_archivado IS NOT NULL`: oculto del listado
+  por defecto, visible con filtro "Mostrar archivados"
 
 ### Detalle de carrito anulado
 
@@ -464,7 +373,7 @@ El carrito anulado se muestra en modo solo lectura: productos visibles
 
 ---
 
-## 9. Modales de confirmacion (frontend)
+## 8. Modales de confirmacion (frontend)
 
 ### 8.1 Anular pedido (MensajeriaDetalle.vue)
 
@@ -481,7 +390,7 @@ el footer cambia de COBRAR a boton rojo "Anular pedido — devolver todo".
 
 **Backend** (`EntregasController::anularEntregaMensajeria`):
 1. Validar que todos los productos tienen `devuelto_mensajeria = 1`
-2. Actualizar `estado_asistido = 'anulado'`
+2. Escribir `carrito_asistido_anulado = 1`
 3. Escribir `anulado_por`, `anulado_fecha`, `anulado_motivo`
 4. Marcar entrega como completada con observacion de anulacion
 5. Retornar exito
@@ -515,7 +424,7 @@ se cobra despues con el mensajero.
 
 ---
 
-## 10. Mockups de referencia
+## 9. Mockups de referencia
 
 | Mockup | Ubicacion |
 |--------|-----------|
@@ -524,36 +433,16 @@ se cobra despues con el mensajero.
 
 ---
 
-## 11. SQL completo a ejecutar
+## 10. SQL completo a ejecutar
 
 ```sql
--- 1. Estado del carrito asistido
-ALTER TABLE store_carrito ADD COLUMN estado_asistido
-    ENUM('borrador','confirmado','convertido','anulado','abandonado','archivado')
-    NULL DEFAULT NULL
-    AFTER es_venta_asistida;
-
-ALTER TABLE store_carrito ADD INDEX idx_estado_asistido (estado_asistido);
-
--- 2. Metadata de anulacion
+-- 1. Metadata de anulacion (3 columnas nuevas)
 ALTER TABLE store_carrito ADD COLUMN anulado_por INT NULL AFTER carrito_asistido_anulado;
 ALTER TABLE store_carrito ADD COLUMN anulado_fecha DATETIME NULL AFTER anulado_por;
 ALTER TABLE store_carrito ADD COLUMN anulado_motivo VARCHAR(255) NULL AFTER anulado_fecha;
 
--- 3. Migracion de datos existentes
-UPDATE store_carrito SET estado_asistido = 'convertido'
-WHERE es_venta_asistida = 1
-  AND pedido_id_convertido IS NOT NULL AND pedido_id_convertido != 0;
-
-UPDATE store_carrito SET estado_asistido = 'confirmado'
-WHERE es_venta_asistida = 1
-  AND carrito_asistido_confirmado IS NOT NULL
-  AND (pedido_id_convertido IS NULL OR pedido_id_convertido = 0)
-  AND (carrito_asistido_anulado IS NULL OR carrito_asistido_anulado = 0);
-
-UPDATE store_carrito SET estado_asistido = 'anulado'
-WHERE es_venta_asistida = 1 AND carrito_asistido_anulado = 1;
-
-UPDATE store_carrito SET estado_asistido = 'borrador'
-WHERE es_venta_asistida = 1 AND estado_asistido IS NULL;
+-- 2. Archivado (1 columna nueva)
+ALTER TABLE store_carrito ADD COLUMN carrito_asistido_archivado DATETIME NULL AFTER anulado_motivo;
 ```
+
+No se requiere migracion de datos.
