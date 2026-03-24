@@ -1,0 +1,2191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Entregas V2 — Mockup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: 'hsl(0 0% 9%)',
+                        'primary-fg': 'hsl(0 0% 98%)',
+                        secondary: 'hsl(161.38 93.55% 30.39%)',
+                        'secondary-fg': 'hsl(0 0% 100%)',
+                        muted: 'hsl(0 0% 96.1%)',
+                        'muted-fg': 'hsl(0 0% 45.1%)',
+                        border: 'hsl(0 0% 92.8%)',
+                        destructive: 'hsl(0 84.2% 60.2%)',
+                    },
+                    fontFamily: {
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+        body { background: #f5f5f4; -webkit-font-smoothing: antialiased; }
+
+        .card-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .card-lift:active { transform: scale(0.985); }
+
+        .progress-fill { animation: progressGrow 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes progressGrow { from { width: 0%; } }
+
+        .card-enter { opacity: 0; transform: translateY(12px); animation: cardSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes cardSlideIn { to { opacity: 1; transform: translateY(0); } }
+
+        .modal-backdrop { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+        .modal-content { animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes modalSlideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+
+        .badge-pulse { animation: badgePulse 2s ease-in-out infinite; }
+        @keyframes badgePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+
+        .btn-press:active { transform: scale(0.97); transition: transform 0.1s; }
+
+        .completadas-body { max-height: 0; overflow: hidden; transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+        .completadas-body.open { max-height: 500px; }
+        .chevron-rotate { transition: transform 0.25s ease; }
+        .chevron-rotate.open { transform: rotate(180deg); }
+
+        .stock-row { transition: background 0.15s ease; }
+        .stock-row:hover { background: hsl(161 93% 30% / 0.04); }
+
+        .photo-area { border: 2px dashed hsl(0 0% 85%); transition: border-color 0.2s, background 0.2s; }
+        .photo-area:hover { border-color: hsl(0 0% 70%); background: hsl(0 0% 97%); }
+
+        .view-transition { transition: opacity 0.25s ease; }
+
+        /* Strikethrough product animation */
+        .product-removed { animation: fadeSlideOut 0.3s ease forwards; }
+        @keyframes fadeSlideOut { to { opacity: 0.5; transform: translateX(8px); } }
+
+        /* Obs reveal */
+        .obs-reveal { animation: obsReveal 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes obsReveal { from { opacity: 0; max-height: 0; margin-top: 0; } to { opacity: 1; max-height: 200px; } }
+
+        /* Success checkmark pop */
+        @keyframes successPop {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- ============================================================= -->
+    <!-- NAV: Cambiar entre vistas para el mockup                       -->
+    <!-- ============================================================= -->
+    <div class="fixed top-0 left-0 right-0 z-[60] bg-primary text-primary-fg">
+        <div class="max-w-[430px] mx-auto flex">
+            <button onclick="showView('list')" id="navList" class="flex-1 py-2.5 text-[11px] font-bold text-center border-b-2 border-primary-fg transition-colors">
+                Lista de Entregas
+            </button>
+            <button onclick="showView('detail')" id="navDetail" class="flex-1 py-2.5 text-[11px] font-bold text-center border-b-2 border-transparent text-primary-fg/50 transition-colors">
+                Detalle (Contra Entrega)
+            </button>
+            <button onclick="showView('detailPaid')" id="navDetailPaid" class="flex-1 py-2.5 text-[11px] font-bold text-center border-b-2 border-transparent text-primary-fg/50 transition-colors">
+                Detalle (Anticipado)
+            </button>
+        </div>
+    </div>
+    <div class="h-[38px]"></div>
+
+    <!-- ============================================================= -->
+    <!-- VIEW 1: LISTA DE ENTREGAS                                      -->
+    <!-- ============================================================= -->
+    <div id="viewList" class="view-transition">
+        <div class="max-w-[430px] mx-auto min-h-screen bg-white shadow-2xl relative">
+
+            <!-- APP HEADER -->
+            <header class="sticky top-[38px] z-40 bg-white border-b border-border">
+                <div class="flex items-center justify-between px-4 py-3">
+                    <button class="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors">
+                        <i data-lucide="menu" class="w-5 h-5 text-primary"></i>
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <div class="h-8 w-8 rounded-full bg-secondary/10 flex items-center justify-center text-[11px] font-bold text-secondary">EQ</div>
+                        <span class="text-[12px] font-semibold">Equipo QA</span>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-muted-fg"></i>
+                    </div>
+                </div>
+                <div class="px-4 pb-2 flex items-center gap-1.5 text-[11px] text-muted-fg">
+                    <i data-lucide="home" class="w-3.5 h-3.5"></i>
+                    <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                    <span>Dashboard</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                    <span class="font-semibold text-primary">Mis Entregas</span>
+                </div>
+            </header>
+
+            <!-- CONTENT -->
+            <main class="px-4 pt-5 pb-8 space-y-5">
+
+                <!-- Title + date -->
+                <div class="flex items-center gap-3">
+                    <div class="h-11 w-11 rounded-xl bg-muted flex items-center justify-center">
+                        <i data-lucide="bike" class="w-5 h-5 text-primary"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-[18px] font-extrabold tracking-tight">Mis Entregas</h1>
+                        <p class="text-[12px] text-muted-fg" id="todayDate"></p>
+                    </div>
+                </div>
+
+                <!-- Progress summary -->
+                <div class="bg-muted/50 rounded-2xl p-4">
+                    <div class="flex items-baseline justify-between mb-2.5">
+                        <span class="text-[13px] font-medium">Hoy tienes <strong class="text-secondary">7</strong> entregas</span>
+                        <span class="text-[12px] text-muted-fg font-bold">3 de 7</span>
+                    </div>
+                    <div class="h-2.5 bg-white rounded-full overflow-hidden border border-border">
+                        <div class="progress-fill h-full bg-secondary rounded-full" style="width: 43%"></div>
+                    </div>
+                </div>
+
+                <!-- ─── PENDIENTES ─── -->
+                <section>
+                    <div class="flex items-center gap-2 mb-3 px-1">
+                        <div class="h-2 w-2 rounded-full bg-amber-500 badge-pulse"></div>
+                        <h2 class="text-[11px] font-bold uppercase tracking-widest text-muted-fg">Pendientes</h2>
+                        <span class="text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">4</span>
+                    </div>
+
+                    <div class="space-y-4">
+
+                        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+                        <!-- Card 1: ASIGNADA → Boton "Recoger prendas"       -->
+                        <!-- Estado: asignada | Accion: abrir modal recogida  -->
+                        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+                        <div class="card-lift card-enter bg-white rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" style="animation-delay: 0.05s">
+                            <div class="p-5 pb-4 space-y-3">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex items-center gap-2.5 flex-wrap">
+                                        <span class="text-[17px] font-extrabold tracking-tight">#672091</span>
+                                        <span class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full">
+                                            <i data-lucide="package" class="w-3 h-3"></i>
+                                            Asignada
+                                        </span>
+                                    </div>
+                                    <div class="text-right shrink-0 ml-3">
+                                        <p class="text-[17px] font-extrabold">$450.000</p>
+                                        <p class="text-[11px] text-muted-fg">3 productos</p>
+                                    </div>
+                                </div>
+                                <p class="text-[14px] font-bold">Maria Lopez</p>
+                                <button onclick="openMaps('Calle 80 #12-34, Zona Norte', 'Bucaramanga')" class="flex items-center gap-2.5 text-[12px] text-muted-fg w-full text-left hover:text-primary transition-colors">
+                                    <i data-lucide="map-pin" class="w-3.5 h-3.5 text-destructive shrink-0"></i>
+                                    <span>Calle 80 #12-34, Zona Norte</span>
+                                </button>
+                                <div class="flex items-center gap-3 text-[11px] text-muted-fg">
+                                    <span class="flex items-center gap-1.5">
+                                        <i data-lucide="clock" class="w-3 h-3"></i>
+                                        2-3 PM
+                                    </span>
+                                    <span class="text-border">|</span>
+                                    <span class="flex items-center gap-1.5 font-medium text-amber-600">
+                                        <i data-lucide="banknote" class="w-3 h-3"></i>
+                                        Pago contra entrega
+                                    </span>
+                                    <button onclick="toggleObs('obs1')" class="ml-auto relative h-7 w-7 rounded-lg border border-amber-300 bg-amber-50 flex items-center justify-center hover:bg-amber-100 transition-colors" title="Ver observaciones">
+                                        <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-amber-600"></i>
+                                        <span class="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-500 border border-white"></span>
+                                    </button>
+                                </div>
+                                <div id="obs1" class="hidden space-y-1.5 animate-in">
+                                    <div class="bg-muted/40 rounded-lg px-3 py-2 flex items-start gap-2">
+                                        <i data-lucide="alert-circle" class="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5"></i>
+                                        <p class="text-[10px] text-muted-fg leading-relaxed">"LLAMAR ANTES DE IR"</p>
+                                    </div>
+                                    <div class="bg-muted/40 rounded-lg px-3 py-2 flex items-start gap-2">
+                                        <i data-lucide="alert-circle" class="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5"></i>
+                                        <p class="text-[10px] text-muted-fg leading-relaxed">"Llevar cedula para porteria"</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-5 pb-5">
+                                <button onclick="openModal('recogerModal')" class="btn-press w-full h-12 bg-primary text-primary-fg rounded-2xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
+                                    <i data-lucide="package" class="w-4 h-4"></i>
+                                    Recoger prendas
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+                        <!-- Card 2: RECOGIDA → Boton "Iniciar ruta"          -->
+                        <!-- Estado: recogida | Accion: modal confirmar ruta  -->
+                        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+                        <div class="card-lift card-enter bg-white rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" style="animation-delay: 0.12s">
+                            <div class="p-5 pb-4 space-y-3">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex items-center gap-2.5 flex-wrap">
+                                        <span class="text-[17px] font-extrabold tracking-tight">#672094</span>
+                                        <span class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-violet-100 text-violet-700 px-2.5 py-1 rounded-full">
+                                            <i data-lucide="package-check" class="w-3 h-3"></i>
+                                            Recogida
+                                        </span>
+                                    </div>
+                                    <div class="text-right shrink-0 ml-3">
+                                        <p class="text-[17px] font-extrabold">$290.000</p>
+                                        <p class="text-[11px] text-muted-fg">2 productos</p>
+                                    </div>
+                                </div>
+                                <p class="text-[14px] font-bold">Luis Fernando Diaz</p>
+                                <button onclick="openMaps('Cra 33 #48-15, Centro', 'Bucaramanga')" class="flex items-center gap-2.5 text-[12px] text-muted-fg w-full text-left hover:text-primary transition-colors">
+                                    <i data-lucide="map-pin" class="w-3.5 h-3.5 text-destructive shrink-0"></i>
+                                    <span>Cra 33 #48-15, Centro</span>
+                                </button>
+                                <div class="flex items-center gap-3 text-[11px] text-muted-fg">
+                                    <span class="flex items-center gap-1.5">
+                                        <i data-lucide="clock" class="w-3 h-3"></i>
+                                        2-3 PM
+                                    </span>
+                                    <span class="text-border">|</span>
+                                    <span class="flex items-center gap-1.5 font-medium text-amber-600">
+                                        <i data-lucide="banknote" class="w-3 h-3"></i>
+                                        Pago contra entrega
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="openMaps('Cra 33 #48-15, Centro', 'Bucaramanga')" class="btn-press flex items-center gap-1.5 text-[10px] font-semibold text-muted-fg border border-border rounded-full px-3 py-1.5 hover:bg-muted transition-colors">
+                                        <i data-lucide="map" class="w-3 h-3 text-blue-600"></i>
+                                        Maps
+                                    </button>
+                                    <button class="btn-press flex items-center gap-1.5 text-[10px] font-semibold text-green-700 border border-green-200 rounded-full px-3 py-1.5 hover:bg-green-50 transition-colors">
+                                        <i data-lucide="message-circle" class="w-3 h-3"></i>
+                                        WhatsApp
+                                    </button>
+                                    <button class="btn-press flex items-center gap-1.5 text-[10px] font-semibold text-muted-fg border border-border rounded-full px-3 py-1.5 hover:bg-muted transition-colors">
+                                        <i data-lucide="phone" class="w-3 h-3"></i>
+                                        Llamar
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="px-5 pb-5">
+                                <button onclick="openModal('iniciarRutaModal')" class="btn-press w-full h-12 bg-primary text-primary-fg rounded-2xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
+                                    <i data-lucide="navigation" class="w-4 h-4"></i>
+                                    Iniciar ruta
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+                        <!-- Card 3: EN RUTA + CONTRA ENTREGA → "Gestionar"   -->
+                        <!-- Estado: en_ruta | tipo_cobro: contra_entrega     -->
+                        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+                        <div class="card-lift card-enter bg-white rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" style="animation-delay: 0.19s">
+                            <div class="p-5 pb-4 space-y-3">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="text-[17px] font-extrabold tracking-tight">#672098</span>
+                                        <span class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full">
+                                            <i data-lucide="navigation" class="w-3 h-3"></i>
+                                            En ruta
+                                        </span>
+                                    </div>
+                                    <div class="text-right shrink-0 ml-3">
+                                        <p class="text-[17px] font-extrabold">$580.000</p>
+                                        <p class="text-[11px] text-muted-fg">4 productos</p>
+                                    </div>
+                                </div>
+                                <p class="text-[14px] font-bold">Carlos Mendoza</p>
+                                <button onclick="openMaps('Cra 27 #56-12, Cabecera', 'Bucaramanga')" class="flex items-center gap-2.5 text-[12px] text-muted-fg w-full text-left hover:text-primary transition-colors">
+                                    <i data-lucide="map-pin" class="w-3.5 h-3.5 text-destructive shrink-0"></i>
+                                    <span>Cra 27 #56-12, Cabecera</span>
+                                </button>
+                                <div class="flex items-center gap-3 text-[11px] text-muted-fg">
+                                    <span class="flex items-center gap-1.5">
+                                        <i data-lucide="clock" class="w-3 h-3"></i>
+                                        4-5 PM
+                                    </span>
+                                    <span class="text-border">|</span>
+                                    <span class="flex items-center gap-1.5 font-medium text-amber-600">
+                                        <i data-lucide="banknote" class="w-3 h-3"></i>
+                                        Pago contra entrega
+                                    </span>
+                                    <button onclick="toggleObs('obs3')" class="ml-auto relative h-7 w-7 rounded-lg border border-amber-300 bg-amber-50 flex items-center justify-center hover:bg-amber-100 transition-colors" title="Ver observaciones">
+                                        <i data-lucide="sticky-note" class="w-3.5 h-3.5 text-amber-600"></i>
+                                        <span class="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-amber-500 border border-white"></span>
+                                    </button>
+                                </div>
+                                <div id="obs3" class="hidden space-y-1.5">
+                                    <div class="bg-muted/40 rounded-lg px-3 py-2 flex items-start gap-2">
+                                        <i data-lucide="alert-circle" class="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5"></i>
+                                        <p class="text-[10px] text-muted-fg leading-relaxed">"Lleva S y M para que pruebe, solo se queda con una"</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="openMaps('Cra 27 #56-12, Cabecera', 'Bucaramanga')" class="btn-press flex items-center gap-1.5 text-[10px] font-semibold text-muted-fg border border-border rounded-full px-3 py-1.5 hover:bg-muted transition-colors">
+                                        <i data-lucide="map" class="w-3 h-3 text-blue-600"></i>
+                                        Maps
+                                    </button>
+                                    <button class="btn-press flex items-center gap-1.5 text-[10px] font-semibold text-green-700 border border-green-200 rounded-full px-3 py-1.5 hover:bg-green-50 transition-colors">
+                                        <i data-lucide="message-circle" class="w-3 h-3"></i>
+                                        WhatsApp
+                                    </button>
+                                    <button class="btn-press flex items-center gap-1.5 text-[10px] font-semibold text-muted-fg border border-border rounded-full px-3 py-1.5 hover:bg-muted transition-colors">
+                                        <i data-lucide="phone" class="w-3 h-3"></i>
+                                        Llamar
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="px-5 pb-5">
+                                <button onclick="showView('detail')" class="btn-press w-full h-12 bg-primary text-primary-fg rounded-2xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
+                                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                                    Gestionar entrega
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+                        <!-- Card 4: EN RUTA + ANTICIPADO → "Marcar entregado"-->
+                        <!-- Estado: en_ruta | tipo_cobro: anticipado (pagado) -->
+                        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+                        <div class="card-lift card-enter bg-white rounded-2xl border border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" style="animation-delay: 0.26s">
+                            <div class="p-5 pb-4 space-y-3">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="text-[17px] font-extrabold tracking-tight">#672095</span>
+                                        <span class="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full">
+                                            <i data-lucide="navigation" class="w-3 h-3"></i>
+                                            En ruta
+                                        </span>
+                                    </div>
+                                    <div class="text-right shrink-0 ml-3">
+                                        <p class="text-[17px] font-extrabold">$320.000</p>
+                                        <p class="text-[11px] text-muted-fg">2 productos</p>
+                                    </div>
+                                </div>
+                                <p class="text-[14px] font-bold">Ana Garcia</p>
+                                <button onclick="openMaps('Av 68 #23-50, Zona Centro', 'Bucaramanga')" class="flex items-center gap-2.5 text-[12px] text-muted-fg w-full text-left hover:text-primary transition-colors">
+                                    <i data-lucide="map-pin" class="w-3.5 h-3.5 text-destructive shrink-0"></i>
+                                    <span>Av 68 #23-50, Zona Centro</span>
+                                </button>
+                                <div class="flex items-center gap-3 text-[11px] text-muted-fg">
+                                    <span class="flex items-center gap-1.5">
+                                        <i data-lucide="clock" class="w-3 h-3"></i>
+                                        3-4 PM
+                                    </span>
+                                    <span class="text-border">|</span>
+                                    <span class="flex items-center gap-1.5 font-medium text-secondary">
+                                        <i data-lucide="check-circle" class="w-3 h-3"></i>
+                                        Pedido pagado
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="openMaps('Av 68 #23-50, Zona Centro', 'Bucaramanga')" class="btn-press flex items-center gap-1.5 text-[10px] font-semibold text-muted-fg border border-border rounded-full px-3 py-1.5 hover:bg-muted transition-colors">
+                                        <i data-lucide="map" class="w-3 h-3 text-blue-600"></i>
+                                        Maps
+                                    </button>
+                                    <button class="btn-press flex items-center gap-1.5 text-[10px] font-semibold text-green-700 border border-green-200 rounded-full px-3 py-1.5 hover:bg-green-50 transition-colors">
+                                        <i data-lucide="message-circle" class="w-3 h-3"></i>
+                                        WhatsApp
+                                    </button>
+                                    <button class="btn-press flex items-center gap-1.5 text-[10px] font-semibold text-muted-fg border border-border rounded-full px-3 py-1.5 hover:bg-muted transition-colors">
+                                        <i data-lucide="phone" class="w-3 h-3"></i>
+                                        Llamar
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="px-5 pb-5">
+                                <button onclick="showView('detailPaid')" class="btn-press w-full h-12 bg-secondary text-secondary-fg rounded-2xl text-[13px] font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+                                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                                    Marcar entregado
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                <!-- ─── COMPLETADAS HOY ─── -->
+                <section class="card-enter" style="animation-delay: 0.25s">
+                    <button onclick="toggleCompletadas()" class="w-full flex items-center justify-between px-1 mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="h-2 w-2 rounded-full bg-secondary"></div>
+                            <h2 class="text-[11px] font-bold uppercase tracking-widest text-muted-fg">Completadas hoy</h2>
+                            <span class="text-[11px] font-bold text-secondary bg-emerald-50 px-2 py-0.5 rounded-full">3</span>
+                        </div>
+                        <i data-lucide="chevron-down" id="completadasChevron" class="w-4 h-4 text-muted-fg chevron-rotate"></i>
+                    </button>
+
+                    <div id="completadasBody" class="completadas-body">
+                        <div class="space-y-2 pt-1">
+                            <div class="flex items-center gap-3 bg-muted/60 rounded-xl px-4 py-3">
+                                <div class="h-7 w-7 rounded-lg bg-secondary/10 flex items-center justify-center shrink-0">
+                                    <i data-lucide="check" class="w-3.5 h-3.5 text-secondary"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[12px] font-bold">#672088</span>
+                                        <span class="text-[11px] text-muted-fg truncate">Juan Perez</span>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <p class="text-[12px] font-bold">$189.000</p>
+                                    <p class="text-[10px] text-muted-fg">10:30 AM</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 bg-muted/60 rounded-xl px-4 py-3">
+                                <div class="h-7 w-7 rounded-lg bg-secondary/10 flex items-center justify-center shrink-0">
+                                    <i data-lucide="check" class="w-3.5 h-3.5 text-secondary"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[12px] font-bold">#672082</span>
+                                        <span class="text-[11px] text-muted-fg truncate">Laura Diaz</span>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <p class="text-[12px] font-bold">$275.000</p>
+                                    <p class="text-[10px] text-muted-fg">9:45 AM</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 bg-muted/60 rounded-xl px-4 py-3">
+                                <div class="h-7 w-7 rounded-lg bg-secondary/10 flex items-center justify-center shrink-0">
+                                    <i data-lucide="check" class="w-3.5 h-3.5 text-secondary"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[12px] font-bold">#672079</span>
+                                        <span class="text-[11px] text-muted-fg truncate">Carlos Ruiz</span>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <p class="text-[12px] font-bold">$520.000</p>
+                                    <p class="text-[10px] text-muted-fg">8:15 AM</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Demo: ver modales y vistas -->
+                <section class="card-enter border-t border-dashed border-border pt-5 mt-8" style="animation-delay: 0.35s">
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-muted-fg mb-3 px-1">Demo: modales</p>
+                    <div class="flex gap-2 mb-2">
+                        <button onclick="openModal('recogerModal')" class="btn-press flex-1 h-9 border border-border rounded-xl text-[11px] font-semibold text-muted-fg hover:bg-muted transition-colors">
+                            Recoger prendas
+                        </button>
+                        <button onclick="openModal('iniciarRutaModal')" class="btn-press flex-1 h-9 border border-border rounded-xl text-[11px] font-semibold text-muted-fg hover:bg-muted transition-colors">
+                            Iniciar ruta
+                        </button>
+                        <button onclick="openModal('entregarModal')" class="btn-press flex-1 h-9 border border-border rounded-xl text-[11px] font-semibold text-muted-fg hover:bg-muted transition-colors">
+                            Marcar entregado
+                        </button>
+                    </div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-muted-fg mb-3 px-1 mt-4">Demo: nuevos flujos</p>
+                    <div class="flex gap-2 mb-2">
+                        <button onclick="openModal('anularPedidoModal')" class="btn-press flex-1 h-9 border border-red-200 rounded-xl text-[11px] font-semibold text-red-600 hover:bg-red-50 transition-colors">
+                            Anular pedido
+                        </button>
+                        <button onclick="abrirConfirmacionCobro('link')" class="btn-press flex-1 h-9 border border-violet-200 rounded-xl text-[11px] font-semibold text-violet-600 hover:bg-violet-50 transition-colors">
+                            Confirmar link
+                        </button>
+                        <button onclick="abrirConfirmacionCobro('datafono')" class="btn-press flex-1 h-9 border border-green-200 rounded-xl text-[11px] font-semibold text-green-600 hover:bg-green-50 transition-colors">
+                            Confirmar datafono
+                        </button>
+                    </div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-muted-fg mb-3 px-1 mt-4">Demo: vistas detalle</p>
+                    <div class="flex gap-2">
+                        <button onclick="showView('detail')" class="btn-press flex-1 h-9 border border-border rounded-xl text-[11px] font-semibold text-muted-fg hover:bg-muted transition-colors">
+                            Contra entrega
+                        </button>
+                        <button onclick="showView('detailPaid')" class="btn-press flex-1 h-9 border border-border rounded-xl text-[11px] font-semibold text-muted-fg hover:bg-muted transition-colors">
+                            Anticipado
+                        </button>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- VIEW 2: DETALLE ENTREGA — CONTRA ENTREGA                      -->
+    <!-- Flujo: Productos a cobrar, quitar productos, cobrar            -->
+    <!-- ============================================================= -->
+    <div id="viewDetail" class="view-transition hidden">
+        <div class="max-w-[430px] mx-auto min-h-screen bg-white shadow-2xl relative pb-28">
+
+            <!-- APP HEADER -->
+            <header class="sticky top-[38px] z-40 bg-white border-b border-border">
+                <div class="flex items-center justify-between px-4 py-3">
+                    <button class="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors">
+                        <i data-lucide="menu" class="w-5 h-5 text-primary"></i>
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <div class="h-8 w-8 rounded-full bg-secondary/10 flex items-center justify-center text-[11px] font-bold text-secondary">EQ</div>
+                        <span class="text-[12px] font-semibold">Equipo QA</span>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-muted-fg"></i>
+                    </div>
+                </div>
+                <div class="px-4 pb-2 flex items-center gap-1.5 text-[11px] text-muted-fg">
+                    <i data-lucide="home" class="w-3.5 h-3.5"></i>
+                    <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                    <span>Mis Entregas</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                    <span class="font-semibold text-primary">#672091</span>
+                </div>
+            </header>
+
+            <!-- Sticky sub-header -->
+            <div class="sticky top-[106px] z-30 bg-white border-b border-border px-4 py-3">
+                <div class="flex items-center gap-3">
+                    <button onclick="showView('list')" class="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors shrink-0">
+                        <i data-lucide="arrow-left" class="w-5 h-5 text-primary"></i>
+                    </button>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[14px] font-extrabold">Carrito #672091</span>
+                            <span class="inline-flex text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md">En ruta</span>
+                        </div>
+                        <p class="text-[12px] text-muted-fg mt-0.5">Asesor: Pedro Rodriguez</p>
+                    </div>
+                    <button class="btn-press h-8 flex items-center gap-1 text-[10px] font-semibold text-green-700 border border-green-200 rounded-lg px-2.5 hover:bg-green-50 transition-colors">
+                        <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button class="btn-press h-8 flex items-center gap-1 text-[10px] font-semibold text-muted-fg border border-border rounded-lg px-2.5 hover:bg-muted transition-colors">
+                        <i data-lucide="phone" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <main class="px-4 pt-4 space-y-5">
+
+                <!-- ─── DATOS DEL CLIENTE ─── -->
+                <section>
+                    <h3 class="text-[13px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-2 mb-3 bg-muted/60 -mx-4 px-4 py-2.5">
+                        <i data-lucide="user" class="w-4 h-4"></i>
+                        Datos del cliente
+                    </h3>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-3 text-[12px]">
+                            <span class="text-muted-fg w-16 shrink-0">Nombre</span>
+                            <span class="font-medium">Maria Lopez</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-[12px]">
+                            <span class="text-muted-fg w-16 shrink-0">Celular</span>
+                            <span class="font-medium">316 842 9301</span>
+                        </div>
+                        <button class="w-full text-left bg-muted/40 rounded-xl p-3 flex items-start gap-3 active:bg-muted transition-colors">
+                            <i data-lucide="map-pin" class="w-4 h-4 text-destructive shrink-0 mt-0.5"></i>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[12px] font-medium">Calle 80 #12-34</p>
+                                <p class="text-[10px] text-muted-fg">Zona Norte, Bucaramanga</p>
+                            </div>
+                            <i data-lucide="navigation" class="w-4 h-4 text-primary shrink-0"></i>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- ─── OBSERVACIONES ─── -->
+                <section>
+                    <h3 class="text-[13px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-2 mb-3 bg-muted/60 -mx-4 px-4 py-2.5">
+                        <i data-lucide="sticky-note" class="w-4 h-4"></i>
+                        Observaciones
+                    </h3>
+                    <div class="bg-muted/40 rounded-xl p-3 flex items-start gap-3">
+                        <i data-lucide="alert-circle" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+                        <p class="text-[12px] text-muted-fg leading-relaxed">"Lleva S y M para que pruebe, solo se queda con una"</p>
+                    </div>
+                </section>
+
+                <!-- ─── ESTADO DEL PEDIDO ─── -->
+                <section>
+                    <h3 class="text-[13px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-2 mb-3 bg-muted/60 -mx-4 px-4 py-2.5">
+                        <i data-lucide="git-branch" class="w-4 h-4"></i>
+                        Estado del pedido
+                    </h3>
+                    <div class="relative">
+                        <div class="absolute left-[15px] top-4 bottom-4 w-[2px] bg-border"></div>
+
+                        <div class="space-y-0">
+                            <!-- Step 1: Creacion (done) -->
+                            <div class="relative flex items-start gap-4 pb-5">
+                                <div class="h-[30px] w-[30px] rounded-full bg-emerald-50 border-2 border-secondary flex items-center justify-center z-10 shrink-0">
+                                    <i data-lucide="check" class="w-3.5 h-3.5 text-secondary"></i>
+                                </div>
+                                <div class="pt-1">
+                                    <p class="text-[11px] font-bold">Orden de compra creada</p>
+                                    <p class="text-[10px] text-muted-fg">Hoy 8:45 AM &middot; Asesor: Pedro R.</p>
+                                </div>
+                            </div>
+
+                            <!-- Step 2: Recogida (done) -->
+                            <div class="relative flex items-start gap-4 pb-5">
+                                <div class="h-[30px] w-[30px] rounded-full bg-emerald-50 border-2 border-secondary flex items-center justify-center z-10 shrink-0">
+                                    <i data-lucide="check" class="w-3.5 h-3.5 text-secondary"></i>
+                                </div>
+                                <div class="pt-1">
+                                    <p class="text-[11px] font-bold">Prendas recogidas</p>
+                                    <p class="text-[10px] text-muted-fg">Hoy 11:20 AM &middot; 3 productos recogidos</p>
+                                </div>
+                            </div>
+
+                            <!-- Step 3: En ruta (done) -->
+                            <div class="relative flex items-start gap-4 pb-5">
+                                <div class="h-[30px] w-[30px] rounded-full bg-emerald-50 border-2 border-secondary flex items-center justify-center z-10 shrink-0">
+                                    <i data-lucide="check" class="w-3.5 h-3.5 text-secondary"></i>
+                                </div>
+                                <div class="pt-1">
+                                    <p class="text-[11px] font-bold">En ruta</p>
+                                    <p class="text-[10px] text-muted-fg">Hoy 1:50 PM &middot; Cliente notificado</p>
+                                </div>
+                            </div>
+
+                            <!-- Step 4: Cobro (pending) -->
+                            <div class="relative flex items-start gap-4 pb-5">
+                                <div class="h-[30px] w-[30px] rounded-full bg-muted border-2 border-border flex items-center justify-center z-10 shrink-0">
+                                    <i data-lucide="credit-card" class="w-3.5 h-3.5 text-muted-fg/40"></i>
+                                </div>
+                                <div class="pt-1">
+                                    <p class="text-[11px] font-bold text-muted-fg">Cobro</p>
+                                    <p class="text-[10px] text-muted-fg/60">Contra entrega &middot; Pendiente</p>
+                                </div>
+                            </div>
+
+                            <!-- Step 5: Entrega (pending) -->
+                            <div class="relative flex items-start gap-4">
+                                <div class="h-[30px] w-[30px] rounded-full bg-muted border-2 border-border flex items-center justify-center z-10 shrink-0">
+                                    <i data-lucide="package-check" class="w-3.5 h-3.5 text-muted-fg/40"></i>
+                                </div>
+                                <div class="pt-1">
+                                    <p class="text-[11px] font-bold text-muted-fg">Entrega</p>
+                                    <p class="text-[10px] text-muted-fg/60">Se marca al facturar</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ─── PRODUCTOS A COBRAR ─── -->
+                <section>
+                    <h3 class="text-[13px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-2 mb-3 bg-muted/60 -mx-4 px-4 py-2.5">
+                        <i data-lucide="package" class="w-4 h-4"></i>
+                        Productos a cobrar
+                        <span class="text-[11px] text-primary bg-muted px-2 py-0.5 rounded-full" id="countCobrar">3</span>
+                    </h3>
+
+                    <div class="space-y-2" id="productosCobrar">
+                        <!-- Producto 1 -->
+                        <div class="bg-white border border-border rounded-xl p-3 flex items-center gap-3" id="prod1">
+                            <div class="h-14 w-14 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                                <i data-lucide="shirt" class="w-6 h-6 text-blue-400"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[12px] font-semibold truncate">Camisa Slim Fit Azul</p>
+                                <p class="text-[10px] text-muted-fg font-mono">M &middot; Azul &middot; STR-CSF-001</p>
+                                <p class="text-[13px] font-bold mt-1">$150.000</p>
+                            </div>
+                            <button onclick="moverADevolver('prod1', 'dev1')" class="h-8 w-8 rounded-lg border border-red-200 flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors shrink-0">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Producto 2 -->
+                        <div class="bg-white border border-border rounded-xl p-3 flex items-center gap-3" id="prod2">
+                            <div class="h-14 w-14 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                                <i data-lucide="scissors" class="w-6 h-6 text-gray-400"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[12px] font-semibold truncate">Jean Skinny Negro</p>
+                                <p class="text-[10px] text-muted-fg font-mono">32 &middot; Negro &middot; STR-JSK-047</p>
+                                <p class="text-[13px] font-bold mt-1">$180.000</p>
+                            </div>
+                            <button onclick="moverADevolver('prod2', 'dev2')" class="h-8 w-8 rounded-lg border border-red-200 flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors shrink-0">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Producto 3 -->
+                        <div class="bg-white border border-border rounded-xl p-3 flex items-center gap-3" id="prod3">
+                            <div class="h-14 w-14 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
+                                <i data-lucide="footprints" class="w-6 h-6 text-orange-300"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[12px] font-semibold truncate">Zapato Oxford Cafe</p>
+                                <p class="text-[10px] text-muted-fg font-mono">42 &middot; Cafe &middot; U82-ZOX-112</p>
+                                <p class="text-[13px] font-bold mt-1">$120.000</p>
+                            </div>
+                            <button onclick="moverADevolver('prod3', 'dev3')" class="h-8 w-8 rounded-lg border border-red-200 flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors shrink-0">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ─── PRODUCTOS A DEVOLVER ─── -->
+                <section id="seccionDevolver" class="hidden">
+                    <h3 class="text-[13px] font-extrabold uppercase tracking-wider text-orange-700 flex items-center gap-2 mb-3 bg-orange-50 -mx-4 px-4 py-2.5">
+                        <i data-lucide="undo-2" class="w-4 h-4"></i>
+                        Productos a devolver
+                        <span class="text-[11px] text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full" id="countDevolver">0</span>
+                    </h3>
+
+                    <div class="space-y-2" id="productosDevolver">
+                        <!-- Producto devuelto 1 (hidden) -->
+                        <div class="bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center gap-3 hidden" id="dev1">
+                            <div class="h-14 w-14 rounded-lg bg-orange-100/50 flex items-center justify-center shrink-0 opacity-50">
+                                <i data-lucide="shirt" class="w-6 h-6 text-orange-300"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[12px] font-semibold truncate text-orange-800">Camisa Slim Fit Azul</p>
+                                <p class="text-[10px] text-orange-600 font-mono">M &middot; Azul &middot; STR-CSF-001</p>
+                                <p class="text-[13px] font-bold mt-1 text-orange-700 line-through">$150.000</p>
+                            </div>
+                            <button onclick="restaurarProducto('prod1', 'dev1')" class="h-8 w-8 rounded-lg border border-green-200 flex items-center justify-center text-green-600 hover:bg-green-50 transition-colors shrink-0">
+                                <i data-lucide="undo-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Producto devuelto 2 (hidden) -->
+                        <div class="bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center gap-3 hidden" id="dev2">
+                            <div class="h-14 w-14 rounded-lg bg-orange-100/50 flex items-center justify-center shrink-0 opacity-50">
+                                <i data-lucide="scissors" class="w-6 h-6 text-orange-300"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[12px] font-semibold truncate text-orange-800">Jean Skinny Negro</p>
+                                <p class="text-[10px] text-orange-600 font-mono">32 &middot; Negro &middot; STR-JSK-047</p>
+                                <p class="text-[13px] font-bold mt-1 text-orange-700 line-through">$180.000</p>
+                            </div>
+                            <button onclick="restaurarProducto('prod2', 'dev2')" class="h-8 w-8 rounded-lg border border-green-200 flex items-center justify-center text-green-600 hover:bg-green-50 transition-colors shrink-0">
+                                <i data-lucide="undo-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Producto devuelto 3 (hidden) -->
+                        <div class="bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center gap-3 hidden" id="dev3">
+                            <div class="h-14 w-14 rounded-lg bg-orange-100/50 flex items-center justify-center shrink-0 opacity-50">
+                                <i data-lucide="footprints" class="w-6 h-6 text-orange-300"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[12px] font-semibold truncate text-orange-800">Zapato Oxford Cafe</p>
+                                <p class="text-[10px] text-orange-600 font-mono">42 &middot; Cafe &middot; U82-ZOX-112</p>
+                                <p class="text-[13px] font-bold mt-1 text-orange-700 line-through">$120.000</p>
+                            </div>
+                            <button onclick="restaurarProducto('prod3', 'dev3')" class="h-8 w-8 rounded-lg border border-green-200 flex items-center justify-center text-green-600 hover:bg-green-50 transition-colors shrink-0">
+                                <i data-lucide="undo-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ─── RESUMEN ─── -->
+                <section>
+                    <h3 class="text-[13px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-2 mb-3 bg-muted/60 -mx-4 px-4 py-2.5">
+                        <i data-lucide="receipt" class="w-4 h-4"></i>
+                        Resumen
+                    </h3>
+                    <div class="bg-muted/40 rounded-xl p-4 space-y-2">
+                        <div class="flex justify-between text-[12px]">
+                            <span class="text-muted-fg">Subtotal (<span id="resumenCount">3</span> productos)</span>
+                            <span class="font-semibold" id="resumenSubtotal">$450.000</span>
+                        </div>
+                        <div class="flex justify-between text-[12px]">
+                            <span class="text-muted-fg">Envio</span>
+                            <span class="font-semibold text-secondary">Gratis</span>
+                        </div>
+                        <hr class="border-border" />
+                        <div class="flex justify-between text-[14px]">
+                            <span class="font-bold">TOTAL A COBRAR</span>
+                            <span class="font-extrabold text-primary" id="resumenTotal">$450.000</span>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+
+            <!-- Fixed footer: COBRAR / ANULAR -->
+            <div class="fixed bottom-0 left-0 right-0 z-30">
+                <div class="max-w-[430px] mx-auto bg-white border-t border-border px-4 py-4">
+                    <!-- Boton COBRAR (visible cuando hay productos activos) -->
+                    <button id="btnCobrar" onclick="openModal('paymentMethodModal')" class="btn-press w-full h-14 bg-primary text-primary-fg rounded-xl text-[15px] font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
+                        <i data-lucide="credit-card" class="w-5 h-5"></i>
+                        COBRAR <span id="cobrarTotal">$450.000</span>
+                    </button>
+                    <!-- Boton ANULAR (visible cuando todos los productos fueron devueltos) -->
+                    <button id="btnAnular" onclick="openModal('anularPedidoModal')" class="btn-press w-full h-14 bg-destructive text-white rounded-xl text-[15px] font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity hidden">
+                        <i data-lucide="package-x" class="w-5 h-5"></i>
+                        Anular pedido — devolver todo
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- VIEW 3: DETALLE ENTREGA — ANTICIPADO (solo marcar entregado)   -->
+    <!-- ============================================================= -->
+    <div id="viewDetailPaid" class="view-transition hidden">
+        <div class="max-w-[430px] mx-auto min-h-screen bg-white shadow-2xl relative pb-28">
+
+            <!-- APP HEADER -->
+            <header class="sticky top-[38px] z-40 bg-white border-b border-border">
+                <div class="flex items-center justify-between px-4 py-3">
+                    <button class="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted transition-colors">
+                        <i data-lucide="menu" class="w-5 h-5 text-primary"></i>
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <div class="h-8 w-8 rounded-full bg-secondary/10 flex items-center justify-center text-[11px] font-bold text-secondary">EQ</div>
+                        <span class="text-[12px] font-semibold">Equipo QA</span>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-muted-fg"></i>
+                    </div>
+                </div>
+                <div class="px-4 pb-2 flex items-center gap-1.5 text-[11px] text-muted-fg">
+                    <i data-lucide="home" class="w-3.5 h-3.5"></i>
+                    <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                    <span>Mis Entregas</span>
+                    <i data-lucide="chevron-right" class="w-3 h-3"></i>
+                    <span class="font-semibold text-primary">#672095</span>
+                </div>
+            </header>
+
+            <!-- Sticky sub-header -->
+            <div class="sticky top-[106px] z-30 bg-white border-b border-border px-4 py-3">
+                <div class="flex items-center gap-3">
+                    <button onclick="showView('list')" class="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors shrink-0">
+                        <i data-lucide="arrow-left" class="w-5 h-5 text-primary"></i>
+                    </button>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[14px] font-extrabold">Carrito #672095</span>
+                            <span class="inline-flex text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md">En ruta</span>
+                        </div>
+                        <p class="text-[12px] text-muted-fg mt-0.5">Asesor: Laura Martinez</p>
+                    </div>
+                    <button class="btn-press h-8 flex items-center text-[10px] font-semibold text-green-700 border border-green-200 rounded-lg px-2.5 hover:bg-green-50 transition-colors">
+                        <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button class="btn-press h-8 flex items-center text-[10px] font-semibold text-muted-fg border border-border rounded-lg px-2.5 hover:bg-muted transition-colors">
+                        <i data-lucide="phone" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <main class="px-4 pt-4 space-y-5">
+
+                <!-- ─── DATOS DEL CLIENTE ─── -->
+                <section>
+                    <h3 class="text-[13px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-2 mb-3 bg-muted/60 -mx-4 px-4 py-2.5">
+                        <i data-lucide="user" class="w-4 h-4"></i>
+                        Datos del cliente
+                    </h3>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-3 text-[12px]">
+                            <span class="text-muted-fg w-16 shrink-0">Nombre</span>
+                            <span class="font-medium">Ana Garcia</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-[12px]">
+                            <span class="text-muted-fg w-16 shrink-0">Celular</span>
+                            <span class="font-medium">311 456 7890</span>
+                        </div>
+                        <button class="w-full text-left bg-muted/40 rounded-xl p-3 flex items-start gap-3 active:bg-muted transition-colors">
+                            <i data-lucide="map-pin" class="w-4 h-4 text-destructive shrink-0 mt-0.5"></i>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[12px] font-medium">Av 68 #23-50</p>
+                                <p class="text-[10px] text-muted-fg">Zona Centro, Bucaramanga</p>
+                            </div>
+                            <i data-lucide="navigation" class="w-4 h-4 text-primary shrink-0"></i>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- ─── ESTADO DEL PEDIDO ─── -->
+                <section>
+                    <h3 class="text-[13px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-2 mb-3 bg-muted/60 -mx-4 px-4 py-2.5">
+                        <i data-lucide="git-branch" class="w-4 h-4"></i>
+                        Estado del pedido
+                    </h3>
+                    <div class="relative">
+                        <div class="absolute left-[15px] top-4 bottom-4 w-[2px] bg-border"></div>
+
+                        <div class="space-y-0">
+                            <!-- Step 1: Creacion (done) -->
+                            <div class="relative flex items-start gap-4 pb-5">
+                                <div class="h-[30px] w-[30px] rounded-full bg-emerald-50 border-2 border-secondary flex items-center justify-center z-10 shrink-0">
+                                    <i data-lucide="check" class="w-3.5 h-3.5 text-secondary"></i>
+                                </div>
+                                <div class="pt-1">
+                                    <p class="text-[11px] font-bold">Orden de compra creada</p>
+                                    <p class="text-[10px] text-muted-fg">Hoy 9:15 AM &middot; Asesor: Laura M.</p>
+                                </div>
+                            </div>
+
+                            <!-- Step 2: Pago (done) -->
+                            <div class="relative flex items-start gap-4 pb-5">
+                                <div class="h-[30px] w-[30px] rounded-full bg-emerald-50 border-2 border-secondary flex items-center justify-center z-10 shrink-0">
+                                    <i data-lucide="check" class="w-3.5 h-3.5 text-secondary"></i>
+                                </div>
+                                <div class="pt-1">
+                                    <p class="text-[11px] font-bold">Pago confirmado</p>
+                                    <p class="text-[10px] text-muted-fg">Hoy 10:02 AM &middot; Link de pago &middot; Ref: PSE-8847291</p>
+                                </div>
+                            </div>
+
+                            <!-- Step 3: Recogida (done) -->
+                            <div class="relative flex items-start gap-4 pb-5">
+                                <div class="h-[30px] w-[30px] rounded-full bg-emerald-50 border-2 border-secondary flex items-center justify-center z-10 shrink-0">
+                                    <i data-lucide="check" class="w-3.5 h-3.5 text-secondary"></i>
+                                </div>
+                                <div class="pt-1">
+                                    <p class="text-[11px] font-bold">Prendas recogidas</p>
+                                    <p class="text-[10px] text-muted-fg">Hoy 1:45 PM &middot; 2 productos recogidos</p>
+                                </div>
+                            </div>
+
+                            <!-- Step 4: En ruta (done) -->
+                            <div class="relative flex items-start gap-4 pb-5">
+                                <div class="h-[30px] w-[30px] rounded-full bg-emerald-50 border-2 border-secondary flex items-center justify-center z-10 shrink-0">
+                                    <i data-lucide="check" class="w-3.5 h-3.5 text-secondary"></i>
+                                </div>
+                                <div class="pt-1">
+                                    <p class="text-[11px] font-bold">En ruta</p>
+                                    <p class="text-[10px] text-muted-fg">Hoy 2:30 PM &middot; Cliente notificado</p>
+                                </div>
+                            </div>
+
+                            <!-- Step 5: Entrega (pending) -->
+                            <div class="relative flex items-start gap-4">
+                                <div class="h-[30px] w-[30px] rounded-full bg-muted border-2 border-border flex items-center justify-center z-10 shrink-0">
+                                    <i data-lucide="package-check" class="w-3.5 h-3.5 text-muted-fg/40"></i>
+                                </div>
+                                <div class="pt-1">
+                                    <p class="text-[11px] font-bold text-muted-fg">Entrega</p>
+                                    <p class="text-[10px] text-muted-fg/60">Pendiente</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Productos (solo lectura, no X button) -->
+                <section>
+                    <h3 class="text-[13px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-2 mb-3 bg-muted/60 -mx-4 px-4 py-2.5">
+                        <i data-lucide="package" class="w-4 h-4"></i>
+                        Productos
+                        <span class="text-[11px] text-primary bg-muted px-2 py-0.5 rounded-full">2</span>
+                    </h3>
+
+                    <div class="space-y-2">
+                        <div class="bg-white border border-border rounded-xl p-3 flex items-center gap-3">
+                            <div class="h-14 w-14 rounded-lg bg-pink-50 flex items-center justify-center shrink-0">
+                                <i data-lucide="shirt" class="w-6 h-6 text-pink-300"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[12px] font-semibold truncate">Blusa Crop Blanca</p>
+                                <p class="text-[10px] text-muted-fg font-mono">S &middot; Blanco &middot; STR-BCR-088</p>
+                                <p class="text-[13px] font-bold mt-1">$160.000</p>
+                            </div>
+                        </div>
+                        <div class="bg-white border border-border rounded-xl p-3 flex items-center gap-3">
+                            <div class="h-14 w-14 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                                <i data-lucide="shirt" class="w-6 h-6 text-gray-400"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[12px] font-semibold truncate">Falda Plisada Negra</p>
+                                <p class="text-[10px] text-muted-fg font-mono">M &middot; Negro &middot; STR-FPL-022</p>
+                                <p class="text-[13px] font-bold mt-1">$160.000</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ─── RESUMEN ─── -->
+                <section>
+                    <h3 class="text-[13px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-2 mb-3 bg-muted/60 -mx-4 px-4 py-2.5">
+                        <i data-lucide="receipt" class="w-4 h-4"></i>
+                        Resumen
+                    </h3>
+                    <div class="bg-muted/40 rounded-xl p-4 space-y-2">
+                        <div class="flex justify-between text-[12px]">
+                            <span class="text-muted-fg">Subtotal (2 productos)</span>
+                            <span class="font-semibold">$320.000</span>
+                        </div>
+                        <div class="flex justify-between text-[12px]">
+                            <span class="text-muted-fg">Envio</span>
+                            <span class="font-semibold text-secondary">Gratis</span>
+                        </div>
+                        <hr class="border-border" />
+                        <div class="flex justify-between text-[14px]">
+                            <span class="font-bold">TOTAL</span>
+                            <span class="font-extrabold text-primary">$320.000</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ─── EVIDENCIA ─── -->
+                <section>
+                    <h3 class="text-[13px] font-extrabold uppercase tracking-wider text-primary flex items-center gap-2 mb-3 bg-muted/60 -mx-4 px-4 py-2.5">
+                        <i data-lucide="camera" class="w-4 h-4"></i>
+                        Evidencia de entrega
+                        <span class="text-[10px] font-normal text-muted-fg">(opcional)</span>
+                    </h3>
+                    <div id="photoArea2" class="photo-area rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer" onclick="document.getElementById('photoInput2').click()">
+                        <div class="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                            <i data-lucide="camera" class="w-6 h-6 text-muted-fg"></i>
+                        </div>
+                        <p class="text-[12px] font-semibold text-muted-fg">Tomar foto o seleccionar</p>
+                        <p class="text-[10px] text-muted-fg/70">Evidencia de entrega al cliente</p>
+                    </div>
+                    <div id="photoPreview2" class="hidden relative">
+                        <img id="photoImg2" src="" alt="Evidencia" class="w-full h-40 object-cover rounded-xl border border-border" />
+                        <button onclick="removePhoto2()" class="absolute top-2 right-2 h-7 w-7 rounded-lg bg-black/60 flex items-center justify-center hover:bg-black/80 transition-colors">
+                            <i data-lucide="x" class="w-4 h-4 text-white"></i>
+                        </button>
+                    </div>
+                    <input type="file" id="photoInput2" accept="image/*" capture="environment" class="hidden" onchange="handlePhoto2(this)" />
+                </section>
+            </main>
+
+            <!-- Fixed footer: Marcar entregado -->
+            <div class="fixed bottom-0 left-0 right-0 z-30">
+                <div class="max-w-[430px] mx-auto bg-white border-t border-border px-4 py-4">
+                    <button onclick="openModal('confirmEntregaModal')" class="btn-press w-full h-14 bg-secondary text-secondary-fg rounded-xl text-[15px] font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+                        <i data-lucide="check-circle" class="w-5 h-5"></i>
+                        Marcar entregado
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- MODAL: RECOGER PRENDAS (2 estados: stock → exito)     -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="recogerModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0" onclick="closeRecogerModal()"></div>
+        <div class="absolute inset-x-0 bottom-0 max-w-[430px] mx-auto">
+            <div class="modal-content bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto">
+
+                <!-- ═══ ESTADO 1: Vista de stock por tienda ═══ -->
+                <div id="recogerStep1">
+                    <!-- Modal header -->
+                    <div class="sticky top-0 bg-white px-5 pt-5 pb-3 border-b border-border z-10">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                                    <i data-lucide="package" class="w-5 h-5 text-amber-700"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-[14px] font-bold">Recoger prendas</h3>
+                                    <p class="text-[11px] text-muted-fg">Pedido #672091 &middot; 3 productos</p>
+                                </div>
+                            </div>
+                            <button onclick="closeRecogerModal()" class="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors">
+                                <i data-lucide="x" class="w-4 h-4 text-muted-fg"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Modal body: productos con stock -->
+                    <div class="px-5 py-4 space-y-3">
+
+                        <!-- Product 1 -->
+                        <div class="border border-border rounded-2xl overflow-hidden">
+                            <div class="bg-muted px-4 py-3 flex items-center gap-3 border-b border-border">
+                                <div class="h-9 w-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                                    <i data-lucide="shirt" class="w-4 h-4 text-blue-600"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-[12px] font-bold truncate">Camisa Slim Fit Azul</p>
+                                    <p class="text-[10px] text-muted-fg font-mono">STR-CSF-001 &middot; Talla M &middot; Azul</p>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="px-4 py-1.5 bg-white">
+                                    <p class="text-[9px] font-bold uppercase tracking-widest text-muted-fg">Disponible en</p>
+                                </div>
+                                <div class="stock-row flex items-center gap-3 px-4 py-2.5 border-t border-border/40">
+                                    <i data-lucide="store" class="w-3.5 h-3.5 text-muted-fg shrink-0"></i>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-[11px] font-semibold truncate">STIRPE CABECERA</p>
+                                        <p class="text-[10px] text-muted-fg truncate">Calle 49 #34-43</p>
+                                    </div>
+                                    <span class="text-[11px] font-bold text-secondary bg-emerald-50 px-2 py-0.5 rounded-md shrink-0">3</span>
+                                </div>
+                                <div class="stock-row flex items-center gap-3 px-4 py-2.5 border-t border-border/40">
+                                    <i data-lucide="store" class="w-3.5 h-3.5 text-muted-fg shrink-0"></i>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-[11px] font-semibold truncate">STIRPE CACIQUE</p>
+                                        <p class="text-[10px] text-muted-fg truncate">CC Cacique Lc 335</p>
+                                    </div>
+                                    <span class="text-[11px] font-bold text-secondary bg-emerald-50 px-2 py-0.5 rounded-md shrink-0">1</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Product 2 -->
+                        <div class="border border-border rounded-2xl overflow-hidden">
+                            <div class="bg-muted px-4 py-3 flex items-center gap-3 border-b border-border">
+                                <div class="h-9 w-9 rounded-lg bg-gray-200 flex items-center justify-center shrink-0">
+                                    <i data-lucide="scissors" class="w-4 h-4 text-gray-600"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-[12px] font-bold truncate">Jean Skinny Negro</p>
+                                    <p class="text-[10px] text-muted-fg font-mono">STR-JSK-047 &middot; Talla 32 &middot; Negro</p>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="px-4 py-1.5 bg-white">
+                                    <p class="text-[9px] font-bold uppercase tracking-widest text-muted-fg">Disponible en</p>
+                                </div>
+                                <div class="stock-row flex items-center gap-3 px-4 py-2.5 border-t border-border/40">
+                                    <i data-lucide="store" class="w-3.5 h-3.5 text-muted-fg shrink-0"></i>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-[11px] font-semibold truncate">DEREK IV ETAPA</p>
+                                        <p class="text-[10px] text-muted-fg truncate">CC Cab IV Et Lc 402</p>
+                                    </div>
+                                    <span class="text-[11px] font-bold text-secondary bg-emerald-50 px-2 py-0.5 rounded-md shrink-0">2</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Product 3 -->
+                        <div class="border border-border rounded-2xl overflow-hidden">
+                            <div class="bg-muted px-4 py-3 flex items-center gap-3 border-b border-border">
+                                <div class="h-9 w-9 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                                    <i data-lucide="footprints" class="w-4 h-4 text-orange-600"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-[12px] font-bold truncate">Zapato Oxford Cafe</p>
+                                    <p class="text-[10px] text-muted-fg font-mono">U82-ZOX-112 &middot; Talla 42 &middot; Cafe</p>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="px-4 py-1.5 bg-white">
+                                    <p class="text-[9px] font-bold uppercase tracking-widest text-muted-fg">Disponible en</p>
+                                </div>
+                                <div class="stock-row flex items-center gap-3 px-4 py-2.5 border-t border-border/40">
+                                    <i data-lucide="store" class="w-3.5 h-3.5 text-muted-fg shrink-0"></i>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-[11px] font-semibold truncate">U82 SHOES CACIQUE</p>
+                                        <p class="text-[10px] text-muted-fg truncate">CC Cacique Lc 156-157</p>
+                                    </div>
+                                    <span class="text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md shrink-0">1</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal footer -->
+                    <div class="sticky bottom-0 bg-white px-5 py-4 border-t border-border flex gap-3">
+                        <button onclick="closeRecogerModal()" class="btn-press flex-1 h-11 border border-border rounded-xl text-[13px] font-bold text-muted-fg hover:bg-muted transition-colors">
+                            Cancelar
+                        </button>
+                        <button onclick="recogerGoToStep(2)" class="btn-press flex-[2] h-11 bg-primary text-primary-fg rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            Confirmar recogida
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ═══ ESTADO 2: Confirmacion antes de enviar ═══ -->
+                <div id="recogerStep2" class="hidden">
+                    <div class="px-5 pt-6 pb-2 flex flex-col items-center text-center">
+                        <!-- Icon -->
+                        <div class="h-14 w-14 rounded-full bg-amber-100 border-2 border-amber-400 flex items-center justify-center mb-4">
+                            <i data-lucide="package-check" class="w-7 h-7 text-amber-700"></i>
+                        </div>
+
+                        <h3 class="text-[16px] font-extrabold tracking-tight mb-1">&iquest;Recogiste todas las prendas?</h3>
+                        <p class="text-[12px] text-muted-fg mb-5">Pedido #672091 &middot; 3 productos</p>
+
+                        <!-- Lista de productos a confirmar -->
+                        <div class="w-full bg-muted/50 rounded-2xl p-4 mb-5 text-left space-y-2">
+                            <div class="flex items-center gap-3">
+                                <div class="h-7 w-7 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                                    <i data-lucide="shirt" class="w-3.5 h-3.5 text-blue-600"></i>
+                                </div>
+                                <p class="text-[11px] font-semibold flex-1 truncate">Camisa Slim Fit Azul <span class="font-normal text-muted-fg">(M)</span></p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="h-7 w-7 rounded-lg bg-gray-200 flex items-center justify-center shrink-0">
+                                    <i data-lucide="scissors" class="w-3.5 h-3.5 text-gray-600"></i>
+                                </div>
+                                <p class="text-[11px] font-semibold flex-1 truncate">Jean Skinny Negro <span class="font-normal text-muted-fg">(32)</span></p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="h-7 w-7 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                                    <i data-lucide="footprints" class="w-3.5 h-3.5 text-orange-600"></i>
+                                </div>
+                                <p class="text-[11px] font-semibold flex-1 truncate">Zapato Oxford Cafe <span class="font-normal text-muted-fg">(42)</span></p>
+                            </div>
+                        </div>
+
+                        <!-- Aviso -->
+                        <div class="w-full bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5 mb-5 text-left">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+                            <p class="text-[11px] text-amber-800 leading-relaxed">
+                                Al confirmar, el pedido pasara a estado <strong>&laquo;Recogida&raquo;</strong> y podras iniciar la ruta de entrega.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="px-5 pb-5 flex gap-3">
+                        <button onclick="recogerGoToStep(1)" class="btn-press flex-1 h-11 border border-border rounded-xl text-[13px] font-bold text-muted-fg hover:bg-muted transition-colors">
+                            Volver
+                        </button>
+                        <button onclick="confirmarRecogida()" class="btn-press flex-[2] h-11 bg-primary text-primary-fg rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            Si, confirmar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ═══ ESTADO 3: Confirmacion exitosa ═══ -->
+                <div id="recogerStep3" class="hidden">
+                    <div class="px-5 py-8 flex flex-col items-center text-center">
+
+                        <!-- Animated check -->
+                        <div class="relative mb-5">
+                            <div class="h-20 w-20 rounded-full bg-emerald-50 border-2 border-secondary flex items-center justify-center" style="animation: successPop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards">
+                                <i data-lucide="package-check" class="w-9 h-9 text-secondary"></i>
+                            </div>
+                        </div>
+
+                        <!-- Title -->
+                        <h3 class="text-[18px] font-extrabold tracking-tight mb-1">Recogida confirmada</h3>
+                        <p class="text-[12px] text-muted-fg mb-6">Pedido #672091 &middot; Maria Lopez</p>
+
+                        <!-- Resumen de productos recogidos -->
+                        <div class="w-full bg-muted/50 rounded-2xl p-4 mb-5 text-left space-y-2.5">
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-muted-fg">Productos recogidos</p>
+                            <div class="flex items-center gap-3">
+                                <div class="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                                    <i data-lucide="shirt" class="w-3.5 h-3.5 text-blue-600"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-[11px] font-semibold truncate">Camisa Slim Fit Azul</p>
+                                    <p class="text-[10px] text-muted-fg">M &middot; Azul</p>
+                                </div>
+                                <i data-lucide="check-circle" class="w-4 h-4 text-secondary shrink-0"></i>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="h-8 w-8 rounded-lg bg-gray-200 flex items-center justify-center shrink-0">
+                                    <i data-lucide="scissors" class="w-3.5 h-3.5 text-gray-600"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-[11px] font-semibold truncate">Jean Skinny Negro</p>
+                                    <p class="text-[10px] text-muted-fg">32 &middot; Negro</p>
+                                </div>
+                                <i data-lucide="check-circle" class="w-4 h-4 text-secondary shrink-0"></i>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="h-8 w-8 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                                    <i data-lucide="footprints" class="w-3.5 h-3.5 text-orange-600"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-[11px] font-semibold truncate">Zapato Oxford Cafe</p>
+                                    <p class="text-[10px] text-muted-fg">42 &middot; Cafe</p>
+                                </div>
+                                <i data-lucide="check-circle" class="w-4 h-4 text-secondary shrink-0"></i>
+                            </div>
+                        </div>
+
+                        <!-- Siguiente paso -->
+                        <div class="w-full bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2.5 mb-6 text-left">
+                            <i data-lucide="info" class="w-4 h-4 text-blue-600 shrink-0 mt-0.5"></i>
+                            <p class="text-[11px] text-blue-800 leading-relaxed">
+                                Cuando estes listo para salir, presiona <strong>&laquo;Iniciar ruta&raquo;</strong> en la tarjeta del pedido para notificar al cliente.
+                            </p>
+                        </div>
+
+                        <!-- Boton cerrar -->
+                        <button onclick="closeRecogerModal()" class="btn-press w-full h-12 bg-primary text-primary-fg rounded-2xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
+                            Entendido
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- MODAL: MARCAR ENTREGADO (desde lista, pago anticipado) -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="entregarModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0" onclick="closeModal('entregarModal')"></div>
+        <div class="absolute inset-x-0 bottom-0 max-w-[430px] mx-auto">
+            <div class="modal-content bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto">
+                <div class="sticky top-0 bg-white px-5 pt-5 pb-3 border-b border-border z-10">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                <i data-lucide="package-check" class="w-5 h-5 text-secondary"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-[14px] font-bold">Confirmar entrega</h3>
+                                <p class="text-[11px] text-muted-fg">Pedido #672095 &middot; Ana Garcia</p>
+                            </div>
+                        </div>
+                        <button onclick="closeModal('entregarModal')" class="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors">
+                            <i data-lucide="x" class="w-4 h-4 text-muted-fg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="px-5 py-4 space-y-4">
+                    <div class="bg-muted/50 rounded-xl p-4 space-y-2">
+                        <div class="flex justify-between text-[12px]">
+                            <span class="text-muted-fg">Productos</span>
+                            <span class="font-semibold">2 productos</span>
+                        </div>
+                        <div class="flex justify-between text-[12px]">
+                            <span class="text-muted-fg">Tipo cobro</span>
+                            <span class="font-semibold text-secondary">Pago anticipado</span>
+                        </div>
+                        <hr class="border-border" />
+                        <div class="flex justify-between text-[13px]">
+                            <span class="font-bold">Total</span>
+                            <span class="font-extrabold text-primary">$320.000</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-2">
+                        <i data-lucide="check-circle" class="w-4 h-4 text-secondary shrink-0"></i>
+                        <p class="text-[11px] text-secondary font-medium">Pago anticipado confirmado</p>
+                    </div>
+
+                    <!-- Foto de evidencia -->
+                    <div class="space-y-2">
+                        <label class="text-[12px] font-bold flex items-center gap-1.5">
+                            <i data-lucide="camera" class="w-3.5 h-3.5 text-muted-fg"></i>
+                            Foto de entrega
+                            <span class="text-[10px] font-normal text-muted-fg">(opcional)</span>
+                        </label>
+                        <div id="photoUploadEmpty" class="photo-area rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer" onclick="document.getElementById('photoInput').click()">
+                            <div class="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                                <i data-lucide="camera" class="w-6 h-6 text-muted-fg"></i>
+                            </div>
+                            <p class="text-[12px] font-semibold text-muted-fg">Tomar foto o seleccionar</p>
+                            <p class="text-[10px] text-muted-fg/70">Evidencia de entrega al cliente</p>
+                        </div>
+                        <div id="photoUploadFull" class="hidden relative">
+                            <img id="photoPreview" src="" alt="Evidencia" class="w-full h-40 object-cover rounded-xl border border-border" />
+                            <button onclick="removePhoto()" class="absolute top-2 right-2 h-7 w-7 rounded-lg bg-black/60 flex items-center justify-center hover:bg-black/80 transition-colors">
+                                <i data-lucide="x" class="w-4 h-4 text-white"></i>
+                            </button>
+                        </div>
+                        <input type="file" id="photoInput" accept="image/*" capture="environment" class="hidden" onchange="handlePhoto(this)" />
+                    </div>
+
+                    <p class="text-[13px] text-center text-muted-fg font-medium">
+                        &iquest;Confirmas que entregaste el pedido?
+                    </p>
+                </div>
+
+                <div class="sticky bottom-0 bg-white px-5 py-4 border-t border-border flex gap-3">
+                    <button onclick="closeModal('entregarModal')" class="btn-press flex-1 h-11 border border-border rounded-xl text-[13px] font-bold text-muted-fg hover:bg-muted transition-colors">
+                        Cancelar
+                    </button>
+                    <button onclick="closeModal('entregarModal')" class="btn-press flex-[2] h-11 bg-secondary text-secondary-fg rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        Confirmar entrega
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- MODAL: SELECCIONAR METODO DE PAGO (contra entrega)     -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="paymentMethodModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0" onclick="closeModal('paymentMethodModal')"></div>
+        <div class="absolute inset-x-0 bottom-0 max-w-[430px] mx-auto">
+            <div class="modal-content bg-white rounded-t-3xl shadow-2xl">
+                <div class="px-5 pt-5 pb-3 border-b border-border">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-[14px] font-bold">Como va a pagar?</h3>
+                            <p class="text-[11px] text-muted-fg mt-1">Total a cobrar: <strong class="text-primary">$450.000</strong></p>
+                        </div>
+                        <button onclick="closeModal('paymentMethodModal')" class="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors">
+                            <i data-lucide="x" class="w-4 h-4 text-muted-fg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="px-5 py-4 space-y-3">
+                    <!-- Link de pago -->
+                    <button onclick="closeModal('paymentMethodModal'); abrirConfirmacionCobro('link')" class="btn-press w-full p-4 border-2 border-border rounded-xl text-left hover:border-primary hover:bg-primary/5 transition-colors flex items-center gap-4">
+                        <div class="h-12 w-12 rounded-full bg-violet-100 flex items-center justify-center shrink-0">
+                            <i data-lucide="link" class="w-6 h-6 text-violet-600"></i>
+                        </div>
+                        <div>
+                            <p class="text-[13px] font-bold">LINK DE PAGO</p>
+                            <p class="text-[11px] text-muted-fg">Enviar link por WhatsApp al cliente</p>
+                        </div>
+                    </button>
+
+                    <!-- Datafono -->
+                    <button onclick="closeModal('paymentMethodModal'); abrirConfirmacionCobro('datafono')" class="btn-press w-full p-4 border-2 border-border rounded-xl text-left hover:border-primary hover:bg-primary/5 transition-colors flex items-center gap-4">
+                        <div class="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                            <i data-lucide="credit-card" class="w-6 h-6 text-green-600"></i>
+                        </div>
+                        <div>
+                            <p class="text-[13px] font-bold">DATAFONO</p>
+                            <p class="text-[11px] text-muted-fg">Pago con tarjeta credito/debito</p>
+                        </div>
+                    </button>
+
+                    <!-- Efectivo -->
+                    <button onclick="closeModal('paymentMethodModal'); abrirConfirmacionCobro('efectivo')" class="btn-press w-full p-4 border-2 border-border rounded-xl text-left hover:border-primary hover:bg-primary/5 transition-colors flex items-center gap-4">
+                        <div class="h-12 w-12 rounded-full bg-muted flex items-center justify-center shrink-0">
+                            <i data-lucide="banknote" class="w-6 h-6 text-primary"></i>
+                        </div>
+                        <div>
+                            <p class="text-[13px] font-bold">EFECTIVO</p>
+                            <p class="text-[11px] text-muted-fg">Pago en efectivo</p>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- MODAL: LINK DE PAGO (enviado)                          -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="linkPagoModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0" onclick="closeModal('linkPagoModal')"></div>
+        <div class="absolute inset-x-0 bottom-0 max-w-[430px] mx-auto">
+            <div class="modal-content bg-white rounded-t-3xl shadow-2xl">
+                <div class="px-5 pt-5 pb-3 border-b border-border">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-secondary"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-[14px] font-bold">Link de pago enviado</h3>
+                            </div>
+                        </div>
+                        <button onclick="closeModal('linkPagoModal')" class="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors">
+                            <i data-lucide="x" class="w-4 h-4 text-muted-fg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="px-5 py-4 space-y-4">
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                        <p class="text-[11px] text-secondary">Hemos enviado el link de pago al correo y WhatsApp del cliente.</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <p class="text-[10px] font-bold text-muted-fg uppercase tracking-widest">Link de pago</p>
+                        <div class="flex gap-2">
+                            <div class="flex-1 bg-muted rounded-lg px-3 py-2 text-[11px] font-mono text-muted-fg truncate">
+                                https://testwebdev.co/checkout/672091
+                            </div>
+                            <button class="btn-press h-9 w-9 border border-border rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
+                                <i data-lucide="copy" class="w-4 h-4 text-muted-fg"></i>
+                            </button>
+                        </div>
+                        <button class="btn-press w-full h-10 border border-green-200 rounded-xl text-[12px] font-semibold text-green-700 flex items-center justify-center gap-2 hover:bg-green-50 transition-colors">
+                            <i data-lucide="message-circle" class="w-4 h-4"></i>
+                            Compartir por WhatsApp
+                        </button>
+                    </div>
+
+                    <!-- Validar pago -->
+                    <button class="btn-press w-full h-11 bg-primary text-primary-fg rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                        VALIDAR PAGO
+                    </button>
+
+                    <button onclick="closeModal('linkPagoModal')" class="w-full h-10 text-[12px] font-semibold text-muted-fg hover:text-primary transition-colors">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- MODAL: DATAFONO — referencia + foto voucher            -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="datafonoModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0" onclick="closeModal('datafonoModal')"></div>
+        <div class="absolute inset-x-0 bottom-0 max-w-[430px] mx-auto">
+            <div class="modal-content bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto">
+                <div class="sticky top-0 bg-white px-5 pt-5 pb-3 border-b border-border z-10">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-[14px] font-bold">Pago con Datafono</h3>
+                            <p class="text-[11px] text-muted-fg">Ingresa referencia y foto del voucher</p>
+                        </div>
+                        <button onclick="closeModal('datafonoModal')" class="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors">
+                            <i data-lucide="x" class="w-4 h-4 text-muted-fg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="px-5 py-4 space-y-4">
+                    <div class="text-center p-4 bg-muted/50 rounded-xl">
+                        <p class="text-[11px] text-muted-fg">Total cobrado</p>
+                        <p class="text-[26px] font-extrabold text-primary tracking-tight">$450.000</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-[12px] font-bold">Referencia de pago *</label>
+                        <input type="text" placeholder="Ej: 123456789" class="w-full h-12 px-4 rounded-xl border border-border text-[14px] font-mono focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors" />
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="text-[12px] font-bold flex items-center gap-1.5">
+                            <i data-lucide="camera" class="w-3.5 h-3.5 text-muted-fg"></i>
+                            Foto del voucher
+                        </label>
+                        <div id="photoAreaVoucher" class="photo-area rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer" onclick="document.getElementById('photoInputVoucher').click()">
+                            <div class="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                                <i data-lucide="camera" class="w-6 h-6 text-muted-fg"></i>
+                            </div>
+                            <p class="text-[12px] font-semibold text-muted-fg">Tomar foto o seleccionar</p>
+                        </div>
+                        <div id="photoPreviewVoucher" class="hidden relative">
+                            <img id="photoImgVoucher" src="" alt="Voucher" class="w-full h-40 object-cover rounded-xl border border-border" />
+                            <button onclick="removePhotoVoucher()" class="absolute top-2 right-2 h-7 w-7 rounded-lg bg-black/60 flex items-center justify-center hover:bg-black/80 transition-colors">
+                                <i data-lucide="x" class="w-4 h-4 text-white"></i>
+                            </button>
+                        </div>
+                        <input type="file" id="photoInputVoucher" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoVoucher(this)" />
+                    </div>
+                </div>
+
+                <div class="sticky bottom-0 bg-white px-5 py-4 border-t border-border flex gap-3">
+                    <button onclick="closeModal('datafonoModal')" class="btn-press flex-1 h-11 border border-border rounded-xl text-[13px] font-bold text-muted-fg hover:bg-muted transition-colors">
+                        Cancelar
+                    </button>
+                    <button onclick="closeModal('datafonoModal')" class="btn-press flex-[2] h-11 bg-primary text-primary-fg rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
+                        <i data-lucide="file-check" class="w-4 h-4"></i>
+                        FACTURAR
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- MODAL: INICIAR RUTA (desde tarjeta estado recogida)    -->
+    <!-- Notifica al cliente que el mensajero va en camino      -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="iniciarRutaModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0" onclick="closeModal('iniciarRutaModal')"></div>
+        <div class="absolute inset-x-0 bottom-0 max-w-[430px] mx-auto">
+            <div class="modal-content bg-white rounded-t-3xl shadow-2xl">
+                <div class="px-5 pt-5 pb-3 border-b border-border">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                                <i data-lucide="navigation" class="w-5 h-5 text-blue-700"></i>
+                            </div>
+                            <h3 class="text-[14px] font-bold">Iniciar ruta</h3>
+                        </div>
+                        <button onclick="closeModal('iniciarRutaModal')" class="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors">
+                            <i data-lucide="x" class="w-4 h-4 text-muted-fg"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="px-5 py-5 space-y-4">
+                    <div class="bg-muted/50 rounded-xl p-4 space-y-2">
+                        <div class="flex justify-between text-[12px]">
+                            <span class="text-muted-fg">Pedido</span>
+                            <span class="font-bold">#672094</span>
+                        </div>
+                        <div class="flex justify-between text-[12px]">
+                            <span class="text-muted-fg">Cliente</span>
+                            <span class="font-semibold">Luis Fernando Diaz</span>
+                        </div>
+                        <div class="flex justify-between text-[12px]">
+                            <span class="text-muted-fg">Direccion</span>
+                            <span class="font-semibold">Cra 33 #48-15, Centro</span>
+                        </div>
+                        <div class="flex justify-between text-[12px]">
+                            <span class="text-muted-fg">Horario</span>
+                            <span class="font-semibold">2-3 PM</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2.5">
+                        <i data-lucide="message-circle" class="w-4 h-4 text-blue-600 shrink-0 mt-0.5"></i>
+                        <p class="text-[11px] text-blue-800 leading-relaxed">
+                            Se enviara un <strong>mensaje por WhatsApp</strong> al cliente para avisarle que vas en camino con su pedido.
+                        </p>
+                    </div>
+
+                    <p class="text-[13px] text-center text-muted-fg font-medium">
+                        &iquest;Confirmas que vas a iniciar la ruta?
+                    </p>
+                </div>
+                <div class="px-5 pb-5 flex gap-3">
+                    <button onclick="closeModal('iniciarRutaModal')" class="btn-press flex-1 h-11 border border-border rounded-xl text-[13px] font-bold text-muted-fg hover:bg-muted transition-colors">
+                        Cancelar
+                    </button>
+                    <button onclick="closeModal('iniciarRutaModal')" class="btn-press flex-[2] h-11 bg-primary text-primary-fg rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
+                        <i data-lucide="navigation" class="w-4 h-4"></i>
+                        Iniciar ruta
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- MODAL: CONFIRMAR ENTREGA (desde vista anticipado)      -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="confirmEntregaModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0" onclick="closeModal('confirmEntregaModal')"></div>
+        <div class="absolute inset-x-0 bottom-0 max-w-[430px] mx-auto">
+            <div class="modal-content bg-white rounded-t-3xl shadow-2xl">
+                <div class="px-5 pt-5 pb-3 border-b border-border">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                <i data-lucide="package-check" class="w-5 h-5 text-secondary"></i>
+                            </div>
+                            <h3 class="text-[14px] font-bold">Confirmar entrega</h3>
+                        </div>
+                        <button onclick="closeModal('confirmEntregaModal')" class="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors">
+                            <i data-lucide="x" class="w-4 h-4 text-muted-fg"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="px-5 py-6 text-center space-y-4">
+                    <p class="text-[13px] text-muted-fg">
+                        Pedido <strong class="text-primary">#672095</strong> &middot; Ana Garcia &middot; 2 productos &middot; <strong>$320.000</strong>
+                    </p>
+                    <p class="text-[14px] font-medium">Confirmas que entregaste el pedido?</p>
+                </div>
+                <div class="px-5 pb-5 flex gap-3">
+                    <button onclick="closeModal('confirmEntregaModal')" class="btn-press flex-1 h-11 border border-border rounded-xl text-[13px] font-bold text-muted-fg hover:bg-muted transition-colors">
+                        Cancelar
+                    </button>
+                    <button onclick="closeModal('confirmEntregaModal')" class="btn-press flex-[2] h-11 bg-secondary text-secondary-fg rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- MODAL: ANULAR PEDIDO (todos los productos devueltos)   -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="anularPedidoModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0" onclick="closeModal('anularPedidoModal')"></div>
+        <div class="absolute inset-x-0 bottom-0 max-w-[430px] mx-auto">
+            <div class="modal-content bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto">
+                <div class="px-5 pt-6 pb-2 flex flex-col items-center text-center">
+                    <!-- Icono alerta rojo -->
+                    <div class="h-16 w-16 rounded-full bg-red-100 border-2 border-destructive flex items-center justify-center mb-4">
+                        <i data-lucide="package-x" class="w-8 h-8 text-destructive"></i>
+                    </div>
+
+                    <h3 class="text-[16px] font-extrabold tracking-tight mb-1">El cliente no se queda con nada</h3>
+                    <p class="text-[12px] text-muted-fg mb-5">Pedido #672091 &middot; Maria Lopez</p>
+
+                    <!-- Lista de productos que se devuelven -->
+                    <div class="w-full bg-red-50 rounded-2xl p-4 mb-4 text-left space-y-2.5">
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-red-700">Productos a devolver</p>
+                        <div class="flex items-center gap-3">
+                            <div class="h-7 w-7 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                                <i data-lucide="shirt" class="w-3.5 h-3.5 text-red-400"></i>
+                            </div>
+                            <p class="text-[11px] font-semibold flex-1 truncate text-red-800">Camisa Slim Fit Azul <span class="font-normal text-red-600">(M)</span></p>
+                            <p class="text-[11px] font-bold text-red-700 line-through">$150.000</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="h-7 w-7 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                                <i data-lucide="scissors" class="w-3.5 h-3.5 text-red-400"></i>
+                            </div>
+                            <p class="text-[11px] font-semibold flex-1 truncate text-red-800">Jean Skinny Negro <span class="font-normal text-red-600">(32)</span></p>
+                            <p class="text-[11px] font-bold text-red-700 line-through">$180.000</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="h-7 w-7 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                                <i data-lucide="footprints" class="w-3.5 h-3.5 text-red-400"></i>
+                            </div>
+                            <p class="text-[11px] font-semibold flex-1 truncate text-red-800">Zapato Oxford Cafe <span class="font-normal text-red-600">(42)</span></p>
+                            <p class="text-[11px] font-bold text-red-700 line-through">$120.000</p>
+                        </div>
+                    </div>
+
+                    <!-- Aviso -->
+                    <div class="w-full bg-red-50 border border-red-300 rounded-xl p-3 flex items-start gap-2.5 mb-5 text-left">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 text-destructive shrink-0 mt-0.5"></i>
+                        <p class="text-[11px] text-red-800 leading-relaxed">
+                            Se <strong>anulara el pedido</strong> y todas las prendas quedaran marcadas como devueltas. Esta accion no se puede deshacer.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="px-5 pb-5 flex gap-3">
+                    <button onclick="closeModal('anularPedidoModal')" class="btn-press flex-1 h-11 border border-border rounded-xl text-[13px] font-bold text-muted-fg hover:bg-muted transition-colors">
+                        Volver
+                    </button>
+                    <button onclick="confirmarAnulacion()" class="btn-press flex-[2] h-11 bg-destructive text-white rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
+                        <i data-lucide="package-x" class="w-4 h-4"></i>
+                        Confirmar anulacion
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- MODAL: ANULACION EXITOSA                               -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="anulacionExitosaModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0"></div>
+        <div class="absolute inset-x-0 bottom-0 max-w-[430px] mx-auto">
+            <div class="modal-content bg-white rounded-t-3xl shadow-2xl">
+                <div class="px-5 py-8 flex flex-col items-center text-center">
+                    <div class="relative mb-5">
+                        <div class="h-20 w-20 rounded-full bg-red-50 border-2 border-destructive flex items-center justify-center" style="animation: successPop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards">
+                            <i data-lucide="package-x" class="w-9 h-9 text-destructive"></i>
+                        </div>
+                    </div>
+                    <h3 class="text-[18px] font-extrabold tracking-tight mb-1">Pedido anulado</h3>
+                    <p class="text-[12px] text-muted-fg mb-6">Todos los productos fueron marcados como devueltos</p>
+
+                    <div class="w-full bg-muted/50 rounded-2xl p-4 mb-5 text-left space-y-2">
+                        <div class="flex justify-between text-[12px]">
+                            <span class="text-muted-fg">Pedido</span>
+                            <span class="font-bold">#672091</span>
+                        </div>
+                        <div class="flex justify-between text-[12px]">
+                            <span class="text-muted-fg">Cliente</span>
+                            <span class="font-semibold">Maria Lopez</span>
+                        </div>
+                        <div class="flex justify-between text-[12px]">
+                            <span class="text-muted-fg">Productos devueltos</span>
+                            <span class="font-semibold text-destructive">3 de 3</span>
+                        </div>
+                    </div>
+
+                    <button onclick="closeModal('anulacionExitosaModal'); showView('list')" class="btn-press w-full h-12 bg-primary text-primary-fg rounded-2xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
+                        Volver a mis entregas
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- MODAL: CONFIRMAR COBRO (paso intermedio antes de pagar) -->
+    <!-- Muestra resumen de productos y total antes de proceder  -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <div id="confirmarCobroModal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0" onclick="closeModal('confirmarCobroModal')"></div>
+        <div class="absolute inset-x-0 bottom-0 max-w-[430px] mx-auto">
+            <div class="modal-content bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto">
+                <div class="sticky top-0 bg-white px-5 pt-5 pb-3 border-b border-border z-10">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div id="confirmarCobroIconWrap" class="h-10 w-10 rounded-xl bg-violet-100 flex items-center justify-center">
+                                <i id="confirmarCobroIcon" data-lucide="link" class="w-5 h-5 text-violet-600"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-[14px] font-bold" id="confirmarCobroTitulo">Confirmar cobro</h3>
+                                <p class="text-[11px] text-muted-fg" id="confirmarCobroSubtitulo">Pedido #672091 &middot; Maria Lopez</p>
+                            </div>
+                        </div>
+                        <button onclick="closeModal('confirmarCobroModal')" class="h-8 w-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors">
+                            <i data-lucide="x" class="w-4 h-4 text-muted-fg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="px-5 py-4 space-y-4">
+                    <!-- Productos que se van a cobrar -->
+                    <div class="bg-muted/50 rounded-2xl p-4 space-y-3">
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-muted-fg">Productos a cobrar</p>
+                        <div id="confirmarCobroProductos"></div>
+                        <hr class="border-border" />
+                        <div class="flex justify-between text-[14px]">
+                            <span class="font-bold">TOTAL A COBRAR</span>
+                            <span class="font-extrabold text-primary" id="confirmarCobroTotal">$0</span>
+                        </div>
+                    </div>
+
+                    <!-- Nota de productos devueltos (solo visible si hay) -->
+                    <div id="confirmarCobroDevueltos" class="bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-start gap-2.5 hidden">
+                        <i data-lucide="undo-2" class="w-4 h-4 text-orange-600 shrink-0 mt-0.5"></i>
+                        <p class="text-[11px] text-orange-800 leading-relaxed" id="confirmarCobroDevueltosTexto"></p>
+                    </div>
+
+                    <!-- Aviso segun metodo -->
+                    <div id="confirmarCobroAviso" class="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5">
+                        <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+                        <p class="text-[11px] text-amber-800 leading-relaxed" id="confirmarCobroAvisoTexto">
+                            Se creara el pedido y se enviara el link de pago al cliente por WhatsApp y correo.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="sticky bottom-0 bg-white px-5 py-4 border-t border-border flex gap-3">
+                    <button onclick="closeModal('confirmarCobroModal')" class="btn-press flex-1 h-11 border border-border rounded-xl text-[13px] font-bold text-muted-fg hover:bg-muted transition-colors">
+                        Cancelar
+                    </button>
+                    <button id="confirmarCobroBtn" onclick="ejecutarCobro()" class="btn-press flex-[2] h-11 bg-primary text-primary-fg rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        <span id="confirmarCobroBtnTexto">Generar link</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!-- SCRIPTS                                                 -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <script>
+        lucide.createIcons();
+
+        // Date
+        const today = new Date();
+        document.getElementById('todayDate').textContent =
+            today.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+
+        // Open Google Maps with address
+        function openMaps(direccion, ciudad) {
+            const query = encodeURIComponent(`${direccion}, ${ciudad}, Colombia`);
+            window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+        }
+
+        // View switching
+        function showView(view) {
+            document.getElementById('viewList').classList.add('hidden');
+            document.getElementById('viewDetail').classList.add('hidden');
+            document.getElementById('viewDetailPaid').classList.add('hidden');
+            document.getElementById('navList').classList.remove('border-primary-fg');
+            document.getElementById('navList').classList.add('border-transparent', 'text-primary-fg/50');
+            document.getElementById('navDetail').classList.remove('border-primary-fg');
+            document.getElementById('navDetail').classList.add('border-transparent', 'text-primary-fg/50');
+            document.getElementById('navDetailPaid').classList.remove('border-primary-fg');
+            document.getElementById('navDetailPaid').classList.add('border-transparent', 'text-primary-fg/50');
+
+            if (view === 'list') {
+                document.getElementById('viewList').classList.remove('hidden');
+                document.getElementById('navList').classList.add('border-primary-fg');
+                document.getElementById('navList').classList.remove('border-transparent', 'text-primary-fg/50');
+            } else if (view === 'detail') {
+                document.getElementById('viewDetail').classList.remove('hidden');
+                document.getElementById('navDetail').classList.add('border-primary-fg');
+                document.getElementById('navDetail').classList.remove('border-transparent', 'text-primary-fg/50');
+            } else if (view === 'detailPaid') {
+                document.getElementById('viewDetailPaid').classList.remove('hidden');
+                document.getElementById('navDetailPaid').classList.add('border-primary-fg');
+                document.getElementById('navDetailPaid').classList.remove('border-transparent', 'text-primary-fg/50');
+            }
+            window.scrollTo(0, 0);
+            setTimeout(() => lucide.createIcons(), 50);
+        }
+
+        // Modals
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            setTimeout(() => lucide.createIcons(), 10);
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('[id$="Modal"]').forEach(m => {
+                    if (!m.classList.contains('hidden')) {
+                        if (m.id === 'recogerModal') {
+                            closeRecogerModal();
+                        } else {
+                            closeModal(m.id);
+                        }
+                    }
+                });
+            }
+        });
+
+        // Recoger Prendas — three-step flow: stock → confirmar → exito
+        function recogerGoToStep(step) {
+            document.getElementById('recogerStep1').classList.toggle('hidden', step !== 1);
+            document.getElementById('recogerStep2').classList.toggle('hidden', step !== 2);
+            document.getElementById('recogerStep3').classList.toggle('hidden', step !== 3);
+            setTimeout(() => lucide.createIcons(), 10);
+        }
+
+        function confirmarRecogida() {
+            // POST to API would happen here, then show success
+            recogerGoToStep(3);
+        }
+
+        function closeRecogerModal() {
+            document.getElementById('recogerModal').classList.add('hidden');
+            document.body.style.overflow = '';
+            // Reset to step 1 for next open
+            recogerGoToStep(1);
+        }
+
+        // Observaciones toggle
+        function toggleObs(id) {
+            const el = document.getElementById(id);
+            if (el.classList.contains('hidden')) {
+                el.classList.remove('hidden');
+                el.classList.add('obs-reveal');
+            } else {
+                el.classList.add('hidden');
+                el.classList.remove('obs-reveal');
+            }
+        }
+
+        // Completadas toggle
+        let completadasOpen = false;
+        function toggleCompletadas() {
+            completadasOpen = !completadasOpen;
+            document.getElementById('completadasBody').classList.toggle('open', completadasOpen);
+            document.getElementById('completadasChevron').classList.toggle('open', completadasOpen);
+        }
+
+        // Photo handling (entregarModal)
+        function handlePhoto(input) {
+            const file = input.files?.[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('photoPreview').src = e.target.result;
+                    document.getElementById('photoUploadEmpty').classList.add('hidden');
+                    document.getElementById('photoUploadFull').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removePhoto() {
+            document.getElementById('photoInput').value = '';
+            document.getElementById('photoUploadEmpty').classList.remove('hidden');
+            document.getElementById('photoUploadFull').classList.add('hidden');
+            setTimeout(() => lucide.createIcons(), 10);
+        }
+
+        // Photo handling (detailPaid view)
+        function handlePhoto2(input) {
+            const file = input.files?.[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('photoImg2').src = e.target.result;
+                    document.getElementById('photoArea2').classList.add('hidden');
+                    document.getElementById('photoPreview2').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removePhoto2() {
+            document.getElementById('photoInput2').value = '';
+            document.getElementById('photoArea2').classList.remove('hidden');
+            document.getElementById('photoPreview2').classList.add('hidden');
+            setTimeout(() => lucide.createIcons(), 10);
+        }
+
+        // Photo handling (datafono voucher)
+        function handlePhotoVoucher(input) {
+            const file = input.files?.[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('photoImgVoucher').src = e.target.result;
+                    document.getElementById('photoAreaVoucher').classList.add('hidden');
+                    document.getElementById('photoPreviewVoucher').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removePhotoVoucher() {
+            document.getElementById('photoInputVoucher').value = '';
+            document.getElementById('photoAreaVoucher').classList.remove('hidden');
+            document.getElementById('photoPreviewVoucher').classList.add('hidden');
+            setTimeout(() => lucide.createIcons(), 10);
+        }
+
+        // Product management (detail view)
+        const precios = { prod1: 150000, prod2: 180000, prod3: 120000 };
+        let activos = { prod1: true, prod2: true, prod3: true };
+
+        function formatPesos(n) {
+            return '$' + n.toLocaleString('es-CO');
+        }
+
+        function updateResumen() {
+            let total = 0;
+            let count = 0;
+            for (const [id, active] of Object.entries(activos)) {
+                if (active) { total += precios[id]; count++; }
+            }
+            document.getElementById('resumenCount').textContent = count;
+            document.getElementById('resumenSubtotal').textContent = formatPesos(total);
+            document.getElementById('resumenTotal').textContent = formatPesos(total);
+            document.getElementById('cobrarTotal').textContent = formatPesos(total);
+            document.getElementById('countCobrar').textContent = count;
+
+            // Count devueltos
+            const devueltos = Object.values(activos).filter(v => !v).length;
+            document.getElementById('countDevolver').textContent = devueltos;
+            document.getElementById('seccionDevolver').classList.toggle('hidden', devueltos === 0);
+
+            // Swap footer: COBRAR vs ANULAR
+            const btnCobrar = document.getElementById('btnCobrar');
+            const btnAnular = document.getElementById('btnAnular');
+            if (count === 0 && devueltos > 0) {
+                btnCobrar.classList.add('hidden');
+                btnAnular.classList.remove('hidden');
+            } else {
+                btnCobrar.classList.remove('hidden');
+                btnAnular.classList.add('hidden');
+            }
+            setTimeout(() => lucide.createIcons(), 10);
+        }
+
+        function moverADevolver(prodId, devId) {
+            activos[prodId] = false;
+            document.getElementById(prodId).classList.add('hidden');
+            document.getElementById(devId).classList.remove('hidden');
+            updateResumen();
+            setTimeout(() => lucide.createIcons(), 10);
+        }
+
+        function restaurarProducto(prodId, devId) {
+            activos[prodId] = true;
+            document.getElementById(prodId).classList.remove('hidden');
+            document.getElementById(devId).classList.add('hidden');
+            updateResumen();
+            setTimeout(() => lucide.createIcons(), 10);
+        }
+
+        // ═══ ANULACION DE PEDIDO ═══
+        function confirmarAnulacion() {
+            closeModal('anularPedidoModal');
+            openModal('anulacionExitosaModal');
+        }
+
+        // ═══ CONFIRMACION DE COBRO (paso intermedio) ═══
+        const nombres = { prod1: 'Camisa Slim Fit Azul', prod2: 'Jean Skinny Negro', prod3: 'Zapato Oxford Cafe' };
+        const tallas = { prod1: 'M', prod2: '32', prod3: '42' };
+        let metodoCobroSeleccionado = null;
+
+        const metodoConfig = {
+            link: {
+                titulo: 'Confirmar cobro por link de pago',
+                iconBg: 'bg-violet-100',
+                iconClass: 'text-violet-600',
+                iconName: 'link',
+                btnTexto: 'Generar link por',
+                aviso: 'Se creara el pedido y se enviara el link de pago al cliente por WhatsApp y correo.',
+            },
+            datafono: {
+                titulo: 'Confirmar cobro con datafono',
+                iconBg: 'bg-green-100',
+                iconClass: 'text-green-600',
+                iconName: 'credit-card',
+                btnTexto: 'Cobrar con datafono',
+                aviso: 'Se creara el pedido y deberas procesar el pago con el datafono. Tendras que ingresar la referencia y foto del voucher.',
+            },
+            efectivo: {
+                titulo: 'Confirmar cobro en efectivo',
+                iconBg: 'bg-muted',
+                iconClass: 'text-primary',
+                iconName: 'banknote',
+                btnTexto: 'Cobrar en efectivo',
+                aviso: 'Se creara el pedido y se registrara como pago en efectivo. Asegurate de recibir el monto correcto.',
+            }
+        };
+
+        function abrirConfirmacionCobro(metodo) {
+            metodoCobroSeleccionado = metodo;
+            const cfg = metodoConfig[metodo];
+
+            // Titulo y subtitulo
+            document.getElementById('confirmarCobroTitulo').textContent = cfg.titulo;
+
+            // Icono
+            const iconWrap = document.getElementById('confirmarCobroIconWrap');
+            iconWrap.className = `h-10 w-10 rounded-xl ${cfg.iconBg} flex items-center justify-center`;
+
+            // Construir lista de productos activos
+            let html = '';
+            let total = 0;
+            let countActivos = 0;
+            for (const [id, active] of Object.entries(activos)) {
+                if (active) {
+                    total += precios[id];
+                    countActivos++;
+                    html += `
+                        <div class="flex items-center justify-between py-1.5">
+                            <div class="flex items-center gap-2 flex-1 min-w-0">
+                                <div class="h-6 w-6 rounded bg-muted flex items-center justify-center shrink-0">
+                                    <span class="text-[9px] font-bold text-muted-fg">${countActivos}</span>
+                                </div>
+                                <p class="text-[12px] font-semibold truncate">${nombres[id]} <span class="font-normal text-muted-fg">(${tallas[id]})</span></p>
+                            </div>
+                            <p class="text-[12px] font-bold shrink-0 ml-3">${formatPesos(precios[id])}</p>
+                        </div>`;
+                }
+            }
+            document.getElementById('confirmarCobroProductos').innerHTML = html;
+            document.getElementById('confirmarCobroTotal').textContent = formatPesos(total);
+
+            // Productos devueltos
+            const devueltos = Object.entries(activos).filter(([_, a]) => !a);
+            const devueltosDiv = document.getElementById('confirmarCobroDevueltos');
+            if (devueltos.length > 0) {
+                const nombresDevueltos = devueltos.map(([id]) => nombres[id]).join(', ');
+                document.getElementById('confirmarCobroDevueltosTexto').innerHTML =
+                    `<strong>${devueltos.length} producto${devueltos.length > 1 ? 's' : ''}</strong> sera${devueltos.length > 1 ? 'n' : ''} devuelto${devueltos.length > 1 ? 's' : ''}: ${nombresDevueltos}`;
+                devueltosDiv.classList.remove('hidden');
+            } else {
+                devueltosDiv.classList.add('hidden');
+            }
+
+            // Aviso
+            document.getElementById('confirmarCobroAvisoTexto').textContent = cfg.aviso;
+
+            // Boton
+            document.getElementById('confirmarCobroBtnTexto').textContent = `${cfg.btnTexto} ${formatPesos(total)}`;
+
+            openModal('confirmarCobroModal');
+        }
+
+        function ejecutarCobro() {
+            closeModal('confirmarCobroModal');
+            // Abrir el modal correspondiente al metodo seleccionado
+            if (metodoCobroSeleccionado === 'link') {
+                openModal('linkPagoModal');
+            } else if (metodoCobroSeleccionado === 'datafono') {
+                openModal('datafonoModal');
+            } else if (metodoCobroSeleccionado === 'efectivo') {
+                // Para efectivo se puede ir directo a un modal de exito
+                // Por ahora mostramos el modal de entrega como placeholder
+                openModal('entregarModal');
+            }
+        }
+    </script>
+</body>
+</html>
