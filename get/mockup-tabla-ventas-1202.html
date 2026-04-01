@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup REQ-1202 — Tabla Unificada Mis Ventas / Gestión de Ventas</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', -apple-system, sans-serif;
+    background: #F8F9FA;
+    color: #1a1a1a;
+    padding: 24px;
+  }
+
+  /* === LAYOUT === */
+  .page-header {
+    margin-bottom: 24px;
+  }
+  .page-header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111;
+  }
+  .page-header p {
+    font-size: 14px;
+    color: #6B7280;
+    margin-top: 2px;
+  }
+
+  /* === MÓDULO SELECTOR === */
+  .module-selector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .module-btn {
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+    background: white;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6B7280;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .module-btn.active {
+    background: #111;
+    color: white;
+    border-color: #111;
+  }
+
+  /* === FILTROS === */
+  .filters-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: end;
+    padding: 16px;
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    margin-bottom: 16px;
+  }
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .filter-group label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .filter-group input, .filter-group select {
+    padding: 7px 12px;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #374151;
+    background: white;
+  }
+  .btn-search {
+    padding: 8px 20px;
+    background: #111;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* === TABS === */
+  .tabs-row {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: #F3F4F6;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    width: fit-content;
+  }
+  .tab {
+    padding: 7px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6B7280;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+    background: transparent;
+  }
+  .tab.active {
+    background: white;
+    color: #111;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .tab .count {
+    font-size: 11px;
+    margin-left: 4px;
+    opacity: 0.6;
+  }
+
+  /* === TABLE WRAPPER (scroll horizontal + sticky columns) === */
+  .table-card {
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .table-scroll {
+    overflow-x: auto;
+    position: relative;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1200px;
+  }
+  thead th {
+    background: #F9FAFB;
+    border-bottom: 1px solid #E5E7EB;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    text-align: left;
+  }
+  thead th.center { text-align: center; }
+  thead th.right { text-align: right; }
+  tbody tr {
+    border-bottom: 1px solid #F3F4F6;
+    transition: background 0.1s;
+  }
+  tbody tr:hover { background: #FAFBFC; }
+  tbody td {
+    padding: 12px 14px;
+    font-size: 13px;
+    color: #374151;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  tbody td.center { text-align: center; }
+  tbody td.right { text-align: right; }
+
+  /* === STICKY COLUMNS === */
+  .col-frozen-left {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: inherit;
+    border-right: 2px solid #E5E7EB;
+  }
+  thead .col-frozen-left { background: #F9FAFB; }
+  tbody tr:hover .col-frozen-left { background: #FAFBFC; }
+  tbody .col-frozen-left { background: white; }
+
+  .col-frozen-right {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: inherit;
+    border-left: 2px solid #E5E7EB;
+  }
+  thead .col-frozen-right { background: #F9FAFB; }
+  tbody tr:hover .col-frozen-right { background: #FAFBFC; }
+  tbody .col-frozen-right { background: white; }
+
+  /* === BADGES === */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* Matriz de colores de estados del carrito */
+  .badge-pendiente     { background: #F3F4F6; color: #374151; }
+  .badge-confirmada    { background: #E1F5FE; color: #0288D1; }
+  .badge-en-ruta       { background: #F3E5F5; color: #7B1FA2; }
+  .badge-pagada        { background: #E6F4EA; color: #1E7E34; }
+  .badge-entregada     { background: #E6F4EA; color: #1E7E34; }
+  .badge-cancelada     { background: #FEEBEB; color: #C53030; }
+
+  /* Estado del pedido */
+  .badge-pago-pendiente { background: #FFF7ED; color: #C2410C; border: 1px solid #FDBA74; }
+  .badge-pago-pagado    { background: #E6F4EA; color: #1E7E34; border: 1px solid #86EFAC; }
+
+  /* Origen */
+  .badge-whatsapp  { background: #ECFDF5; color: #059669; }
+  .badge-asignado  { background: #EFF6FF; color: #2563EB; }
+
+  /* Entrega */
+  .badge-mensajeria   { background: #F3E5F5; color: #7B1FA2; }
+  .badge-servientrega { background: #F1F5F9; color: #475569; }
+
+  /* === CELL STYLES === */
+  .carrito-id {
+    font-family: 'DM Sans', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: #111;
+  }
+  .carrito-id a {
+    color: #111;
+    text-decoration: none;
+  }
+  .carrito-id a:hover {
+    color: #2563EB;
+    text-decoration: underline;
+  }
+  .carrito-fecha {
+    font-size: 11px;
+    color: #9CA3AF;
+    margin-top: 2px;
+  }
+  .cliente-nombre {
+    font-size: 13px;
+    font-weight: 500;
+    color: #111;
+    text-transform: capitalize;
+  }
+  .cliente-celular {
+    font-size: 12px;
+    color: #6B7280;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .icon-btn:hover { background: #F3F4F6; }
+  .icon-btn.whatsapp { color: #25D366; }
+  .icon-btn.phone { color: #9CA3AF; }
+
+  .asesor-nombre {
+    font-size: 13px;
+    color: #374151;
+    text-transform: capitalize;
+  }
+  .monto {
+    font-size: 13px;
+    font-weight: 600;
+    color: #111;
+  }
+  .productos-count {
+    font-size: 13px;
+    color: #6B7280;
+  }
+
+  /* Pedido */
+  .pedido-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .pedido-numero {
+    font-family: 'DM Sans', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+  }
+  .pedido-link {
+    font-size: 11px;
+    color: #2563EB;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .pedido-link:hover { text-decoration: underline; }
+  .pedido-vacio {
+    font-size: 12px;
+    color: #D1D5DB;
+  }
+
+  /* Tiempo */
+  .tiempo { font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 4px; justify-content: center; }
+  .tiempo.verde  { color: #059669; }
+  .tiempo.ambar  { color: #D97706; }
+  .tiempo.rojo   { color: #DC2626; }
+
+  /* CTA */
+  .btn-ver {
+    padding: 5px 14px;
+    border-radius: 6px;
+    border: 1px solid #E5E7EB;
+    background: white;
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.1s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .btn-ver:hover {
+    background: #F9FAFB;
+    border-color: #D1D5DB;
+  }
+
+  /* === LEGEND === */
+  .legend {
+    margin-top: 32px;
+    padding: 20px;
+    background: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 10px;
+  }
+  .legend h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111;
+    margin-bottom: 16px;
+  }
+  .legend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .legend-section h4 {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .legend-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #374151;
+  }
+
+  /* === NOTES === */
+  .notes {
+    margin-top: 24px;
+    padding: 16px;
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #1E40AF;
+  }
+  .notes strong { font-weight: 600; }
+  .notes ul { margin-top: 8px; padding-left: 20px; }
+  .notes li { margin-bottom: 4px; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #9CA3AF;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    margin-top: 32px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================ -->
+<!-- MÓDULO SELECTOR                              -->
+<!-- ============================================ -->
+<div class="module-selector">
+  <button class="module-btn active">Mis Ventas</button>
+  <button class="module-btn">Gestión de Ventas</button>
+</div>
+
+<!-- ============================================ -->
+<!-- HEADER                                       -->
+<!-- ============================================ -->
+<div class="page-header">
+  <h1>Mis Ventas</h1>
+  <p>Gestiona tus ventas asistidas</p>
+</div>
+
+<!-- ============================================ -->
+<!-- FILTROS                                      -->
+<!-- ============================================ -->
+<div class="filters-bar">
+  <div class="filter-group">
+    <label>Fecha desde</label>
+    <input type="date" value="2026-03-25">
+  </div>
+  <div class="filter-group">
+    <label>Fecha hasta</label>
+    <input type="date" value="2026-03-31">
+  </div>
+  <div class="filter-group">
+    <label>Tienda</label>
+    <select>
+      <option>Stirpe</option>
+      <option>Derek</option>
+      <option>U82</option>
+      <option>Typer</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Buscar</label>
+    <input type="text" placeholder="Doc, nombre o #VA...">
+  </div>
+  <button class="btn-search">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    Buscar
+  </button>
+</div>
+
+<!-- ============================================ -->
+<!-- TABS: Todos | WhatsApp | Asignados | Archivados -->
+<!-- ============================================ -->
+<div class="tabs-row">
+  <button class="tab active">Todos <span class="count">(12)</span></button>
+  <button class="tab">WhatsApp <span class="count">(5)</span></button>
+  <button class="tab">Asignados <span class="count">(4)</span></button>
+  <button class="tab">Archivados <span class="count">(3)</span></button>
+</div>
+
+<!-- ============================================ -->
+<!-- TABLA CON COLUMNAS FIJAS + SCROLL            -->
+<!-- ============================================ -->
+<div class="table-card">
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="col-frozen-left" style="min-width:180px">Carrito</th>
+          <th style="min-width:100px" class="center">Origen</th>
+          <th style="min-width:220px">Cliente</th>
+          <!-- <th style="min-width:140px">Asesor</th>  ← Solo en Gestión de Ventas -->
+          <th style="min-width:120px" class="center">Entrega</th>
+          <th style="min-width:80px" class="center">Prod.</th>
+          <th style="min-width:110px" class="right">Total</th>
+          <th style="min-width:200px">Pedido</th>
+          <th style="min-width:80px" class="center">Tiempo</th>
+          <th class="col-frozen-right center" style="min-width:100px">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- FILA 1: Carrito con pedido PAGADO -->
+        <tr>
+          <td class="col-frozen-left">
+            <a href="#" class="carrito-id">#1897</a>
+            <div style="margin-top:4px"><span class="badge badge-pagada">Pagada</span></div>
+            <div class="carrito-fecha">30 mar 2026</div>
+          </td>
+          <td class="center"><span class="badge badge-whatsapp">💬 WhatsApp</span></td>
+          <td>
+            <div class="cliente-nombre">María López Hernández</div>
+            <div class="cliente-celular">
+              3053838176
+              <button class="icon-btn phone" title="Llamar">📞</button>
+              <button class="icon-btn whatsapp" title="WhatsApp">💬</button>
+            </div>
+          </td>
+          <td class="center"><span class="badge badge-mensajeria">🏍 Mensajería</span></td>
+          <td class="center"><span class="productos-count">3</span></td>
+          <td class="right"><span class="monto">$289.900</span></td>
+          <td>
+            <div class="pedido-info">
+              <span class="pedido-numero">#PED-4521</span>
+              <span class="badge badge-pago-pagado">✓ Pagado</span>
+            </div>
+          </td>
+          <td class="center"><span class="tiempo verde">⏱ 25min</span></td>
+          <td class="col-frozen-right center">
+            <button class="btn-ver">👁 Ver</button>
+          </td>
+        </tr>
+
+        <!-- FILA 2: Carrito con pedido PENDIENTE DE PAGO -->
+        <tr>
+          <td class="col-frozen-left">
+            <a href="#" class="carrito-id">#1842</a>
+            <div style="margin-top:4px"><span class="badge badge-confirmada">Confirmada</span></div>
+            <div class="carrito-fecha">30 mar 2026</div>
+          </td>
+          <td class="center"><span class="badge badge-asignado">📋 Asignado</span></td>
+          <td>
+            <div class="cliente-nombre">Carlos Ruiz Mendoza</div>
+            <div class="cliente-celular">
+              3112456789
+              <button class="icon-btn phone" title="Llamar">📞</button>
+              <button class="icon-btn whatsapp" title="WhatsApp">💬</button>
+            </div>
+          </td>
+          <td class="center"><span class="badge badge-servientrega">🚛 Servientrega</span></td>
+          <td class="center"><span class="productos-count">2</span></td>
+          <td class="right"><span class="monto">$159.000</span></td>
+          <td>
+            <div class="pedido-info">
+              <span class="pedido-numero">#PED-4498</span>
+              <span class="badge badge-pago-pendiente">⏳ Pago pendiente</span>
+              <a href="#" class="pedido-link">🔗 Ir a checkout</a>
+            </div>
+          </td>
+          <td class="center"><span class="tiempo ambar">⏱ 1h 30m</span></td>
+          <td class="col-frozen-right center">
+            <button class="btn-ver">👁 Ver</button>
+          </td>
+        </tr>
+
+        <!-- FILA 3: Carrito ABANDONADO (sin pedido) -->
+        <tr>
+          <td class="col-frozen-left">
+            <a href="#" class="carrito-id">#1835</a>
+            <div style="margin-top:4px"><span class="badge badge-pendiente">Pendiente</span></div>
+            <div class="carrito-fecha">29 mar 2026</div>
+          </td>
+          <td class="center"><span class="badge badge-asignado">📋 Asignado</span></td>
+          <td>
+            <div class="cliente-nombre">Ana García Torres</div>
+            <div class="cliente-celular">
+              3209876543
+              <button class="icon-btn phone" title="Llamar">📞</button>
+              <button class="icon-btn whatsapp" title="WhatsApp">💬</button>
+            </div>
+          </td>
+          <td class="center"><span class="badge badge-mensajeria">🏍 Mensajería</span></td>
+          <td class="center"><span class="productos-count">5</span></td>
+          <td class="right"><span class="monto">$432.500</span></td>
+          <td>
+            <span class="pedido-vacio">— Sin pedido</span>
+          </td>
+          <td class="center"><span class="tiempo rojo">⏱ 3h 15m</span></td>
+          <td class="col-frozen-right center">
+            <button class="btn-ver">👁 Ver</button>
+          </td>
+        </tr>
+
+        <!-- FILA 4: En ruta con pedido pagado -->
+        <tr>
+          <td class="col-frozen-left">
+            <a href="#" class="carrito-id">#1821</a>
+            <div style="margin-top:4px"><span class="badge badge-en-ruta">En ruta</span></div>
+            <div class="carrito-fecha">29 mar 2026</div>
+          </td>
+          <td class="center"><span class="badge badge-whatsapp">💬 WhatsApp</span></td>
+          <td>
+            <div class="cliente-nombre">Pedro Martínez Ríos</div>
+            <div class="cliente-celular">
+              3156789012
+              <button class="icon-btn phone" title="Llamar">📞</button>
+              <button class="icon-btn whatsapp" title="WhatsApp">💬</button>
+            </div>
+          </td>
+          <td class="center"><span class="badge badge-servientrega">🚛 Servientrega</span></td>
+          <td class="center"><span class="productos-count">1</span></td>
+          <td class="right"><span class="monto">$89.900</span></td>
+          <td>
+            <div class="pedido-info">
+              <span class="pedido-numero">#PED-4456</span>
+              <span class="badge badge-pago-pagado">✓ Pagado</span>
+            </div>
+          </td>
+          <td class="center"><span class="tiempo verde">⏱ 45min</span></td>
+          <td class="col-frozen-right center">
+            <button class="btn-ver">👁 Ver</button>
+          </td>
+        </tr>
+
+        <!-- FILA 5: Cancelada -->
+        <tr>
+          <td class="col-frozen-left">
+            <a href="#" class="carrito-id">#1798</a>
+            <div style="margin-top:4px"><span class="badge badge-cancelada">Cancelada</span></div>
+            <div class="carrito-fecha">28 mar 2026</div>
+          </td>
+          <td class="center"><span class="badge badge-whatsapp">💬 WhatsApp</span></td>
+          <td>
+            <div class="cliente-nombre">Laura Sánchez Pérez</div>
+            <div class="cliente-celular">
+              3001234567
+              <button class="icon-btn phone" title="Llamar">📞</button>
+              <button class="icon-btn whatsapp" title="WhatsApp">💬</button>
+            </div>
+          </td>
+          <td class="center"><span class="badge badge-mensajeria">🏍 Mensajería</span></td>
+          <td class="center"><span class="productos-count">2</span></td>
+          <td class="right"><span class="monto">$175.000</span></td>
+          <td>
+            <div class="pedido-info">
+              <span class="pedido-numero">#PED-4412</span>
+              <span class="badge badge-pago-pendiente">⏳ Pago pendiente</span>
+              <a href="#" class="pedido-link">🔗 Ir a checkout</a>
+            </div>
+          </td>
+          <td class="center"><span class="tiempo rojo">⏱ 5h</span></td>
+          <td class="col-frozen-right center">
+            <button class="btn-ver">👁 Ver</button>
+          </td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- VARIANTE: GESTIÓN DE VENTAS (con col Asesor) -->
+<!-- ============================================ -->
+<div class="section-label" style="margin-top:48px">Vista alternativa: Gestión de Ventas (incluye columna Asesor)</div>
+
+<div class="table-card">
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="col-frozen-left" style="min-width:180px">Carrito</th>
+          <th style="min-width:100px" class="center">Origen</th>
+          <th style="min-width:220px">Cliente</th>
+          <th style="min-width:150px">Asesor</th>
+          <th style="min-width:120px" class="center">Entrega</th>
+          <th style="min-width:80px" class="center">Prod.</th>
+          <th style="min-width:110px" class="right">Total</th>
+          <th style="min-width:200px">Pedido</th>
+          <th style="min-width:80px" class="center">Tiempo</th>
+          <th class="col-frozen-right center" style="min-width:100px">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-frozen-left">
+            <a href="#" class="carrito-id">#1897</a>
+            <div style="margin-top:4px"><span class="badge badge-pagada">Pagada</span></div>
+            <div class="carrito-fecha">30 mar 2026</div>
+          </td>
+          <td class="center"><span class="badge badge-whatsapp">💬 WhatsApp</span></td>
+          <td>
+            <div class="cliente-nombre">María López Hernández</div>
+            <div class="cliente-celular">
+              3053838176
+              <button class="icon-btn phone">📞</button>
+              <button class="icon-btn whatsapp">💬</button>
+            </div>
+          </td>
+          <td><span class="asesor-nombre">Edwin Sneider Velandia</span></td>
+          <td class="center"><span class="badge badge-mensajeria">🏍 Mensajería</span></td>
+          <td class="center"><span class="productos-count">3</span></td>
+          <td class="right"><span class="monto">$289.900</span></td>
+          <td>
+            <div class="pedido-info">
+              <span class="pedido-numero">#PED-4521</span>
+              <span class="badge badge-pago-pagado">✓ Pagado</span>
+            </div>
+          </td>
+          <td class="center"><span class="tiempo verde">⏱ 25min</span></td>
+          <td class="col-frozen-right center">
+            <button class="btn-ver">👁 Ver</button>
+          </td>
+        </tr>
+        <tr>
+          <td class="col-frozen-left">
+            <a href="#" class="carrito-id">#1842</a>
+            <div style="margin-top:4px"><span class="badge badge-confirmada">Confirmada</span></div>
+            <div class="carrito-fecha">30 mar 2026</div>
+          </td>
+          <td class="center"><span class="badge badge-asignado">📋 Asignado</span></td>
+          <td>
+            <div class="cliente-nombre">Carlos Ruiz Mendoza</div>
+            <div class="cliente-celular">
+              3112456789
+              <button class="icon-btn phone">📞</button>
+              <button class="icon-btn whatsapp">💬</button>
+            </div>
+          </td>
+          <td><span class="asesor-nombre">Diana Marcela Ortiz</span></td>
+          <td class="center"><span class="badge badge-servientrega">🚛 Servientrega</span></td>
+          <td class="center"><span class="productos-count">2</span></td>
+          <td class="right"><span class="monto">$159.000</span></td>
+          <td>
+            <div class="pedido-info">
+              <span class="pedido-numero">#PED-4498</span>
+              <span class="badge badge-pago-pendiente">⏳ Pago pendiente</span>
+              <a href="#" class="pedido-link">🔗 Ir a checkout</a>
+            </div>
+          </td>
+          <td class="center"><span class="tiempo ambar">⏱ 1h 30m</span></td>
+          <td class="col-frozen-right center">
+            <button class="btn-ver">👁 Ver</button>
+          </td>
+        </tr>
+        <tr>
+          <td class="col-frozen-left">
+            <a href="#" class="carrito-id">#1835</a>
+            <div style="margin-top:4px"><span class="badge badge-pendiente">Pendiente</span></div>
+            <div class="carrito-fecha">29 mar 2026</div>
+          </td>
+          <td class="center"><span class="badge badge-asignado">📋 Asignado</span></td>
+          <td>
+            <div class="cliente-nombre">Ana García Torres</div>
+            <div class="cliente-celular">
+              3209876543
+              <button class="icon-btn phone">📞</button>
+              <button class="icon-btn whatsapp">💬</button>
+            </div>
+          </td>
+          <td><span class="asesor-nombre">Juan Pablo Moreno</span></td>
+          <td class="center"><span class="badge badge-mensajeria">🏍 Mensajería</span></td>
+          <td class="center"><span class="productos-count">5</span></td>
+          <td class="right"><span class="monto">$432.500</span></td>
+          <td>
+            <span class="pedido-vacio">— Sin pedido</span>
+          </td>
+          <td class="center"><span class="tiempo rojo">⏱ 3h 15m</span></td>
+          <td class="col-frozen-right center">
+            <button class="btn-ver">👁 Ver</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- LEYENDA DE COLORES Y BADGES                 -->
+<!-- ============================================ -->
+<div class="legend">
+  <h3>Referencia de badges y colores</h3>
+  <div class="legend-grid">
+
+    <div class="legend-section">
+      <h4>Estado del carrito</h4>
+      <div class="legend-items">
+        <div class="legend-item"><span class="badge badge-pendiente">Pendiente</span> Carrito sin confirmar</div>
+        <div class="legend-item"><span class="badge badge-confirmada">Confirmada</span> Cliente confirmó la venta</div>
+        <div class="legend-item"><span class="badge badge-en-ruta">En ruta</span> Producto en camino</div>
+        <div class="legend-item"><span class="badge badge-pagada">Pagada</span> Venta completada</div>
+        <div class="legend-item"><span class="badge badge-entregada">Entregada</span> Producto recibido</div>
+        <div class="legend-item"><span class="badge badge-cancelada">Cancelada</span> Venta cancelada</div>
+      </div>
+    </div>
+
+    <div class="legend-section">
+      <h4>Estado del pedido</h4>
+      <div class="legend-items">
+        <div class="legend-item"><span class="badge badge-pago-pendiente">⏳ Pago pendiente</span> Cliente no ha pagado. Incluye link al checkout</div>
+        <div class="legend-item"><span class="badge badge-pago-pagado">✓ Pagado</span> Pago completado</div>
+        <div class="legend-item"><span class="pedido-vacio">— Sin pedido</span> Carrito abandonado sin checkout</div>
+      </div>
+    </div>
+
+    <div class="legend-section">
+      <h4>Origen</h4>
+      <div class="legend-items">
+        <div class="legend-item"><span class="badge badge-whatsapp">💬 WhatsApp</span> Cliente escribió por WhatsApp</div>
+        <div class="legend-item"><span class="badge badge-asignado">📋 Asignado</span> Asignado por operador</div>
+      </div>
+    </div>
+
+    <div class="legend-section">
+      <h4>Tipo de entrega</h4>
+      <div class="legend-items">
+        <div class="legend-item"><span class="badge badge-mensajeria">🏍 Mensajería</span> Entrega por mensajero propio</div>
+        <div class="legend-item"><span class="badge badge-servientrega">🚛 Servientrega</span> Envío por transportadora</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- NOTAS DE IMPLEMENTACIÓN                      -->
+<!-- ============================================ -->
+<div class="notes">
+  <strong>Notas de implementación:</strong>
+  <ul>
+    <li><strong>Columna fija izquierda (Carrito):</strong> Usa PrimeVue DataTable con <code>frozen</code> + <code>scrollable</code>, igual que TableClients.vue de Vista 360.</li>
+    <li><strong>Columna fija derecha (Acciones):</strong> <code>alignFrozen="right"</code> + <code>frozen</code>.</li>
+    <li><strong>Columna Asesor:</strong> Solo visible en Gestión de Ventas, oculta en Mis Ventas (prop configurable).</li>
+    <li><strong>Columna Pedido:</strong> Si <code>pedido_id_convertido > 0</code> muestra #PED + badge estado pago. Si es 0/null muestra "— Sin pedido".</li>
+    <li><strong>Link "Ir a checkout":</strong> Solo visible si el pedido está pendiente de pago. Lleva al checkout del pedido original.</li>
+    <li><strong>Tabs:</strong> "WhatsApp" reemplaza "Mis ventas". "Archivados" es nuevo (usa campo <code>carrito_asistido_archivado</code>).</li>
+    <li><strong>El #carrito_id es un link</strong> que abre el detalle del carrito (misma función que el botón "Ver").</li>
+  </ul>
+</div>
+
+</body>
+</html>
