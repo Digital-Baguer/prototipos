@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup REQ-API-1191 - Checkout medios de pago con descuento condicionado</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; }
+
+  .header { background: #1a1a1a; color: white; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+  .header img { height: 28px; }
+  .header .brand { font-size: 18px; font-weight: 600; letter-spacing: 2px; }
+  .header .step-indicator { margin-left: auto; font-size: 13px; color: #999; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: 1fr 380px; gap: 24px; }
+  @media (max-width: 768px) { .container { grid-template-columns: 1fr; } }
+
+  .panel { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .panel h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #1a1a1a; }
+
+  /* Scenario tabs */
+  .scenario-tabs { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+  .scenario-tab { padding: 10px 18px; border-radius: 8px; border: 2px solid #e0e0e0; background: white; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+  .scenario-tab:hover { border-color: #999; }
+  .scenario-tab.active { border-color: #1a1a1a; background: #1a1a1a; color: white; }
+  .scenario-description { grid-column: 1 / -1; background: #fffbeb; border: 1px solid #fbbf24; border-radius: 8px; padding: 14px 18px; font-size: 13px; line-height: 1.5; }
+  .scenario-description strong { color: #92400e; }
+
+  /* Payment methods */
+  .payment-method { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 2px solid #e5e5e5; border-radius: 10px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; position: relative; }
+  .payment-method:hover:not(.disabled) { border-color: #999; }
+  .payment-method.selected { border-color: #1a1a1a; background: #fafafa; }
+  .payment-method.disabled { opacity: 0.45; cursor: not-allowed; background: #f9f9f9; }
+  .payment-method input[type="radio"] { accent-color: #1a1a1a; width: 18px; height: 18px; }
+  .payment-method .pm-icon { width: 40px; height: 28px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #666; }
+  .payment-method .pm-info { flex: 1; }
+  .payment-method .pm-name { font-size: 14px; font-weight: 500; }
+  .payment-method .pm-desc { font-size: 12px; color: #888; margin-top: 2px; }
+  .payment-method .pm-badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+  .pm-badge.discount { background: #dcfce7; color: #166534; }
+  .pm-badge.unavailable { background: #fee2e2; color: #991b1b; font-weight: 500; }
+
+  /* Summary */
+  .summary-line { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
+  .summary-line.discount { color: #16a34a; font-weight: 500; }
+  .summary-line.total { border-top: 2px solid #1a1a1a; margin-top: 8px; padding-top: 12px; font-size: 18px; font-weight: 700; }
+  .summary-line .label { color: #666; }
+  .summary-line.total .label { color: #1a1a1a; }
+
+  .summary-updating { position: relative; }
+  .summary-updating::after { content: ''; position: absolute; inset: 0; background: rgba(255,255,255,0.6); border-radius: 8px; animation: pulse 0.6s ease-in-out; }
+  @keyframes pulse { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
+
+  .discount-banner { background: linear-gradient(135deg, #dcfce7, #bbf7d0); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #166534; display: flex; align-items: center; gap: 8px; animation: slideIn 0.3s ease-out; }
+  .discount-banner.hidden { display: none; }
+  .discount-hint { background: #f0fdf4; border: 1px dashed #86efac; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; color: #15803d; line-height: 1.4; }
+  .discount-hint.hidden { display: none; }
+  .hidden { display: none !important; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .btn-pay { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 16px; transition: all 0.2s; }
+  .btn-pay.enabled { background: #1a1a1a; color: white; }
+  .btn-pay.enabled:hover { background: #333; }
+  .btn-pay.disabled { background: #e5e5e5; color: #999; cursor: not-allowed; }
+
+  /* Products */
+  .product-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+  .product-item:last-child { border-bottom: none; }
+  .product-img { width: 60px; height: 75px; background: #f0f0f0; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .product-details { flex: 1; }
+  .product-name { font-size: 13px; font-weight: 500; }
+  .product-meta { font-size: 12px; color: #888; margin-top: 4px; }
+  .product-price { font-size: 14px; font-weight: 600; text-align: right; }
+
+  /* Order pending state */
+  .order-status-bar { background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .order-status-bar .status-icon { font-size: 20px; }
+  .order-status-bar.hidden { display: none; }
+
+  .info-box { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 12px 16px; margin-top: 12px; font-size: 12px; color: #1e40af; line-height: 1.5; }
+  .info-box.hidden { display: none; }
+
+  .loading-shimmer { height: 14px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="brand">STIRPE</div>
+  <div class="step-indicator">Paso 4 de 4: Medio de pago</div>
+</div>
+
+<div class="container" id="app">
+  <!-- Scenario selector -->
+  <div class="scenario-tabs">
+    <div class="scenario-tab active" onclick="setScenario('cart-strategy')">Carrito + Estrategia 20% PSE/TC</div>
+    <div class="scenario-tab" onclick="setScenario('cart-coupon')">Carrito + Cupon 15% solo PSE</div>
+    <div class="scenario-tab" onclick="setScenario('cart-no-restriction')">Carrito sin restriccion</div>
+    <div class="scenario-tab" onclick="setScenario('order-pending')">Pedido pendiente (retry)</div>
+  </div>
+
+  <div class="scenario-description" id="scenarioDesc">
+    <strong>Escenario:</strong> El cliente tiene una estrategia de venta activa que otorga 20% de descuento si paga con PSE o Tarjeta de credito. Al seleccionar un medio de pago, el resumen se actualiza mostrando o quitando el descuento.
+  </div>
+
+  <!-- Left: Payment methods -->
+  <div class="panel" id="paymentPanel">
+    <div class="order-status-bar hidden" id="orderStatusBar">
+      <span class="status-icon">&#9203;</span>
+      <div>
+        <strong>Pedido #STR-28491 - Pendiente de pago</strong><br>
+        <span style="font-size: 12px; color: #92400e;">El pago anterior fue rechazado. Selecciona un medio de pago para reintentar.</span>
+      </div>
+    </div>
+
+    <h2 id="paymentTitle">Selecciona tu medio de pago</h2>
+
+    <div id="paymentMethods"></div>
+
+    <div class="info-box hidden" id="restrictionInfo">
+      &#9432; Solo los medios de pago habilitados aplican para el descuento de tu pedido. Los medios deshabilitados no estan disponibles porque el descuento esta condicionado a medios de pago especificos.
+    </div>
+
+    <button class="btn-pay disabled" id="btnPay" disabled>Selecciona un medio de pago</button>
+  </div>
+
+  <!-- Right: Summary -->
+  <div class="panel" id="summaryPanel">
+    <h2>Resumen de compra</h2>
+
+    <div style="margin-bottom: 16px;">
+      <div class="product-item">
+        <div class="product-img">&#128090;</div>
+        <div class="product-details">
+          <div class="product-name">Blazer Oversize Lino</div>
+          <div class="product-meta">Talla M | Color: Arena | Qty: 1</div>
+        </div>
+        <div class="product-price">$189.900</div>
+      </div>
+      <div class="product-item">
+        <div class="product-img">&#128086;</div>
+        <div class="product-details">
+          <div class="product-name">Pantalon Wide Leg</div>
+          <div class="product-meta">Talla 30 | Color: Negro | Qty: 1</div>
+        </div>
+        <div class="product-price">$129.900</div>
+      </div>
+    </div>
+
+    <div class="discount-banner hidden" id="discountBanner">
+      &#10004;&#65039; <span id="discountBannerText"></span>
+    </div>
+
+    <div class="discount-hint hidden" id="discountHint"></div>
+
+    <div id="summaryLines">
+      <div class="summary-line"><span class="label">Subtotal</span><span>$319.800</span></div>
+      <div class="summary-line"><span class="label">Envio</span><span>$12.000</span></div>
+      <div class="summary-line discount hidden" id="discountLine"><span class="label" id="discountLabel">Dcto. estrategia (-20%)</span><span id="discountValue">-$63.960</span></div>
+      <div class="summary-line total"><span class="label">Total a pagar</span><span id="totalValue">$331.800</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const scenarios = {
+  'cart-strategy': {
+    description: '<strong>Escenario: Checkout carrito con estrategia de venta.</strong> Hay una estrategia activa que otorga 20% de descuento si paga con PSE o Tarjeta de credito. Al seleccionar un medio, el resumen se actualiza mostrando o quitando el descuento en tiempo real.',
+    isOrder: false,
+    subtotal: 319800,
+    shipping: 12000,
+    discountPercent: 20,
+    discountLabel: 'Dcto. estrategia (-20%)',
+    bannerText: 'Pagando con {method}, obtienes 20% de descuento',
+    allowedMethods: ['pse', 'tarjeta_credito'],
+    methods: [
+      { id: 'tarjeta_credito', name: 'Tarjeta de credito / debito', icon: 'TC', desc: 'Visa, Mastercard, Amex', available: true, hasDiscount: true },
+      { id: 'pse', name: 'PSE - Transferencia bancaria', icon: 'PSE', desc: 'Debito desde tu cuenta bancaria', available: true, hasDiscount: true },
+      { id: 'bancolombia', name: 'Bancolombia', icon: 'BC', desc: 'Boton Bancolombia', available: true, hasDiscount: false },
+      { id: 'efectivo', name: 'Efecty - Pago en efectivo', icon: 'EF', desc: 'Paga en puntos Efecty', available: true, hasDiscount: false },
+      { id: 'addi', name: 'Addi - Compra ahora, paga despues', icon: 'AD', desc: 'Hasta 4 cuotas sin interes', available: true, hasDiscount: false },
+      { id: 'sistecredito', name: 'Sistecredito', icon: 'SC', desc: 'Credito inmediato', available: true, hasDiscount: false },
+    ]
+  },
+  'cart-coupon': {
+    description: '<strong>Escenario: Checkout carrito con cupon.</strong> El cliente aplico el cupon "DESC15PSE" que otorga 15% de descuento solo pagando con PSE. Al seleccionar PSE aparece el descuento; con otros medios, desaparece.',
+    isOrder: false,
+    subtotal: 319800,
+    shipping: 12000,
+    discountPercent: 15,
+    discountLabel: 'Cupon DESC15PSE (-15%)',
+    bannerText: 'Cupon DESC15PSE aplicado: 15% de descuento pagando con {method}',
+    allowedMethods: ['pse'],
+    methods: [
+      { id: 'tarjeta_credito', name: 'Tarjeta de credito / debito', icon: 'TC', desc: 'Visa, Mastercard, Amex', available: true, hasDiscount: false },
+      { id: 'pse', name: 'PSE - Transferencia bancaria', icon: 'PSE', desc: 'Debito desde tu cuenta bancaria', available: true, hasDiscount: true },
+      { id: 'bancolombia', name: 'Bancolombia', icon: 'BC', desc: 'Boton Bancolombia', available: true, hasDiscount: false },
+      { id: 'efectivo', name: 'Efecty - Pago en efectivo', icon: 'EF', desc: 'Paga en puntos Efecty', available: true, hasDiscount: false },
+      { id: 'addi', name: 'Addi - Compra ahora, paga despues', icon: 'AD', desc: 'Hasta 4 cuotas sin interes', available: true, hasDiscount: false },
+      { id: 'sistecredito', name: 'Sistecredito', icon: 'SC', desc: 'Credito inmediato', available: true, hasDiscount: false },
+    ]
+  },
+  'cart-no-restriction': {
+    description: '<strong>Escenario: Checkout carrito sin restriccion.</strong> El carrito no tiene cupon ni estrategia condicionada a medio de pago. Todos los medios estan habilitados y el resumen no cambia al seleccionar medio.',
+    isOrder: false,
+    subtotal: 319800,
+    shipping: 12000,
+    discountPercent: 0,
+    discountLabel: '',
+    bannerText: '',
+    allowedMethods: [],
+    methods: [
+      { id: 'tarjeta_credito', name: 'Tarjeta de credito / debito', icon: 'TC', desc: 'Visa, Mastercard, Amex', available: true, hasDiscount: false },
+      { id: 'pse', name: 'PSE - Transferencia bancaria', icon: 'PSE', desc: 'Debito desde tu cuenta bancaria', available: true, hasDiscount: false },
+      { id: 'bancolombia', name: 'Bancolombia', icon: 'BC', desc: 'Boton Bancolombia', available: true, hasDiscount: false },
+      { id: 'efectivo', name: 'Efecty - Pago en efectivo', icon: 'EF', desc: 'Paga en puntos Efecty', available: true, hasDiscount: false },
+      { id: 'addi', name: 'Addi - Compra ahora, paga despues', icon: 'AD', desc: 'Hasta 4 cuotas sin interes', available: true, hasDiscount: false },
+      { id: 'sistecredito', name: 'Sistecredito', icon: 'SC', desc: 'Credito inmediato', available: true, hasDiscount: false },
+    ]
+  },
+  'order-pending': {
+    description: '<strong>Escenario: Pedido pendiente de pago (retry).</strong> El pedido #STR-28491 fue creado con 20% de descuento por estrategia condicionada a PSE y Tarjeta de credito. El pago fue rechazado. Solo esos dos medios estan habilitados; los demas aparecen deshabilitados.',
+    isOrder: true,
+    subtotal: 319800,
+    shipping: 12000,
+    discountPercent: 20,
+    discountLabel: 'Dcto. estrategia (-20%)',
+    bannerText: '',
+    allowedMethods: ['pse', 'tarjeta_credito'],
+    methods: [
+      { id: 'tarjeta_credito', name: 'Tarjeta de credito / debito', icon: 'TC', desc: 'Visa, Mastercard, Amex', available: true, hasDiscount: false },
+      { id: 'pse', name: 'PSE - Transferencia bancaria', icon: 'PSE', desc: 'Debito desde tu cuenta bancaria', available: true, hasDiscount: false },
+      { id: 'bancolombia', name: 'Bancolombia', icon: 'BC', desc: 'Boton Bancolombia', available: false, hasDiscount: false },
+      { id: 'efectivo', name: 'Efecty - Pago en efectivo', icon: 'EF', desc: 'Paga en puntos Efecty', available: false, hasDiscount: false },
+      { id: 'addi', name: 'Addi - Compra ahora, paga despues', icon: 'AD', desc: 'Hasta 4 cuotas sin interes', available: false, hasDiscount: false },
+      { id: 'sistecredito', name: 'Sistecredito', icon: 'SC', desc: 'Credito inmediato', available: false, hasDiscount: false },
+    ]
+  }
+};
+
+let currentScenario = 'cart-strategy';
+let selectedMethod = null;
+
+function formatCurrency(n) {
+  return '$' + n.toLocaleString('es-CO');
+}
+
+function setScenario(key) {
+  currentScenario = key;
+  selectedMethod = null;
+  document.querySelectorAll('.scenario-tab').forEach((t, i) => {
+    t.classList.toggle('active', t.textContent.includes({
+      'cart-strategy': 'Estrategia',
+      'cart-coupon': 'Cupon',
+      'cart-no-restriction': 'sin restriccion',
+      'order-pending': 'Pedido pendiente'
+    }[key]));
+  });
+  // Fix active tab
+  document.querySelectorAll('.scenario-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.scenario-tab').forEach(t => {
+    if ((key === 'cart-strategy' && t.textContent.includes('Estrategia')) ||
+        (key === 'cart-coupon' && t.textContent.includes('Cupon')) ||
+        (key === 'cart-no-restriction' && t.textContent.includes('sin restriccion')) ||
+        (key === 'order-pending' && t.textContent.includes('Pedido pendiente'))) {
+      t.classList.add('active');
+    }
+  });
+  render();
+}
+
+function selectMethod(id) {
+  const s = scenarios[currentScenario];
+  const method = s.methods.find(m => m.id === id);
+  if (!method.available) return;
+  selectedMethod = id;
+  renderWithAnimation();
+}
+
+function render() {
+  const s = scenarios[currentScenario];
+  document.getElementById('scenarioDesc').innerHTML = s.description;
+
+  // Order status bar
+  const orderBar = document.getElementById('orderStatusBar');
+  orderBar.classList.toggle('hidden', !s.isOrder);
+
+  // Restriction info
+  const infoBox = document.getElementById('restrictionInfo');
+  infoBox.classList.toggle('hidden', !(s.isOrder && s.allowedMethods.length > 0));
+
+  // Payment methods
+  const container = document.getElementById('paymentMethods');
+  container.innerHTML = s.methods.map(m => {
+    const isSelected = selectedMethod === m.id;
+    const cls = [
+      'payment-method',
+      isSelected ? 'selected' : '',
+      !m.available ? 'disabled' : ''
+    ].filter(Boolean).join(' ');
+
+    let badge = '';
+    if (m.hasDiscount && !s.isOrder) {
+      badge = `<span class="pm-badge discount">Dcto. ${s.discountPercent}%</span>`;
+    }
+    if (!m.available && s.isOrder) {
+      badge = `<span class="pm-badge unavailable">No disponible</span>`;
+    }
+
+    return `
+      <div class="${cls}" onclick="selectMethod('${m.id}')">
+        <input type="radio" name="pm" ${isSelected ? 'checked' : ''} ${!m.available ? 'disabled' : ''}>
+        <div class="pm-icon">${m.icon}</div>
+        <div class="pm-info">
+          <div class="pm-name">${m.name}</div>
+          <div class="pm-desc">${m.desc}</div>
+        </div>
+        ${badge}
+      </div>
+    `;
+  }).join('');
+
+  // Summary
+  updateSummary(s, false);
+
+  // Button
+  const btn = document.getElementById('btnPay');
+  if (selectedMethod) {
+    btn.className = 'btn-pay enabled';
+    btn.disabled = false;
+    const methodName = s.methods.find(m => m.id === selectedMethod)?.name || '';
+    btn.textContent = `Pagar con ${methodName}`;
+  } else {
+    btn.className = 'btn-pay disabled';
+    btn.disabled = true;
+    btn.textContent = 'Selecciona un medio de pago';
+  }
+}
+
+function renderWithAnimation() {
+  const summaryPanel = document.getElementById('summaryLines');
+  summaryPanel.classList.add('summary-updating');
+  // Actualizar inmediatamente los datos, la animacion es solo visual
+  render();
+  setTimeout(() => {
+    summaryPanel.classList.remove('summary-updating');
+  }, 350);
+}
+
+function updateSummary(s, animate) {
+  const methodHasDiscount = selectedMethod && s.allowedMethods.includes(selectedMethod);
+  const showDiscount = s.isOrder ? (s.discountPercent > 0) : methodHasDiscount;
+
+  const discountAmount = Math.round(s.subtotal * s.discountPercent / 100);
+  const total = s.subtotal + s.shipping - (showDiscount ? discountAmount : 0);
+
+  // Discount line
+  const discountLine = document.getElementById('discountLine');
+  discountLine.classList.toggle('hidden', !showDiscount);
+  document.getElementById('discountLabel').textContent = s.discountLabel;
+  document.getElementById('discountValue').textContent = '-' + formatCurrency(discountAmount);
+
+  // Total
+  document.getElementById('totalValue').textContent = formatCurrency(total);
+
+  // Hint (cuando no hay medio seleccionado y hay descuento disponible)
+  const hint = document.getElementById('discountHint');
+  const showHint = !s.isOrder && s.allowedMethods.length > 0 && !methodHasDiscount;
+  hint.classList.toggle('hidden', !showHint);
+  if (showHint) {
+    const methodNames = s.methods
+      .filter(m => s.allowedMethods.includes(m.id))
+      .map(m => m.name)
+      .join(' o ');
+    hint.textContent = s.discountPercent + '% de descuento pagando con ' + methodNames;
+  }
+
+  // Banner (cuando selecciono un medio con descuento)
+  const banner = document.getElementById('discountBanner');
+  const bannerText = document.getElementById('discountBannerText');
+  if (methodHasDiscount && !s.isOrder && s.bannerText) {
+    const methodName = s.methods.find(m => m.id === selectedMethod)?.name || '';
+    bannerText.textContent = s.bannerText.replace('{method}', methodName);
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+// Init
+render();
+</script>
+</body>
+</html>
