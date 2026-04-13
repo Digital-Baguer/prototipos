@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup REQ-GETWEB-1237 — Checkout de carrito para venta asistida</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #ffffff; color: #293148; min-height: 100vh; }
+
+  /* Mockup nav (no es parte de la pagina real) */
+  .mock-nav { position: sticky; top: 0; z-index: 100; background: #1f2937; color: white; padding: 8px 16px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .mock-nav .label { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #9ca3af; margin-right: 8px; }
+  .mock-tab { padding: 6px 12px; border-radius: 6px; border: 1px solid #374151; background: #111827; color: #d1d5db; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.15s; }
+  .mock-tab:hover { background: #1f2937; border-color: #4b5563; }
+  .mock-tab.active { background: white; color: #111827; border-color: white; }
+
+  /* Header tipo stirpe-web */
+  .header { background: #0f1729; color: white; padding: 18px 32px; display: flex; align-items: center; }
+  .header .brand { font-size: 22px; font-weight: 800; letter-spacing: 4px; }
+  .header .secure { margin-left: auto; font-size: 13px; color: #cbd5e1; display: flex; align-items: center; gap: 8px; }
+
+  /* Banner asesor (informativo de venta asistida) */
+  .assisted-banner { background: linear-gradient(135deg, #fef3c7, #fde68a); border-bottom: 1px solid #fbbf24; padding: 14px 32px; display: flex; align-items: center; gap: 14px; font-size: 13px; color: #78350f; }
+  .assisted-banner .icon { font-size: 26px; }
+  .assisted-banner strong { font-weight: 700; }
+
+  /* Layout 12 cols */
+  .checkout-layout { display: grid; grid-template-columns: 7fr 5fr; min-height: calc(100vh - 60px); }
+  @media (max-width: 900px) { .checkout-layout { grid-template-columns: 1fr; } }
+
+  /* Panel izquierdo */
+  .steps-panel { background: white; padding: 32px 40px; }
+  @media (max-width: 600px) { .steps-panel { padding: 20px 16px; } }
+
+  /* Bloques (CardStep) */
+  .block { border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 16px; overflow: hidden; transition: all 0.2s; }
+  .block.active { border-color: #0f1729; box-shadow: 0 2px 8px rgba(15,23,41,0.06); }
+
+  .block-header { display: flex; align-items: center; gap: 12px; padding: 18px 20px; cursor: default; }
+  .block-number { width: 28px; height: 28px; border-radius: 50%; background: #e5e7eb; color: #6b7280; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .block.completed .block-number { background: #16a34a; color: white; }
+  .block.active .block-number { background: #0f1729; color: white; }
+  .block-title { font-size: 15px; font-weight: 700; color: #111827; flex: 1; }
+  .block-badge { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; background: #f0fdf4; color: #166534; display: flex; align-items: center; gap: 4px; }
+
+  .block-body { padding: 0 20px 20px 60px; }
+  .block-body.collapsed { display: none; }
+
+  /* Read-only display */
+  .ro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 600px) { .ro-grid { grid-template-columns: 1fr; } }
+  .ro-field { display: flex; flex-direction: column; gap: 4px; }
+  .ro-field.full { grid-column: 1 / -1; }
+  .ro-label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .ro-value { font-size: 14px; color: #111827; font-weight: 500; }
+
+  /* Resumen colapsado de bloques previos */
+  .ro-summary { font-size: 13px; color: #6b7280; padding-left: 60px; padding-bottom: 16px; line-height: 1.6; }
+  .ro-summary strong { color: #374151; font-weight: 600; }
+
+  /* Tipo de envio chips */
+  .shipping-chip { display: inline-flex; align-items: center; gap: 8px; padding: 12px 16px; border: 2px solid #0f1729; border-radius: 10px; background: #fafafa; font-size: 14px; font-weight: 600; color: #0f1729; }
+  .shipping-chip .icon { font-size: 18px; }
+  .shipping-date { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 12px 14px; margin-top: 12px; font-size: 13px; color: #1e40af; display: flex; align-items: center; gap: 10px; }
+  .shipping-date .icon { font-size: 18px; }
+  .shipping-date strong { font-weight: 700; }
+
+  /* GiftCard preaplicada (solo cuando asesor la agrego) */
+  .giftcard-preapplied { background: #f5f3ff; border: 1px dashed #c4b5fd; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .giftcard-preapplied .gc-icon { width: 36px; height: 36px; border-radius: 50%; background: #ddd6fe; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .giftcard-preapplied .gc-info { flex: 1; }
+  .giftcard-preapplied .gc-title { font-size: 13px; font-weight: 700; color: #5b21b6; }
+  .giftcard-preapplied .gc-desc { font-size: 11px; color: #6d28d9; margin-top: 2px; }
+  .giftcard-preapplied .gc-lock { font-size: 11px; color: #6b7280; display: flex; align-items: center; gap: 4px; }
+
+  /* Payment methods */
+  .payment-method { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 2px solid #e5e5e5; border-radius: 10px; margin-bottom: 10px; cursor: pointer; transition: all 0.15s; }
+  .payment-method:hover:not(.disabled) { border-color: #9ca3af; }
+  .payment-method.selected { border-color: #0f1729; background: #f9fafb; }
+  .payment-method.disabled { opacity: 0.45; cursor: not-allowed; background: #f9f9f9; }
+  .payment-method input[type="radio"] { accent-color: #0f1729; width: 18px; height: 18px; }
+  .pm-icon { width: 44px; height: 30px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #666; flex-shrink: 0; }
+  .pm-info { flex: 1; min-width: 0; }
+  .pm-name { font-size: 14px; font-weight: 600; color: #111827; }
+  .pm-desc { font-size: 12px; color: #888; margin-top: 2px; }
+  .pm-badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+  .pm-badge.discount { background: #dcfce7; color: #166534; }
+  .pm-badge.unavailable { background: #fee2e2; color: #991b1b; }
+
+  .info-box { background: #eff6ff; border: 1px solid #93c5fd; border-radius: 8px; padding: 10px 14px; margin-top: 12px; font-size: 12px; color: #1e40af; line-height: 1.5; }
+
+  /* Boton pagar */
+  .btn-pay { width: 100%; padding: 16px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 20px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn-pay.enabled { background: #16a34a; color: white; }
+  .btn-pay.enabled:hover { background: #15803d; }
+  .btn-pay.disabled { background: #e5e5e5; color: #999; cursor: not-allowed; }
+
+  /* Panel derecho (Resumen) */
+  .summary-panel { background: #F5F5F5; padding: 32px 32px; position: sticky; top: 60px; align-self: start; min-height: calc(100vh - 60px); }
+  @media (max-width: 900px) { .summary-panel { position: static; min-height: auto; padding: 24px 16px; } }
+
+  .summary-title { font-size: 13px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px; }
+
+  /* Productos en resumen */
+  .product-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e5e7eb; align-items: flex-start; }
+  .product-item:last-child { border-bottom: none; }
+  .product-img { width: 56px; height: 70px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+  .product-details { flex: 1; min-width: 0; }
+  .product-name { font-size: 13px; font-weight: 600; color: #111827; line-height: 1.3; }
+  .product-meta { font-size: 11px; color: #6b7280; margin-top: 4px; }
+  .product-qty { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+  .product-price { font-size: 13px; font-weight: 700; text-align: right; color: #111827; flex-shrink: 0; }
+
+  /* Cupon preaplicado en summary */
+  .coupon-chip { background: white; border: 1px dashed #86efac; border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; margin: 16px 0; }
+  .coupon-chip .cc-icon { width: 28px; height: 28px; border-radius: 50%; background: #dcfce7; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .coupon-chip .cc-info { flex: 1; }
+  .coupon-chip .cc-title { font-size: 12px; font-weight: 700; color: #166534; }
+  .coupon-chip .cc-desc { font-size: 10px; color: #15803d; margin-top: 1px; }
+  .coupon-chip .cc-lock { font-size: 10px; color: #6b7280; }
+
+  /* Summary lines */
+  .summary-section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .summary-line { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; }
+  .summary-line.discount { color: #16a34a; font-weight: 600; }
+  .summary-line.giftcard { color: #7c3aed; font-weight: 600; }
+  .summary-line.total { border-top: 2px solid #0f1729; margin-top: 10px; padding-top: 14px; font-size: 18px; font-weight: 800; }
+  .summary-line .label { color: #6b7280; }
+  .summary-line.total .label { color: #111827; }
+
+  .summary-updating { position: relative; }
+  .summary-updating::after { content: ''; position: absolute; inset: -4px; background: rgba(255,255,255,0.6); border-radius: 8px; animation: pulse 0.6s ease-in-out; pointer-events: none; }
+  @keyframes pulse { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
+
+  .discount-banner { background: linear-gradient(135deg, #dcfce7, #bbf7d0); border-radius: 8px; padding: 12px 14px; margin: 12px 0; font-size: 12px; color: #166534; display: flex; align-items: center; gap: 8px; animation: slideIn 0.3s ease-out; }
+  .discount-hint { background: #f0fdf4; border: 1px dashed #86efac; border-radius: 8px; padding: 10px 12px; margin: 12px 0; font-size: 11px; color: #15803d; line-height: 1.4; }
+  .hidden { display: none !important; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .footer-note { padding: 12px 14px; background: #f9fafb; border-radius: 8px; font-size: 11px; color: #6b7280; line-height: 1.5; margin-top: 12px; display: flex; gap: 8px; align-items: flex-start; }
+
+  /* States: loading / expired / converted */
+  .state-card { max-width: 480px; margin: 80px auto; background: white; border-radius: 12px; padding: 40px 32px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .state-card .state-icon { font-size: 56px; margin-bottom: 16px; }
+  .state-card h1 { font-size: 22px; font-weight: 700; color: #111827; margin-bottom: 8px; }
+  .state-card p { font-size: 14px; color: #6b7280; line-height: 1.6; margin-bottom: 16px; }
+  .state-card .state-cta { display: inline-block; padding: 12px 24px; background: #16a34a; color: white; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; }
+
+  /* Loading shimmer */
+  .shimmer { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 6px; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  .shimmer-line { height: 14px; margin-bottom: 8px; }
+  .shimmer-block { height: 60px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- MOCK NAV (solo del mockup, no es parte de la pagina real)    -->
+<!-- ============================================================ -->
+<div class="mock-nav">
+  <span class="label">VISTA:</span>
+  <button class="mock-tab active" data-view="servientrega">1. Servientrega (anticipado)</button>
+  <button class="mock-tab" data-view="mensajeria">2. Mensajeria (contraentrega)</button>
+  <button class="mock-tab" data-view="coupon">3. Cupon condicionado</button>
+  <button class="mock-tab" data-view="strategy">4. Estrategia (refresco)</button>
+  <button class="mock-tab" data-view="giftcard">5. Con giftcard del asesor</button>
+  <button class="mock-tab" data-view="loading">6. Loading</button>
+  <button class="mock-tab" data-view="expired">7. Link expirado</button>
+  <button class="mock-tab" data-view="converted">8. Pedido convertido</button>
+</div>
+
+<!-- ============================================================ -->
+<!-- VISTAS DE CHECKOUT                                            -->
+<!-- ============================================================ -->
+<div id="checkoutViews">
+  <div class="header">
+    <div class="brand">STIRPE</div>
+    <div class="secure">&#128274; Pago seguro</div>
+  </div>
+
+  <div class="assisted-banner">
+    <span class="icon">&#129489;&#8205;&#128188;</span>
+    <div>
+      <strong>Compra preparada por Pedro Rodriguez (asesor)</strong> ·
+      Tu asesor armo este pedido para ti. Solo selecciona el medio de pago y completa el pago.
+    </div>
+  </div>
+
+  <div class="checkout-layout">
+
+    <!-- ============================================================ -->
+    <!-- COLUMNA IZQUIERDA — BLOQUES                                  -->
+    <!-- ============================================================ -->
+    <div class="steps-panel">
+
+      <!-- BLOQUE 1: Datos personales -->
+      <div class="block completed">
+        <div class="block-header">
+          <div class="block-number">&#10003;</div>
+          <div class="block-title">Datos personales</div>
+          <div class="block-badge">&#128274; Pre-cargados</div>
+        </div>
+        <div class="ro-summary">
+          <strong>Francisco Jose Lizcano Reyes</strong> &middot; CC 13745898<br>
+          flizcanor@icloud.com &middot; 317 374 0696
+        </div>
+      </div>
+
+      <!-- BLOQUE 2: Datos de envio -->
+      <div class="block completed">
+        <div class="block-header">
+          <div class="block-number">&#10003;</div>
+          <div class="block-title">Datos de envio</div>
+          <div class="block-badge">&#128274; Pre-cargados</div>
+        </div>
+        <div class="ro-summary">
+          <strong>Bodega 72, Bodegas de San Jorge</strong><br>
+          Barrio Bodegas de San Jorge &middot; Giron, Santander
+        </div>
+      </div>
+
+      <!-- BLOQUE 3: Tipo de envio -->
+      <div class="block completed">
+        <div class="block-header">
+          <div class="block-number">&#10003;</div>
+          <div class="block-title">Tipo de envio</div>
+          <div class="block-badge">&#128274; Pre-cargado</div>
+        </div>
+        <div class="block-body" id="shippingBody">
+          <!-- Servientrega -->
+          <div id="shippingServientrega">
+            <div class="shipping-chip">
+              <span class="icon">&#128666;</span>
+              Servientrega &middot; $19.600
+            </div>
+            <div class="shipping-date">
+              <span class="icon">&#128197;</span>
+              <div>
+                <strong>Fecha estimada de entrega:</strong><br>
+                Entre el jueves 9 de abril y el sabado 11 de abril
+              </div>
+            </div>
+          </div>
+          <!-- Mensajeria -->
+          <div id="shippingMensajeria" class="hidden">
+            <div class="shipping-chip">
+              <span class="icon">&#127949;</span>
+              Mensajeria interna &middot; Gratis
+            </div>
+            <div class="shipping-date">
+              <span class="icon">&#128197;</span>
+              <div>
+                <strong>Fecha agendada para entrega:</strong><br>
+                Jueves 9 de abril, entre 2:00 PM y 3:00 PM
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BLOQUE 4: Metodos de pago -->
+      <div class="block active">
+        <div class="block-header">
+          <div class="block-number">4</div>
+          <div class="block-title">Metodo de pago</div>
+        </div>
+        <div class="block-body">
+          <!-- GiftCard preaplicada (solo si el asesor agrego una) -->
+          <div id="giftcardSlot"></div>
+
+          <!-- Lista de medios de pago -->
+          <div id="paymentMethods"></div>
+
+          <!-- Info box (solo en cupon condicionado) -->
+          <div class="info-box hidden" id="restrictionInfo">
+            &#9432; Algunos medios de pago no estan disponibles porque el cupon aplicado por tu asesor esta condicionado a medios de pago especificos.
+          </div>
+
+          <!-- Boton pagar -->
+          <button class="btn-pay disabled" id="btnPay" disabled>Selecciona un medio de pago</button>
+
+          <div style="text-align: center; font-size: 11px; color: #6b7280; margin-top: 12px;">
+            &#128274; El pedido se creara solo cuando completes el pago
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- COLUMNA DERECHA — RESUMEN DE COMPRA                          -->
+    <!-- ============================================================ -->
+    <div class="summary-panel">
+      <div class="summary-title">Resumen de tu compra</div>
+
+      <!-- Productos -->
+      <div class="summary-section">
+        <div id="productList"></div>
+      </div>
+
+      <!-- Lineas de totales -->
+      <div class="summary-section">
+
+        <!-- Cupon preaplicado (solo si asesor agrego cupon) -->
+        <div id="couponSlot"></div>
+
+        <!-- Banner de descuento (estrategia activa) -->
+        <div class="discount-banner hidden" id="discountBanner">
+          &#10004;&#65039; <span id="discountBannerText"></span>
+        </div>
+
+        <!-- Hint cuando hay descuento disponible y no se eligio medio compatible -->
+        <div class="discount-hint hidden" id="discountHint"></div>
+
+        <div id="summaryLines">
+          <div class="summary-line"><span class="label">Subtotal</span><span id="subtotalValue">$487.800</span></div>
+          <div class="summary-line discount hidden" id="discountLine">
+            <span class="label" id="discountLabel">Descuento</span>
+            <span id="discountValue">-$0</span>
+          </div>
+          <div class="summary-line giftcard hidden" id="giftcardLine">
+            <span class="label">GiftCard</span>
+            <span id="giftcardValue">-$0</span>
+          </div>
+          <div class="summary-line"><span class="label" id="shippingLabel">Envio</span><span id="shippingValue">$19.600</span></div>
+          <div class="summary-line total"><span class="label">Total compra</span><span id="totalValue">$507.400</span></div>
+        </div>
+
+        <div class="footer-note">
+          <span>&#128274;</span>
+          <span>El pedido se creara solo cuando completes el pago. Si necesitas cambios, contacta a tu asesor por WhatsApp.</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VISTA: LOADING                                                -->
+<!-- ============================================================ -->
+<div id="loadingView" style="display: none;">
+  <div class="header">
+    <div class="brand">STIRPE</div>
+    <div class="secure">&#128274; Pago seguro</div>
+  </div>
+  <div class="checkout-layout">
+    <div class="steps-panel">
+      <div class="block">
+        <div style="padding: 20px;">
+          <div class="shimmer shimmer-line" style="width: 40%;"></div>
+          <div class="shimmer shimmer-line" style="width: 80%;"></div>
+        </div>
+      </div>
+      <div class="block">
+        <div style="padding: 20px;">
+          <div class="shimmer shimmer-line" style="width: 50%;"></div>
+          <div class="shimmer shimmer-line" style="width: 70%;"></div>
+        </div>
+      </div>
+      <div class="block">
+        <div style="padding: 20px;">
+          <div class="shimmer shimmer-block"></div>
+          <div class="shimmer shimmer-block"></div>
+          <div class="shimmer shimmer-block"></div>
+        </div>
+      </div>
+    </div>
+    <div class="summary-panel">
+      <div class="shimmer shimmer-line" style="width: 60%; margin-bottom: 20px;"></div>
+      <div class="summary-section">
+        <div class="shimmer shimmer-block"></div>
+        <div class="shimmer shimmer-block"></div>
+      </div>
+      <div class="summary-section">
+        <div class="shimmer shimmer-line"></div>
+        <div class="shimmer shimmer-line" style="width: 80%;"></div>
+        <div class="shimmer shimmer-line" style="width: 60%;"></div>
+        <div class="shimmer shimmer-block" style="margin-top: 12px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VISTA: LINK EXPIRADO                                          -->
+<!-- ============================================================ -->
+<div id="expiredView" style="display: none;">
+  <div class="header"><div class="brand">STIRPE</div></div>
+  <div class="state-card">
+    <div class="state-icon">&#9888;&#65039;</div>
+    <h1>Link expirado</h1>
+    <p>
+      Este link de pago ya no esta disponible. El pedido pudo haber sido
+      <strong>cancelado</strong> o <strong>archivado</strong> por antigüedad.
+    </p>
+    <p style="font-size: 13px;">
+      Si tienes dudas, contacta a tu asesor por WhatsApp.
+    </p>
+    <a href="#" class="state-cta">Contactar a la tienda</a>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VISTA: PEDIDO YA CONVERTIDO                                   -->
+<!-- ============================================================ -->
+<div id="convertedView" style="display: none;">
+  <div class="header"><div class="brand">STIRPE</div></div>
+  <div class="state-card">
+    <div class="state-icon">&#9989;</div>
+    <h1>Tu pedido ya fue procesado</h1>
+    <p>
+      Este carrito ya se convirtio en el pedido <strong>#683563</strong>.
+      Te llevamos a la pagina del pedido para que veas su estado actual.
+    </p>
+    <div style="font-size: 12px; color: #9ca3af; margin: 12px 0;">
+      Redirigiendo en 2 segundos...
+    </div>
+    <a href="#" class="state-cta">Ver mi pedido ahora</a>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Datos
+// ============================================================
+const baseProducts = [
+  { name: 'Owen t-shirt boxy con estampado typer', meta: 'Color: NEGRO &middot; Talla: M', price: 307900, icon: '&#128085;' },
+  { name: 'Pantalon wide leg algodon', meta: 'Color: BEIGE &middot; Talla: 30', price: 179900, icon: '&#128086;' },
+];
+
+const subtotal = 487800;
+const shippingPrice = 19600;
+
+const scenarios = {
+  servientrega: {
+    description: 'Servientrega + pago anticipado, sin cupon ni estrategia. Todos los medios de pago habilitados.',
+    shipping: 'servientrega',
+    coupon: null,
+    strategy: null,
+    giftcard: null,
+    methods: [
+      { id: 'tarjeta_credito', name: 'Tarjeta de credito / debito', icon: 'TC', desc: 'Visa, Mastercard, Amex', available: true, hasDiscount: false },
+      { id: 'pse', name: 'PSE', icon: 'PSE', desc: 'Transferencia bancaria', available: true, hasDiscount: false },
+      { id: 'bancolombia', name: 'Bancolombia', icon: 'BC', desc: 'Boton Bancolombia', available: true, hasDiscount: false },
+      { id: 'efectivo', name: 'Efecty', icon: 'EF', desc: 'Pago en puntos Efecty', available: true, hasDiscount: false },
+      { id: 'addi', name: 'Addi', icon: 'AD', desc: 'Compra ahora, paga despues', available: true, hasDiscount: false },
+      { id: 'sistecredito', name: 'Sistecredito', icon: 'SC', desc: 'Credito inmediato', available: true, hasDiscount: false },
+    ],
+  },
+  mensajeria: {
+    description: 'Mensajeria interna (contraentrega). El cliente recibio el link de pago del mensajero al momento de la entrega. Misma vista, distinto bloque de envio.',
+    shipping: 'mensajeria',
+    coupon: null,
+    strategy: null,
+    giftcard: null,
+    methods: [
+      { id: 'tarjeta_credito', name: 'Tarjeta de credito / debito', icon: 'TC', desc: 'Visa, Mastercard, Amex', available: true, hasDiscount: false },
+      { id: 'pse', name: 'PSE', icon: 'PSE', desc: 'Transferencia bancaria', available: true, hasDiscount: false },
+      { id: 'bancolombia', name: 'Bancolombia', icon: 'BC', desc: 'Boton Bancolombia', available: true, hasDiscount: false },
+      { id: 'efectivo', name: 'Efecty', icon: 'EF', desc: 'Pago en puntos Efecty', available: true, hasDiscount: false },
+      { id: 'addi', name: 'Addi', icon: 'AD', desc: 'Compra ahora, paga despues', available: true, hasDiscount: false },
+    ],
+  },
+  coupon: {
+    description: 'El asesor aplico el cupon DESC15PSE (15% solo pagando con PSE). Los medios no permitidos aparecen deshabilitados. El cupon se muestra como chip preaplicado en el resumen (no hay input para agregar).',
+    shipping: 'servientrega',
+    coupon: { code: 'DESC15PSE', allowedMethods: ['pse'], percent: 15, label: 'Cupon DESC15PSE (-15%)' },
+    strategy: null,
+    giftcard: null,
+    methods: [
+      { id: 'tarjeta_credito', name: 'Tarjeta de credito / debito', icon: 'TC', desc: 'Visa, Mastercard, Amex', available: false, hasDiscount: false },
+      { id: 'pse', name: 'PSE', icon: 'PSE', desc: 'Transferencia bancaria', available: true, hasDiscount: false },
+      { id: 'bancolombia', name: 'Bancolombia', icon: 'BC', desc: 'Boton Bancolombia', available: false, hasDiscount: false },
+      { id: 'efectivo', name: 'Efecty', icon: 'EF', desc: 'Pago en puntos Efecty', available: false, hasDiscount: false },
+      { id: 'addi', name: 'Addi', icon: 'AD', desc: 'Compra ahora, paga despues', available: false, hasDiscount: false },
+    ],
+  },
+  strategy: {
+    description: 'Estrategia "Verano 20" activa: 20% de descuento al pagar con PSE o Tarjeta de credito. Todos los medios habilitados. El descuento aparece o desaparece segun la seleccion (refresco dinamico, hereda REQ-1191).',
+    shipping: 'servientrega',
+    coupon: null,
+    strategy: { allowedMethods: ['pse', 'tarjeta_credito'], percent: 20, label: 'Dcto. estrategia (-20%)', bannerText: 'Pagando con {method} obtienes 20% de descuento' },
+    giftcard: null,
+    methods: [
+      { id: 'tarjeta_credito', name: 'Tarjeta de credito / debito', icon: 'TC', desc: 'Visa, Mastercard, Amex', available: true, hasDiscount: true },
+      { id: 'pse', name: 'PSE', icon: 'PSE', desc: 'Transferencia bancaria', available: true, hasDiscount: true },
+      { id: 'bancolombia', name: 'Bancolombia', icon: 'BC', desc: 'Boton Bancolombia', available: true, hasDiscount: false },
+      { id: 'efectivo', name: 'Efecty', icon: 'EF', desc: 'Pago en puntos Efecty', available: true, hasDiscount: false },
+      { id: 'addi', name: 'Addi', icon: 'AD', desc: 'Compra ahora, paga despues', available: true, hasDiscount: false },
+    ],
+  },
+  giftcard: {
+    description: 'El asesor aplico una giftcard de $150.000. Aparece en el bloque de metodos de pago como chip preaplicado (no se puede remover). El cliente elige medio de pago para el saldo restante.',
+    shipping: 'servientrega',
+    coupon: null,
+    strategy: null,
+    giftcard: { code: 'GC-849210', amount: 150000 },
+    methods: [
+      { id: 'tarjeta_credito', name: 'Tarjeta de credito / debito', icon: 'TC', desc: 'Visa, Mastercard, Amex', available: true, hasDiscount: false },
+      { id: 'pse', name: 'PSE', icon: 'PSE', desc: 'Transferencia bancaria', available: true, hasDiscount: false },
+      { id: 'bancolombia', name: 'Bancolombia', icon: 'BC', desc: 'Boton Bancolombia', available: true, hasDiscount: false },
+      { id: 'efectivo', name: 'Efecty', icon: 'EF', desc: 'Pago en puntos Efecty', available: true, hasDiscount: false },
+    ],
+  },
+};
+
+let currentScenario = 'servientrega';
+let selectedMethod = null;
+
+function formatCurrency(n) {
+  return '$' + n.toLocaleString('es-CO');
+}
+
+// ============================================================
+// Mock nav
+// ============================================================
+document.querySelectorAll('.mock-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.mock-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    showView(tab.dataset.view);
+  });
+});
+
+function showView(key) {
+  const checkoutViews = document.getElementById('checkoutViews');
+  const loadingView = document.getElementById('loadingView');
+  const expiredView = document.getElementById('expiredView');
+  const convertedView = document.getElementById('convertedView');
+
+  checkoutViews.style.display = 'none';
+  loadingView.style.display = 'none';
+  expiredView.style.display = 'none';
+  convertedView.style.display = 'none';
+
+  if (key === 'loading') { loadingView.style.display = 'block'; return; }
+  if (key === 'expired') { expiredView.style.display = 'block'; return; }
+  if (key === 'converted') { convertedView.style.display = 'block'; return; }
+
+  checkoutViews.style.display = 'block';
+  currentScenario = key;
+  selectedMethod = null;
+  render();
+}
+
+// ============================================================
+// Render
+// ============================================================
+function selectMethod(id) {
+  const s = scenarios[currentScenario];
+  const method = s.methods.find(m => m.id === id);
+  if (!method.available) return;
+  selectedMethod = id;
+  renderWithAnimation();
+}
+
+function render() {
+  const s = scenarios[currentScenario];
+
+  // Tipo de envio
+  document.getElementById('shippingServientrega').classList.toggle('hidden', s.shipping !== 'servientrega');
+  document.getElementById('shippingMensajeria').classList.toggle('hidden', s.shipping !== 'mensajeria');
+
+  // Productos en summary
+  const productList = document.getElementById('productList');
+  productList.innerHTML = baseProducts.map(p => `
+    <div class="product-item">
+      <div class="product-img">${p.icon}</div>
+      <div class="product-details">
+        <div class="product-name">${p.name}</div>
+        <div class="product-meta">${p.meta}</div>
+        <div class="product-qty">Cantidad: 1</div>
+      </div>
+      <div class="product-price">${formatCurrency(p.price)}</div>
+    </div>
+  `).join('');
+
+  // Cupon preaplicado en summary (solo si hay)
+  const couponSlot = document.getElementById('couponSlot');
+  if (s.coupon) {
+    couponSlot.innerHTML = `
+      <div class="coupon-chip">
+        <div class="cc-icon">&#127873;</div>
+        <div class="cc-info">
+          <div class="cc-title">Cupon ${s.coupon.code} aplicado</div>
+          <div class="cc-desc">${s.coupon.percent}% Dcto. solo con PSE</div>
+        </div>
+        <div class="cc-lock">&#128274; Asesor</div>
+      </div>
+    `;
+  } else {
+    couponSlot.innerHTML = '';
+  }
+
+  // GiftCard preaplicada en bloque de pago (solo si hay)
+  const giftcardSlot = document.getElementById('giftcardSlot');
+  if (s.giftcard) {
+    giftcardSlot.innerHTML = `
+      <div class="giftcard-preapplied">
+        <div class="gc-icon">&#127873;</div>
+        <div class="gc-info">
+          <div class="gc-title">GiftCard ${s.giftcard.code}</div>
+          <div class="gc-desc">Aplicada por tu asesor &middot; ${formatCurrency(s.giftcard.amount)}</div>
+        </div>
+        <div class="gc-lock">&#128274;</div>
+      </div>
+    `;
+  } else {
+    giftcardSlot.innerHTML = '';
+  }
+
+  // Restriction info (solo cuando cupon condicionado)
+  document.getElementById('restrictionInfo').classList.toggle('hidden', !s.coupon);
+
+  // Payment methods
+  const container = document.getElementById('paymentMethods');
+  container.innerHTML = s.methods.map(m => {
+    const isSelected = selectedMethod === m.id;
+    const cls = ['payment-method', isSelected ? 'selected' : '', !m.available ? 'disabled' : ''].filter(Boolean).join(' ');
+
+    let badge = '';
+    if (m.hasDiscount && s.strategy) {
+      badge = `<span class="pm-badge discount">Dcto. ${s.strategy.percent}%</span>`;
+    } else if (!m.available) {
+      badge = `<span class="pm-badge unavailable">No disponible</span>`;
+    }
+
+    return `
+      <div class="${cls}" onclick="selectMethod('${m.id}')">
+        <input type="radio" name="pm" ${isSelected ? 'checked' : ''} ${!m.available ? 'disabled' : ''}>
+        <div class="pm-icon">${m.icon}</div>
+        <div class="pm-info">
+          <div class="pm-name">${m.name}</div>
+          <div class="pm-desc">${m.desc}</div>
+        </div>
+        ${badge}
+      </div>
+    `;
+  }).join('');
+
+  updateSummary(s);
+
+  // Boton pagar
+  const btn = document.getElementById('btnPay');
+  if (selectedMethod) {
+    btn.className = 'btn-pay enabled';
+    btn.disabled = false;
+    btn.innerHTML = '&#128274; Pagar ' + document.getElementById('totalValue').textContent;
+  } else {
+    btn.className = 'btn-pay disabled';
+    btn.disabled = true;
+    btn.textContent = 'Selecciona un medio de pago';
+  }
+}
+
+function renderWithAnimation() {
+  const summaryPanel = document.getElementById('summaryLines');
+  summaryPanel.classList.add('summary-updating');
+  render();
+  setTimeout(() => summaryPanel.classList.remove('summary-updating'), 350);
+}
+
+function updateSummary(s) {
+  // Subtotal
+  document.getElementById('subtotalValue').textContent = formatCurrency(subtotal);
+
+  // Envio
+  if (s.shipping === 'mensajeria') {
+    document.getElementById('shippingLabel').textContent = 'Envio (mensajeria)';
+    document.getElementById('shippingValue').textContent = 'Gratis';
+  } else {
+    document.getElementById('shippingLabel').textContent = 'Envio';
+    document.getElementById('shippingValue').textContent = formatCurrency(shippingPrice);
+  }
+  const shippingValue = s.shipping === 'mensajeria' ? 0 : shippingPrice;
+
+  // Descuento (cupon o estrategia, solo si medio compatible)
+  let discountAmount = 0;
+  let discountLabelText = '';
+  let showDiscount = false;
+
+  if (s.coupon && selectedMethod && s.coupon.allowedMethods.includes(selectedMethod)) {
+    discountAmount = Math.round(subtotal * s.coupon.percent / 100);
+    discountLabelText = s.coupon.label;
+    showDiscount = true;
+  } else if (s.strategy && selectedMethod && s.strategy.allowedMethods.includes(selectedMethod)) {
+    discountAmount = Math.round(subtotal * s.strategy.percent / 100);
+    discountLabelText = s.strategy.label;
+    showDiscount = true;
+  }
+
+  const discountLine = document.getElementById('discountLine');
+  discountLine.classList.toggle('hidden', !showDiscount);
+  document.getElementById('discountLabel').textContent = discountLabelText;
+  document.getElementById('discountValue').textContent = '-' + formatCurrency(discountAmount);
+
+  // GiftCard
+  const giftcardAmount = s.giftcard ? s.giftcard.amount : 0;
+  const giftcardLine = document.getElementById('giftcardLine');
+  giftcardLine.classList.toggle('hidden', giftcardAmount <= 0);
+  document.getElementById('giftcardValue').textContent = '-' + formatCurrency(giftcardAmount);
+
+  // Total
+  const total = Math.max(subtotal + shippingValue - discountAmount - giftcardAmount, 0);
+  document.getElementById('totalValue').textContent = formatCurrency(total);
+
+  // Hint
+  const hint = document.getElementById('discountHint');
+  let hintText = '';
+  if (s.strategy && (!selectedMethod || !s.strategy.allowedMethods.includes(selectedMethod))) {
+    const names = s.methods.filter(m => s.strategy.allowedMethods.includes(m.id)).map(m => m.name).join(' o ');
+    hintText = '&#128161; ' + s.strategy.percent + '% de descuento pagando con ' + names;
+  }
+  if (s.coupon && (!selectedMethod || !s.coupon.allowedMethods.includes(selectedMethod))) {
+    const names = s.methods.filter(m => s.coupon.allowedMethods.includes(m.id)).map(m => m.name).join(' o ');
+    hintText = '&#128161; Tu cupon aplica solo pagando con ' + names;
+  }
+  hint.innerHTML = hintText;
+  hint.classList.toggle('hidden', !hintText);
+
+  // Banner
+  const banner = document.getElementById('discountBanner');
+  const bannerText = document.getElementById('discountBannerText');
+  if (s.strategy && selectedMethod && s.strategy.allowedMethods.includes(selectedMethod)) {
+    const methodName = s.methods.find(m => m.id === selectedMethod)?.name || '';
+    bannerText.textContent = s.strategy.bannerText.replace('{method}', methodName);
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+// Init
+render();
+</script>
+</body>
+</html>
