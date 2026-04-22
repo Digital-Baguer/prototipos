@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>REQ-CRON-1295 — Pipeline PVAL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; background: #f1f5f9; }
+        .sidebar-item { transition: background 0.15s; }
+        .sidebar-item:hover { background: #334155; }
+        .sidebar-item.active { background: #1e40af; }
+        .badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-yellow { background: #fef9c3; color: #854d0e; }
+        .badge-blue { background: #dbeafe; color: #1e40af; }
+        .badge-gray { background: #f1f5f9; color: #475569; }
+        .badge-orange { background: #ffedd5; color: #9a3412; }
+        .badge-purple { background: #f3e8ff; color: #7c3aed; }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .metric-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .metric-value { font-size: 2rem; font-weight: 700; color: #1e293b; }
+        .metric-label { font-size: 0.8rem; color: #64748b; margin-top: 2px; }
+        .table-row:hover { background: #f8fafc; }
+        .modal-overlay { background: rgba(0,0,0,0.5); }
+        .progress-bar { height: 8px; border-radius: 4px; background: #e2e8f0; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+        iframe { border: 1px solid #e2e8f0; border-radius: 8px; }
+        .state-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    </style>
+</head>
+<body class="min-h-screen flex">
+
+<!-- Sidebar -->
+<aside class="w-60 bg-slate-800 text-white min-h-screen flex-shrink-0">
+    <div class="p-4 border-b border-slate-700">
+        <div class="text-lg font-bold">GET Panel</div>
+        <div class="text-xs text-slate-400 mt-1">flizcano.dev@gmail.com</div>
+    </div>
+    <nav class="py-2">
+        <div class="px-4 py-2 text-xs text-slate-500 uppercase tracking-wider">Menu</div>
+        <div class="sidebar-item px-4 py-2 text-sm text-slate-300 cursor-pointer">Dashboard</div>
+        <div class="sidebar-item px-4 py-2 text-sm text-slate-300 cursor-pointer">Pedidos</div>
+        <div class="sidebar-item px-4 py-2 text-sm text-slate-300 cursor-pointer">Productos</div>
+        <div class="sidebar-item px-4 py-2 text-sm text-slate-300 cursor-pointer">Clientes</div>
+        <div class="sidebar-item px-4 py-2 text-sm text-slate-300 cursor-pointer">Venta asistida</div>
+
+        <div class="px-4 py-2 text-xs text-slate-500 uppercase tracking-wider mt-4">QUAC</div>
+        <div class="sidebar-item px-4 py-2 text-sm text-slate-300 cursor-pointer">Pagos</div>
+        <div class="sidebar-item px-4 py-2 text-sm text-slate-300 cursor-pointer">Clientes App</div>
+        <div class="sidebar-item active px-4 py-2 text-sm text-white cursor-pointer font-medium" onclick="showScreen('cortes')" id="nav-cortes">
+            ✉ Cortes PVAL
+        </div>
+        <div class="sidebar-item px-4 py-2 text-sm text-slate-300 cursor-pointer" onclick="showScreen('consulta')" id="nav-consulta">
+            🔍 Consulta PVAL
+        </div>
+    </nav>
+</aside>
+
+<!-- Main Content -->
+<main class="flex-1 overflow-auto">
+
+    <!-- ============================================ -->
+    <!-- SCREEN 1: CORTES PVAL - LISTA PRINCIPAL      -->
+    <!-- ============================================ -->
+    <div id="screen-cortes" class="p-6">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800">Cortes PVAL</h1>
+                <p class="text-sm text-slate-500 mt-1">Gestion del pipeline de envio de notificaciones PVAL</p>
+            </div>
+            <button onclick="showScreen('nuevo-corte')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2">
+                <span>+</span> Nuevo corte
+            </button>
+        </div>
+
+        <!-- Tabla de cortes -->
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">Periodo</th>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">Archivo</th>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">Ver.</th>
+                        <th class="text-right px-4 py-3 text-slate-600 font-semibold">Nuevos</th>
+                        <th class="text-right px-4 py-3 text-slate-600 font-semibold">HTML</th>
+                        <th class="text-right px-4 py-3 text-slate-600 font-semibold">Enviados</th>
+                        <th class="text-right px-4 py-3 text-slate-600 font-semibold">Pend.</th>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">Primer envio</th>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">Ultimo envio</th>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">Estado</th>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Corte COMPLETADO -->
+                    <tr class="table-row border-b border-slate-100">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-slate-800">Abril 2026</div>
+                            <div class="text-xs text-slate-500">2da quincena — Corte 17-abr</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <a href="#" class="text-blue-600 hover:underline text-xs font-mono">mailaval_20260402.txt</a>
+                        </td>
+                        <td class="px-4 py-3 text-center"><span class="badge badge-gray">v1</span></td>
+                        <td class="px-4 py-3 text-right font-medium">3,420</td>
+                        <td class="px-4 py-3 text-right font-medium">3,420</td>
+                        <td class="px-4 py-3 text-right font-medium text-green-700">3,408</td>
+                        <td class="px-4 py-3 text-right font-medium">0</td>
+                        <td class="px-4 py-3 text-xs text-slate-500">18-abr 08:32</td>
+                        <td class="px-4 py-3 text-xs text-slate-500">18-abr 10:15</td>
+                        <td class="px-4 py-3"><span class="badge badge-green"><span class="state-dot bg-green-500"></span>Completado</span></td>
+                        <td class="px-4 py-3">
+                            <button onclick="showScreen('detalle-completado')" class="text-blue-600 hover:underline text-xs">Ver detalle</button>
+                        </td>
+                    </tr>
+
+                    <!-- Corte ENVIANDO -->
+                    <tr class="table-row border-b border-slate-100 bg-blue-50/30">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-slate-800">Abril 2026</div>
+                            <div class="text-xs text-slate-500">1ra quincena — Corte 02-abr</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <a href="#" class="text-blue-600 hover:underline text-xs font-mono">mailaval_20260402.txt</a>
+                        </td>
+                        <td class="px-4 py-3 text-center"><span class="badge badge-purple">v2</span></td>
+                        <td class="px-4 py-3 text-right font-medium">3,650</td>
+                        <td class="px-4 py-3 text-right font-medium">3,650</td>
+                        <td class="px-4 py-3 text-right font-medium text-green-700">2,180</td>
+                        <td class="px-4 py-3 text-right font-medium text-amber-700">1,470</td>
+                        <td class="px-4 py-3 text-xs text-slate-500">05-abr 08:30</td>
+                        <td class="px-4 py-3 text-xs text-slate-500">05-abr 11:42</td>
+                        <td class="px-4 py-3"><span class="badge badge-blue"><span class="state-dot bg-blue-500 animate-pulse"></span>Enviando</span></td>
+                        <td class="px-4 py-3">
+                            <button onclick="showScreen('detalle-enviando')" class="text-blue-600 hover:underline text-xs mr-2">Ver detalle</button>
+                            <button class="text-amber-600 hover:underline text-xs">Pausar</button>
+                        </td>
+                    </tr>
+
+                    <!-- Corte PAUSADO -->
+                    <tr class="table-row border-b border-slate-100">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-slate-800">Marzo 2026</div>
+                            <div class="text-xs text-slate-500">2da quincena — Corte 17-mar</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <a href="#" class="text-blue-600 hover:underline text-xs font-mono">mailaval_20260317.txt</a>
+                        </td>
+                        <td class="px-4 py-3 text-center"><span class="badge badge-gray">v1</span></td>
+                        <td class="px-4 py-3 text-right font-medium">2,890</td>
+                        <td class="px-4 py-3 text-right font-medium">2,890</td>
+                        <td class="px-4 py-3 text-right font-medium text-green-700">1,540</td>
+                        <td class="px-4 py-3 text-right font-medium text-amber-700">1,350</td>
+                        <td class="px-4 py-3 text-xs text-slate-500">07-abr 14:20</td>
+                        <td class="px-4 py-3 text-xs text-slate-500">07-abr 15:08</td>
+                        <td class="px-4 py-3"><span class="badge badge-orange"><span class="state-dot bg-orange-500"></span>Pausado</span></td>
+                        <td class="px-4 py-3">
+                            <button class="text-green-600 hover:underline text-xs mr-2">Reanudar</button>
+                            <button class="text-slate-500 hover:underline text-xs">Re-sincronizar</button>
+                        </td>
+                    </tr>
+
+                    <!-- Corte HTML GENERADO -->
+                    <tr class="table-row border-b border-slate-100">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-slate-800">Marzo 2026</div>
+                            <div class="text-xs text-slate-500">1ra quincena — Corte 02-mar</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <a href="#" class="text-blue-600 hover:underline text-xs font-mono">mailaval_20260302.txt</a>
+                        </td>
+                        <td class="px-4 py-3 text-center"><span class="badge badge-gray">v1</span></td>
+                        <td class="px-4 py-3 text-right font-medium">4,100</td>
+                        <td class="px-4 py-3 text-right font-medium">4,100</td>
+                        <td class="px-4 py-3 text-right font-medium text-slate-400">0</td>
+                        <td class="px-4 py-3 text-right font-medium text-amber-700">4,100</td>
+                        <td class="px-4 py-3 text-xs text-slate-400">—</td>
+                        <td class="px-4 py-3 text-xs text-slate-400">—</td>
+                        <td class="px-4 py-3"><span class="badge badge-purple"><span class="state-dot bg-purple-500"></span>HTML Generado</span></td>
+                        <td class="px-4 py-3">
+                            <button class="text-green-600 hover:underline text-xs mr-2">Habilitar envio</button>
+                            <button class="text-slate-500 hover:underline text-xs">Re-sincronizar</button>
+                        </td>
+                    </tr>
+
+                    <!-- Corte SINCRONIZADO (sin HTML aun) -->
+                    <tr class="table-row border-b border-slate-100">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-slate-800">Febrero 2026</div>
+                            <div class="text-xs text-slate-500">2da quincena — Corte 17-feb</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <a href="#" class="text-blue-600 hover:underline text-xs font-mono">mailaval_20260217.txt</a>
+                        </td>
+                        <td class="px-4 py-3 text-center"><span class="badge badge-gray">v1</span></td>
+                        <td class="px-4 py-3 text-right font-medium">3,200</td>
+                        <td class="px-4 py-3 text-right font-medium text-slate-400">0</td>
+                        <td class="px-4 py-3 text-right font-medium text-slate-400">0</td>
+                        <td class="px-4 py-3 text-right font-medium text-amber-700">3,200</td>
+                        <td class="px-4 py-3 text-xs text-slate-400">—</td>
+                        <td class="px-4 py-3 text-xs text-slate-400">—</td>
+                        <td class="px-4 py-3"><span class="badge badge-yellow"><span class="state-dot bg-yellow-500"></span>Sincronizado</span></td>
+                        <td class="px-4 py-3">
+                            <button class="text-purple-600 hover:underline text-xs mr-2">Generar HTML</button>
+                            <button class="text-slate-500 hover:underline text-xs">Re-sincronizar</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- No entregables -->
+        <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+            <strong>12 PVALs no entregables</strong> en total (sin Nit o Email). No se envian pero quedan registrados.
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- SCREEN 2: NUEVO CORTE - SELECCION PERIODO    -->
+    <!-- ============================================ -->
+    <div id="screen-nuevo-corte" class="p-6 hidden">
+        <div class="mb-6">
+            <button onclick="showScreen('cortes')" class="text-sm text-slate-500 hover:text-slate-700 mb-2 flex items-center gap-1">← Volver a Cortes PVAL</button>
+            <h1 class="text-2xl font-bold text-slate-800">Nuevo corte PVAL</h1>
+            <p class="text-sm text-slate-500 mt-1">Selecciona el periodo y archivo S3 para sincronizar</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-6 max-w-2xl">
+            <!-- Paso 1: Seleccionar periodo -->
+            <div class="mb-6">
+                <h3 class="text-sm font-semibold text-slate-700 mb-3">1. Seleccionar periodo</h3>
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label class="block text-xs text-slate-500 mb-1">Mes</label>
+                        <select id="select-mes" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" onchange="buscarArchivosS3()">
+                            <option value="">Seleccionar mes...</option>
+                            <option value="2026-05">Mayo 2026</option>
+                            <option value="2026-04" selected>Abril 2026</option>
+                            <option value="2026-03">Marzo 2026</option>
+                            <option value="2026-02">Febrero 2026</option>
+                        </select>
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-xs text-slate-500 mb-1">Quincena</label>
+                        <select id="select-quincena" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" onchange="buscarArchivosS3()">
+                            <option value="">Seleccionar...</option>
+                            <option value="1">1ra quincena (dia ~2)</option>
+                            <option value="2" selected>2da quincena (dia ~17)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Paso 2: Archivos S3 encontrados -->
+            <div id="archivos-s3" class="mb-6">
+                <h3 class="text-sm font-semibold text-slate-700 mb-3">2. Archivos disponibles en S3</h3>
+                <div class="text-xs text-slate-400 mb-2 font-mono">cdn.quac.co/pval/</div>
+
+                <div class="border border-slate-200 rounded-lg overflow-hidden">
+                    <div class="flex items-center px-4 py-3 bg-blue-50 border-b border-slate-200 cursor-pointer" id="archivo-seleccionado">
+                        <input type="radio" name="archivo" checked class="mr-3">
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-slate-800 font-mono">mailaval_20260417.txt</div>
+                            <div class="text-xs text-slate-500">Subido: 18 abril 2026, 10:00 (UTC-05:00) — 245 KB</div>
+                        </div>
+                        <span class="badge badge-green text-xs">Nuevo</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Paso 3: Confirmar -->
+            <div class="flex gap-3">
+                <button onclick="showScreen('sincronizando')" class="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+                    Sincronizar
+                </button>
+                <button onclick="showScreen('cortes')" class="bg-slate-100 text-slate-600 px-6 py-2 rounded-lg text-sm font-medium hover:bg-slate-200">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- SCREEN 3: SINCRONIZANDO (PROGRESO)           -->
+    <!-- ============================================ -->
+    <div id="screen-sincronizando" class="p-6 hidden">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-slate-800">Sincronizando...</h1>
+            <p class="text-sm text-slate-500 mt-1">Abril 2026 — 2da quincena</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-6 max-w-2xl">
+            <!-- Progreso -->
+            <div class="space-y-5">
+                <div class="flex items-center gap-3">
+                    <div class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">✓</div>
+                    <div class="flex-1">
+                        <div class="text-sm font-medium text-slate-800">Descargando archivo S3</div>
+                        <div class="text-xs text-slate-500">mailaval_20260417.txt — 245 KB</div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <div class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">✓</div>
+                    <div class="flex-1">
+                        <div class="text-sm font-medium text-slate-800">Copia protegida guardada</div>
+                        <div class="text-xs text-slate-500 font-mono">pval/procesados/mailaval_20260417_v1.txt</div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <div class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">✓</div>
+                    <div class="flex-1">
+                        <div class="text-sm font-medium text-slate-800">Datos cargados a csv_pval</div>
+                        <div class="text-xs text-slate-500">4,280 registros importados</div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <div class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs animate-pulse">⟳</div>
+                    <div class="flex-1">
+                        <div class="text-sm font-medium text-slate-800">Sincronizando a v_pval...</div>
+                        <div class="text-xs text-slate-500">Procesando chunk 5 de 9...</div>
+                        <div class="progress-bar mt-2 w-64">
+                            <div class="progress-fill bg-blue-500" style="width: 55%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 opacity-40">
+                    <div class="w-6 h-6 rounded-full bg-slate-300 text-white flex items-center justify-center text-xs">5</div>
+                    <div class="flex-1">
+                        <div class="text-sm text-slate-500">Completar Nit/Email desde contratos</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-slate-100">
+                <button disabled class="bg-slate-200 text-slate-400 px-6 py-2 rounded-lg text-sm font-medium cursor-not-allowed">
+                    Procesando...
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- SCREEN 4: DETALLE CORTE ENVIANDO             -->
+    <!-- ============================================ -->
+    <div id="screen-detalle-enviando" class="p-6 hidden">
+        <div class="mb-6">
+            <button onclick="showScreen('cortes')" class="text-sm text-slate-500 hover:text-slate-700 mb-2 flex items-center gap-1">← Volver a Cortes PVAL</button>
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800">Abril 2026 — 1ra quincena</h1>
+                    <p class="text-sm text-slate-500 mt-1">Corte 02-abril-2026</p>
+                </div>
+                <span class="badge badge-blue text-sm"><span class="state-dot bg-blue-500 animate-pulse"></span>Enviando</span>
+            </div>
+        </div>
+
+        <!-- Metricas -->
+        <div class="grid grid-cols-6 gap-4 mb-6">
+            <div class="metric-card">
+                <div class="metric-value">3,650</div>
+                <div class="metric-label">PVALs nuevos</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">3,650</div>
+                <div class="metric-label">HTML generados</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value text-green-600">2,180</div>
+                <div class="metric-label">Enviados</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value text-amber-600">1,458</div>
+                <div class="metric-label">Pendientes</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value text-red-400">12</div>
+                <div class="metric-label">No entregables</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value text-purple-600">v2</div>
+                <div class="metric-label">Version archivo</div>
+            </div>
+        </div>
+
+        <!-- Progreso -->
+        <div class="bg-white rounded-xl shadow-sm p-5 mb-6">
+            <div class="flex justify-between text-sm text-slate-600 mb-2">
+                <span>Progreso de envio</span>
+                <span class="font-medium">2,180 / 3,638 (59.9%)</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill bg-gradient-to-r from-blue-500 to-green-500" style="width: 59.9%"></div>
+            </div>
+            <div class="flex justify-between text-xs text-slate-400 mt-2">
+                <span>Primer envio: 05-abr-2026 08:30</span>
+                <span>Ultimo envio: 05-abr-2026 11:42</span>
+            </div>
+        </div>
+
+        <!-- Info del archivo y acciones -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="bg-white rounded-xl shadow-sm p-5">
+                <h3 class="text-sm font-semibold text-slate-700 mb-3">Archivo origen</h3>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Archivo S3:</span>
+                        <span class="font-mono text-xs">mailaval_20260402.txt</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Copia protegida:</span>
+                        <a href="#" class="text-blue-600 hover:underline font-mono text-xs">mailaval_20260402_v2.txt</a>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Subido al S3:</span>
+                        <span class="text-slate-700">18-abr-2026 10:00</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Registros en archivo:</span>
+                        <span class="text-slate-700">4,520</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">PVALs omitidos (ya enviados):</span>
+                        <span class="text-slate-700">870</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm p-5">
+                <h3 class="text-sm font-semibold text-slate-700 mb-3">Acciones</h3>
+                <div class="space-y-3">
+                    <button class="w-full bg-amber-50 text-amber-700 border border-amber-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-100">
+                        ⏸ Pausar envio
+                    </button>
+                    <button class="w-full bg-slate-50 text-slate-600 border border-slate-200 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-100">
+                        🔄 Re-sincronizar desde S3
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historial de versiones -->
+        <div class="bg-white rounded-xl shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-slate-700 mb-3">Historial de versiones y auditoria</h3>
+            <div class="space-y-3">
+                <div class="flex items-start gap-3 text-sm border-l-2 border-blue-300 pl-3">
+                    <div class="text-xs text-slate-400 w-36 flex-shrink-0">05-abr 08:30</div>
+                    <div>
+                        <span class="font-medium text-slate-700">Envio habilitado</span>
+                        <span class="text-slate-400">— por flizcano.dev@gmail.com</span>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3 text-sm border-l-2 border-purple-300 pl-3">
+                    <div class="text-xs text-slate-400 w-36 flex-shrink-0">05-abr 08:28</div>
+                    <div>
+                        <span class="font-medium text-slate-700">HTML generado</span>
+                        <span class="text-slate-400">— 3,650 correos generados</span>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3 text-sm border-l-2 border-orange-300 pl-3">
+                    <div class="text-xs text-slate-400 w-36 flex-shrink-0">05-abr 08:20</div>
+                    <div>
+                        <span class="font-medium text-slate-700">Re-sincronizado (v2)</span>
+                        <span class="text-slate-400">— 250 PVALs adicionales, 1,400 actualizados — por flizcano.dev@gmail.com</span>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3 text-sm border-l-2 border-amber-300 pl-3">
+                    <div class="text-xs text-slate-400 w-36 flex-shrink-0">04-abr 15:10</div>
+                    <div>
+                        <span class="font-medium text-slate-700">Envio pausado</span>
+                        <span class="text-slate-400">— por flizcano.dev@gmail.com</span>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3 text-sm border-l-2 border-blue-300 pl-3">
+                    <div class="text-xs text-slate-400 w-36 flex-shrink-0">03-abr 10:05</div>
+                    <div>
+                        <span class="font-medium text-slate-700">Envio habilitado</span>
+                        <span class="text-slate-400">— por flizcano.dev@gmail.com</span>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3 text-sm border-l-2 border-green-300 pl-3">
+                    <div class="text-xs text-slate-400 w-36 flex-shrink-0">03-abr 10:00</div>
+                    <div>
+                        <span class="font-medium text-slate-700">Sincronizado (v1)</span>
+                        <span class="text-slate-400">— 3,400 PVALs nuevos desde mailaval_20260402_v1.txt — por flizcano.dev@gmail.com</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- SCREEN 5: DETALLE CORTE COMPLETADO           -->
+    <!-- ============================================ -->
+    <div id="screen-detalle-completado" class="p-6 hidden">
+        <div class="mb-6">
+            <button onclick="showScreen('cortes')" class="text-sm text-slate-500 hover:text-slate-700 mb-2 flex items-center gap-1">← Volver a Cortes PVAL</button>
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800">Abril 2026 — 2da quincena</h1>
+                    <p class="text-sm text-slate-500 mt-1">Corte 17-abril-2026</p>
+                </div>
+                <span class="badge badge-green text-sm"><span class="state-dot bg-green-500"></span>Completado</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-5 gap-4 mb-6">
+            <div class="metric-card">
+                <div class="metric-value">3,420</div>
+                <div class="metric-label">PVALs nuevos</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value text-green-600">3,408</div>
+                <div class="metric-label">Enviados</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value text-red-400">12</div>
+                <div class="metric-label">No entregables</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value text-sm leading-8">18-abr 08:32</div>
+                <div class="metric-label">Primer envio</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value text-sm leading-8">18-abr 10:15</div>
+                <div class="metric-label">Ultimo envio</div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5 mb-6">
+            <div class="flex justify-between text-sm text-slate-600 mb-2">
+                <span>Progreso de envio</span>
+                <span class="font-medium text-green-600">3,408 / 3,408 (100%)</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill bg-green-500" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-slate-700 mb-3">Archivo origen</h3>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Copia protegida:</span>
+                    <a href="#" class="text-blue-600 hover:underline font-mono text-xs">pval/procesados/mailaval_20260417_v1.txt</a>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Version:</span>
+                    <span>v1 (unica)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- SCREEN 6: CONSULTA PVAL                      -->
+    <!-- ============================================ -->
+    <div id="screen-consulta" class="p-6 hidden">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-slate-800">Consulta PVAL</h1>
+            <p class="text-sm text-slate-500 mt-1">Buscar correos PVAL por documento, PVAL o plan</p>
+        </div>
+
+        <!-- Formulario de busqueda -->
+        <div class="bg-white rounded-xl shadow-sm p-5 mb-6">
+            <div class="flex gap-4 items-end">
+                <div class="flex-1">
+                    <label class="block text-xs text-slate-500 mb-1">Nro. Documento (Nit)</label>
+                    <input type="text" value="1098745632" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="Ej: 1098745632">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-xs text-slate-500 mb-1">Nro. PVAL</label>
+                    <input type="text" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="Ej: 45230">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-xs text-slate-500 mb-1">Nro. Plan</label>
+                    <input type="text" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="Ej: 12050">
+                </div>
+                <button onclick="document.getElementById('resultados-consulta').classList.remove('hidden')" class="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 flex-shrink-0">
+                    Buscar
+                </button>
+            </div>
+        </div>
+
+        <!-- Resultados -->
+        <div id="resultados-consulta" class="bg-white rounded-xl shadow-sm overflow-hidden">
+            <div class="px-5 py-3 bg-slate-50 border-b border-slate-200">
+                <span class="text-sm text-slate-600">3 resultados para documento <strong>1098745632</strong></span>
+            </div>
+            <table class="w-full text-sm">
+                <thead class="border-b border-slate-200">
+                    <tr>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">ID PVAL</th>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">ID Plan</th>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">Documento</th>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">Cliente</th>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">Email</th>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">Corte</th>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">Estado</th>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">Fecha envio</th>
+                        <th class="text-left px-4 py-3 text-slate-600 font-semibold">Accion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="table-row border-b border-slate-100">
+                        <td class="px-4 py-3 font-mono">45230</td>
+                        <td class="px-4 py-3 font-mono">12050</td>
+                        <td class="px-4 py-3">1098745632</td>
+                        <td class="px-4 py-3 font-medium">MARIA FERNANDA LOPEZ GARCIA</td>
+                        <td class="px-4 py-3 text-slate-500">mflopez@gmail.com</td>
+                        <td class="px-4 py-3 text-xs">02-abr-2026</td>
+                        <td class="px-4 py-3"><span class="badge badge-green">Enviado</span></td>
+                        <td class="px-4 py-3 text-xs">05-abr 09:14</td>
+                        <td class="px-4 py-3">
+                            <button onclick="showModal('modal-correo')" class="text-blue-600 hover:underline text-xs font-medium">Ver correo</button>
+                        </td>
+                    </tr>
+                    <tr class="table-row border-b border-slate-100">
+                        <td class="px-4 py-3 font-mono">38901</td>
+                        <td class="px-4 py-3 font-mono">10200</td>
+                        <td class="px-4 py-3">1098745632</td>
+                        <td class="px-4 py-3 font-medium">MARIA FERNANDA LOPEZ GARCIA</td>
+                        <td class="px-4 py-3 text-slate-500">mflopez@gmail.com</td>
+                        <td class="px-4 py-3 text-xs">17-mar-2026</td>
+                        <td class="px-4 py-3"><span class="badge badge-green">Enviado</span></td>
+                        <td class="px-4 py-3 text-xs">07-abr 14:52</td>
+                        <td class="px-4 py-3">
+                            <button onclick="showModal('modal-correo')" class="text-blue-600 hover:underline text-xs font-medium">Ver correo</button>
+                        </td>
+                    </tr>
+                    <tr class="table-row border-b border-slate-100">
+                        <td class="px-4 py-3 font-mono">29440</td>
+                        <td class="px-4 py-3 font-mono">8350</td>
+                        <td class="px-4 py-3">1098745632</td>
+                        <td class="px-4 py-3 font-medium">MARIA FERNANDA LOPEZ GARCIA</td>
+                        <td class="px-4 py-3 text-slate-500">mflopez@gmail.com</td>
+                        <td class="px-4 py-3 text-xs">02-feb-2026</td>
+                        <td class="px-4 py-3"><span class="badge badge-gray">—</span></td>
+                        <td class="px-4 py-3 text-xs text-slate-400">—</td>
+                        <td class="px-4 py-3">
+                            <button onclick="showModal('modal-no-disponible')" class="text-slate-400 hover:underline text-xs">Ver correo</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Estado: Sin resultados -->
+        <div id="sin-resultados" class="hidden bg-white rounded-xl shadow-sm p-12 text-center">
+            <div class="text-4xl mb-3">🔍</div>
+            <div class="text-slate-500 text-sm">No se encontraron PVALs para los criterios ingresados</div>
+        </div>
+    </div>
+
+</main>
+
+<!-- ============================================ -->
+<!-- MODAL: VER CORREO HTML                       -->
+<!-- ============================================ -->
+<div id="modal-correo" class="fixed inset-0 modal-overlay z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-xl shadow-2xl w-[700px] max-h-[90vh] overflow-hidden flex flex-col">
+        <div class="flex justify-between items-center px-5 py-4 border-b border-slate-200">
+            <div>
+                <h3 class="font-semibold text-slate-800">Correo PVAL #45230</h3>
+                <div class="text-xs text-slate-500 mt-1">Enviado el 05-abr-2026 09:14 — Corte 02-abr-2026</div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="badge badge-green">Enviado</span>
+                <button onclick="hideModal('modal-correo')" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            </div>
+        </div>
+        <div class="flex-1 overflow-auto p-5 bg-slate-50">
+            <div class="bg-white rounded-lg shadow-sm p-1">
+                <iframe srcdoc='
+                    <div style="max-width:600px; margin:0 auto; background:#fff; padding:30px; font-family:Arial,sans-serif; line-height:1.6; color:#333;">
+                        <p style="text-align:right; margin:0;">5 de abril, 2026</p>
+                        <p style="margin-top:30px; font-weight:bold; text-transform:uppercase;">MARIA FERNANDA LOPEZ GARCIA</p>
+                        <p style="margin-top:0;">Nro Doc. 1098745632</p>
+                        <p>Nos ponemos en contacto desde <strong>POR CUOTAS S.A.S.</strong> en relación con su crédito bajo la modalidad de <em>&quot;Cuotas 0% financiación&quot;</em>.</p>
+                        <p>De acuerdo con lo establecido en el contrato de crédito y en el contrato de fianza que usted suscribió, esta modalidad contempla el beneficio de no pagar el valor de la fianza siempre que los pagos se realicen de forma cumplida y en las fechas pactadas.</p>
+                        <p>Lamentablemente, hemos identificado un incumplimiento en el pago programado de una de las cuotas, lo que activa la obligación de pagar la fianza inicialmente no cobrada.</p>
+                        <p>A continuación, le detallamos el nuevo plan de pagos actualizado:</p>
+                        <table style="width:100%; border-collapse:collapse; margin:20px 0;">
+                            <thead>
+                                <tr style="background:#f0f0f0;"><th style="padding:10px; border:1px solid #ddd; text-align:left;">Fecha vencimiento</th><th style="padding:10px; border:1px solid #ddd; text-align:left;">Valor</th><th style="padding:10px; border:1px solid #ddd; text-align:left;">Saldo</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td style="padding:10px; border:1px solid #ddd;">15/04/2026</td><td style="padding:10px; border:1px solid #ddd;">$ 45.320</td><td style="padding:10px; border:1px solid #ddd;">$ 312.800</td></tr>
+                                <tr><td style="padding:10px; border:1px solid #ddd;">30/04/2026</td><td style="padding:10px; border:1px solid #ddd;">$ 45.320</td><td style="padding:10px; border:1px solid #ddd;">$ 267.480</td></tr>
+                                <tr><td style="padding:10px; border:1px solid #ddd;">15/05/2026</td><td style="padding:10px; border:1px solid #ddd;">$ 45.320</td><td style="padding:10px; border:1px solid #ddd;">$ 222.160</td></tr>
+                                <tr><td style="padding:10px; border:1px solid #ddd;">30/05/2026</td><td style="padding:10px; border:1px solid #ddd;">$ 45.320</td><td style="padding:10px; border:1px solid #ddd;">$ 176.840</td></tr>
+                                <tr><td style="padding:10px; border:1px solid #ddd;">15/06/2026</td><td style="padding:10px; border:1px solid #ddd;">$ 45.320</td><td style="padding:10px; border:1px solid #ddd;">$ 131.520</td></tr>
+                            </tbody>
+                        </table>
+                        <p>Le recomendamos revisar este nuevo plan y realizar los pagos en las fechas indicadas.</p>
+                        <p>Puede contactarnos a través de <strong>WhatsApp 312 460 5748</strong> o al correo <a href="mailto:contacto@quac.co">contacto@quac.co</a>.</p>
+                        <p style="margin-top:30px;">Saludos cordiales,</p>
+                        <p style="font-weight:bold;">POR CUOTAS S.A.S.</p>
+                    </div>
+                ' style="width:100%; height:550px; border:none;"></iframe>
+            </div>
+        </div>
+        <div class="px-5 py-3 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
+            <div class="text-xs text-slate-400">
+                🔒 HTML sellado — inmutable post-envio
+            </div>
+            <button onclick="hideModal('modal-correo')" class="bg-slate-200 text-slate-600 px-4 py-1.5 rounded-lg text-sm hover:bg-slate-300">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: HTML NO DISPONIBLE -->
+<div id="modal-no-disponible" class="fixed inset-0 modal-overlay z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-xl shadow-2xl w-[450px] overflow-hidden">
+        <div class="flex justify-between items-center px-5 py-4 border-b border-slate-200">
+            <h3 class="font-semibold text-slate-800">Correo PVAL #29440</h3>
+            <button onclick="hideModal('modal-no-disponible')" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+        </div>
+        <div class="p-8 text-center">
+            <div class="text-4xl mb-4">📭</div>
+            <div class="text-slate-600 font-medium mb-1">HTML no disponible</div>
+            <div class="text-sm text-slate-400">Este PVAL fue procesado antes de la implementacion<br>del sistema de persistencia de HTML.</div>
+        </div>
+        <div class="px-5 py-3 border-t border-slate-200 bg-slate-50 text-right">
+            <button onclick="hideModal('modal-no-disponible')" class="bg-slate-200 text-slate-600 px-4 py-1.5 rounded-lg text-sm hover:bg-slate-300">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Navegacion entre pantallas
+    function showScreen(screenId) {
+        document.querySelectorAll('[id^="screen-"]').forEach(el => el.classList.add('hidden'));
+        document.getElementById('screen-' + screenId).classList.remove('hidden');
+
+        // Actualizar sidebar
+        document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+        if (screenId === 'consulta') {
+            document.getElementById('nav-consulta').classList.add('active');
+            document.getElementById('nav-cortes').classList.remove('active');
+        } else {
+            document.getElementById('nav-cortes').classList.add('active');
+            document.getElementById('nav-consulta').classList.remove('active');
+        }
+    }
+
+    // Modales
+    function showModal(id) {
+        document.getElementById(id).classList.remove('hidden');
+    }
+    function hideModal(id) {
+        document.getElementById(id).classList.add('hidden');
+    }
+
+    // Cerrar modal con click fuera
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.classList.add('hidden');
+        });
+    });
+
+    // Simulacion: buscar archivos S3
+    function buscarArchivosS3() {
+        // Placeholder — en el mockup simplemente muestra el resultado estatico
+    }
+</script>
+
+</body>
+</html>
