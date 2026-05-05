@@ -29,15 +29,11 @@ function NosotrosPage({
       paddingTop: 0
     }
   }, /*#__PURE__*/React.createElement("div", {
-    className: "container"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "two-col",
+    className: "container",
     style: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 80
+      maxWidth: 860
     }
-  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+  }, /*#__PURE__*/React.createElement("p", {
     className: "lead",
     style: {
       marginBottom: 24
@@ -55,13 +51,7 @@ function NosotrosPage({
       fontSize: 16,
       lineHeight: 1.7
     }
-  }, "Operamos con la disciplina propia del retail establecido y la agilidad de un equipo local que entiende el consumidor colombiano.")), /*#__PURE__*/React.createElement("div", {
-    className: "ph",
-    "data-label": "Editorial \xB7 Equipo en tienda",
-    style: {
-      minHeight: 520
-    }
-  })))), /*#__PURE__*/React.createElement("section", {
+  }, "Operamos con la disciplina propia del retail establecido y la agilidad de un equipo local que entiende el consumidor colombiano."))), /*#__PURE__*/React.createElement("section", {
     style: {
       background: 'var(--bone)'
     }
