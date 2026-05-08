@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GW-5 Mockup — Bonos Regalo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+        .toast { padding: 12px 20px; border-radius: 8px; color: white; font-size: 13px; font-weight: 500; opacity: 0; transform: translateX(100px); transition: all 0.3s ease; max-width: 420px; line-height: 1.4; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .toast.show { opacity: 1; transform: translateX(0); }
+        .toast-info { background: #1e40af; }
+        .toast-success { background: #15803d; }
+        .toast-warning { background: #b45309; }
+        .toast-error { background: #b91c1c; }
+        .toast-crm { background: #6d28d9; }
+        .toast .toast-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; display: block; margin-bottom: 2px; }
+        .fade-in { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .skeleton { background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .tab-active { border-bottom: 2px solid #6366f1; color: #4f46e5; font-weight: 600; }
+        .tab-inactive { border-bottom: 2px solid transparent; color: #6b7280; }
+        .tab-inactive:hover { color: #374151; }
+        .checkbox-row { transition: background 0.15s; }
+        .checkbox-row:hover { background: #f9fafb; }
+        .badge { font-size: 11px; padding: 2px 8px; border-radius: 9999px; font-weight: 500; }
+        .modal-overlay { background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 text-sm">
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Layout -->
+<div class="flex min-h-screen">
+
+    <!-- Sidebar -->
+    <aside class="w-56 bg-white border-r border-gray-200 flex-shrink-0">
+        <div class="p-4 border-b border-gray-200">
+            <span class="text-lg font-bold text-indigo-600">GET</span>
+            <span class="text-xs text-gray-400 ml-1">CMS</span>
+        </div>
+        <nav class="p-3 space-y-1">
+            <a href="#" class="flex items-center gap-2 px-3 py-2 rounded-md text-gray-500 hover:bg-gray-50">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
+                Dashboard
+            </a>
+            <a href="#" class="flex items-center gap-2 px-3 py-2 rounded-md text-gray-500 hover:bg-gray-50">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+                Venta Asistida
+            </a>
+            <div>
+                <a href="#" class="flex items-center gap-2 px-3 py-2 rounded-md bg-indigo-50 text-indigo-700 font-medium">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Devoluciones
+                </a>
+                <a href="#" onclick="showScreen('index')" class="ml-6 px-3 py-1.5 block text-indigo-600 font-medium text-xs rounded hover:bg-indigo-50">
+                    Bonos Regalo
+                </a>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- Main content -->
+    <main class="flex-1 overflow-auto">
+        <!-- Header -->
+        <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2 text-xs text-gray-400">
+                <span>Inicio</span>
+                <span>/</span>
+                <span>Devoluciones</span>
+                <span>/</span>
+                <span class="text-gray-700" id="breadcrumb">Bonos Regalo</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-xs text-gray-500">Sandra Ospina</span>
+                <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium text-xs">SO</div>
+            </div>
+        </header>
+
+        <!-- Screens -->
+        <div class="p-6">
+
+            <!-- ==================== SCREEN: INDEX ==================== -->
+            <div id="screen-index" class="fade-in">
+                <div class="flex items-center justify-between mb-6">
+                    <h1 class="text-xl font-bold text-gray-900">Bonos Regalo</h1>
+                    <button onclick="showScreen('create')" class="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Crear bono regalo
+                    </button>
+                </div>
+
+                <!-- Filtros -->
+                <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+                    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 items-end">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Fecha desde</label>
+                            <input type="date" value="2026-04-30" class="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Fecha hasta</label>
+                            <input type="date" value="2026-05-07" class="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">NIT</label>
+                            <input type="text" placeholder="Documento..." class="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Tienda</label>
+                            <select class="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm">
+                                <option value="">Todas</option>
+                                <option>Stirpe</option>
+                                <option>Derek</option>
+                                <option>Clover</option>
+                                <option>U82</option>
+                                <option>Typer</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Tipo bono</label>
+                            <select class="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm">
+                                <option value="">Todos</option>
+                                <option>Dev. cambio</option>
+                                <option>Pedido incompleto</option>
+                                <option>Garantia</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Estado</label>
+                            <select class="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm">
+                                <option value="">Todos</option>
+                                <option>Sin usar</option>
+                                <option>Usados</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button onclick="showToast('info', 'get-web', 'BD directa: SELECT shop_devolucion_respuesta_crm con filtros + paginate(50)')" class="w-full px-4 py-1.5 bg-gray-800 text-white text-sm rounded-md hover:bg-gray-900 transition">
+                                Buscar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla bonos -->
+                <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Codigo</th>
+                                <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">NIT</th>
+                                <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Cliente</th>
+                                <th class="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Saldo</th>
+                                <th class="text-right px-4 py-3 text-xs font-medium text-gray-500 uppercase">Disponible</th>
+                                <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Tienda</th>
+                                <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                                <th class="text-center px-4 py-3 text-xs font-medium text-gray-500 uppercase">Estado</th>
+                                <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr class="hover:bg-gray-50 cursor-pointer" onclick="openDetailModal('DEV21281-PII5-BQDK-NZXI', '27741966', 'Maria Elena Rodriguez', 242220, 117258, 'Stirpe', 'Dev. cambio', true, '2025-08-14')">
+                                <td class="px-4 py-3 font-mono text-xs text-indigo-600 font-medium">DEV21281-PII5-BQDK-NZXI</td>
+                                <td class="px-4 py-3">27741966</td>
+                                <td class="px-4 py-3">Maria Elena Rodriguez</td>
+                                <td class="px-4 py-3 text-right font-medium">$242.220</td>
+                                <td class="px-4 py-3 text-right font-medium text-green-600">$117.258</td>
+                                <td class="px-4 py-3">Stirpe</td>
+                                <td class="px-4 py-3"><span class="badge bg-blue-100 text-blue-700">Dev. cambio</span></td>
+                                <td class="px-4 py-3 text-center"><span class="badge bg-green-100 text-green-700">Activo</span></td>
+                                <td class="px-4 py-3 text-gray-500">2025-08-14</td>
+                            </tr>
+                            <tr class="hover:bg-gray-50 cursor-pointer" onclick="openDetailModal('DEV39412-KXMN-RTPQ-WBZL', '1098745632', 'Carlos Andres Mejia', 185000, 185000, 'Derek', 'Pedido incompleto', true, '2026-05-02')">
+                                <td class="px-4 py-3 font-mono text-xs text-indigo-600 font-medium">DEV39412-KXMN-RTPQ-WBZL</td>
+                                <td class="px-4 py-3">1098745632</td>
+                                <td class="px-4 py-3">Carlos Andres Mejia</td>
+                                <td class="px-4 py-3 text-right font-medium">$185.000</td>
+                                <td class="px-4 py-3 text-right font-medium text-green-600">$185.000</td>
+                                <td class="px-4 py-3">Derek</td>
+                                <td class="px-4 py-3"><span class="badge bg-amber-100 text-amber-700">P. incompleto</span></td>
+                                <td class="px-4 py-3 text-center"><span class="badge bg-green-100 text-green-700">Activo</span></td>
+                                <td class="px-4 py-3 text-gray-500">2026-05-02</td>
+                            </tr>
+                            <tr class="hover:bg-gray-50 cursor-pointer" onclick="openDetailModal('DEV28756-PQLM-HJFN-YVCT', '52843196', 'Ana Lucia Vargas', 320000, 0, 'Stirpe', 'Dev. cambio', false, '2026-04-28')">
+                                <td class="px-4 py-3 font-mono text-xs text-indigo-600 font-medium">DEV28756-PQLM-HJFN-YVCT</td>
+                                <td class="px-4 py-3">52843196</td>
+                                <td class="px-4 py-3">Ana Lucia Vargas</td>
+                                <td class="px-4 py-3 text-right font-medium">$320.000</td>
+                                <td class="px-4 py-3 text-right font-medium text-gray-400">$0</td>
+                                <td class="px-4 py-3">Stirpe</td>
+                                <td class="px-4 py-3"><span class="badge bg-blue-100 text-blue-700">Dev. cambio</span></td>
+                                <td class="px-4 py-3 text-center"><span class="badge bg-gray-100 text-gray-500">Usado</span></td>
+                                <td class="px-4 py-3 text-gray-500">2026-04-28</td>
+                            </tr>
+                            <tr class="hover:bg-gray-50 cursor-pointer">
+                                <td class="px-4 py-3 font-mono text-xs text-indigo-600 font-medium">DEV41023-MNBV-QWER-LKJH</td>
+                                <td class="px-4 py-3">79856321</td>
+                                <td class="px-4 py-3">Pedro Jose Gutierrez</td>
+                                <td class="px-4 py-3 text-right font-medium">$95.000</td>
+                                <td class="px-4 py-3 text-right font-medium text-green-600">$95.000</td>
+                                <td class="px-4 py-3">Clover</td>
+                                <td class="px-4 py-3"><span class="badge bg-red-100 text-red-700">Garantia</span></td>
+                                <td class="px-4 py-3 text-center"><span class="badge bg-green-100 text-green-700">Activo</span></td>
+                                <td class="px-4 py-3 text-gray-500">2026-05-05</td>
+                            </tr>
+                            <tr class="hover:bg-gray-50 cursor-pointer">
+                                <td class="px-4 py-3 font-mono text-xs text-indigo-600 font-medium">DEV37891-ZXCV-TYUI-ASDF</td>
+                                <td class="px-4 py-3">1024567890</td>
+                                <td class="px-4 py-3">Laura Fernanda Rios</td>
+                                <td class="px-4 py-3 text-right font-medium">$450.000</td>
+                                <td class="px-4 py-3 text-right font-medium text-green-600">$290.000</td>
+                                <td class="px-4 py-3">Stirpe</td>
+                                <td class="px-4 py-3"><span class="badge bg-blue-100 text-blue-700">Dev. cambio</span></td>
+                                <td class="px-4 py-3 text-center"><span class="badge bg-green-100 text-green-700">Activo</span></td>
+                                <td class="px-4 py-3 text-gray-500">2026-05-06</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <!-- Paginacion -->
+                    <div class="flex items-center justify-between border-t border-gray-200 px-4 py-3 bg-gray-50">
+                        <p class="text-xs text-gray-500">Mostrando 1 - 5 de 127</p>
+                        <div class="flex gap-1">
+                            <button class="px-2.5 py-1 border border-gray-300 rounded text-xs text-gray-400 bg-white" disabled>&laquo;</button>
+                            <button class="px-2.5 py-1 border border-indigo-500 rounded text-xs text-white bg-indigo-600">1</button>
+                            <button class="px-2.5 py-1 border border-gray-300 rounded text-xs text-gray-700 bg-white hover:bg-gray-50">2</button>
+                            <button class="px-2.5 py-1 border border-gray-300 rounded text-xs text-gray-700 bg-white hover:bg-gray-50">3</button>
+                            <button class="px-2.5 py-1 border border-gray-300 rounded text-xs text-gray-700 bg-white hover:bg-gray-50">&raquo;</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== SCREEN: CREATE ==================== -->
+            <div id="screen-create" class="fade-in hidden">
+                <div class="flex items-center gap-3 mb-6">
+                    <button onclick="showScreen('index')" class="p-1.5 rounded-md hover:bg-gray-200 transition">
+                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <h1 class="text-xl font-bold text-gray-900">Crear bono regalo</h1>
+                </div>
+
+                <!-- Step 1: Busqueda -->
+                <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4">
+                    <h2 class="text-sm font-semibold text-gray-700 mb-4">Buscar cliente</h2>
+                    <div class="flex gap-3 items-end">
+                        <div class="flex-1 max-w-xs">
+                            <label class="block text-xs text-gray-500 mb-1">NIT del cliente</label>
+                            <input type="text" id="inputNit" value="27741966" placeholder="Ingrese el NIT..." class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none">
+                        </div>
+                        <div class="w-48">
+                            <label class="block text-xs text-gray-500 mb-1">Seleccione la tienda</label>
+                            <select id="selectTienda" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 outline-none">
+                                <option value="0">Stirpe</option>
+                                <option value="1">Derek</option>
+                                <option value="2">Clover</option>
+                                <option value="3">U82</option>
+                                <option value="4">Typer</option>
+                            </select>
+                        </div>
+                        <button onclick="simulateSearch()" id="btnContinuar" class="px-5 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 transition">
+                            Continuar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loading state -->
+                <div id="create-loading" class="hidden">
+                    <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4">
+                        <div class="space-y-3">
+                            <div class="skeleton h-5 w-48"></div>
+                            <div class="skeleton h-4 w-72"></div>
+                            <div class="skeleton h-4 w-56"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg border border-gray-200 p-5">
+                        <div class="skeleton h-5 w-36 mb-4"></div>
+                        <div class="space-y-2">
+                            <div class="skeleton h-10 w-full"></div>
+                            <div class="skeleton h-10 w-full"></div>
+                            <div class="skeleton h-10 w-full"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Resultados -->
+                <div id="create-results" class="hidden">
+                    <!-- Datos del cliente -->
+                    <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4">
+                        <h2 class="text-sm font-semibold text-gray-700 mb-3">Datos del cliente</h2>
+                        <div class="grid grid-cols-4 gap-4">
+                            <div>
+                                <span class="text-xs text-gray-400">Nombre</span>
+                                <p class="font-medium">Maria Elena</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-400">Apellidos</span>
+                                <p class="font-medium">Rodriguez Perez</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-400">NIT</span>
+                                <p class="font-medium">27741966</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-400">Email</span>
+                                <p class="font-medium">maria.rodriguez@gmail.com</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bonos existentes (refrescados) -->
+                    <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4" id="bonosExistentesSection">
+                        <div class="flex items-center gap-2 mb-3">
+                            <h2 class="text-sm font-semibold text-gray-700">Bonos existentes</h2>
+                            <span class="badge bg-indigo-100 text-indigo-700">1 bono refrescado</span>
+                        </div>
+                        <div class="bg-amber-50 border border-amber-200 rounded-md p-3 mb-3 text-xs text-amber-800">
+                            <strong>Falso cero detectado:</strong> El bono DEV21281-PII5-BQDK-NZXI tenia saldo_disponible_remoto = $0 pero el CRM reporta $117.258. Se refresco automaticamente.
+                        </div>
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="text-left px-3 py-2 text-xs font-medium text-gray-500">Codigo</th>
+                                    <th class="text-right px-3 py-2 text-xs font-medium text-gray-500">Saldo original</th>
+                                    <th class="text-right px-3 py-2 text-xs font-medium text-gray-500">Disponible</th>
+                                    <th class="text-center px-3 py-2 text-xs font-medium text-gray-500">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-t border-gray-100">
+                                    <td class="px-3 py-2 font-mono text-xs text-indigo-600">DEV21281-PII5-BQDK-NZXI</td>
+                                    <td class="px-3 py-2 text-right">$242.220</td>
+                                    <td class="px-3 py-2 text-right font-medium text-green-600">$117.258</td>
+                                    <td class="px-3 py-2 text-center"><span class="badge bg-green-100 text-green-700">Refrescado</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Saldos crudos disponibles -->
+                    <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <h2 class="text-sm font-semibold text-gray-700">Saldos disponibles para generar bono</h2>
+                            <span class="badge bg-gray-100 text-gray-600">2 saldos en crudo</span>
+                        </div>
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="text-center px-3 py-2 text-xs font-medium text-gray-500 w-10">
+                                        <input type="checkbox" id="checkAll" onchange="toggleAllChecks(this)" class="rounded">
+                                    </th>
+                                    <th class="text-left px-3 py-2 text-xs font-medium text-gray-500">Tipo</th>
+                                    <th class="text-left px-3 py-2 text-xs font-medium text-gray-500">Numero</th>
+                                    <th class="text-right px-3 py-2 text-xs font-medium text-gray-500">Saldo</th>
+                                    <th class="text-left px-3 py-2 text-xs font-medium text-gray-500">Fecha</th>
+                                    <th class="text-left px-3 py-2 text-xs font-medium text-gray-500">Bodega</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-t border-gray-100 checkbox-row">
+                                    <td class="text-center px-3 py-2"><input type="checkbox" class="saldo-check rounded" checked></td>
+                                    <td class="px-3 py-2 font-mono text-xs">M316</td>
+                                    <td class="px-3 py-2">2187</td>
+                                    <td class="px-3 py-2 text-right font-medium">$89.900</td>
+                                    <td class="px-3 py-2 text-gray-500">2026-04-15</td>
+                                    <td class="px-3 py-2">BOG-NORTE</td>
+                                </tr>
+                                <tr class="border-t border-gray-100 checkbox-row">
+                                    <td class="text-center px-3 py-2"><input type="checkbox" class="saldo-check rounded" checked></td>
+                                    <td class="px-3 py-2 font-mono text-xs">M316</td>
+                                    <td class="px-3 py-2">2203</td>
+                                    <td class="px-3 py-2 text-right font-medium">$145.000</td>
+                                    <td class="px-3 py-2 text-gray-500">2026-04-22</td>
+                                    <td class="px-3 py-2">BOG-NORTE</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Opciones de generacion -->
+                    <div class="bg-white rounded-lg border border-gray-200 p-5 mb-4">
+                        <div class="flex gap-6 items-center">
+                            <div class="w-56">
+                                <label class="block text-xs text-gray-500 mb-1">Motivo</label>
+                                <select class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                                    <option>Devolucion cambio</option>
+                                    <option>Pedido incompleto</option>
+                                    <option>Garantia</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2 pt-4">
+                                <input type="checkbox" id="envioGratis" checked class="rounded">
+                                <label for="envioGratis" class="text-sm text-gray-700">Incluir envio gratis</label>
+                            </div>
+                            <div class="flex-1 text-right pt-4">
+                                <span class="text-sm text-gray-500 mr-4">Total: <strong class="text-gray-900">$234.900</strong></span>
+                                <button onclick="simulateGenerate()" id="btnGenerar" class="px-6 py-2 bg-indigo-600 text-white text-sm rounded-md hover:bg-indigo-700 transition">
+                                    Generar Bono
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Resultado: bono generado -->
+                    <div id="create-success" class="hidden">
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-5">
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-green-800 mb-1">Bono generado exitosamente</h3>
+                                    <p class="text-sm text-green-700 mb-3">Se envio el codigo al correo <strong>maria.rodriguez@gmail.com</strong></p>
+                                    <div class="flex items-center gap-3 bg-white rounded-md border border-green-300 px-4 py-3">
+                                        <span class="font-mono text-lg font-bold text-gray-900" id="codigoGenerado">DEV48271-MNPQ-RXST-KLWZ</span>
+                                        <button onclick="copyCode()" class="px-3 py-1 bg-gray-800 text-white text-xs rounded hover:bg-gray-900 transition flex items-center gap-1">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                            Copiar
+                                        </button>
+                                    </div>
+                                    <p class="text-xs text-green-600 mt-2">Saldo: $234.900 | Envio gratis incluido</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estado vacio -->
+                <div id="create-empty" class="hidden">
+                    <div class="bg-white rounded-lg border border-gray-200 p-8 text-center">
+                        <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <h3 class="font-medium text-gray-700 mb-1">Sin saldos disponibles</h3>
+                        <p class="text-sm text-gray-500">El cliente 99999999 no tiene saldos a favor pendientes en Stirpe.</p>
+                    </div>
+                </div>
+
+                <!-- Estado error cliente no encontrado -->
+                <div id="create-error-client" class="hidden">
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-5">
+                        <div class="flex items-center gap-3">
+                            <svg class="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <div>
+                                <h3 class="font-medium text-red-800">Cliente no encontrado</h3>
+                                <p class="text-sm text-red-700">El NIT ingresado no existe en el sistema QUAC. Verifique el documento.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== SCREEN: CONFIRM MODAL ==================== -->
+
+        </div>
+    </main>
+</div>
+
+<!-- Modal Detalle Bono -->
+<div id="modalDetalle" class="fixed inset-0 z-50 hidden">
+    <div class="modal-overlay absolute inset-0" onclick="closeDetailModal()"></div>
+    <div class="absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-xl overflow-y-auto">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-lg font-bold text-gray-900">Detalle del bono</h2>
+                <button onclick="closeDetailModal()" class="p-1 rounded-md hover:bg-gray-100">
+                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Datos del bono -->
+            <div class="space-y-4 mb-6">
+                <div class="flex items-center gap-2">
+                    <span class="font-mono text-sm font-bold text-indigo-600" id="modal-codigo"></span>
+                    <button onclick="showToast('info', 'Clipboard', 'Codigo copiado al portapapeles')" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div><span class="text-gray-400 text-xs">NIT</span><p class="font-medium" id="modal-nit"></p></div>
+                    <div><span class="text-gray-400 text-xs">Cliente</span><p class="font-medium" id="modal-cliente"></p></div>
+                    <div><span class="text-gray-400 text-xs">Saldo original</span><p class="font-medium" id="modal-saldo"></p></div>
+                    <div><span class="text-gray-400 text-xs">Saldo disponible (CRM)</span><p class="font-medium text-green-600" id="modal-disponible"></p></div>
+                    <div><span class="text-gray-400 text-xs">Tienda</span><p class="font-medium" id="modal-tienda"></p></div>
+                    <div><span class="text-gray-400 text-xs">Tipo</span><p class="font-medium" id="modal-tipo"></p></div>
+                    <div><span class="text-gray-400 text-xs">Fecha creacion</span><p class="font-medium" id="modal-fecha"></p></div>
+                    <div><span class="text-gray-400 text-xs">Estado</span><p id="modal-estado"></p></div>
+                </div>
+            </div>
+
+            <hr class="mb-6">
+
+            <!-- Saldos asociados -->
+            <div class="mb-6">
+                <h3 class="text-sm font-semibold text-gray-700 mb-3">Saldos asociados</h3>
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="text-left px-3 py-2 text-xs text-gray-500">Tipo/Num</th>
+                            <th class="text-right px-3 py-2 text-xs text-gray-500">Saldo</th>
+                            <th class="text-right px-3 py-2 text-xs text-gray-500">Disponible CRM</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-saldos-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <hr class="mb-6">
+
+            <!-- Acciones -->
+            <div class="space-y-3">
+                <h3 class="text-sm font-semibold text-gray-700 mb-2">Acciones</h3>
+
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                        <p class="text-sm font-medium">Bono activo</p>
+                        <p class="text-xs text-gray-500">Desactivar impide su uso en checkout</p>
+                    </div>
+                    <button id="btnToggleActive" onclick="toggleActive()" class="relative w-11 h-6 bg-indigo-600 rounded-full transition">
+                        <span id="toggleDot" class="absolute top-0.5 left-5 w-5 h-5 bg-white rounded-full shadow transition-all"></span>
+                    </button>
+                </div>
+
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                        <p class="text-sm font-medium">Envio gratis</p>
+                        <p class="text-xs text-gray-500">Incluir envio gratis al usar el bono</p>
+                    </div>
+                    <button id="btnToggleShipping" onclick="toggleShipping()" class="relative w-11 h-6 bg-indigo-600 rounded-full transition">
+                        <span id="toggleShippingDot" class="absolute top-0.5 left-5 w-5 h-5 bg-white rounded-full shadow transition-all"></span>
+                    </button>
+                </div>
+
+                <button onclick="resendCode()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                    Reenviar codigo por email
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmacion Generar -->
+<div id="modalConfirm" class="fixed inset-0 z-50 hidden flex items-center justify-center">
+    <div class="modal-overlay absolute inset-0" onclick="closeConfirmModal()"></div>
+    <div class="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Confirmar generacion de bono</h3>
+        <div class="bg-gray-50 rounded-lg p-4 mb-4 text-sm space-y-1">
+            <p><span class="text-gray-500">Cliente:</span> Maria Elena Rodriguez — 27741966</p>
+            <p><span class="text-gray-500">Saldos:</span> 2 seleccionados</p>
+            <p><span class="text-gray-500">Monto total:</span> <strong>$234.900</strong></p>
+            <p><span class="text-gray-500">Motivo:</span> Devolucion cambio</p>
+            <p><span class="text-gray-500">Envio gratis:</span> Si</p>
+            <p><span class="text-gray-500">Email:</span> maria.rodriguez@gmail.com</p>
+        </div>
+        <p class="text-xs text-gray-500 mb-4">Se generara un codigo de bono y se enviara al correo del cliente.</p>
+        <div class="flex gap-3">
+            <button onclick="closeConfirmModal()" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
+                Cancelar
+            </button>
+            <button onclick="confirmGenerate()" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition">
+                Generar bono
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+// ========== TOAST SYSTEM ==========
+function showToast(type, source, message) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+
+    const icons = {
+        info: 'BD',
+        success: 'OK',
+        warning: 'CRM',
+        error: 'ERR',
+        crm: 'CRM'
+    };
+
+    toast.innerHTML = `<span class="toast-label">${icons[type] || 'SYS'} ${source}</span>${message}`;
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => toast.classList.add('show'));
+
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 4500);
+}
+
+// ========== NAVIGATION ==========
+function showScreen(screen) {
+    document.querySelectorAll('[id^="screen-"]').forEach(el => el.classList.add('hidden'));
+    document.getElementById('screen-' + screen).classList.remove('hidden');
+
+    // Reset create screen
+    if (screen === 'create') {
+        document.getElementById('create-results').classList.add('hidden');
+        document.getElementById('create-loading').classList.add('hidden');
+        document.getElementById('create-success').classList.add('hidden');
+        document.getElementById('create-empty').classList.add('hidden');
+        document.getElementById('create-error-client').classList.add('hidden');
+        document.getElementById('breadcrumb').textContent = 'Crear bono regalo';
+    } else {
+        document.getElementById('breadcrumb').textContent = 'Bonos Regalo';
+    }
+}
+
+// ========== CREATE FLOW ==========
+function simulateSearch() {
+    const nit = document.getElementById('inputNit').value;
+    const tienda = document.getElementById('selectTienda');
+    const tiendaNombre = tienda.options[tienda.selectedIndex].text;
+
+    // Show loading
+    document.getElementById('create-loading').classList.remove('hidden');
+    document.getElementById('create-results').classList.add('hidden');
+    document.getElementById('create-empty').classList.add('hidden');
+    document.getElementById('create-error-client').classList.add('hidden');
+    document.getElementById('create-success').classList.add('hidden');
+
+    showToast('info', 'get-web → get-api', `POST /v2/devoluciones/buscar-saldos {nit: "${nit}", tienda_id: ${tienda.value}}`);
+
+    setTimeout(() => {
+        showToast('crm', 'get-api → api-compras-quac', `POST /customer/summary {customer_document: "${nit}"}`);
+    }, 600);
+
+    setTimeout(() => {
+        showToast('crm', 'get-api → CRM Baguer', `GET /DevolucionesTienda/GetSaldosCliente/${nit}/false`);
+    }, 1200);
+
+    setTimeout(() => {
+        if (nit === '27741966') {
+            showToast('warning', 'get-api → CRM Baguer', `GET /DevolucionesTienda/GetSaldoSolicitud/22936 → Falso cero detectado: $0 → $117.258`);
+        }
+    }, 1800);
+
+    setTimeout(() => {
+        if (nit === '27741966') {
+            showToast('crm', 'get-api → CRM Baguer', `GET /DevolucionesTienda/GetEstadoSaldo/M316/2187 → vacio (saldo crudo)`);
+        }
+    }, 2200);
+
+    setTimeout(() => {
+        document.getElementById('create-loading').classList.add('hidden');
+
+        if (nit === '99999999') {
+            document.getElementById('create-error-client').classList.remove('hidden');
+            showToast('error', 'api-compras-quac', 'Cliente no encontrado en QUAC');
+        } else if (nit === '11111111') {
+            document.getElementById('create-results').classList.remove('hidden');
+            document.getElementById('bonosExistentesSection').classList.add('hidden');
+            document.getElementById('create-empty').classList.remove('hidden');
+            document.getElementById('create-results').classList.add('hidden');
+            showToast('success', 'get-api', 'Sin saldos disponibles para este NIT');
+        } else {
+            document.getElementById('create-results').classList.remove('hidden');
+            document.getElementById('bonosExistentesSection').classList.remove('hidden');
+            showToast('success', 'get-api', `Clasificacion completa: 1 bono refrescado, 2 saldos crudos`);
+            showToast('info', 'Trazabilidad', `4 registros insertados en log_servicios_baguer con request/response`);
+        }
+    }, 2800);
+}
+
+function simulateGenerate() {
+    // Open confirmation modal
+    document.getElementById('modalConfirm').classList.remove('hidden');
+}
+
+function closeConfirmModal() {
+    document.getElementById('modalConfirm').classList.add('hidden');
+}
+
+function confirmGenerate() {
+    closeConfirmModal();
+
+    const btn = document.getElementById('btnGenerar');
+    btn.disabled = true;
+    btn.textContent = 'Generando...';
+    btn.classList.add('opacity-50');
+
+    showToast('info', 'get-web → get-api', 'POST /v2/devoluciones/generar-bono {nit, saldos[2], motivo, envioGratis}');
+
+    setTimeout(() => {
+        showToast('crm', 'get-api', 'Verificando anti-duplicado en shop_devolucion_respuesta_crm por tipoDev + numeroDev');
+    }, 500);
+
+    setTimeout(() => {
+        showToast('crm', 'get-api → CRM Baguer', 'POST /DevolucionesTienda/GenerarBonoWeb {nit, codBonoTemp: M3162187-27741966}');
+    }, 1000);
+
+    setTimeout(() => {
+        showToast('crm', 'get-api → CRM Baguer', 'POST /DevolucionesTienda/GenerarBonoWeb {nit, codBonoTemp: M3162203-27741966}');
+    }, 1500);
+
+    setTimeout(() => {
+        showToast('info', 'get-api → Infobip', 'Email enviado a maria.rodriguez@gmail.com (template PEDIDOS_generacion_bono_regalo)');
+    }, 2000);
+
+    setTimeout(() => {
+        showToast('info', 'Trazabilidad', '2 registros GenerarBonoWeb en log_servicios_baguer');
+    }, 2300);
+
+    setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = 'Generar Bono';
+        btn.classList.remove('opacity-50');
+        document.getElementById('create-success').classList.remove('hidden');
+        showToast('success', 'get-api', 'Bono DEV48271-MNPQ-RXST-KLWZ generado | $234.900 | Email enviado');
+    }, 2800);
+}
+
+function copyCode() {
+    const code = document.getElementById('codigoGenerado').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        showToast('success', 'Clipboard', `Codigo ${code} copiado al portapapeles`);
+    });
+}
+
+function toggleAllChecks(el) {
+    document.querySelectorAll('.saldo-check').forEach(cb => cb.checked = el.checked);
+}
+
+// ========== DETAIL MODAL ==========
+function openDetailModal(codigo, nit, cliente, saldo, disponible, tienda, tipo, activo, fecha) {
+    showToast('info', 'get-web', `GET /devoluciones/bonos-regalo/{id} → BD directa + refresco CRM`);
+
+    setTimeout(() => {
+        showToast('crm', 'get-web → get-api', `GET /DevolucionesTienda/GetSaldoSolicitud/{idSolicitudDev} → saldoDisponible: $${disponible.toLocaleString()}`);
+    }, 400);
+
+    document.getElementById('modal-codigo').textContent = codigo;
+    document.getElementById('modal-nit').textContent = nit;
+    document.getElementById('modal-cliente').textContent = cliente;
+    document.getElementById('modal-saldo').textContent = '$' + saldo.toLocaleString();
+    document.getElementById('modal-disponible').textContent = '$' + disponible.toLocaleString();
+    document.getElementById('modal-tienda').textContent = tienda;
+    document.getElementById('modal-tipo').textContent = tipo;
+    document.getElementById('modal-fecha').textContent = fecha;
+
+    const estadoEl = document.getElementById('modal-estado');
+    if (activo && disponible > 0) {
+        estadoEl.innerHTML = '<span class="badge bg-green-100 text-green-700">Activo</span>';
+    } else if (disponible === 0) {
+        estadoEl.innerHTML = '<span class="badge bg-gray-100 text-gray-500">Usado</span>';
+    } else {
+        estadoEl.innerHTML = '<span class="badge bg-red-100 text-red-700">Desactivado</span>';
+    }
+
+    // Saldos asociados
+    const tbody = document.getElementById('modal-saldos-body');
+    tbody.innerHTML = `
+        <tr class="border-t border-gray-100">
+            <td class="px-3 py-2 font-mono text-xs">M316/1945</td>
+            <td class="px-3 py-2 text-right">$${saldo.toLocaleString()}</td>
+            <td class="px-3 py-2 text-right font-medium ${disponible > 0 ? 'text-green-600' : 'text-gray-400'}">$${disponible.toLocaleString()}</td>
+        </tr>
+    `;
+
+    // Toggle state
+    const toggle = document.getElementById('btnToggleActive');
+    const dot = document.getElementById('toggleDot');
+    if (activo) {
+        toggle.className = 'relative w-11 h-6 bg-indigo-600 rounded-full transition';
+        dot.className = 'absolute top-0.5 left-5 w-5 h-5 bg-white rounded-full shadow transition-all';
+    } else {
+        toggle.className = 'relative w-11 h-6 bg-gray-300 rounded-full transition';
+        dot.className = 'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-all';
+    }
+
+    document.getElementById('modalDetalle').classList.remove('hidden');
+}
+
+function closeDetailModal() {
+    document.getElementById('modalDetalle').classList.add('hidden');
+}
+
+let isActive = true;
+function toggleActive() {
+    isActive = !isActive;
+    const toggle = document.getElementById('btnToggleActive');
+    const dot = document.getElementById('toggleDot');
+
+    if (isActive) {
+        toggle.className = 'relative w-11 h-6 bg-indigo-600 rounded-full transition';
+        dot.className = 'absolute top-0.5 left-5 w-5 h-5 bg-white rounded-full shadow transition-all';
+        showToast('info', 'get-web → BD directa', 'UPDATE shop_devolucion_respuesta_crm SET is_active = 1 WHERE codBonoWeb = ...');
+        showToast('success', 'Resultado', 'Bono activado');
+    } else {
+        toggle.className = 'relative w-11 h-6 bg-gray-300 rounded-full transition';
+        dot.className = 'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-all';
+        showToast('info', 'get-web → BD directa', 'UPDATE shop_devolucion_respuesta_crm SET is_active = 0 WHERE codBonoWeb = ...');
+        showToast('warning', 'Resultado', 'Bono desactivado — no se podra usar en checkout');
+    }
+}
+
+let hasShipping = true;
+function toggleShipping() {
+    hasShipping = !hasShipping;
+    const toggle = document.getElementById('btnToggleShipping');
+    const dot = document.getElementById('toggleShippingDot');
+
+    if (hasShipping) {
+        toggle.className = 'relative w-11 h-6 bg-indigo-600 rounded-full transition';
+        dot.className = 'absolute top-0.5 left-5 w-5 h-5 bg-white rounded-full shadow transition-all';
+        showToast('info', 'get-web → BD directa', 'UPDATE shop_devolucion_respuesta_crm SET aplicaEnvioGratis = 1');
+        showToast('success', 'Resultado', 'Envio gratis activado');
+    } else {
+        toggle.className = 'relative w-11 h-6 bg-gray-300 rounded-full transition';
+        dot.className = 'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-all';
+        showToast('info', 'get-web → BD directa', 'UPDATE shop_devolucion_respuesta_crm SET aplicaEnvioGratis = 0');
+        showToast('success', 'Resultado', 'Envio gratis desactivado');
+    }
+}
+
+function resendCode() {
+    const codigo = document.getElementById('modal-codigo').textContent;
+    showToast('info', 'get-web → get-api', `POST /v2/devoluciones/reenviar-codigo {codBonoWeb: "${codigo}"}`);
+
+    setTimeout(() => {
+        showToast('info', 'get-api → Infobip', 'Email reenviado (template PEDIDOS_generacion_bono_regalo)');
+    }, 500);
+
+    setTimeout(() => {
+        showToast('info', 'get-api → BD', 'INSERT shop_devolucion_reenvio_codigo + UPDATE fecha_ultimo_reenvio');
+        showToast('success', 'Resultado', 'Codigo reenviado al correo del cliente');
+    }, 1000);
+}
+</script>
+
+</body>
+</html>
