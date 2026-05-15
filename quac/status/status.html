@@ -1,0 +1,3614 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Niveles QUAC — Propuesta de UX en app móvil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,900&family=Nunito+Sans:wght@300;400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f3efe6;
+    --bg-2: #f3f3f7;
+    --paper: #ffffff;
+    --ink: #0c0c10;
+    --ink-soft: #4a4a55;
+    --rule: #d8d2c0;
+    --rule-strong: #8b8470;
+
+    --quac: #7633FF;
+    --quac-deep: #4a1fb8;
+    --quac-soft: #efe8ff;
+
+    /* tier palettes */
+    --plus-1: #a071ff;
+    --plus-2: #4a1fb8;
+    --plus-3: #2c0d6e;
+
+    --silver-1: #f1f1f4;
+    --silver-2: #c8ccd2;
+    --silver-3: #8e9299;
+    --silver-4: #4d5159;
+
+    --gold-1: #fff1c2;
+    --gold-2: #ecc66a;
+    --gold-3: #b08a2e;
+    --gold-4: #5e480d;
+
+    --black-1: #2c2c2c;
+    --black-2: #0d0d0d;
+    --black-gold: #d4a93f;
+
+    --shadow-frame: 0 30px 60px -20px rgba(20, 15, 5, 0.35), 0 0 0 1px rgba(0,0,0,0.04);
+    --shadow-soft: 0 8px 20px -12px rgba(20, 15, 5, 0.25);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Nunito Sans', system-ui, sans-serif;
+    font-feature-settings: "ss01", "ss02";
+    overflow-x: hidden;
+  }
+
+  body {
+    background:
+      radial-gradient(900px 600px at 100% -100px, rgba(118,51,255,0.07), transparent 60%),
+      radial-gradient(700px 600px at -200px 50%, rgba(212,169,63,0.06), transparent 60%),
+      var(--bg);
+  }
+
+  ::selection { background: var(--quac); color: white; }
+
+  .grain::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 1000;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.04 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    opacity: 0.6;
+    mix-blend-mode: multiply;
+  }
+
+  /* -------------- LAYOUT -------------- */
+  .wrap {
+    max-width: 1480px;
+    margin: 0 auto;
+    padding: 64px 56px 120px;
+  }
+
+  /* Header */
+  .doc-header {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 80px;
+    padding-bottom: 56px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 64px;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 28px;
+  }
+  .eyebrow::before {
+    content: "";
+    display: inline-block;
+    width: 32px; height: 1px;
+    background: var(--ink);
+  }
+  h1.title {
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-size: clamp(48px, 5.4vw, 88px);
+    line-height: 0.95;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+  }
+  h1.title em {
+    font-style: italic;
+    font-weight: 300;
+    color: var(--quac-deep);
+  }
+  .lede {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    margin-top: 28px;
+    max-width: 56ch;
+  }
+  .meta {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    align-self: end;
+    border-left: 1px solid var(--rule);
+    padding-left: 32px;
+  }
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    padding-bottom: 14px;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .meta-row strong { color: var(--ink); font-weight: 600; }
+
+  /* Section */
+  section { margin-bottom: 120px; scroll-margin-top: 40px; }
+  .section-head {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr;
+    gap: 40px;
+    align-items: start;
+    margin-bottom: 56px;
+    padding-bottom: 28px;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .section-num {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 72px;
+    line-height: 1;
+    color: var(--quac);
+    font-weight: 300;
+  }
+  .section-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 36px;
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+  }
+  .section-desc {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    padding-top: 8px;
+  }
+  .section-desc strong { color: var(--ink); font-weight: 700; }
+
+  /* Alternatives grid */
+  .alts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 56px;
+    align-items: start;
+  }
+  .alts.two { grid-template-columns: repeat(2, 1fr); gap: 80px; }
+  .alts.four { grid-template-columns: repeat(4, 1fr); gap: 28px; }
+  .alts.four .phone { width: 270px; height: 580px; border-radius: 40px; padding: 9px; }
+  .alts.four .phone .screen { border-radius: 32px; }
+  .alts.four .phone .notch { width: 82px; height: 22px; top: 7px; }
+  .alts.four .status-bar { padding: 11px 18px 5px; font-size: 10px; }
+  .alts.four .quac-header-bg { padding: 4px 18px 60px; }
+  .alts.four .totp-card { margin: -38px 12px 14px; padding: 12px 14px; }
+  .alts.four .totp-label { font-size: 9px; }
+  .alts.four .totp-code { font-size: 18px; letter-spacing: 0.14em; }
+  .alts.four .totp-pie { width: 22px; height: 22px; }
+  .alts.four .credit-card { margin: 0 12px 12px; padding: 16px 16px 14px; }
+  .alts.four .credit-tier-band { margin: -16px -16px 12px; padding: 9px 16px; }
+  .alts.four .credit-tier-band .ctb-name { font-size: 14px; }
+  .alts.four .credit-cupo .amount { font-size: 26px; }
+  .alts.four .credit-cupo .lbl { font-size: 11px; }
+  .alts.four .credit-benefit-pill { font-size: 9px; padding: 3px 7px; }
+  .alts.four .credit-stats { margin: 10px 0; padding: 9px 10px; }
+  .alts.four .credit-stat .v { font-size: 14px; }
+  .alts.four .credit-stat .k { font-size: 10px; }
+  .alts.four .credit-due .due-text .dt { font-size: 13px; }
+  .alts.four .credit-due .due-text .lbl { font-size: 10px; }
+  .alts.four .status-pill { font-size: 9px; padding: 4px 10px; }
+  .alts.four .btn-primary { font-size: 12px; padding: 11px; }
+  .alts.four .btn-link { font-size: 11px; padding: 8px; }
+  .alts.four .promo-strip { margin: 0 12px 60px; }
+  .alts.four .promo-strip .ps-title { font-size: 12px; }
+  .alts.four .promo-mini { width: 110px; padding: 9px 11px; font-size: 9px; }
+  .alts.four .promo-mini .pct { font-size: 18px; }
+  .alts.four .tabbar { padding: 8px 8px 16px; }
+  .alts.four .tabbar .tab { font-size: 8px; }
+  .alts.four .tabbar .tab .ico { width: 18px; height: 18px; }
+  .alts.four .alt-label .name { font-size: 17px; }
+  .alts.four .alt-label .tag { font-size: 9px; padding: 3px 7px; }
+  .alts.four .alt-notes { font-size: 12px; line-height: 1.55; }
+  .alts.four .alt-notes h4 { font-size: 13px; }
+  .alts.five { grid-template-columns: repeat(5, 1fr); gap: 24px; }
+  .alts.five .phone { width: 250px; height: 540px; border-radius: 36px; padding: 8px; }
+  .alts.five .phone .screen { border-radius: 30px; }
+  .alts.five .phone .notch { width: 75px; height: 20px; top: 6px; }
+  .alts.five .status-bar { padding: 9px 16px 4px; font-size: 9px; }
+  .alts.five .detail-back { padding: 8px 16px; font-size: 11px; }
+  .alts.five .detail-back svg { width: 13px; height: 13px; }
+  .alts.five .card-membership { margin: 0 12px 14px; padding: 16px; min-height: 130px; border-radius: 16px; }
+  .alts.five .card-membership .tier-name-lg { font-size: 30px; }
+  .alts.five .card-membership .small-label { font-size: 8px; }
+  .alts.five .card-membership .doc-row { font-size: 10px; margin-top: 18px; }
+  .alts.five .card-membership .since { font-size: 7px; }
+  .alts.five .progress-block { margin: 0 12px 14px; padding: 12px; border-radius: 12px; }
+  .alts.five .progress-block .heading { font-size: 12px; }
+  .alts.five .progress-block .ladder { margin: 10px 0 6px; }
+  .alts.five .progress-block .step .dot { width: 12px; height: 12px; }
+  .alts.five .progress-block .step .lbl { font-size: 7px; }
+  .alts.five .progress-block .insight { font-size: 9px; line-height: 1.45; }
+  .alts.five .perk-list { margin: 0 12px 14px; padding: 4px 12px; border-radius: 12px; }
+  .alts.five .perk-item { padding: 9px 0; gap: 9px; }
+  .alts.five .perk-item .ico { width: 28px; height: 28px; border-radius: 8px; }
+  .alts.five .perk-item .ico svg { width: 14px; height: 14px; }
+  .alts.five .perk-item .info .title-row { font-size: 10px; }
+  .alts.five .perk-item .info .desc { font-size: 8px; }
+  .alts.five .perk-item .badge-unlocked,
+  .alts.five .perk-item .badge-locked { font-size: 7px; padding: 2px 5px; }
+  .alts.five .tabbar { padding: 7px 8px 14px; }
+  .alts.five .tabbar .tab { font-size: 7px; }
+  .alts.five .tabbar .tab .ico { width: 16px; height: 16px; }
+  .alts.five .alt-label .name { font-size: 16px; }
+  .alts.five .alt-label .tag { font-size: 8px; padding: 3px 6px; }
+  .alts.five .alt-notes { font-size: 11px; line-height: 1.5; }
+  .alts.five .alt-notes h4 { font-size: 12px; }
+
+  .alt {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .alt-label {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    border-bottom: 1px solid var(--ink);
+    padding-bottom: 10px;
+  }
+  .alt-label .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    background: var(--ink);
+    color: var(--bg);
+    padding: 4px 8px;
+    border-radius: 3px;
+  }
+  .alt-label .name {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .alt-frame-wrap {
+    display: flex;
+    justify-content: center;
+  }
+
+  .alt-notes {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+  }
+  .alt-notes h4 {
+    font-family: 'Fraunces', serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 6px;
+    margin-top: 14px;
+  }
+  .alt-notes ul {
+    list-style: none;
+    padding: 0;
+  }
+  .alt-notes li {
+    padding: 4px 0;
+    padding-left: 18px;
+    position: relative;
+  }
+  .alt-notes li::before {
+    content: "—";
+    position: absolute;
+    left: 0;
+    color: var(--rule-strong);
+  }
+  .alt-notes li.pro::before { content: "+"; color: #198a4c; font-weight: 700; }
+  .alt-notes li.con::before { content: "−"; color: #b03a3a; font-weight: 700; }
+  .alt-notes li.note::before { content: "·"; }
+
+  /* -------------- PHONE FRAME -------------- */
+  .phone {
+    width: 300px;
+    height: 620px;
+    background: #0a0a0a;
+    border-radius: 44px;
+    padding: 10px;
+    position: relative;
+    box-shadow: var(--shadow-frame);
+  }
+  .phone::before, .phone::after {
+    content: "";
+    position: absolute;
+    background: #1c1c1c;
+  }
+  .phone::before { /* power btn */
+    width: 3px; height: 60px;
+    right: -3px; top: 130px;
+    border-radius: 2px;
+  }
+  .phone::after { /* volume */
+    width: 3px; height: 80px;
+    left: -3px; top: 110px;
+    border-radius: 2px;
+    box-shadow: 0 100px 0 #1c1c1c, 0 -50px 0 #1c1c1c;
+    height: 40px;
+  }
+  .screen {
+    width: 100%; height: 100%;
+    border-radius: 36px;
+    overflow: hidden;
+    position: relative;
+    background: white;
+  }
+  .notch {
+    position: absolute;
+    top: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 95px; height: 25px;
+    background: #0a0a0a;
+    border-radius: 20px;
+    z-index: 50;
+  }
+  .status-bar {
+    padding: 12px 22px 6px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--ink);
+    font-family: 'Nunito Sans', sans-serif;
+  }
+  .status-bar.dark { color: white; }
+  .status-bar .right {
+    display: flex; gap: 4px; align-items: center;
+  }
+  .status-bar .right svg { width: 13px; height: 13px; }
+
+  /* -------------- COMMON UI -------------- */
+  .app-head {
+    padding: 8px 22px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .app-head .hi {
+    font-family: 'Fraunces', serif;
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.1;
+  }
+  .app-head .hi b {
+    display: block;
+    color: var(--ink);
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+  }
+  .app-head .avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--quac), var(--quac-deep));
+    display: grid; place-items: center;
+    color: white;
+    font-weight: 800;
+    font-size: 13px;
+  }
+
+  .tabbar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: white;
+    border-top: 1px solid #ececf0;
+    padding: 10px 14px 22px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+  }
+  .tabbar .tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    color: #b6b6c0;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .tabbar .tab.active { color: var(--quac); }
+  .tabbar .tab .ico {
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+  }
+  .tabbar .tab .ico svg { width: 100%; height: 100%; stroke-width: 2; }
+  .tabbar.with-fab .fab {
+    width: 50px; height: 50px;
+    background: linear-gradient(135deg, var(--quac), var(--quac-deep));
+    border-radius: 50%;
+    margin-top: -24px;
+    display: grid; place-items: center;
+    box-shadow: 0 8px 18px -4px rgba(118,51,255,0.5);
+    color: white;
+    font-size: 22px;
+    font-weight: 300;
+  }
+
+  /* -------------- TIER VISUAL -------------- */
+  .tier-strip {
+    margin: 0 16px 14px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .tier-strip .label {
+    display: flex; align-items: center; gap: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 10px;
+  }
+  .tier-strip .progress-mini {
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .tier-strip.silver { background: linear-gradient(135deg, var(--silver-1) 0%, var(--silver-2) 70%, var(--silver-3) 100%); color: var(--silver-4); }
+  .tier-strip.gold { background: linear-gradient(135deg, var(--gold-1) 0%, var(--gold-2) 60%, var(--gold-3) 100%); color: var(--gold-4); }
+  .tier-strip.black { background: linear-gradient(135deg, #1d1d1d 0%, #0a0a0a 100%); color: var(--black-gold); }
+  .tier-strip.plus { background: linear-gradient(135deg, var(--plus-1) 0%, var(--plus-2) 100%); color: white; }
+  .tier-strip.quac-basic { background: var(--quac-soft); color: var(--quac-deep); }
+
+  /* Cupo card (existing pattern) */
+  .cupo-card {
+    margin: 0 16px 16px;
+    border-radius: 22px;
+    padding: 18px;
+    background: linear-gradient(135deg, #7633ff, #4a1fb8);
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+  .cupo-card::after {
+    content: "";
+    position: absolute;
+    right: -40px; top: -40px;
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.18), transparent 60%);
+  }
+  .cupo-card .brand {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+  .cupo-card .amount {
+    font-family: 'Fraunces', serif;
+    font-size: 32px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    margin-top: 4px;
+  }
+  .cupo-card .label {
+    font-size: 10px;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 4px;
+  }
+  .cupo-card .row-info {
+    display: flex; justify-content: space-between;
+    margin-top: 16px;
+    font-size: 11px;
+  }
+  .cupo-card .row-info span { opacity: 0.6; display: block; text-transform: uppercase; letter-spacing: 0.08em; font-size: 9px; }
+
+  /* Sections inside app */
+  .h-sec {
+    padding: 12px 22px 8px;
+    font-family: 'Fraunces', serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .h-sec a { color: var(--quac); font-size: 11px; font-family: 'Nunito Sans'; font-weight: 700; }
+
+  .promo-row {
+    display: flex;
+    gap: 10px;
+    padding: 0 16px;
+    overflow-x: auto;
+    margin-bottom: 14px;
+  }
+  .promo {
+    width: 110px;
+    min-width: 110px;
+    height: 130px;
+    background: linear-gradient(135deg, #f8f4ff, #e8def8);
+    border-radius: 14px;
+    padding: 12px;
+    font-size: 10px;
+    color: var(--ink);
+    line-height: 1.3;
+    font-weight: 700;
+  }
+  .promo .pct {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--quac-deep);
+    line-height: 1;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  /* ALT B: Hero card */
+  .hero-tier {
+    margin: 0 16px 14px;
+    border-radius: 22px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    min-height: 180px;
+  }
+  .hero-tier.silver { background: linear-gradient(135deg, #f8f8fb 0%, #c8ccd2 70%, #8e9299 100%); color: var(--silver-4); }
+  .hero-tier.gold { background: linear-gradient(135deg, #fff1c2 0%, #ecc66a 70%, #b08a2e 100%); color: var(--gold-4); }
+  .hero-tier.black { background: linear-gradient(135deg, #2c2c2c, #0a0a0a); color: var(--black-gold); }
+  .hero-tier .tier-name {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 38px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .hero-tier .tier-sub {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-bottom: 6px;
+  }
+  .hero-tier .pattern {
+    position: absolute;
+    right: -20px; bottom: -20px;
+    width: 140px; height: 140px;
+    opacity: 0.15;
+    background: repeating-linear-gradient(45deg, currentColor 0, currentColor 1px, transparent 1px, transparent 8px);
+    border-radius: 50%;
+  }
+  .hero-tier .perks-mini {
+    display: flex; gap: 6px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .hero-tier .perk-chip {
+    background: rgba(0,0,0,0.12);
+    padding: 3px 8px;
+    border-radius: 100px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .hero-tier.black .perk-chip { background: rgba(212,169,63,0.18); }
+  .hero-tier .progress-row {
+    margin-top: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  .hero-tier .progress-bar {
+    height: 4px;
+    background: rgba(0,0,0,0.15);
+    border-radius: 100px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+  .hero-tier.black .progress-bar { background: rgba(255,255,255,0.12); }
+  .hero-tier .progress-fill {
+    height: 100%;
+    background: currentColor;
+    border-radius: 100px;
+  }
+
+  /* ALT C: full bleed header */
+  .header-bleed {
+    padding: 22px 22px 30px;
+    color: white;
+    background: linear-gradient(135deg, #2c2c2c, #0a0a0a);
+    position: relative;
+    overflow: hidden;
+  }
+  .header-bleed::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 80% 20%, rgba(212,169,63,0.2), transparent 50%);
+  }
+  .header-bleed > * { position: relative; z-index: 1; }
+  .header-bleed .greet {
+    font-size: 11px;
+    color: rgba(212,169,63,0.8);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    font-weight: 700;
+  }
+  .header-bleed .name {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 400;
+    margin-top: 4px;
+  }
+  .header-bleed .tier-name {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 56px;
+    line-height: 0.9;
+    font-weight: 300;
+    margin-top: 14px;
+    color: var(--black-gold);
+    letter-spacing: -0.025em;
+  }
+  .header-bleed .tier-tag {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.6);
+    margin-top: 6px;
+  }
+
+  /* -------------- TIER DETAIL PAGE -------------- */
+  .detail-bg {
+    background: var(--bg-2);
+    height: 100%;
+    overflow-y: auto;
+  }
+  .detail-back {
+    padding: 12px 22px;
+    display: flex; align-items: center; gap: 12px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .detail-back svg { width: 16px; height: 16px; }
+
+  .card-membership {
+    margin: 0 18px 20px;
+    border-radius: 20px;
+    padding: 22px;
+    color: var(--gold-4);
+    background: linear-gradient(135deg, #fff1c2 0%, #ecc66a 50%, #b08a2e 100%);
+    position: relative;
+    min-height: 180px;
+    overflow: hidden;
+    box-shadow: var(--shadow-soft);
+  }
+  .card-membership.silver { background: linear-gradient(135deg, #f8f8fb 0%, #c8ccd2 50%, #8e9299 100%); color: var(--silver-4); }
+  .card-membership.black { background: linear-gradient(135deg, #2c2c2c, #0a0a0a); color: var(--black-gold); }
+  .card-membership::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 90% 10%, rgba(255,255,255,0.35), transparent 40%),
+      repeating-linear-gradient(135deg, transparent 0, transparent 14px, rgba(0,0,0,0.04) 14px, rgba(0,0,0,0.04) 15px);
+    pointer-events: none;
+  }
+  .card-membership > * { position: relative; z-index: 1; }
+  .card-membership .top {
+    display: flex; justify-content: space-between; align-items: start;
+  }
+  .card-membership .tier-name-lg {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 42px;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .card-membership .small-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    opacity: 0.75;
+  }
+  .card-membership .doc-row {
+    margin-top: 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
+  .card-membership .since {
+    margin-top: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    opacity: 0.65;
+  }
+
+  .progress-block {
+    margin: 0 18px 20px;
+    background: white;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: var(--shadow-soft);
+  }
+  .progress-block .heading {
+    font-family: 'Fraunces', serif;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .progress-block .ladder {
+    display: flex;
+    justify-content: space-between;
+    margin: 14px 0 8px;
+    position: relative;
+  }
+  .progress-block .ladder::before {
+    content: "";
+    position: absolute;
+    left: 4%; right: 4%;
+    top: 8px;
+    height: 2px;
+    background: var(--rule);
+  }
+  .progress-block .step {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+  }
+  .progress-block .step .dot {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--rule);
+  }
+  .progress-block .step.done .dot { background: var(--quac); border-color: var(--quac); }
+  .progress-block .step.current .dot {
+    background: white;
+    border: 4px solid var(--quac);
+    transform: scale(1.2);
+  }
+  .progress-block .step .lbl {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 4px;
+    color: var(--ink-soft);
+  }
+  .progress-block .step.current .lbl { color: var(--quac); }
+  .progress-block .insight {
+    font-size: 11px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    margin-top: 4px;
+  }
+  .progress-block .insight b { color: var(--quac-deep); font-weight: 700; }
+
+  .perk-list {
+    margin: 0 18px 20px;
+    background: white;
+    border-radius: 16px;
+    padding: 6px 16px;
+    box-shadow: var(--shadow-soft);
+  }
+  .perk-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 0;
+    border-bottom: 1px solid #eaebef;
+  }
+  .perk-item:last-child { border-bottom: 0; }
+  .perk-item .ico {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--quac-soft);
+    color: var(--quac-deep);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .perk-item .ico svg { width: 18px; height: 18px; }
+  .perk-item.locked .ico { background: #eaebef; color: var(--rule-strong); }
+  .perk-item .info { flex: 1; min-width: 0; }
+  .perk-item .info .title-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .perk-item .info .desc {
+    font-size: 10px;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+  .perk-item.locked .info .title-row { color: var(--rule-strong); }
+  .perk-item .badge-unlocked {
+    background: #e8f7ed;
+    color: #198a4c;
+    font-size: 8px;
+    padding: 2px 6px;
+    border-radius: 100px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .perk-item .badge-locked {
+    background: #eaebef;
+    color: var(--rule-strong);
+    font-size: 8px;
+    padding: 2px 6px;
+    border-radius: 100px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* -------------- BENEFITS TABLE: ALTS -------------- */
+  /* Alt A — horizontal carousel of pills */
+  .tier-pills-row {
+    padding: 12px 0 8px;
+    overflow-x: auto;
+    display: flex;
+    gap: 8px;
+    margin: 0 18px 16px;
+    scrollbar-width: none;
+  }
+  .tier-pill {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    background: white;
+    border: 1px solid var(--rule);
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .tier-pill.active { color: white; }
+  .tier-pill.active.silver { background: linear-gradient(135deg, var(--silver-2), var(--silver-3)); }
+  .tier-pill.active.gold { background: linear-gradient(135deg, var(--gold-2), var(--gold-3)); }
+  .tier-pill.active.black { background: linear-gradient(135deg, #2c2c2c, #0a0a0a); color: var(--black-gold); }
+
+  /* Alt B — vertical card stack comparison */
+  .comp-table {
+    margin: 0 18px 16px;
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow-soft);
+  }
+  .comp-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+    border-bottom: 1px solid #eaebef;
+  }
+  .comp-row:last-child { border-bottom: 0; }
+  .comp-row.head {
+    background: #f0f1f5;
+  }
+  .comp-row.head .cell {
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 8px 4px;
+    color: var(--ink);
+  }
+  .comp-row .cell {
+    padding: 10px 4px;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--ink);
+    border-right: 1px solid #eaebef;
+  }
+  .comp-row .cell:last-child { border-right: 0; }
+  .comp-row .label {
+    text-align: left;
+    padding-left: 10px;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--ink-soft);
+    background: #fafbfd;
+  }
+  .comp-row .cell.your-tier {
+    background: rgba(118,51,255,0.06);
+    color: var(--quac-deep);
+  }
+
+  /* Alt: stacked benefit cards */
+  .benefit-stack {
+    margin: 0 14px 20px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .benefit-card {
+    border-radius: 16px;
+    padding: 16px;
+    color: white;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-soft);
+  }
+  .benefit-card.basic { background: var(--quac); }
+  .benefit-card.plus { background: linear-gradient(135deg, var(--plus-1), var(--plus-2)); }
+  .benefit-card.silver { background: linear-gradient(135deg, var(--silver-2), var(--silver-3)); color: var(--silver-4); }
+  .benefit-card.gold { background: linear-gradient(135deg, var(--gold-2), var(--gold-3)); color: var(--gold-4); }
+  .benefit-card.black { background: linear-gradient(135deg, #2c2c2c, #0a0a0a); color: var(--black-gold); }
+  .benefit-card.you::after {
+    content: "Tu nivel";
+    position: absolute;
+    top: 12px; right: 12px;
+    background: white;
+    color: var(--quac-deep);
+    font-size: 8px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 100px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .benefit-card .bc-name {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 22px;
+    font-weight: 400;
+    line-height: 1;
+  }
+  .benefit-card .bc-perks {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 6px 12px;
+    margin-top: 12px;
+    font-size: 9px;
+    font-weight: 700;
+  }
+  .benefit-card .bc-perks .k {
+    font-size: 8px;
+    font-weight: 700;
+    opacity: 0.7;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .benefit-card .bc-perks .v {
+    font-size: 10px;
+    font-weight: 800;
+    display: block;
+  }
+
+  /* -------------- NAV ALTERNATIVES -------------- */
+  .nav-alts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+    margin-top: 32px;
+  }
+  .nav-alt {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 18px;
+    padding: 22px;
+  }
+  .nav-alt .nav-frame {
+    margin: 16px auto 0;
+    width: 280px;
+    background: #f8f5ec;
+    border-radius: 18px;
+    padding: 14px 10px 16px;
+    border: 1px solid var(--rule);
+  }
+  .nav-alt .nav-title {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .nav-alt .nav-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--quac);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .nav-alt .nav-desc {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--ink-soft);
+  }
+  .nav-alt .nav-row {
+    display: flex; justify-content: space-around; align-items: center;
+  }
+  .nav-alt .nav-row .tab {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    color: #b6b6c0;
+  }
+  .nav-alt .nav-row .tab.active { color: var(--quac); }
+  .nav-alt .nav-row .tab .ico { width: 20px; height: 20px; }
+  .nav-alt .nav-row .fab {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--quac), var(--quac-deep));
+    border-radius: 50%;
+    margin-top: -22px;
+    display: grid; place-items: center;
+    color: white;
+    font-weight: 300;
+    font-size: 20px;
+  }
+
+  /* -------------- RECOMMENDATION CARD -------------- */
+  .rec-card {
+    background: linear-gradient(135deg, #1d1d1d, #0a0a0a);
+    color: white;
+    border-radius: 24px;
+    padding: 48px;
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 56px;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .rec-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 90% 10%, rgba(212,169,63,0.2), transparent 50%);
+  }
+  .rec-card > * { position: relative; z-index: 1; }
+  .rec-card .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--black-gold);
+    margin-bottom: 16px;
+  }
+  .rec-card h3 {
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-size: 40px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+  .rec-card h3 em {
+    font-style: italic;
+    color: var(--black-gold);
+  }
+  .rec-card p {
+    font-size: 14px;
+    line-height: 1.65;
+    color: rgba(255,255,255,0.75);
+    margin-top: 10px;
+  }
+  .rec-card ul {
+    list-style: none; padding: 0;
+    margin-top: 8px;
+  }
+  .rec-card ul li {
+    padding: 8px 0 8px 24px;
+    position: relative;
+    font-size: 13px;
+    line-height: 1.5;
+    color: rgba(255,255,255,0.85);
+    border-bottom: 1px dashed rgba(255,255,255,0.12);
+  }
+  .rec-card ul li:last-child { border-bottom: 0; }
+  .rec-card ul li::before {
+    content: "→";
+    position: absolute;
+    left: 0; top: 8px;
+    color: var(--black-gold);
+    font-weight: 700;
+  }
+
+  /* footer */
+  .doc-foot {
+    margin-top: 100px;
+    padding-top: 32px;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+  }
+
+  /* ===== REAL APP UI (faithful to current screens) ===== */
+  .quac-header-bg {
+    background: linear-gradient(135deg, #2a47d6 0%, #6929c4 40%, #b830d9 100%);
+    padding: 4px 20px 70px;
+    color: white;
+    position: relative;
+  }
+  .quac-header-bg.silver-tint {
+    background: linear-gradient(135deg, #2a47d6 0%, #6929c4 40%, #8a8fa0 100%);
+  }
+  .quac-header-bg.gold-tint {
+    background: linear-gradient(135deg, #2a47d6 0%, #6929c4 30%, #b08a2e 100%);
+  }
+  .quac-header-bg.black-tint {
+    background: linear-gradient(135deg, #2a2a2a 0%, #0a0a0a 100%);
+  }
+  .quac-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 18px;
+  }
+  .quac-user {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .quac-user-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.85);
+    display: grid; place-items: center;
+    color: white;
+  }
+  .quac-user-avatar svg { width: 18px; height: 18px; }
+  .quac-user-greet {
+    font-size: 11px;
+    line-height: 1.1;
+    opacity: 0.9;
+  }
+  .quac-user-greet strong {
+    display: block;
+    font-weight: 800;
+    font-size: 15px;
+    margin-top: 1px;
+  }
+  .quac-actions {
+    display: flex; gap: 14px; align-items: center;
+  }
+  .quac-actions .ico-btn {
+    width: 28px; height: 28px;
+    color: white;
+    display: grid; place-items: center;
+  }
+  .quac-actions .ico-btn svg { width: 22px; height: 22px; }
+  .quac-actions .ico-btn { position: relative; }
+  .quac-actions .ico-btn .dot {
+    position: absolute;
+    top: 2px; right: 2px;
+    width: 7px; height: 7px;
+    background: #ff3b30;
+    border: 1.5px solid transparent;
+    border-radius: 50%;
+  }
+
+  /* Logo Quac en header del home */
+  .quac-brand-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .quac-brand-header .logo-svg-header {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+  .quac-brand-header .brand-text-header {
+    font-family: 'Nunito Sans', sans-serif;
+    font-weight: 800;
+    font-size: 17px;
+    color: white;
+    letter-spacing: -0.01em;
+  }
+  .quac-greet-line {
+    margin-top: 12px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.9);
+    line-height: 1.1;
+    font-weight: 400;
+  }
+  .quac-greet-line strong {
+    font-weight: 800;
+    font-size: 18px;
+    color: white;
+    margin-left: 4px;
+    letter-spacing: -0.01em;
+  }
+
+  /* Floating TOTP card — HERO of home */
+  .totp-card {
+    margin: -42px 14px 18px;
+    background: white;
+    border-radius: 16px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 12px 24px -8px rgba(40, 30, 80, 0.25);
+    gap: 12px;
+    position: relative;
+    z-index: 5;
+  }
+  .totp-card .totp-info { flex: 1; min-width: 0; }
+  .totp-label {
+    font-size: 10px;
+    color: #8a8a93;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    display: block;
+  }
+  .totp-code {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: 0.15em;
+    color: var(--ink);
+    line-height: 1.05;
+    margin-top: 2px;
+  }
+  .totp-pie {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: conic-gradient(#ec4899 0deg 110deg, #f0f0f5 110deg 360deg);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .totp-pie::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    background: white;
+    border-radius: 50%;
+  }
+
+  /* Tier band integrated at the top of the credit card */
+  .credit-tier-band {
+    margin: -18px -18px 14px;
+    padding: 10px 18px;
+    border-radius: 19px 19px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .credit-tier-band .ctb-left {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .credit-tier-band .ctb-star {
+    font-family: 'Fraunces', serif;
+    font-size: 14px;
+    line-height: 1;
+  }
+  .credit-tier-band .ctb-name {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+  }
+  .credit-tier-band .ctb-progress {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  .credit-tier-band .ctb-progress span {
+    font-family: 'Nunito Sans', sans-serif;
+    margin-left: 3px;
+    font-weight: 800;
+  }
+  .credit-tier-band.silver { background: linear-gradient(135deg, #f1f1f4 0%, #c8ccd2 60%, #8e9299 100%); color: var(--silver-4); }
+  .credit-tier-band.gold { background: linear-gradient(135deg, #fff1c2 0%, #ecc66a 60%, #b08a2e 100%); color: var(--gold-4); }
+  .credit-tier-band.black { background: linear-gradient(135deg, #2c2c2c, #0a0a0a); color: var(--black-gold); }
+  .credit-tier-band.plus { background: linear-gradient(135deg, var(--plus-1), var(--plus-2)); color: white; }
+  .credit-tier-band.quac-basic { background: linear-gradient(135deg, #efe8ff, #c5c5ff); color: var(--quac-deep); }
+
+  /* Inline benefit pill under cupo amount */
+  .credit-benefit-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 100px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    margin-top: 4px;
+  }
+  .credit-benefit-pill.silver { background: #ececef; color: var(--silver-4); }
+  .credit-benefit-pill.gold { background: #fff0b8; color: var(--gold-4); }
+  .credit-benefit-pill.black { background: #1a1a1d; color: var(--black-gold); }
+
+  /* Plain link button (replaces outline btn) */
+  .btn-link {
+    display: block;
+    text-align: center;
+    color: var(--quac);
+    font-weight: 700;
+    font-size: 12px;
+    padding: 10px;
+    margin-top: 4px;
+    text-decoration: none;
+    background: transparent;
+    border: 0;
+    width: 100%;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  /* Tier indicators in Home */
+  .tier-line {
+    margin: 0 14px 14px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .tier-line .l-info {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .tier-line .l-name {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 17px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .tier-line .l-mini {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+  .tier-line .l-progress {
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+  }
+  .tier-line .l-progress .arrow {
+    font-family: 'Nunito Sans', sans-serif;
+    font-weight: 800;
+    margin-left: 4px;
+  }
+  .tier-line.silver { background: linear-gradient(135deg, #f1f1f4, #c8ccd2 70%, #8e9299); color: var(--silver-4); }
+  .tier-line.gold { background: linear-gradient(135deg, #fff1c2, #ecc66a 60%, #b08a2e); color: var(--gold-4); }
+  .tier-line.black { background: linear-gradient(135deg, #2c2c2c, #0a0a0a); color: var(--black-gold); }
+  .tier-line.plus { background: linear-gradient(135deg, var(--plus-1), var(--plus-2)); color: white; }
+
+  /* Credit Baguer card */
+  .credit-card {
+    margin: 0 14px 14px;
+    background: white;
+    border-radius: 20px;
+    padding: 18px 18px 16px;
+    box-shadow: 0 4px 16px -8px rgba(0,0,0,0.12);
+    border: 1px solid #f0eef5;
+  }
+  .credit-head {
+    display: flex; align-items: center; gap: 12px;
+    padding-bottom: 14px;
+  }
+  .credit-icon {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 1.5px solid var(--quac);
+    display: grid; place-items: center;
+    color: var(--quac);
+    flex-shrink: 0;
+  }
+  .credit-icon svg { width: 22px; height: 22px; }
+  .credit-head .credit-name {
+    flex: 1;
+    line-height: 1.15;
+  }
+  .credit-head .credit-name .top-lbl {
+    font-size: 11px;
+    color: #6b6b6b;
+  }
+  .credit-head .credit-name .bot-lbl {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--quac-deep);
+  }
+  .credit-info-btn {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--quac-deep);
+    display: grid; place-items: center;
+    color: white;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .credit-cupo {
+    text-align: center;
+    padding: 4px 0 6px;
+  }
+  .credit-cupo .lbl {
+    font-size: 12px;
+    color: #5a5a5a;
+  }
+  .credit-cupo .amount {
+    font-family: 'Nunito Sans', sans-serif;
+    font-weight: 900;
+    font-size: 30px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin: 2px 0 4px;
+  }
+  .credit-cupo .ftn {
+    font-size: 11px;
+    color: #b0b0b8;
+    text-decoration: underline;
+    text-decoration-color: #d8d6e0;
+  }
+  .credit-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: #f3f1f7;
+    border-radius: 12px;
+    margin: 12px 0;
+    padding: 10px 12px;
+    gap: 0;
+    position: relative;
+  }
+  .credit-stats::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 18%; bottom: 18%;
+    width: 1px;
+    background: #d8d4e2;
+  }
+  .credit-stat {
+    text-align: center;
+  }
+  .credit-stat .k {
+    font-size: 11px;
+    color: #5a5a5a;
+  }
+  .credit-stat .v {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--ink);
+    margin-top: 2px;
+  }
+  .credit-due {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0;
+  }
+  .credit-due .cal {
+    width: 30px; height: 30px;
+    border-radius: 6px;
+    border: 1.5px solid #d8d4e2;
+    display: grid; place-items: center;
+    color: #b0b0b8;
+    font-size: 9px;
+    font-weight: 700;
+  }
+  .credit-due .cal svg { width: 16px; height: 16px; }
+  .credit-due .due-text {
+    flex: 1;
+    line-height: 1.15;
+  }
+  .credit-due .due-text .lbl {
+    font-size: 11px;
+    color: #5a5a5a;
+  }
+  .credit-due .due-text .dt {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--ink);
+    margin-top: 1px;
+  }
+  .status-pill {
+    background: #20d59a;
+    color: white;
+    font-weight: 800;
+    font-size: 10px;
+    padding: 5px 12px;
+    border-radius: 100px;
+    letter-spacing: 0.02em;
+  }
+  .btn-primary {
+    width: 100%;
+    background: var(--quac);
+    color: white;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    padding: 13px;
+    border: 0;
+    border-radius: 100px;
+    margin-top: 10px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .btn-outline {
+    width: 100%;
+    background: white;
+    color: var(--quac);
+    font-weight: 700;
+    font-size: 12px;
+    padding: 11px;
+    border: 1.5px solid var(--quac);
+    border-radius: 100px;
+    margin-top: 8px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  /* Promo strip inside home (since we removed Promociones tab) */
+  .promo-strip {
+    margin: 0 14px 70px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .promo-strip .ps-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 0 4px;
+  }
+  .promo-strip .ps-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .promo-strip .ps-link {
+    color: var(--quac);
+    font-size: 10px;
+    font-weight: 700;
+  }
+  .promo-strip .ps-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px;
+    scrollbar-width: none;
+  }
+  .promo-mini {
+    flex-shrink: 0;
+    width: 130px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f1eafd, #d6c2f5);
+    color: var(--quac-deep);
+    font-size: 10px;
+    line-height: 1.3;
+    font-weight: 700;
+  }
+  .promo-mini .pct {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--quac-deep);
+    display: block;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .promo-mini.tier-perk {
+    background: linear-gradient(135deg, var(--silver-1), var(--silver-2));
+    color: var(--silver-4);
+  }
+  .promo-mini.tier-perk .pct { color: var(--silver-4); }
+
+  /* New navbar with 4 tabs (Más) */
+  .tabbar.v2 .tab .ico svg { stroke-width: 1.8; }
+
+  /* ===== MÁS — Pantalla agrupadora ===== */
+  .mas-bg {
+    background: var(--bg-2);
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 80px;
+  }
+  .mas-title {
+    font-family: 'Fraunces', serif;
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    padding: 14px 18px 8px;
+  }
+  .mas-section {
+    margin: 0 14px 16px;
+  }
+  .mas-section-head {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    padding: 6px 6px 8px;
+  }
+  .mas-card {
+    background: white;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-soft);
+  }
+  .mas-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #eaebef;
+    cursor: pointer;
+  }
+  .mas-item:last-child { border-bottom: 0; }
+  .mas-item .mas-ico {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    background: var(--quac-soft);
+    color: var(--quac-deep);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .mas-item .mas-ico svg { width: 15px; height: 15px; }
+  .mas-item .mas-text {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .mas-item .mas-chev {
+    color: #b0b0b8;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .mas-item .mas-badge {
+    background: #ff3b30;
+    color: white;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 100px;
+  }
+  .mas-logout-btn {
+    width: calc(100% - 28px);
+    margin: 8px 14px 0;
+    padding: 13px;
+    background: white;
+    border: 0;
+    border-radius: 14px;
+    color: #ff3b30;
+    font-weight: 800;
+    font-size: 12px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    font-family: inherit;
+    box-shadow: var(--shadow-soft);
+    text-transform: uppercase;
+  }
+  .mas-version {
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--ink-soft);
+    padding: 14px 0 6px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Simple header for Más (no gradient, no TOTP) */
+  .mas-header-simple {
+    padding: 18px 18px 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-2);
+  }
+  .mas-brand {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .mas-brand .logo-svg {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+  .mas-brand .brand-text {
+    font-family: 'Nunito Sans', sans-serif;
+    font-weight: 800;
+    font-size: 16px;
+    color: var(--quac-deep);
+    letter-spacing: -0.01em;
+  }
+  .mas-header-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .mas-header-actions .ico-btn-dark {
+    width: 26px; height: 26px;
+    color: var(--ink);
+    display: grid; place-items: center;
+    position: relative;
+  }
+  .mas-header-actions .ico-btn-dark svg { width: 20px; height: 20px; }
+  .mas-header-actions .ico-btn-dark .dot {
+    position: absolute;
+    top: 1px; right: 2px;
+    width: 7px; height: 7px;
+    background: #ff3b30;
+    border: 1.5px solid var(--bg-2);
+    border-radius: 50%;
+  }
+
+  /* Responsive: phones row scrolls horizontally on narrow screens */
+  @media (max-width: 1280px) {
+    .alts { grid-template-columns: 1fr; gap: 64px; }
+    .alts.two { grid-template-columns: 1fr; }
+    .nav-alts { grid-template-columns: 1fr; }
+    .rec-card { grid-template-columns: 1fr; gap: 24px; padding: 32px; }
+  }
+</style>
+</head>
+<body class="grain">
+
+<div class="wrap">
+
+  <!-- =================== DOC HEADER =================== -->
+  <header class="doc-header">
+    <div>
+      <span class="eyebrow">Discovery · Sistema de fidelización QUAC</span>
+      <h1 class="title">Niveles<br><em>como experiencia</em>,<br>no como tabla.</h1>
+      <p class="lede">
+        Propuesta visual para integrar el sistema de fidelización (QUAC, QUAC Plus, Silver, Gold, Black)
+        en la app móvil. Cómo se muestra el nivel actual, cómo se distribuye la navegación,
+        y cómo se traduce la tabla comparativa de beneficios a un formato mobile-first.
+      </p>
+    </div>
+    <div class="meta">
+      <div class="meta-row"><span>Proyecto</span><strong>QUAC · Fidelización</strong></div>
+      <div class="meta-row"><span>Stack actual</span><strong>Flutter 3.5 · NunitoSans</strong></div>
+      <div class="meta-row"><span>Brand primary</span><strong>#7633FF</strong></div>
+      <div class="meta-row"><span>Tier visual</span><strong>Plata · Oro · Negro</strong></div>
+      <div class="meta-row"><span>Pantallas</span><strong>3 alts × 3 secciones</strong></div>
+      <div class="meta-row"><span>Estado</span><strong>Discovery — no implementar</strong></div>
+    </div>
+  </header>
+
+  <!-- =================== SECTION 1: NUEVO HOME (DEFINITIVO) =================== -->
+  <section id="home">
+    <div class="section-head">
+      <div class="section-num">01</div>
+      <div>
+        <h2 class="section-title">El nuevo Home<br>preservando lo que ya funciona</h2>
+      </div>
+      <p class="section-desc">
+        Una sola propuesta. Mantiene <strong>todos los elementos críticos</strong> de la app actual:
+        clave dinámica, campana, ayuda y tarjeta de crédito Baguer con su flujo completo. El nivel
+        se <strong>integra como banda superior</strong> de la tarjeta de crédito; las promociones bajan
+        del nav al cuerpo del Home (carrusel <em>"Tus beneficios"</em>). Se muestra en tres versiones
+        — QUAC, Silver, Gold y Black — para ver cómo cambia el acabado.
+      </p>
+    </div>
+
+    <div class="alts four">
+
+      <!-- ====== HOME QUAC INICIO ====== -->
+      <div class="alt">
+        <div class="alt-label">
+          <span class="tag">QUAC</span>
+          <span class="name">Cliente Inicio</span>
+        </div>
+        <div class="alt-frame-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="status-bar dark"><span>10:50</span><span class="right">●●●● 5G ⌁</span></div>
+
+              <div class="quac-header-bg">
+                <div class="quac-header-row">
+                  <div class="quac-brand-header">
+                    <svg class="logo-svg-header" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="40" cy="40" r="36" fill="white"/>
+                      <circle cx="40" cy="42" r="13" fill="#7633FF"/>
+                      <circle cx="44" cy="34" r="4.5" fill="white"/>
+                    </svg>
+                    <span class="brand-text-header">Quac</span>
+                  </div>
+                  <div class="quac-actions">
+                    <div class="ico-btn">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 16v-5a6 6 0 10-12 0v5l-2 2v1h16v-1l-2-2zM9 21a3 3 0 006 0"/></svg>
+                    </div>
+                    <div class="ico-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5"/><circle cx="12" cy="16.5" r="0.6" fill="currentColor"/></svg></div>
+                  </div>
+                </div>
+                <div class="quac-greet-line">Hola,<strong>Francisco</strong></div>
+              </div>
+
+              <div class="totp-card">
+                <div class="totp-info">
+                  <span class="totp-label">Tu clave dinámica</span>
+                  <div class="totp-code">9 3 1 3</div>
+                </div>
+                <div class="totp-pie"></div>
+              </div>
+
+              <div class="credit-card">
+                <div class="credit-tier-band quac-basic">
+                  <div class="ctb-left">
+                    <span class="ctb-star" style="opacity:0.6;">○</span>
+                    <span class="ctb-name">QUAC</span>
+                  </div>
+                  <div class="ctb-progress">$0 / $500K<span>→ Plus</span></div>
+                </div>
+
+                <div class="credit-head">
+                  <div class="credit-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 4l-4 4 2 2 2-2v12h8V8l2 2 2-2-4-4h-2a2 2 0 11-4 0H8z"/></svg>
+                  </div>
+                  <div class="credit-name">
+                    <div class="top-lbl">Crédito</div>
+                    <div class="bot-lbl">Baguer</div>
+                  </div>
+                  <div class="credit-info-btn">i</div>
+                </div>
+
+                <div class="credit-cupo">
+                  <div class="lbl">Tu cupo disponible</div>
+                  <div class="amount">$ 3.508.878</div>
+                  <span class="credit-benefit-pill" style="background: var(--quac-soft); color: var(--quac-deep);">Paga a tiempo y sube a Plus</span>
+                </div>
+
+                <div class="credit-stats">
+                  <div class="credit-stat">
+                    <div class="k">Pago mínimo</div>
+                    <div class="v">$394.433</div>
+                  </div>
+                  <div class="credit-stat">
+                    <div class="k">Deuda total</div>
+                    <div class="v">$1.234.054</div>
+                  </div>
+                </div>
+
+                <div class="credit-due">
+                  <div class="cal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
+                  </div>
+                  <div class="due-text">
+                    <div class="lbl">Fecha límite de pago</div>
+                    <div class="dt">17 May 2026</div>
+                  </div>
+                  <div class="status-pill">Al día</div>
+                </div>
+
+                <button class="btn-primary">PAGAR</button>
+                <a class="btn-link">Ver mis planes de pago</a>
+              </div>
+
+              <div class="promo-strip">
+                <div class="ps-head">
+                  <div class="ps-title">Promociones para ti</div>
+                  <div class="ps-link">Ver todo</div>
+                </div>
+                <div class="ps-scroll">
+                  <div class="promo-mini"><span class="pct">20%</span>OFF marcas seleccionadas</div>
+                  <div class="promo-mini"><span class="pct">2×1</span>Stirpe fin de semana</div>
+                  <div class="promo-mini"><span class="pct">10</span>Cuotas disponibles</div>
+                </div>
+              </div>
+
+              <div class="tabbar v2">
+                <div class="tab active"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>Inicio</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9h4.5a2 2 0 010 4H9a2 2 0 100 4h5"/></svg></div>Pagar</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg></div>Nivel</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></div>Más</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alt-notes">
+          <h4>Sin trayectoria aún</h4>
+          <ul>
+            <li class="note">Banda lila suave (no metalizada)</li>
+            <li class="note">Mensaje aspiracional bajo el cupo</li>
+            <li class="note">Carrusel solo con promos comerciales</li>
+            <li class="note">Tap en la banda → "Mi Nivel" muestra qué falta</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ====== HOME SILVER ====== -->
+      <div class="alt">
+        <div class="alt-label">
+          <span class="tag">Silver</span>
+          <span class="name">Cliente Silver</span>
+        </div>
+        <div class="alt-frame-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="status-bar dark"><span>10:50</span><span class="right">●●●● 5G ⌁</span></div>
+
+              <div class="quac-header-bg">
+                <div class="quac-header-row">
+                  <div class="quac-brand-header">
+                    <svg class="logo-svg-header" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="40" cy="40" r="36" fill="white"/>
+                      <circle cx="40" cy="42" r="13" fill="#7633FF"/>
+                      <circle cx="44" cy="34" r="4.5" fill="white"/>
+                    </svg>
+                    <span class="brand-text-header">Quac</span>
+                  </div>
+                  <div class="quac-actions">
+                    <div class="ico-btn">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 16v-5a6 6 0 10-12 0v5l-2 2v1h16v-1l-2-2zM9 21a3 3 0 006 0"/></svg>
+                    </div>
+                    <div class="ico-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5"/><circle cx="12" cy="16.5" r="0.6" fill="currentColor"/></svg></div>
+                  </div>
+                </div>
+                <div class="quac-greet-line">Hola,<strong>Francisco</strong></div>
+              </div>
+
+              <!-- TOTP card hero -->
+              <div class="totp-card">
+                <div class="totp-info">
+                  <span class="totp-label">Tu clave dinámica</span>
+                  <div class="totp-code">9 3 1 3</div>
+                </div>
+                <div class="totp-pie"></div>
+              </div>
+
+              <!-- Credit card with integrated tier band -->
+              <div class="credit-card">
+                <div class="credit-tier-band silver">
+                  <div class="ctb-left">
+                    <span class="ctb-star">★</span>
+                    <span class="ctb-name">Silver</span>
+                  </div>
+                  <div class="ctb-progress">41%<span>→ Gold</span></div>
+                </div>
+
+                <div class="credit-head">
+                  <div class="credit-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 4l-4 4 2 2 2-2v12h8V8l2 2 2-2-4-4h-2a2 2 0 11-4 0H8z"/></svg>
+                  </div>
+                  <div class="credit-name">
+                    <div class="top-lbl">Crédito</div>
+                    <div class="bot-lbl">Baguer</div>
+                  </div>
+                  <div class="credit-info-btn">i</div>
+                </div>
+
+                <div class="credit-cupo">
+                  <div class="lbl">Tu cupo disponible</div>
+                  <div class="amount">$ 3.508.878</div>
+                  <span class="credit-benefit-pill silver">★ 5% siempre · Envío gratis $299.9k</span>
+                </div>
+
+                <div class="credit-stats">
+                  <div class="credit-stat">
+                    <div class="k">Pago mínimo</div>
+                    <div class="v">$394.433</div>
+                  </div>
+                  <div class="credit-stat">
+                    <div class="k">Deuda total</div>
+                    <div class="v">$1.234.054</div>
+                  </div>
+                </div>
+
+                <div class="credit-due">
+                  <div class="cal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
+                  </div>
+                  <div class="due-text">
+                    <div class="lbl">Fecha límite de pago</div>
+                    <div class="dt">17 May 2026</div>
+                  </div>
+                  <div class="status-pill">Al día</div>
+                </div>
+
+                <button class="btn-primary">PAGAR</button>
+                <a class="btn-link">Ver mis planes de pago</a>
+              </div>
+
+              <!-- Promo strip — benefits + commercial -->
+              <div class="promo-strip">
+                <div class="ps-head">
+                  <div class="ps-title">Tus beneficios y promociones</div>
+                  <div class="ps-link">Ver todo</div>
+                </div>
+                <div class="ps-scroll">
+                  <div class="promo-mini tier-perk"><span class="pct">5%</span>Descuento Silver siempre</div>
+                  <div class="promo-mini tier-perk"><span class="pct">FREE</span>Envío gratis desde $299.9k</div>
+                  <div class="promo-mini"><span class="pct">2×1</span>Stirpe fin de semana</div>
+                </div>
+              </div>
+
+              <!-- Nav 5 tabs -->
+              <div class="tabbar v2">
+                <div class="tab active"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>Inicio</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9h4.5a2 2 0 010 4H9a2 2 0 100 4h5"/></svg></div>Pagar</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg></div>Nivel</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></div>Más</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alt-notes">
+          <h4>Qué cambia respecto a hoy</h4>
+          <ul>
+            <li class="note">Banda plateada en la tarjeta de crédito</li>
+            <li class="note">Píldora bajo el cupo con los beneficios activos</li>
+            <li class="note">"Ver planes" pasa a link sutil</li>
+            <li class="note">Promociones bajan del nav al carrusel</li>
+            <li class="note">Tab "Nivel" reemplaza "Promociones"</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ====== HOME GOLD ====== -->
+      <div class="alt">
+        <div class="alt-label">
+          <span class="tag">Gold</span>
+          <span class="name">Cliente Gold</span>
+        </div>
+        <div class="alt-frame-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="status-bar dark"><span>10:50</span><span class="right">●●●● 5G ⌁</span></div>
+
+              <div class="quac-header-bg">
+                <div class="quac-header-row">
+                  <div class="quac-brand-header">
+                    <svg class="logo-svg-header" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="40" cy="40" r="36" fill="white"/>
+                      <circle cx="40" cy="42" r="13" fill="#7633FF"/>
+                      <circle cx="44" cy="34" r="4.5" fill="white"/>
+                    </svg>
+                    <span class="brand-text-header">Quac</span>
+                  </div>
+                  <div class="quac-actions">
+                    <div class="ico-btn">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 16v-5a6 6 0 10-12 0v5l-2 2v1h16v-1l-2-2zM9 21a3 3 0 006 0"/></svg>
+                    </div>
+                    <div class="ico-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5"/><circle cx="12" cy="16.5" r="0.6" fill="currentColor"/></svg></div>
+                  </div>
+                </div>
+                <div class="quac-greet-line">Hola,<strong>Francisco</strong></div>
+              </div>
+
+              <div class="totp-card">
+                <div class="totp-info">
+                  <span class="totp-label">Tu clave dinámica</span>
+                  <div class="totp-code">9 3 1 3</div>
+                </div>
+                <div class="totp-pie"></div>
+              </div>
+
+              <div class="credit-card">
+                <div class="credit-tier-band gold">
+                  <div class="ctb-left">
+                    <span class="ctb-star">★</span>
+                    <span class="ctb-name">Gold</span>
+                  </div>
+                  <div class="ctb-progress">60%<span>→ Black</span></div>
+                </div>
+
+                <div class="credit-head">
+                  <div class="credit-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 4l-4 4 2 2 2-2v12h8V8l2 2 2-2-4-4h-2a2 2 0 11-4 0H8z"/></svg>
+                  </div>
+                  <div class="credit-name">
+                    <div class="top-lbl">Crédito</div>
+                    <div class="bot-lbl">Baguer</div>
+                  </div>
+                  <div class="credit-info-btn">i</div>
+                </div>
+
+                <div class="credit-cupo">
+                  <div class="lbl">Tu cupo disponible</div>
+                  <div class="amount">$ 3.508.878</div>
+                  <span class="credit-benefit-pill gold">★ 5% siempre · Envío gratis $199.9k · 15 cuotas</span>
+                </div>
+
+                <div class="credit-stats">
+                  <div class="credit-stat">
+                    <div class="k">Pago mínimo</div>
+                    <div class="v">$394.433</div>
+                  </div>
+                  <div class="credit-stat">
+                    <div class="k">Deuda total</div>
+                    <div class="v">$1.234.054</div>
+                  </div>
+                </div>
+
+                <div class="credit-due">
+                  <div class="cal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
+                  </div>
+                  <div class="due-text">
+                    <div class="lbl">Fecha límite de pago</div>
+                    <div class="dt">17 May 2026</div>
+                  </div>
+                  <div class="status-pill">Al día</div>
+                </div>
+
+                <button class="btn-primary">PAGAR</button>
+                <a class="btn-link">Ver mis planes de pago</a>
+              </div>
+
+              <div class="promo-strip">
+                <div class="ps-head">
+                  <div class="ps-title">Tus beneficios y promociones</div>
+                  <div class="ps-link">Ver todo</div>
+                </div>
+                <div class="ps-scroll">
+                  <div class="promo-mini tier-perk" style="background: linear-gradient(135deg, var(--gold-1), var(--gold-2)); color: var(--gold-4);"><span class="pct" style="color: var(--gold-4);">5%</span>Descuento Gold siempre</div>
+                  <div class="promo-mini tier-perk" style="background: linear-gradient(135deg, var(--gold-1), var(--gold-2)); color: var(--gold-4);"><span class="pct" style="color: var(--gold-4);">FREE</span>Envío gratis desde $199.9k</div>
+                  <div class="promo-mini"><span class="pct">15</span>Hasta 15 cuotas</div>
+                </div>
+              </div>
+
+              <div class="tabbar v2">
+                <div class="tab active"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>Inicio</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9h4.5a2 2 0 010 4H9a2 2 0 100 4h5"/></svg></div>Pagar</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg></div>Nivel</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></div>Más</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alt-notes">
+          <h4>Mismo layout, distinto acabado</h4>
+          <ul>
+            <li class="note">Banda dorada champaña</li>
+            <li class="note">Umbral de envío gratis más bajo ($199.9k)</li>
+            <li class="note">15 cuotas vs 12 de Silver</li>
+            <li class="note">El resto de la estructura: idéntico</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ====== HOME BLACK ====== -->
+      <div class="alt">
+        <div class="alt-label">
+          <span class="tag">Black</span>
+          <span class="name">Cliente Black · Élite</span>
+        </div>
+        <div class="alt-frame-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="status-bar dark"><span>10:50</span><span class="right">●●●● 5G ⌁</span></div>
+
+              <div class="quac-header-bg black-tint">
+                <div class="quac-header-row">
+                  <div class="quac-brand-header">
+                    <svg class="logo-svg-header" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="40" cy="40" r="36" fill="#d4a93f"/>
+                      <circle cx="40" cy="42" r="13" fill="#0a0a0a"/>
+                      <circle cx="44" cy="34" r="4.5" fill="#d4a93f"/>
+                    </svg>
+                    <span class="brand-text-header" style="color: var(--black-gold);">Quac</span>
+                  </div>
+                  <div class="quac-actions">
+                    <div class="ico-btn" style="color: var(--black-gold);">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 16v-5a6 6 0 10-12 0v5l-2 2v1h16v-1l-2-2zM9 21a3 3 0 006 0"/></svg>
+                    </div>
+                    <div class="ico-btn" style="color: var(--black-gold);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5"/><circle cx="12" cy="16.5" r="0.6" fill="currentColor"/></svg></div>
+                  </div>
+                </div>
+                <div class="quac-greet-line" style="color: rgba(212,169,63,0.85);">Hola,<strong style="color: var(--black-gold);">Francisco</strong></div>
+              </div>
+
+              <div class="totp-card">
+                <div class="totp-info">
+                  <span class="totp-label">Tu clave dinámica</span>
+                  <div class="totp-code">9 3 1 3</div>
+                </div>
+                <div class="totp-pie"></div>
+              </div>
+
+              <div class="credit-card">
+                <div class="credit-tier-band black">
+                  <div class="ctb-left">
+                    <span class="ctb-star">◆</span>
+                    <span class="ctb-name">Black</span>
+                  </div>
+                  <div class="ctb-progress">ÉLITE</div>
+                </div>
+
+                <div class="credit-head">
+                  <div class="credit-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 4l-4 4 2 2 2-2v12h8V8l2 2 2-2-4-4h-2a2 2 0 11-4 0H8z"/></svg>
+                  </div>
+                  <div class="credit-name">
+                    <div class="top-lbl">Crédito</div>
+                    <div class="bot-lbl">Baguer</div>
+                  </div>
+                  <div class="credit-info-btn">i</div>
+                </div>
+
+                <div class="credit-cupo">
+                  <div class="lbl">Tu cupo disponible</div>
+                  <div class="amount">$ 3.508.878</div>
+                  <span class="credit-benefit-pill black">◆ 10% siempre · Envío gratis $99.9k · 18 cuotas</span>
+                </div>
+
+                <div class="credit-stats">
+                  <div class="credit-stat">
+                    <div class="k">Pago mínimo</div>
+                    <div class="v">$394.433</div>
+                  </div>
+                  <div class="credit-stat">
+                    <div class="k">Deuda total</div>
+                    <div class="v">$1.234.054</div>
+                  </div>
+                </div>
+
+                <div class="credit-due">
+                  <div class="cal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
+                  </div>
+                  <div class="due-text">
+                    <div class="lbl">Fecha límite de pago</div>
+                    <div class="dt">17 May 2026</div>
+                  </div>
+                  <div class="status-pill">Al día</div>
+                </div>
+
+                <button class="btn-primary">PAGAR</button>
+                <a class="btn-link">Ver mis planes de pago</a>
+              </div>
+
+              <div class="promo-strip">
+                <div class="ps-head">
+                  <div class="ps-title">Tus beneficios y promociones</div>
+                  <div class="ps-link">Ver todo</div>
+                </div>
+                <div class="ps-scroll">
+                  <div class="promo-mini tier-perk" style="background: linear-gradient(135deg, #2c2c2c, #0a0a0a); color: var(--black-gold);"><span class="pct" style="color: var(--black-gold);">10%</span>Descuento Black siempre</div>
+                  <div class="promo-mini tier-perk" style="background: linear-gradient(135deg, #2c2c2c, #0a0a0a); color: var(--black-gold);"><span class="pct" style="color: var(--black-gold);">VIP</span>Personal Shopper exclusivo</div>
+                  <div class="promo-mini tier-perk" style="background: linear-gradient(135deg, #2c2c2c, #0a0a0a); color: var(--black-gold);"><span class="pct" style="color: var(--black-gold);">FREE</span>Envío gratis desde $99.9k</div>
+                </div>
+              </div>
+
+              <div class="tabbar v2">
+                <div class="tab active"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>Inicio</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9h4.5a2 2 0 010 4H9a2 2 0 100 4h5"/></svg></div>Pagar</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg></div>Nivel</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></div>Más</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alt-notes">
+          <h4>Tratamiento exclusivo</h4>
+          <ul>
+            <li class="note">Único nivel donde el header cambia (a negro)</li>
+            <li class="note">Avatar y botones con acento dorado</li>
+            <li class="note">Promos del nivel todas en negro/dorado</li>
+            <li class="note">No muestra progreso (es el tope)</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Decisiones de diseño -->
+    <div style="margin-top: 80px; background: white; border: 1px solid var(--rule); border-radius: 18px; padding: 36px 44px; box-shadow: var(--shadow-soft);">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 24px;">
+        <h3 style="font-family:'Fraunces',serif; font-size: 22px; font-weight: 500;">Cinco decisiones tomadas</h3>
+        <span style="font-family:'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-soft);">Lo que cambia · y por qué</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 28px;">
+        <div>
+          <div style="font-family:'Fraunces',serif; font-size: 36px; color: var(--quac); line-height: 1; font-weight: 300;">01</div>
+          <h4 style="font-family:'Fraunces',serif; font-size: 14px; font-weight: 600; margin-top: 8px;">Clave dinámica como héroe</h4>
+          <p style="font-size: 12px; color: var(--ink-soft); margin-top: 6px; line-height: 1.5;">Código en 26px monoespaciado y card con sombra fuerte. Es el elemento que el cliente abre la app para ver durante una compra.</p>
+        </div>
+        <div>
+          <div style="font-family:'Fraunces',serif; font-size: 36px; color: var(--quac); line-height: 1; font-weight: 300;">02</div>
+          <h4 style="font-family:'Fraunces',serif; font-size: 14px; font-weight: 600; margin-top: 8px;">Nivel integrado al crédito</h4>
+          <p style="font-size: 12px; color: var(--ink-soft); margin-top: 6px; line-height: 1.5;">Banda metalizada como header de la tarjeta de crédito, no cinta separada. Conecta visualmente "tu crédito" con "tu nivel".</p>
+        </div>
+        <div>
+          <div style="font-family:'Fraunces',serif; font-size: 36px; color: var(--quac); line-height: 1; font-weight: 300;">03</div>
+          <h4 style="font-family:'Fraunces',serif; font-size: 14px; font-weight: 600; margin-top: 8px;">Beneficios visibles bajo cupo</h4>
+          <p style="font-size: 12px; color: var(--ink-soft); margin-top: 6px; line-height: 1.5;">Píldora con los 2-3 beneficios activos. El cliente no tiene que ir a otra pantalla para saber qué obtiene hoy.</p>
+        </div>
+        <div>
+          <div style="font-family:'Fraunces',serif; font-size: 36px; color: var(--quac); line-height: 1; font-weight: 300;">04</div>
+          <h4 style="font-family:'Fraunces',serif; font-size: 14px; font-weight: 600; margin-top: 8px;">Promociones bajan al Home</h4>
+          <p style="font-size: 12px; color: var(--ink-soft); margin-top: 6px; line-height: 1.5;">Sale del nav (libera espacio para Mi Nivel). Aparece como carrusel "Tus beneficios y promociones", con los del nivel primero.</p>
+        </div>
+        <div>
+          <div style="font-family:'Fraunces',serif; font-size: 36px; color: var(--quac); line-height: 1; font-weight: 300;">05</div>
+          <h4 style="font-family:'Fraunces',serif; font-size: 14px; font-weight: 600; margin-top: 8px;">Nav de 5 tabs con Mi Nivel</h4>
+          <p style="font-size: 12px; color: var(--ink-soft); margin-top: 6px; line-height: 1.5;">Inicio · Movimientos · Pagar · Nivel · Perfil. Reemplaza Promociones por Mi Nivel. Cantidad de tabs no cambia.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================== SECTION 2: LOS 5 NIVELES =================== -->
+  <section id="detail">
+    <div class="section-head">
+      <div class="section-num">02</div>
+      <div>
+        <h2 class="section-title">Los 5 niveles,<br>uno por uno</h2>
+      </div>
+      <p class="section-desc">
+        Pantalla "Mi Nivel" para un cliente de cada categoría. <strong>Misma estructura</strong>
+        en todos: tarjeta de membresía, ladder de progreso, beneficios activos vs bloqueados.
+        Lo que cambia es la <strong>paleta</strong> (cada nivel su acabado metalizado) y
+        <strong>qué perks aparecen desbloqueados</strong>.
+      </p>
+    </div>
+
+    <div class="alts five">
+
+      <!-- ============ NIVEL 1: QUAC (BÁSICO) ============ -->
+      <div class="alt">
+        <div class="alt-label">
+          <span class="tag">N1</span>
+          <span class="name">QUAC</span>
+        </div>
+        <div class="alt-frame-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="status-bar"><span>9:41</span><span class="right">●●● 5G</span></div>
+              <div class="detail-bg">
+                <div class="detail-back">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                  Mi nivel
+                </div>
+
+                <div class="card-membership" style="background: linear-gradient(135deg, #efe8ff 0%, #c5c5ff 60%, #a99cff 100%); color: var(--quac-deep);">
+                  <div class="top">
+                    <div>
+                      <div class="small-label">Quac · Inicio</div>
+                      <div class="tier-name-lg">QUAC</div>
+                    </div>
+                  </div>
+                  <div class="doc-row">137 ★★★★ 425</div>
+                  <div class="since">Cliente activo</div>
+                </div>
+
+                <div class="progress-block">
+                  <div class="heading">Empieza a subir</div>
+                  <div class="ladder">
+                    <div class="step current"><div class="dot"></div><div class="lbl">QUAC</div></div>
+                    <div class="step"><div class="dot"></div><div class="lbl">Plus</div></div>
+                    <div class="step"><div class="dot"></div><div class="lbl">Silver</div></div>
+                    <div class="step"><div class="dot"></div><div class="lbl">Gold</div></div>
+                    <div class="step"><div class="dot"></div><div class="lbl">Black</div></div>
+                  </div>
+                  <p class="insight">Paga $500.000 a tiempo en el año para alcanzar <b>Plus</b>.</p>
+                </div>
+
+                <div class="perk-list">
+                  <div class="perk-item">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Hasta 10 cuotas<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc">Plan estándar</div>
+                    </div>
+                  </div>
+                  <div class="perk-item locked">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Plazo 60<span class="badge-locked">Plus</span></div>
+                      <div class="desc">Primera cuota a 60 días</div>
+                    </div>
+                  </div>
+                  <div class="perk-item locked">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Descuento siempre<span class="badge-locked">Silver</span></div>
+                      <div class="desc">5% al pagar con Quac</div>
+                    </div>
+                  </div>
+                  <div class="perk-item locked">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Envío gratis<span class="badge-locked">Silver</span></div>
+                      <div class="desc">Desde $299.900</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tabbar v2">
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>Inicio</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9h4.5a2 2 0 010 4H9a2 2 0 100 4h5"/></svg></div>Pagar</div>
+                <div class="tab active"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg></div>Nivel</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></div>Más</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alt-notes">
+          <h4>Cliente nuevo o sin trayectoria</h4>
+          <ul>
+            <li class="note">Sin requisitos de mora ni de monto</li>
+            <li class="note">Ningún beneficio activo</li>
+            <li class="note">Tono aspiracional: "empieza a subir"</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ============ NIVEL 2: QUAC PLUS ============ -->
+      <div class="alt">
+        <div class="alt-label">
+          <span class="tag">N2</span>
+          <span class="name">QUAC Plus</span>
+        </div>
+        <div class="alt-frame-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="status-bar"><span>9:41</span><span class="right">●●● 5G</span></div>
+              <div class="detail-bg">
+                <div class="detail-back">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                  Mi nivel
+                </div>
+
+                <div class="card-membership" style="background: linear-gradient(135deg, #6929c4 0%, #4a1d8c 60%, #2c0d6e 100%); color: #d4c6ff;">
+                  <div class="top">
+                    <div>
+                      <div class="small-label" style="opacity:0.7;">Quac · Plus</div>
+                      <div class="tier-name-lg" style="color: white;">Plus</div>
+                    </div>
+                    <div style="font-family:'Fraunces',serif; font-size:14px; opacity:0.7;">+</div>
+                  </div>
+                  <div class="doc-row" style="color: white;">137 ★★★★ 425</div>
+                  <div class="since">Miembro Plus 2025</div>
+                </div>
+
+                <div class="progress-block">
+                  <div class="heading">$1.000.000 para Silver</div>
+                  <div class="ladder">
+                    <div class="step done"><div class="dot"></div><div class="lbl">QUAC</div></div>
+                    <div class="step current"><div class="dot"></div><div class="lbl">Plus</div></div>
+                    <div class="step"><div class="dot"></div><div class="lbl">Silver</div></div>
+                    <div class="step"><div class="dot"></div><div class="lbl">Gold</div></div>
+                    <div class="step"><div class="dot"></div><div class="lbl">Black</div></div>
+                  </div>
+                  <p class="insight">Llevas <b>$500.000</b> pagados a tiempo. Faltan <b>$1.000.000</b> para Silver.</p>
+                </div>
+
+                <div class="perk-list">
+                  <div class="perk-item">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Plazo 60<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc">Hasta 9 cuotas</div>
+                    </div>
+                  </div>
+                  <div class="perk-item">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Hasta 10 cuotas<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc">Plan estándar</div>
+                    </div>
+                  </div>
+                  <div class="perk-item locked">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Descuento siempre<span class="badge-locked">Silver</span></div>
+                      <div class="desc">5% al pagar con Quac</div>
+                    </div>
+                  </div>
+                  <div class="perk-item locked">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Envío gratis<span class="badge-locked">Silver</span></div>
+                      <div class="desc">Desde $299.900</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tabbar v2">
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>Inicio</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9h4.5a2 2 0 010 4H9a2 2 0 100 4h5"/></svg></div>Pagar</div>
+                <div class="tab active"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg></div>Nivel</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></div>Más</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alt-notes">
+          <h4>Primer escalón ganado</h4>
+          <ul>
+            <li class="note">$500.000 pagados a tiempo · 29 días mora máx</li>
+            <li class="note">Desbloquea Plazo 60</li>
+            <li class="note">Aún sin descuento ni envío gratis</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ============ NIVEL 3: SILVER ============ -->
+      <div class="alt">
+        <div class="alt-label">
+          <span class="tag">N3</span>
+          <span class="name">Silver</span>
+        </div>
+        <div class="alt-frame-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="status-bar"><span>9:41</span><span class="right">●●● 5G</span></div>
+              <div class="detail-bg">
+                <div class="detail-back">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                  Mi nivel
+                </div>
+
+                <div class="card-membership silver">
+                  <div class="top">
+                    <div>
+                      <div class="small-label">Quac · Membresía</div>
+                      <div class="tier-name-lg">Silver</div>
+                    </div>
+                    <div style="font-family:'Fraunces',serif; font-size:14px; opacity:0.7;">◐</div>
+                  </div>
+                  <div class="doc-row">137 ★★★★ 425</div>
+                  <div class="since">Miembro Silver 2025</div>
+                </div>
+
+                <div class="progress-block">
+                  <div class="heading">$1.500.000 para Gold</div>
+                  <div class="ladder">
+                    <div class="step done"><div class="dot"></div><div class="lbl">QUAC</div></div>
+                    <div class="step done"><div class="dot"></div><div class="lbl">Plus</div></div>
+                    <div class="step current"><div class="dot"></div><div class="lbl">Silver</div></div>
+                    <div class="step"><div class="dot"></div><div class="lbl">Gold</div></div>
+                    <div class="step"><div class="dot"></div><div class="lbl">Black</div></div>
+                  </div>
+                  <p class="insight">Llevas <b>$1.500.000</b> pagados a tiempo. Faltan <b>$1.500.000</b> para Gold.</p>
+                </div>
+
+                <div class="perk-list">
+                  <div class="perk-item">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12l2 2 6-6"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">5% descuento siempre<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc">Al comprar con Quac</div>
+                    </div>
+                  </div>
+                  <div class="perk-item">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-6 9 6M5 8v12h14V8"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Envío gratis<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc">Desde $299.900</div>
+                    </div>
+                  </div>
+                  <div class="perk-item">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Hasta 12 cuotas<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc">Plazo extendido</div>
+                    </div>
+                  </div>
+                  <div class="perk-item locked">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">10% descuento<span class="badge-locked">Black</span></div>
+                      <div class="desc">El máximo posible</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tabbar v2">
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>Inicio</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9h4.5a2 2 0 010 4H9a2 2 0 100 4h5"/></svg></div>Pagar</div>
+                <div class="tab active"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg></div>Nivel</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></div>Más</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alt-notes">
+          <h4>Primeros beneficios reales</h4>
+          <ul>
+            <li class="note">$1.500.000 pagados a tiempo · 29 días mora máx</li>
+            <li class="note">Desbloquea descuento permanente y envío gratis</li>
+            <li class="note">Acabado plateado mate</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ============ NIVEL 4: GOLD ============ -->
+      <div class="alt">
+        <div class="alt-label">
+          <span class="tag">N4</span>
+          <span class="name">Gold</span>
+        </div>
+        <div class="alt-frame-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="status-bar"><span>9:41</span><span class="right">●●● 5G</span></div>
+              <div class="detail-bg">
+                <div class="detail-back">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                  Mi nivel
+                </div>
+
+                <div class="card-membership">
+                  <div class="top">
+                    <div>
+                      <div class="small-label">Quac · Membresía</div>
+                      <div class="tier-name-lg">Gold</div>
+                    </div>
+                    <div style="font-family:'Fraunces',serif; font-size:14px; opacity:0.8;">★</div>
+                  </div>
+                  <div class="doc-row">137 ★★★★ 425</div>
+                  <div class="since">Miembro Gold 2024</div>
+                </div>
+
+                <div class="progress-block">
+                  <div class="heading">$2.000.000 para Black</div>
+                  <div class="ladder">
+                    <div class="step done"><div class="dot"></div><div class="lbl">QUAC</div></div>
+                    <div class="step done"><div class="dot"></div><div class="lbl">Plus</div></div>
+                    <div class="step done"><div class="dot"></div><div class="lbl">Silver</div></div>
+                    <div class="step current"><div class="dot"></div><div class="lbl">Gold</div></div>
+                    <div class="step"><div class="dot"></div><div class="lbl">Black</div></div>
+                  </div>
+                  <p class="insight">Llevas <b>$3.000.000</b> pagados a tiempo. Faltan <b>$2.000.000</b> para Black.</p>
+                </div>
+
+                <div class="perk-list">
+                  <div class="perk-item">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12l2 2 6-6"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">5% descuento siempre<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc">Al comprar con Quac</div>
+                    </div>
+                  </div>
+                  <div class="perk-item">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-6 9 6M5 8v12h14V8"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Envío gratis<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc">Desde $199.900</div>
+                    </div>
+                  </div>
+                  <div class="perk-item">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Hasta 15 cuotas<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc">Plazo extendido</div>
+                    </div>
+                  </div>
+                  <div class="perk-item locked">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Personal Shopper<span class="badge-locked">Black</span></div>
+                      <div class="desc">Atención dedicada</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tabbar v2">
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>Inicio</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9h4.5a2 2 0 010 4H9a2 2 0 100 4h5"/></svg></div>Pagar</div>
+                <div class="tab active"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg></div>Nivel</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></div>Más</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alt-notes">
+          <h4>Cliente de alto valor</h4>
+          <ul>
+            <li class="note">$3.000.000 pagados a tiempo · 14 días mora máx</li>
+            <li class="note">Mejor umbral de envío gratis ($199.9k)</li>
+            <li class="note">Acabado dorado champaña</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ============ NIVEL 5: BLACK ============ -->
+      <div class="alt">
+        <div class="alt-label">
+          <span class="tag">N5</span>
+          <span class="name">Black · Élite</span>
+        </div>
+        <div class="alt-frame-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="status-bar dark"><span>9:41</span><span class="right">●●● 5G</span></div>
+              <div class="detail-bg" style="background:#0e0e10;">
+                <div class="detail-back" style="color:white;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                  Mi nivel
+                </div>
+
+                <div class="card-membership black">
+                  <div class="top">
+                    <div>
+                      <div class="small-label">Quac · Élite</div>
+                      <div class="tier-name-lg">Black</div>
+                    </div>
+                    <div style="font-family:'Fraunces',serif; font-size:14px; color:var(--black-gold);">◆</div>
+                  </div>
+                  <div class="doc-row">137 ★★★★ 425</div>
+                  <div class="since">Miembro Élite 2025</div>
+                </div>
+
+                <div class="progress-block" style="background:#1a1a1d; color:white;">
+                  <div class="heading" style="color: var(--black-gold);">Estás en la cima</div>
+                  <div class="ladder">
+                    <div class="step done"><div class="dot" style="background:var(--black-gold); border-color: var(--black-gold);"></div><div class="lbl" style="color: rgba(255,255,255,0.4);">QUAC</div></div>
+                    <div class="step done"><div class="dot" style="background:var(--black-gold); border-color: var(--black-gold);"></div><div class="lbl" style="color: rgba(255,255,255,0.4);">Plus</div></div>
+                    <div class="step done"><div class="dot" style="background:var(--black-gold); border-color: var(--black-gold);"></div><div class="lbl" style="color: rgba(255,255,255,0.4);">Silver</div></div>
+                    <div class="step done"><div class="dot" style="background:var(--black-gold); border-color: var(--black-gold);"></div><div class="lbl" style="color: rgba(255,255,255,0.4);">Gold</div></div>
+                    <div class="step current"><div class="dot" style="border-color:var(--black-gold); background:#1a1a1d;"></div><div class="lbl" style="color: var(--black-gold);">Black</div></div>
+                  </div>
+                  <p class="insight" style="color: rgba(255,255,255,0.7);">Mantén tus pagos a tiempo para conservar el nivel.</p>
+                </div>
+
+                <div class="perk-list" style="background:#1a1a1d;">
+                  <div class="perk-item" style="border-color: #2a2a2d;">
+                    <div class="ico" style="background:rgba(212,169,63,0.15); color:var(--black-gold);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12l2 2 6-6"/></svg></div>
+                    <div class="info">
+                      <div class="title-row" style="color:white;">10% descuento<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc" style="color:rgba(255,255,255,0.5);">El máximo posible</div>
+                    </div>
+                  </div>
+                  <div class="perk-item" style="border-color: #2a2a2d;">
+                    <div class="ico" style="background:rgba(212,169,63,0.15); color:var(--black-gold);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-6 9 6M5 8v12h14V8"/></svg></div>
+                    <div class="info">
+                      <div class="title-row" style="color:white;">Envío gratis<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc" style="color:rgba(255,255,255,0.5);">Desde $99.900</div>
+                    </div>
+                  </div>
+                  <div class="perk-item" style="border-color: #2a2a2d;">
+                    <div class="ico" style="background:rgba(212,169,63,0.15); color:var(--black-gold);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg></div>
+                    <div class="info">
+                      <div class="title-row" style="color:white;">Hasta 18 cuotas<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc" style="color:rgba(255,255,255,0.5);">Máximo plazo</div>
+                    </div>
+                  </div>
+                  <div class="perk-item">
+                    <div class="ico" style="background:rgba(212,169,63,0.15); color:var(--black-gold);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 016-6h4a6 6 0 016 6v2"/></svg></div>
+                    <div class="info">
+                      <div class="title-row" style="color:white;">Personal Shopper<span class="badge-unlocked">Exclusivo</span></div>
+                      <div class="desc" style="color:rgba(255,255,255,0.5);">Atención dedicada</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tabbar v2">
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>Inicio</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9h4.5a2 2 0 010 4H9a2 2 0 100 4h5"/></svg></div>Pagar</div>
+                <div class="tab active"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg></div>Nivel</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></div>Más</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alt-notes">
+          <h4>Cliente VIP — máximo nivel</h4>
+          <ul>
+            <li class="note">$5.000.000+ pagados a tiempo · 14 días mora máx</li>
+            <li class="note">Pantalla en tema oscuro con acentos dorados</li>
+            <li class="note">Mensaje cambia: "mantén" vs "sube"</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =================== SECTION 2-BIS: COMPARATIVA RÁPIDA =================== -->
+  <section id="quick-comparison" style="margin-top: -40px;">
+    <div style="background: white; border: 1px solid var(--rule); border-radius: 20px; padding: 40px 48px; box-shadow: var(--shadow-soft);">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 28px;">
+        <h3 style="font-family:'Fraunces',serif; font-size: 28px; font-weight: 500; letter-spacing:-0.02em;">Resumen visual de los 5 niveles</h3>
+        <span style="font-family:'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-soft);">Paleta · Tono · Trato</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px;">
+
+        <div>
+          <div style="height: 80px; border-radius: 14px; background: linear-gradient(135deg, #efe8ff 0%, #c5c5ff 60%, #a99cff 100%); display: flex; align-items: end; padding: 12px; color: var(--quac-deep); font-family: 'Fraunces', serif; font-style: italic; font-size: 22px; font-weight: 500;">QUAC</div>
+          <p style="margin-top: 12px; font-size: 11px; line-height: 1.5; color: var(--ink-soft);"><strong style="color: var(--ink);">Default · sin requisitos</strong><br>Sin beneficios. Tono aspiracional ("empieza a subir"). Paleta morada clara y suave.</p>
+        </div>
+
+        <div>
+          <div style="height: 80px; border-radius: 14px; background: linear-gradient(135deg, #6929c4 0%, #4a1d8c 60%, #2c0d6e 100%); display: flex; align-items: end; padding: 12px; color: white; font-family: 'Fraunces', serif; font-style: italic; font-size: 22px; font-weight: 500;">Plus</div>
+          <p style="margin-top: 12px; font-size: 11px; line-height: 1.5; color: var(--ink-soft);"><strong style="color: var(--ink);">$500k · mora 29d/120d</strong><br>Primer escalón. Desbloquea Plazo 60. Morado profundo, marca el inicio del programa.</p>
+        </div>
+
+        <div>
+          <div style="height: 80px; border-radius: 14px; background: linear-gradient(135deg, #f8f8fb 0%, #c8ccd2 60%, #8e9299 100%); display: flex; align-items: end; padding: 12px; color: var(--silver-4); font-family: 'Fraunces', serif; font-style: italic; font-size: 22px; font-weight: 500;">Silver</div>
+          <p style="margin-top: 12px; font-size: 11px; line-height: 1.5; color: var(--ink-soft);"><strong style="color: var(--ink);">$1.5M · mora 29d/150d</strong><br>Aparecen los descuentos reales. 5% + envío gratis $299.9k + 12 cuotas. Plateado mate.</p>
+        </div>
+
+        <div>
+          <div style="height: 80px; border-radius: 14px; background: linear-gradient(135deg, #fff1c2 0%, #ecc66a 60%, #b08a2e 100%); display: flex; align-items: end; padding: 12px; color: var(--gold-4); font-family: 'Fraunces', serif; font-style: italic; font-size: 22px; font-weight: 500;">Gold</div>
+          <p style="margin-top: 12px; font-size: 11px; line-height: 1.5; color: var(--ink-soft);"><strong style="color: var(--ink);">$3M · mora 14d/180d</strong><br>Cliente de alto valor. Mejora envío ($199.9k) y plazos (15 cuotas). Dorado champaña.</p>
+        </div>
+
+        <div>
+          <div style="height: 80px; border-radius: 14px; background: linear-gradient(135deg, #2c2c2c, #0a0a0a); display: flex; align-items: end; padding: 12px; color: var(--black-gold); font-family: 'Fraunces', serif; font-style: italic; font-size: 22px; font-weight: 500;">Black</div>
+          <p style="margin-top: 12px; font-size: 11px; line-height: 1.5; color: var(--ink-soft);"><strong style="color: var(--ink);">$5M · mora 14d/200d</strong><br>Élite. 10% siempre · envío $99.9k · 18 cuotas · Personal Shopper. Pantalla oscura con dorado.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- =================== SECTION 2-TER: DETALLE COMPLETO (legacy) =================== -->
+  <section id="detail-full" style="display:none;">
+    <div class="alts two">
+
+      <!-- Detail page -->
+      <div class="alt">
+        <div class="alt-label">
+          <span class="tag">Vista</span>
+          <span class="name">Mi Nivel — Gold</span>
+        </div>
+        <div class="alt-frame-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="status-bar"><span>9:41</span><span class="right">●●● 5G ⌁</span></div>
+              <div class="detail-bg">
+                <div class="detail-back">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                  Mi nivel
+                </div>
+
+                <div class="card-membership">
+                  <div class="top">
+                    <div>
+                      <div class="small-label">Quac · Membresía</div>
+                      <div class="tier-name-lg">Gold</div>
+                    </div>
+                    <div style="font-family:'Fraunces',serif; font-size:18px; line-height:1; opacity:0.85;">★</div>
+                  </div>
+                  <div class="doc-row">137 ★★★★ 425</div>
+                  <div class="since">Miembro desde 2024</div>
+                </div>
+
+                <div class="progress-block">
+                  <div class="heading">$300.000 para Black</div>
+                  <div class="ladder">
+                    <div class="step done"><div class="dot"></div><div class="lbl">QUAC</div></div>
+                    <div class="step done"><div class="dot"></div><div class="lbl">Plus</div></div>
+                    <div class="step done"><div class="dot"></div><div class="lbl">Silver</div></div>
+                    <div class="step current"><div class="dot"></div><div class="lbl">Gold</div></div>
+                    <div class="step"><div class="dot"></div><div class="lbl">Black</div></div>
+                  </div>
+                  <p class="insight">Llevas <b>$2.700.000</b> pagados a tiempo en el último año. Te faltan <b>$300.000</b> para alcanzar Black.</p>
+                </div>
+
+                <div class="perk-list">
+                  <div class="perk-item">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-6 9 6M5 8v12h14V8M9 14h6"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Envío gratis<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc">Desde $199.900 de compra</div>
+                    </div>
+                  </div>
+                  <div class="perk-item">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12l2 2 6-6"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">5% descuento siempre<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc">Aplica al comprar con Quac</div>
+                    </div>
+                  </div>
+                  <div class="perk-item">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Hasta 15 cuotas<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc">Plazo extendido en compras</div>
+                    </div>
+                  </div>
+                  <div class="perk-item locked">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">10% descuento siempre<span class="badge-locked">Black</span></div>
+                      <div class="desc">Sube de nivel para desbloquear</div>
+                    </div>
+                  </div>
+                  <div class="perk-item locked">
+                    <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div>
+                    <div class="info">
+                      <div class="title-row">Personal Shopper<span class="badge-locked">Black</span></div>
+                      <div class="desc">Atención dedicada</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="padding: 0 18px 80px;">
+                  <button style="width:100%; padding:14px; border:0; border-radius:14px; background:var(--quac); color:white; font-weight:800; font-size:13px; letter-spacing:0.05em; text-transform:uppercase; font-family:inherit;">Comparar todos los niveles</button>
+                </div>
+              </div>
+
+              <div class="tabbar v2">
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>Inicio</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9h4.5a2 2 0 010 4H9a2 2 0 100 4h5"/></svg></div>Pagar</div>
+                <div class="tab active"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg></div>Nivel</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></div>Más</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alt-notes">
+          <h4>Anatomía</h4>
+          <ul>
+            <li><b>Tarjeta de membresía</b> — gradiente metalizado según nivel + nº documento parcial</li>
+            <li><b>Ladder horizontal</b> — los 5 niveles, "done" / "current" / pendientes</li>
+            <li><b>Insight de progreso</b> — "$300.000 más para Black"</li>
+            <li><b>Lista de perks</b> — activos arriba (verdes), bloqueados abajo (grises con candado)</li>
+            <li><b>CTA</b> — abrir comparativa completa</li>
+          </ul>
+          <h4>Por qué funciona</h4>
+          Convierte la <em>tabla</em> en una <em>historia personal</em>: "estás acá, tienes esto, te falta esto".
+        </div>
+      </div>
+
+      <!-- Black variant -->
+      <div class="alt">
+        <div class="alt-label">
+          <span class="tag">Variante</span>
+          <span class="name">Cliente Black — máximo nivel</span>
+        </div>
+        <div class="alt-frame-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="status-bar"><span>9:41</span><span class="right">●●● 5G ⌁</span></div>
+              <div class="detail-bg" style="background:#0e0e10;">
+                <div class="detail-back" style="color:white;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                  Mi nivel
+                </div>
+
+                <div class="card-membership black">
+                  <div class="top">
+                    <div>
+                      <div class="small-label">Quac · Élite</div>
+                      <div class="tier-name-lg">Black</div>
+                    </div>
+                    <div style="font-family:'Fraunces',serif; font-size:18px; line-height:1; opacity:0.85; color:var(--black-gold);">◆</div>
+                  </div>
+                  <div class="doc-row">137 ★★★★ 425</div>
+                  <div class="since">Miembro élite desde 2025</div>
+                </div>
+
+                <div class="progress-block" style="background:#1a1a1d; color:white;">
+                  <div class="heading" style="color: var(--black-gold);">Estás en la cima</div>
+                  <div class="ladder">
+                    <div class="step done"><div class="dot" style="background:var(--black-gold); border-color: var(--black-gold);"></div><div class="lbl" style="color: rgba(255,255,255,0.5);">QUAC</div></div>
+                    <div class="step done"><div class="dot" style="background:var(--black-gold); border-color: var(--black-gold);"></div><div class="lbl" style="color: rgba(255,255,255,0.5);">Plus</div></div>
+                    <div class="step done"><div class="dot" style="background:var(--black-gold); border-color: var(--black-gold);"></div><div class="lbl" style="color: rgba(255,255,255,0.5);">Silver</div></div>
+                    <div class="step done"><div class="dot" style="background:var(--black-gold); border-color: var(--black-gold);"></div><div class="lbl" style="color: rgba(255,255,255,0.5);">Gold</div></div>
+                    <div class="step current"><div class="dot" style="border-color:var(--black-gold); background:#1a1a1d;"></div><div class="lbl" style="color: var(--black-gold);">Black</div></div>
+                  </div>
+                  <p class="insight" style="color: rgba(255,255,255,0.7);">Mantén pagos a tiempo para conservar tu nivel. Acumulado: <b style="color:var(--black-gold);">$5.480.000</b>.</p>
+                </div>
+
+                <div class="perk-list" style="background:#1a1a1d;">
+                  <div class="perk-item" style="border-color: #2a2a2d;">
+                    <div class="ico" style="background:rgba(212,169,63,0.15); color:var(--black-gold);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-6 9 6M5 8v12h14V8M9 14h6"/></svg></div>
+                    <div class="info">
+                      <div class="title-row" style="color:white;">Envío gratis<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc" style="color:rgba(255,255,255,0.55);">Desde $99.900</div>
+                    </div>
+                  </div>
+                  <div class="perk-item" style="border-color: #2a2a2d;">
+                    <div class="ico" style="background:rgba(212,169,63,0.15); color:var(--black-gold);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12l2 2 6-6"/></svg></div>
+                    <div class="info">
+                      <div class="title-row" style="color:white;">10% descuento siempre<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc" style="color:rgba(255,255,255,0.55);">El mayor descuento posible</div>
+                    </div>
+                  </div>
+                  <div class="perk-item" style="border-color: #2a2a2d;">
+                    <div class="ico" style="background:rgba(212,169,63,0.15); color:var(--black-gold);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg></div>
+                    <div class="info">
+                      <div class="title-row" style="color:white;">Hasta 18 cuotas<span class="badge-unlocked">Activo</span></div>
+                      <div class="desc" style="color:rgba(255,255,255,0.55);">Máximo plazo del sistema</div>
+                    </div>
+                  </div>
+                  <div class="perk-item">
+                    <div class="ico" style="background:rgba(212,169,63,0.15); color:var(--black-gold);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 016-6h4a6 6 0 016 6v2"/></svg></div>
+                    <div class="info">
+                      <div class="title-row" style="color:white;">Personal Shopper<span class="badge-unlocked">Exclusivo Black</span></div>
+                      <div class="desc" style="color:rgba(255,255,255,0.55);">Atención dedicada por WhatsApp</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div class="tabbar v2">
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>Inicio</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9h4.5a2 2 0 010 4H9a2 2 0 100 4h5"/></svg></div>Pagar</div>
+                <div class="tab active"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg></div>Nivel</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></div>Más</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alt-notes">
+          <h4>Tratamiento exclusivo</h4>
+          Para clientes Black, la pantalla cambia a fondo oscuro con acentos dorados. El mensaje pasa de "te falta para subir" a <em>"mantén pagos para conservar"</em>. La lista de perks ya no muestra candados.
+          <h4>Detalles</h4>
+          <ul>
+            <li class="note">El nº de documento se ofusca: <code>137 ★★★★ 425</code></li>
+            <li class="note">Tipografía idéntica al resto — solo cambia paleta</li>
+            <li class="note">El "Personal Shopper" lleva etiqueta "Exclusivo Black"</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =================== SECTION 3: BENEFITS TABLE =================== -->
+  <section id="benefits">
+    <div class="section-head">
+      <div class="section-num">03</div>
+      <div>
+        <h2 class="section-title">La tabla<br>en formato móvil</h2>
+      </div>
+      <p class="section-desc">
+        La imagen original es una tabla en grid 5×7 que <strong>no cabe</strong> en pantalla móvil sin reducir
+        la legibilidad. Dos formatos posibles: tarjetas verticales apilables, o filtro por nivel con
+        comparativa vertical.
+      </p>
+    </div>
+
+    <div class="alts two">
+
+      <!-- Alt 3A: Stacked cards -->
+      <div class="alt">
+        <div class="alt-label">
+          <span class="tag">Alt 3A</span>
+          <span class="name">Tarjetas apilables</span>
+        </div>
+        <div class="alt-frame-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="status-bar"><span>9:41</span><span class="right">●●● 5G ⌁</span></div>
+              <div class="detail-bg">
+                <div class="detail-back">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                  Niveles QUAC
+                </div>
+                <div style="padding: 0 18px 14px;">
+                  <h3 style="font-family:'Fraunces',serif; font-size:24px; font-weight:500; line-height:1.1; letter-spacing:-0.015em;">Más fiel, mejores beneficios</h3>
+                  <p style="font-size:11px; color:var(--ink-soft); margin-top:4px;">Subes de nivel pagando a tiempo. Estos son los beneficios.</p>
+                </div>
+
+                <div class="benefit-stack">
+                  <div class="benefit-card basic">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <div class="bc-name" style="font-style:normal; font-family:'Nunito Sans'; font-size:14px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em;">QUAC</div>
+                      <span style="font-size:9px; opacity:0.7; letter-spacing:0.08em;">DESDE EL DÍA 1</span>
+                    </div>
+                    <div class="bc-perks">
+                      <div><span class="k">Máx cuotas</span><span class="v">10</span></div>
+                      <div><span class="k">Mora máx</span><span class="v">—</span></div>
+                    </div>
+                  </div>
+
+                  <div class="benefit-card plus">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <div class="bc-name">Plus</div>
+                      <span style="font-size:9px; opacity:0.7;">$500K pagados/año</span>
+                    </div>
+                    <div class="bc-perks">
+                      <div><span class="k">Máx cuotas</span><span class="v">10</span></div>
+                      <div><span class="k">Plazo 60</span><span class="v">Sí</span></div>
+                    </div>
+                  </div>
+
+                  <div class="benefit-card silver">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <div class="bc-name">Silver</div>
+                      <span style="font-size:9px; opacity:0.7;">$1.5M pagados/año</span>
+                    </div>
+                    <div class="bc-perks">
+                      <div><span class="k">Descuento</span><span class="v">5%</span></div>
+                      <div><span class="k">Envío gratis</span><span class="v">$299.900+</span></div>
+                      <div><span class="k">Máx cuotas</span><span class="v">12</span></div>
+                      <div><span class="k">Plazo 60</span><span class="v">Sí</span></div>
+                    </div>
+                  </div>
+
+                  <div class="benefit-card gold you">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <div class="bc-name">Gold</div>
+                      <span style="font-size:9px; opacity:0.7;">$3M pagados/año</span>
+                    </div>
+                    <div class="bc-perks">
+                      <div><span class="k">Descuento</span><span class="v">5%</span></div>
+                      <div><span class="k">Envío gratis</span><span class="v">$199.900+</span></div>
+                      <div><span class="k">Máx cuotas</span><span class="v">15</span></div>
+                      <div><span class="k">Plazo 60</span><span class="v">Sí</span></div>
+                    </div>
+                  </div>
+
+                  <div class="benefit-card black">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <div class="bc-name">Black</div>
+                      <span style="font-size:9px; opacity:0.7;">$5M pagados/año</span>
+                    </div>
+                    <div class="bc-perks">
+                      <div><span class="k">Descuento</span><span class="v">10%</span></div>
+                      <div><span class="k">Envío gratis</span><span class="v">$99.900+</span></div>
+                      <div><span class="k">Máx cuotas</span><span class="v">18</span></div>
+                      <div><span class="k">Personal Shopper</span><span class="v">Sí</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tabbar v2">
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>Inicio</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9h4.5a2 2 0 010 4H9a2 2 0 100 4h5"/></svg></div>Pagar</div>
+                <div class="tab active"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg></div>Nivel</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></div>Más</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alt-notes">
+          <h4>Idea</h4>
+          Cada nivel es una tarjeta vertical con su paleta. El nivel actual del cliente lleva chip "Tu nivel". Scroll natural.
+          <h4>Tradeoffs</h4>
+          <ul>
+            <li class="pro">Mobile-first puro, no fuerza tabla</li>
+            <li class="pro">Cada tarjeta tiene "su identidad" — Silver no se ve igual que Black</li>
+            <li class="pro">Solo muestra los beneficios <em>aplicables</em> en cada nivel (no fila vacía)</li>
+            <li class="con">Difícil comparar dos niveles específicos lado a lado</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Alt 3B: Filter + Comparative -->
+      <div class="alt">
+        <div class="alt-label">
+          <span class="tag">Alt 3B</span>
+          <span class="name">Filtro + tabla compacta</span>
+        </div>
+        <div class="alt-frame-wrap">
+          <div class="phone">
+            <div class="screen">
+              <div class="notch"></div>
+              <div class="status-bar"><span>9:41</span><span class="right">●●● 5G ⌁</span></div>
+              <div class="detail-bg">
+                <div class="detail-back">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+                  Comparar niveles
+                </div>
+                <div style="padding: 0 18px 6px;">
+                  <h3 style="font-family:'Fraunces',serif; font-size:22px; font-weight:500; line-height:1.1;">Beneficios por nivel</h3>
+                </div>
+
+                <div class="tier-pills-row">
+                  <div class="tier-pill">QUAC</div>
+                  <div class="tier-pill">Plus</div>
+                  <div class="tier-pill">Silver</div>
+                  <div class="tier-pill active gold">Gold</div>
+                  <div class="tier-pill">Black</div>
+                </div>
+
+                <div class="comp-table">
+                  <div class="comp-row head">
+                    <div class="cell">BENEFICIO</div>
+                    <div class="cell">QUAC</div>
+                    <div class="cell">Plus</div>
+                    <div class="cell">Silver</div>
+                    <div class="cell your-tier">Gold</div>
+                  </div>
+                  <div class="comp-row">
+                    <div class="cell label">Descuento</div>
+                    <div class="cell">—</div>
+                    <div class="cell">—</div>
+                    <div class="cell">5%</div>
+                    <div class="cell your-tier">5%</div>
+                  </div>
+                  <div class="comp-row">
+                    <div class="cell label">Envío gratis</div>
+                    <div class="cell">—</div>
+                    <div class="cell">—</div>
+                    <div class="cell">$299.9k</div>
+                    <div class="cell your-tier">$199.9k</div>
+                  </div>
+                  <div class="comp-row">
+                    <div class="cell label">Plazo 60</div>
+                    <div class="cell">—</div>
+                    <div class="cell">✓</div>
+                    <div class="cell">✓</div>
+                    <div class="cell your-tier">✓</div>
+                  </div>
+                  <div class="comp-row">
+                    <div class="cell label">Máx cuotas</div>
+                    <div class="cell">10</div>
+                    <div class="cell">10</div>
+                    <div class="cell">12</div>
+                    <div class="cell your-tier">15</div>
+                  </div>
+                  <div class="comp-row">
+                    <div class="cell label">Personal</div>
+                    <div class="cell">—</div>
+                    <div class="cell">—</div>
+                    <div class="cell">—</div>
+                    <div class="cell your-tier">—</div>
+                  </div>
+                </div>
+
+                <div style="margin: 0 18px 12px; padding: 14px; background: linear-gradient(135deg,#2c2c2c,#0a0a0a); color: var(--black-gold); border-radius: 14px;">
+                  <div style="font-size:9px; font-weight:800; letter-spacing:0.15em; text-transform:uppercase; opacity:0.6;">Próximo nivel</div>
+                  <div style="font-family:'Fraunces',serif; font-style:italic; font-size:24px; margin-top:2px;">Black</div>
+                  <div style="font-size:11px; margin-top:6px; opacity:0.85;">10% siempre · Envío gratis $99.9k · 18 cuotas · Personal Shopper</div>
+                </div>
+
+                <div style="padding: 0 18px 80px;">
+                  <p style="font-size: 10px; color: var(--ink-soft); line-height: 1.5; text-align:center;">
+                    Toca otro nivel para comparar. Tu nivel actual está marcado.
+                  </p>
+                </div>
+              </div>
+
+              <div class="tabbar v2">
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>Inicio</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9h4.5a2 2 0 010 4H9a2 2 0 100 4h5"/></svg></div>Pagar</div>
+                <div class="tab active"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg></div>Nivel</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></div>Más</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alt-notes">
+          <h4>Idea</h4>
+          Mantiene la lógica de tabla pero solo muestra <strong>4 columnas a la vez</strong>: el nivel actual + los anteriores. El cliente puede tocar otra píldora para reemplazar la comparativa.
+          <h4>Tradeoffs</h4>
+          <ul>
+            <li class="pro">Permite comparación directa entre niveles</li>
+            <li class="pro">"Próximo nivel" destacado abajo invita a subir</li>
+            <li class="pro">Familiar para quienes vienen de aerolíneas/loyalty</li>
+            <li class="con">Texto pequeño en celdas, riesgo de legibilidad</li>
+            <li class="con">Más densidad visual que las tarjetas</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =================== SECTION 4: NUEVO NAV + PANTALLA "MÁS" =================== -->
+  <section id="nav">
+    <div class="section-head">
+      <div class="section-num">04</div>
+      <div>
+        <h2 class="section-title">Nuevo nav<br>+ pantalla "Más"</h2>
+      </div>
+      <p class="section-desc">
+        El nav baja de 5 a <strong>4 tabs</strong>. Sale Promociones (estaba vacío hace tiempo)
+        y sale Mi perfil (estaba mezclado con cosas que no son perfil). Entra <strong>"Más"</strong>:
+        un agrupador con todas las opciones secundarias organizadas en bloques temáticos.
+      </p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 64px; align-items: start;">
+
+      <!-- Frame de la pantalla Más -->
+      <div>
+        <div class="alt-label" style="margin-bottom: 24px;">
+          <span class="tag">Pantalla</span>
+          <span class="name">Más</span>
+        </div>
+        <div class="alt-frame-wrap">
+          <div class="phone">
+            <div class="screen" style="display: flex; flex-direction: column;">
+              <div class="notch"></div>
+              <div class="status-bar"><span>10:50</span><span class="right">●●●● 5G ⌁</span></div>
+
+              <div class="mas-bg" style="padding-bottom: 80px;">
+                <div class="mas-header-simple">
+                  <div class="mas-brand">
+                    <svg class="logo-svg" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="40" cy="40" r="36" fill="#7633FF"/>
+                      <circle cx="40" cy="42" r="13" fill="white"/>
+                      <circle cx="44" cy="34" r="4.5" fill="#7633FF"/>
+                    </svg>
+                    <span class="brand-text">Quac</span>
+                  </div>
+                  <div class="mas-header-actions">
+                    <div class="ico-btn-dark">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 16v-5a6 6 0 10-12 0v5l-2 2v1h16v-1l-2-2zM9 21a3 3 0 006 0"/></svg>
+                      <span class="dot"></span>
+                    </div>
+                    <div class="ico-btn-dark">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5"/><circle cx="12" cy="16.5" r="0.6" fill="currentColor"/></svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mas-title">Más</div>
+
+                <div class="mas-section">
+                  <div class="mas-section-head">Tu crédito</div>
+                  <div class="mas-card">
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></div>
+                      <div class="mas-text">Aumentar cupo</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+                      <div class="mas-text">Solicitar paz y salvo</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h-4a2 2 0 00-2 2v14a2 2 0 002 2h8a2 2 0 002-2V8l-6-5z"/><path d="M14 3v5h6M9 13h6M9 17h4"/></svg></div>
+                      <div class="mas-text">Certificados</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M3 12h18M3 17h12"/></svg></div>
+                      <div class="mas-text">Aliados QUAC</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mas-section">
+                  <div class="mas-section-head">Movimientos</div>
+                  <div class="mas-card">
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h6l3-8 4 16 3-8h2"/></svg></div>
+                      <div class="mas-text">Histórico de pagos</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 7h13l-1.5 9H7.5L6 4H3"/><circle cx="9" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/></svg></div>
+                      <div class="mas-text">Histórico de compras</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mas-section">
+                  <div class="mas-section-head">Notificaciones</div>
+                  <div class="mas-card">
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 16v-5a6 6 0 10-12 0v5l-2 2v1h16v-1l-2-2zM9 21a3 3 0 006 0"/></svg></div>
+                      <div class="mas-text">Bandeja de notificaciones</div>
+                      <div class="mas-badge">3</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+                      <div class="mas-text">Preferencias de notificación</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mas-section">
+                  <div class="mas-section-head">Mi cuenta</div>
+                  <div class="mas-card">
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a6 6 0 016-6h4a6 6 0 016 6v2"/></svg></div>
+                      <div class="mas-text">Datos básicos</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></div>
+                      <div class="mas-text">Cambiar contraseña</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="10" r="1.2"/><circle cx="15" cy="10" r="1.2"/><path d="M8 15c1 1.5 2.5 2 4 2s3-.5 4-2"/></svg></div>
+                      <div class="mas-text">Activar Face ID</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mas-section">
+                  <div class="mas-section-head">Soporte</div>
+                  <div class="mas-card">
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></div>
+                      <div class="mas-text">PQR · Reclamos</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 0c0 1.5-2.5 2-2.5 3.5"/><circle cx="12" cy="16.5" r="0.6" fill="currentColor"/></svg></div>
+                      <div class="mas-text">Hablar con un asesor</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mas-section">
+                  <div class="mas-section-head">Información</div>
+                  <div class="mas-card">
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h-4a2 2 0 00-2 2v14a2 2 0 002 2h8a2 2 0 002-2V8l-6-5z"/><path d="M14 3v5h6"/></svg></div>
+                      <div class="mas-text">Legales</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                    <div class="mas-item">
+                      <div class="mas-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg></div>
+                      <div class="mas-text">Acerca de QUAC</div>
+                      <div class="mas-chev">›</div>
+                    </div>
+                  </div>
+                </div>
+
+                <button class="mas-logout-btn">Cerrar sesión</button>
+                <div class="mas-version">QUAC v3.6.5</div>
+              </div>
+
+              <div class="tabbar v2">
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg></div>Inicio</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 9h4.5a2 2 0 010 4H9a2 2 0 100 4h5"/></svg></div>Pagar</div>
+                <div class="tab"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg></div>Nivel</div>
+                <div class="tab active"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></div>Más</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lado derecho: explicación + tabla antes/después -->
+      <div>
+        <h3 style="font-family:'Fraunces',serif; font-weight: 500; font-size: 26px; letter-spacing:-0.015em; margin-bottom: 20px;">Antes vs después</h3>
+
+        <div style="background: white; border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-soft); margin-bottom: 32px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--rule);">
+            <div style="padding: 14px 18px; background: #faf6e8; font-family:'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); border-right: 1px solid var(--rule);">Hoy</div>
+            <div style="padding: 14px 18px; background: rgba(118,51,255,0.06); font-family:'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--quac-deep);">Propuesta</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr;">
+            <ul style="list-style: none; padding: 16px 18px; border-right: 1px solid var(--rule); font-size: 12px; line-height: 1.9; color: var(--ink-soft);">
+              <li>Inicio</li>
+              <li>Movimientos</li>
+              <li style="text-decoration: line-through; color: #c0a0a0;">Promociones · vacío hace tiempo</li>
+              <li>Pagar</li>
+              <li style="text-decoration: line-through; color: #c0a0a0;">Mi perfil · mezclaba cosas</li>
+            </ul>
+            <ul style="list-style: none; padding: 16px 18px; font-size: 12px; line-height: 1.9; color: var(--ink);">
+              <li><b>Inicio</b></li>
+              <li><b>Pagar</b></li>
+              <li><b>Nivel</b> · nuevo, sistema de fidelización</li>
+              <li><b>Más</b> · agrupador: Crédito, Movimientos, Cuenta, Soporte, Info</li>
+              <li>—</li>
+            </ul>
+          </div>
+        </div>
+
+        <h4 style="font-family:'Fraunces',serif; font-weight: 600; font-size: 17px; margin-bottom: 12px;">Qué resuelve cada cambio</h4>
+        <ul style="list-style: none; padding: 0; font-size: 13px; line-height: 1.65; color: var(--ink-soft);">
+          <li style="padding: 10px 0 10px 24px; position: relative; border-bottom: 1px dashed var(--rule);">
+            <span style="position: absolute; left: 0; top: 10px; color: var(--quac); font-weight: 700;">→</span>
+            <b style="color: var(--ink);">Quitar Promociones</b> · El tab estaba vacío, las promos llegan por push notification. Las que el cliente recibe entran a la <b>bandeja de notificaciones</b> (campana del header + entrada en Más).
+          </li>
+          <li style="padding: 10px 0 10px 24px; position: relative; border-bottom: 1px dashed var(--rule);">
+            <span style="position: absolute; left: 0; top: 10px; color: var(--quac); font-weight: 700;">→</span>
+            <b style="color: var(--ink);">Quitar Mi perfil</b> · Hoy mezcla datos personales + funciones del crédito + información. Se rompe en 5 secciones temáticas dentro de "Más".
+          </li>
+          <li style="padding: 10px 0 10px 24px; position: relative; border-bottom: 1px dashed var(--rule);">
+            <span style="position: absolute; left: 0; top: 10px; color: var(--quac); font-weight: 700;">→</span>
+            <b style="color: var(--ink);">Entra Nivel</b> · Tab dedicado al sistema de fidelización. Tap = Mi nivel (vista personal). Desde ahí → Comparar niveles (catálogo).
+          </li>
+          <li style="padding: 10px 0 10px 24px; position: relative; border-bottom: 1px dashed var(--rule);">
+            <span style="position: absolute; left: 0; top: 10px; color: var(--quac); font-weight: 700;">→</span>
+            <b style="color: var(--ink);">Movimientos baja a Más</b> · Vos mismo lo dijiste: no se consulta diario. Sigue accesible, no roba tab principal. Si después el dato dice otra cosa, lo subimos.
+          </li>
+          <li style="padding: 10px 0 10px 24px; position: relative;">
+            <span style="position: absolute; left: 0; top: 10px; color: var(--quac); font-weight: 700;">→</span>
+            <b style="color: var(--ink);">"Hola, Francisco" queda decorativo</b> · Sin tap. Una sola regla mental: <em>"si no está en el nav, está en Más"</em>.
+          </li>
+        </ul>
+
+        <h4 style="font-family:'Fraunces',serif; font-weight: 600; font-size: 17px; margin: 28px 0 12px;">Organización del agrupador "Más"</h4>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; font-size: 12px;">
+          <div style="background: white; padding: 14px; border-radius: 10px; border: 1px solid var(--rule);">
+            <div style="font-family:'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--quac); margin-bottom: 6px;">Tu crédito</div>
+            <p style="color: var(--ink-soft); line-height: 1.5;">Aumentar cupo · Paz y salvo · Certificados · Aliados QUAC</p>
+          </div>
+          <div style="background: white; padding: 14px; border-radius: 10px; border: 1px solid var(--rule);">
+            <div style="font-family:'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--quac); margin-bottom: 6px;">Movimientos</div>
+            <p style="color: var(--ink-soft); line-height: 1.5;">Histórico de pagos · Histórico de compras</p>
+          </div>
+          <div style="background: white; padding: 14px; border-radius: 10px; border: 1px solid var(--rule);">
+            <div style="font-family:'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--quac); margin-bottom: 6px;">Mi cuenta</div>
+            <p style="color: var(--ink-soft); line-height: 1.5;">Datos básicos · Cambiar contraseña · Activar Face ID</p>
+          </div>
+          <div style="background: white; padding: 14px; border-radius: 10px; border: 1px solid var(--rule);">
+            <div style="font-family:'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--quac); margin-bottom: 6px;">Soporte</div>
+            <p style="color: var(--ink-soft); line-height: 1.5;">PQR · Hablar con un asesor</p>
+          </div>
+          <div style="background: white; padding: 14px; border-radius: 10px; border: 1px solid var(--rule); grid-column: span 2;">
+            <div style="font-family:'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--quac); margin-bottom: 6px;">Información</div>
+            <p style="color: var(--ink-soft); line-height: 1.5;">Legales · Acerca de QUAC · Versión de la app</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================== RECOMMENDATION =================== -->
+  <section id="rec">
+    <div class="rec-card">
+      <div>
+        <div class="label">Recomendación</div>
+        <h3>Combinar<br><em>Alt B</em> + <em>Alt 3A</em> + <em>Nav Opción 1</em></h3>
+        <p>Camino con menor riesgo pero alto impacto emocional. Conserva la app actual y suma fidelización como capa.</p>
+      </div>
+      <div>
+        <ul>
+          <li><b>Home</b> · Tarjeta de membresía hero (Alt B) reemplaza el espacio principal. Tap abre pantalla de detalle.</li>
+          <li><b>Mi Nivel</b> · Pantalla dedicada con ladder + perks (sección 02). Cliente entiende qué tiene y qué le falta.</li>
+          <li><b>Comparativa</b> · Tarjetas apilables (Alt 3A) — mobile-first, sin tabla forzada.</li>
+          <li><b>Navegación</b> · Mantener 4 tabs (Opción 1). Cero impacto en flujo actual; acceso vía Home.</li>
+          <li><b>Variante Black</b> · Tratamiento oscuro/dorado solo para nivel máximo — refuerza exclusividad sin onerar el resto.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================== FOOTER =================== -->
+  <footer class="doc-foot">
+    <span>Mockup discovery · Sistema de fidelización QUAC</span>
+    <span>2026-05-15 · Francisco Lizcano</span>
+  </footer>
+
+</div>
+
+</body>
+</html>
