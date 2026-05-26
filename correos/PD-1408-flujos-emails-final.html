@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PD-1408 · Render final de emails por flujo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  body { background: #eef2f7; color: #1f2937; }
+  .email-shell { max-width: 600px; margin: 0 auto; background: #ffffff; box-shadow: 0 18px 50px -22px rgba(15,23,42,0.22); border-radius: 14px; overflow: hidden; }
+  .flow-divider { text-align: center; margin: 56px auto 28px; max-width: 720px; position: relative; }
+  .flow-divider::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #cbd5e1; }
+  .flow-divider span { position: relative; background: #eef2f7; padding: 0 22px; font-size: 11.5px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: #475569; }
+  .email-meta { max-width: 600px; margin: 0 auto 14px; display: flex; align-items: center; justify-content: space-between; padding: 6px 12px; font-size: 11.5px; color: #64748b; }
+  .email-meta strong { color: #0f172a; font-weight: 700; }
+  .email-chip { display:inline-block; padding:3px 10px; border-radius: 999px; background:#0f172a; color:#fff; font-size:10.5px; font-weight:700; letter-spacing:0.06em; }
+  .channel-tag { display:inline-block; padding:2px 8px; border-radius: 4px; font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; }
+  .channel-email { background:#dbeafe; color:#1e3a8a; }
+  .channel-wa { background:#dcfce7; color:#14532d; }
+  .channel-skip { background:#fef3c7; color:#854d0e; }
+  .timeline-row { display:flex; gap:14px; align-items:center; max-width:720px; margin:18px auto; padding: 14px 18px; background:white; border-radius: 10px; border: 1px solid #e2e8f0; }
+  .timeline-num { width:30px; height:30px; border-radius: 999px; background:#0f172a; color:white; display:inline-flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex-shrink:0; }
+  .timeline-content { flex:1; font-size:13px; color:#334155; }
+  .timeline-content strong { color:#0f172a; }
+  .between { max-width: 600px; margin: 18px auto; text-align: center; font-size: 12px; color: #64748b; padding: 14px; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1; }
+</style>
+</head>
+<body>
+
+<div class="max-w-7xl mx-auto px-6 py-12">
+
+  <header class="max-w-3xl mx-auto text-center mb-14">
+    <div class="text-xs font-bold tracking-widest text-slate-500 uppercase mb-3">PD-1408 · Render final</div>
+    <h1 class="text-4xl font-bold text-slate-900 tracking-tight mb-4">Cómo se ven los emails con las plantillas Infobip finales</h1>
+    <p class="text-slate-600 leading-relaxed text-base">
+      Render con datos reales de los emails que producirán las plantillas Infobip ya diseñadas (Creación, Confirmación, Despacho, Entregado). Agrupados por los 3 flujos del cliente. <strong>Mensajería contra-entrega consolida pago + entrega en un solo correo</strong> (no se envían los 2 separados).
+    </p>
+  </header>
+
+  <!-- =========================================== -->
+  <!--  FLUJO 1 · TRANSPORTADORA EXTERNA           -->
+  <!-- =========================================== -->
+  <div class="flow-divider"><span>Flujo 1 · Transportadora externa (Coordinadora o Servientrega)</span></div>
+
+  <div class="max-w-2xl mx-auto mb-8 text-sm text-slate-600 text-center leading-relaxed">
+    Cliente compra online · paga · esperamos 2-3 días para despachar con la transportadora · llega en ~5 días hábiles.<br>
+    <strong>4 correos en total</strong> a lo largo del ciclo.
+  </div>
+
+  <!-- TIMELINE FLUJO 1 -->
+  <div class="max-w-2xl mx-auto mb-12">
+    <div class="timeline-row"><span class="timeline-num">1</span><div class="timeline-content"><span class="channel-tag channel-email">Email</span> <strong>Recibimos tu pedido</strong> · al confirmar pago en checkout</div></div>
+    <div class="timeline-row"><span class="timeline-num">2</span><div class="timeline-content"><span class="channel-tag channel-email">Email</span> <strong>¡Gracias por tu compra!</strong> · pasarela aprueba pago</div></div>
+    <div class="timeline-row"><span class="timeline-num">3</span><div class="timeline-content"><span class="channel-tag channel-email">Email</span> <span class="channel-tag channel-wa">WA</span> <strong>Tu pedido ya va en camino</strong> · WS detecta despacho con guía</div></div>
+    <div class="timeline-row"><span class="timeline-num">4</span><div class="timeline-content"><span class="channel-tag channel-email">Email</span> <span class="channel-tag channel-wa">WA</span> <strong>Recibiste tu pedido</strong> · WS confirma entrega</div></div>
+  </div>
+
+  <!-- ============ EMAIL 1: CREACIÓN (Transportadora) ============ -->
+  <div class="email-meta">
+    <div><span class="email-chip">EMAIL 1</span> &nbsp;<strong>De:</strong> Stirpe &lt;notificaciones@stirpe.co&gt; &nbsp;<strong>Para:</strong> alexander.perez@email.com</div>
+    <div><strong>Asunto:</strong> Recibimos tu pedido #684220</div>
+  </div>
+  <div class="email-shell">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+<tr><td align="center">
+<table align="center" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; width:100%; font-family:'Inter',Arial,sans-serif;">
+
+<tr><td align="center" style="padding:40px 28px 32px;">
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="25" viewBox="0 0 109.218 22.896" style="display:inline-block; vertical-align:middle;"><path d="M90.553,22.36a7.2,7.2,0,0,1-3.784-3.873,1.969,1.969,0,0,1-.264-.881,6.1,6.1,0,0,1-.263-1.762V11.356a2.372,2.372,0,0,1-.616.7,7.5,7.5,0,0,1-2.2,1.5,5.691,5.691,0,0,1-1.144.352,3.885,3.885,0,0,1-1.5.177H70.4v8.8H65.121V7.923H59.84V7.043a1.939,1.939,0,0,0-.088-.7,2.334,2.334,0,0,0-.44-.532l-.532-.352-.611-.173h-3.7V22.888H49.281V0h8.8a5.875,5.875,0,0,1,2.64.532,6.806,6.806,0,0,1,2.287,1.489,6.884,6.884,0,0,1,1.5,2.288,15.172,15.172,0,0,1,.616,1.848V0H80.7c.532,0,.968.088,1.408.088a11.562,11.562,0,0,1,1.32.443,7.784,7.784,0,0,1,2.286,1.489,7.049,7.049,0,0,1,1.32,1.848,8.026,8.026,0,0,1,1.322-1.848A6.882,6.882,0,0,1,90.641.532a3.687,3.687,0,0,1,1.32-.355A6.838,6.838,0,0,1,93.368,0h8.888a6.143,6.143,0,0,1,2.64.532,7.784,7.784,0,0,1,2.29,1.489,6.885,6.885,0,0,1,1.5,2.293,7.748,7.748,0,0,1,.44,1.321,7.116,7.116,0,0,1,.088,1.409v7.043h-17.6v1.759a1.719,1.719,0,0,0,.088.616c.088.177.264.352.44.616l.532.352.616.177h15.845v5.282H93.285a6.558,6.558,0,0,1-2.728-.532Zm-83.6-8.275a6.838,6.838,0,0,1-1.408-.177,7.329,7.329,0,0,1-1.32-.352,6.983,6.983,0,0,1-2.2-1.5A9.774,9.774,0,0,1,.532,9.684,7.066,7.066,0,0,1,0,7.043,7.118,7.118,0,0,1,.089,5.636c.088-.352.177-.792.352-1.321a11.918,11.918,0,0,1,1.58-2.295A9.3,9.3,0,0,1,4.312.532,6.732,6.732,0,0,1,6.953,0H42.241V5.282h-8.8V22.888H28.16V5.282H6.953a.838.838,0,0,0-.616.177,1.419,1.419,0,0,0-.616.352l-.352.532-.088.7a.773.773,0,0,0,.088.616,1.419,1.419,0,0,0,.352.616l.616.352.616.177H16.985a7.111,7.111,0,0,1,1.408.088,7.329,7.329,0,0,1,1.32.352A8.948,8.948,0,0,1,22,10.831a7.656,7.656,0,0,1,1.584,2.288,6.86,6.86,0,0,1,.532,2.729,7.176,7.176,0,0,1-.532,2.729,5.448,5.448,0,0,1-1.5,2.288,6.048,6.048,0,0,1-2.288,1.5,7.168,7.168,0,0,1-2.728.532H0V17.606H16.984a1.658,1.658,0,0,0,.7-.177,1.841,1.841,0,0,0,.532-.352,3.722,3.722,0,0,0,.44-.616l.088-.616c0-.264-.088-.532-.088-.7-.088-.177-.264-.352-.352-.532a1.578,1.578,0,0,0-.616-.44l-.7-.088ZM70.4,8.8H81.049l.616-.177a5.046,5.046,0,0,0,.616-.352c.088-.177.352-.264.352-.532l.264-.7-.177-.616c0-.264-.175-.44-.44-.616l-.532-.352-.7-.177H70.4ZM43.12,22.888V0H48.4V22.888ZM104.281,8.8V7.043c0-.264-.088-.44-.088-.7a2.335,2.335,0,0,0-.44-.532l-.532-.352-.616-.177H93.721a1.251,1.251,0,0,0-.532.177l-.616.44a2.791,2.791,0,0,0-.44.532l-.177.616V8.8Z" fill="#101628"/></svg>
+</td></tr>
+
+<tr><td style="padding:0 28px 8px;">
+<span style="display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:#676B70; background:#F5F7F8; padding:5px 11px; border-radius:9999px; margin-bottom:14px;">Pedido #684220</span>
+<h1 style="font-size:22px; font-weight:700; color:#101628; letter-spacing:-0.01em; line-height:1.25; margin:0 0 16px 0;">Recibimos tu pedido</h1>
+<p style="font-size:15px; line-height:1.65; color:#293148; margin:0;">Hola <strong style="color:#101628; font-weight:600;">Alexander</strong>, tu pedido quedó registrado. Estamos esperando la confirmación de tu pago para empezar a prepararlo. Te avisaremos tan pronto la recibamos.</p>
+</td></tr>
+
+<tr><td style="padding:24px 28px 32px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="background:#F5F7F8; border-left:3px solid #101628; padding:16px 18px; border-radius:6px; font-size:14px; line-height:1.6; color:#293148;">Nuestra promesa de entrega es de <strong>5 días hábiles</strong>, contados a partir del día hábil siguiente a la fecha de pago.</td>
+</tr></table>
+</td></tr>
+
+<tr><td align="center" style="padding:28px; border-top:1px solid #EBF0F4; border-bottom:1px solid #EBF0F4; background:#FAFBFB;">
+<div style="font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:#676B70; font-weight:600; margin-bottom:6px;">Total del pedido</div>
+<div style="font-size:32px; font-weight:700; color:#101628; letter-spacing:-0.02em;">$ 247.000</div>
+<div style="font-size:13px; color:#676B70; margin-top:8px;">Método de pago · <strong style="color:#293148; font-weight:600;">PSE</strong></div>
+</td></tr>
+
+<tr><td style="padding:24px 28px 8px; font-size:11px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:#676B70;">Resumen del pedido</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="vertical-align:top; padding-right:16px;">
+<div style="width:80px; height:92px; background:#293148; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:9px; text-align:center;">jean<br>typer</div>
+</td>
+<td valign="top" style="vertical-align:top;">
+<div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Typer</div>
+<div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Lewis jean relaxed con corte en costado</div>
+<div style="font-size:12.5px; color:#676B70; line-height:1.55;">SKU: <strong style="color:#293148; font-weight:500;">836637</strong><br>Color: <strong style="color:#293148; font-weight:500;">Negro</strong> · Talla: <strong style="color:#293148; font-weight:500;">32</strong></div>
+</td>
+<td width="90" align="right" valign="top" style="vertical-align:top;">
+<div style="font-size:12px; color:#999C9F; text-decoration:line-through; font-weight:500; margin-bottom:2px;">$ 149.000</div>
+<div style="font-size:15px; font-weight:700; color:#29845A;">$ 119.000</div>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="vertical-align:top; padding-right:16px;">
+<div style="width:80px; height:92px; background:#F1F3F5; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#676B70; font-size:9px; text-align:center;">camiseta<br>levis</div>
+</td>
+<td valign="top" style="vertical-align:top;">
+<div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Levis</div>
+<div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Camiseta levis manga corta</div>
+<div style="font-size:12.5px; color:#676B70; line-height:1.55;">SKU: <strong style="color:#293148; font-weight:500;">133400</strong><br>Color: <strong style="color:#293148; font-weight:500;">Blanco</strong> · Talla: <strong style="color:#293148; font-weight:500;">M</strong></div>
+</td>
+<td width="90" align="right" valign="top" style="vertical-align:top;">
+<div style="font-size:15px; font-weight:700; color:#101628;">$ 89.000</div>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:24px 28px 32px; border-top:1px solid #DBE2EA;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Subtotal</td><td align="right" style="padding:6px 0; font-size:14px; color:#293148; font-weight:500;">$ 208.000</td></tr>
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Envío</td><td align="right" style="padding:6px 0; font-size:14px; color:#293148; font-weight:500;">$ 9.000</td></tr>
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Descuentos</td><td align="right" style="padding:6px 0; font-size:14px; color:#29845A; font-weight:600;">-$ 30.000</td></tr>
+<tr><td style="border-top:1px solid #DBE2EA; padding:16px 0 0; font-size:18px; font-weight:700; color:#101628;">Total</td><td align="right" style="border-top:1px solid #DBE2EA; padding:16px 0 0; font-size:18px; font-weight:700; color:#101628;">$ 247.000</td></tr>
+</table>
+</td></tr>
+
+<tr><td style="padding:28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="50%" valign="top" style="vertical-align:top; padding-right:16px;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Dirección de envío</div>
+<div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Alexander Pérez</strong><br>Cra 25 # 14-30<br>Barrio Cabecera<br>Bucaramanga, Santander</div>
+</td>
+<td width="50%" valign="top" style="vertical-align:top; padding-left:16px;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Método de envío</div>
+<div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Coordinadora</strong><br><span style="color:#676B70;">Llega el lunes 26 de mayo</span></div>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td align="center" style="background:#101628; padding:36px 28px 28px; text-align:center; color:rgba(255,255,255,0.7); font-size:12px; line-height:1.65;">
+<div style="font-size:13px; font-weight:700; color:#ffffff; letter-spacing:0.02em; margin-bottom:18px;">¿Necesitas ayuda?</div>
+<div style="font-size:12.5px; line-height:1.95; color:rgba(255,255,255,0.75);">
+<strong style="color:#ffffff; font-weight:600;">WhatsApp</strong> &nbsp;321 392 7795<br>
+<strong style="color:#ffffff; font-weight:600;">Línea Nacional</strong> &nbsp;01 8000 423 550 · Op. 2<br>
+<strong style="color:#ffffff; font-weight:600;">Línea móvil</strong> &nbsp;300 387 0181 · Op. 2<br>
+<a href="mailto:servicioalcliente@stirpe.co" style="color:#ffffff; text-decoration:none; border-bottom:1px solid rgba(255,255,255,0.3); padding-bottom:1px;">servicioalcliente@stirpe.co</a>
+</div>
+<div style="margin-top:22px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.12); font-size:10.5px; color:rgba(255,255,255,0.5);">
+<div style="margin-top:0; font-size:10px; color:rgba(255,255,255,0.55);">&copy; 2026 <span style="margin:0 4px; color:rgba(255,255,255,0.3);">·</span><a href="https://stirpe.co" style="color:rgba(255,255,255,0.85); text-decoration:none; font-weight:600;">stirpe.co</a></div>
+</div>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+  </div>
+
+  <div class="between">⏱ Pasan unos minutos. La pasarela confirma el pago.</div>
+
+  <!-- ============ EMAIL 2: CONFIRMACIÓN (Transportadora) ============ -->
+  <div class="email-meta">
+    <div><span class="email-chip">EMAIL 2</span> &nbsp;<strong>De:</strong> Stirpe &lt;notificaciones@stirpe.co&gt; &nbsp;<strong>Para:</strong> alexander.perez@email.com</div>
+    <div><strong>Asunto:</strong> ¡Gracias por tu compra! · Pedido #684220</div>
+  </div>
+  <div class="email-shell">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+<tr><td align="center">
+<table align="center" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; width:100%; font-family:'Inter',Arial,sans-serif;">
+
+<tr><td align="center" style="padding:40px 28px 28px;">
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="25" viewBox="0 0 109.218 22.896" style="display:inline-block;"><path d="M90.553,22.36a7.2,7.2,0,0,1-3.784-3.873,1.969,1.969,0,0,1-.264-.881,6.1,6.1,0,0,1-.263-1.762V11.356a2.372,2.372,0,0,1-.616.7,7.5,7.5,0,0,1-2.2,1.5,5.691,5.691,0,0,1-1.144.352,3.885,3.885,0,0,1-1.5.177H70.4v8.8H65.121V7.923H59.84V7.043a1.939,1.939,0,0,0-.088-.7,2.334,2.334,0,0,0-.44-.532l-.532-.352-.611-.173h-3.7V22.888H49.281V0h8.8a5.875,5.875,0,0,1,2.64.532,6.806,6.806,0,0,1,2.287,1.489,6.884,6.884,0,0,1,1.5,2.288,15.172,15.172,0,0,1,.616,1.848V0H80.7c.532,0,.968.088,1.408.088a11.562,11.562,0,0,1,1.32.443,7.784,7.784,0,0,1,2.286,1.489,7.049,7.049,0,0,1,1.32,1.848,8.026,8.026,0,0,1,1.322-1.848A6.882,6.882,0,0,1,90.641.532a3.687,3.687,0,0,1,1.32-.355A6.838,6.838,0,0,1,93.368,0h8.888a6.143,6.143,0,0,1,2.64.532,7.784,7.784,0,0,1,2.29,1.489,6.885,6.885,0,0,1,1.5,2.293,7.748,7.748,0,0,1,.44,1.321,7.116,7.116,0,0,1,.088,1.409v7.043h-17.6v1.759a1.719,1.719,0,0,0,.088.616c.088.177.264.352.44.616l.532.352.616.177h15.845v5.282H93.285a6.558,6.558,0,0,1-2.728-.532Zm-83.6-8.275a6.838,6.838,0,0,1-1.408-.177,7.329,7.329,0,0,1-1.32-.352,6.983,6.983,0,0,1-2.2-1.5A9.774,9.774,0,0,1,.532,9.684,7.066,7.066,0,0,1,0,7.043,7.118,7.118,0,0,1,.089,5.636c.088-.352.177-.792.352-1.321a11.918,11.918,0,0,1,1.58-2.295A9.3,9.3,0,0,1,4.312.532,6.732,6.732,0,0,1,6.953,0H42.241V5.282h-8.8V22.888H28.16V5.282H6.953a.838.838,0,0,0-.616.177,1.419,1.419,0,0,0-.616.352l-.352.532-.088.7a.773.773,0,0,0,.088.616,1.419,1.419,0,0,0,.352.616l.616.352.616.177H16.985a7.111,7.111,0,0,1,1.408.088,7.329,7.329,0,0,1,1.32.352A8.948,8.948,0,0,1,22,10.831a7.656,7.656,0,0,1,1.584,2.288,6.86,6.86,0,0,1,.532,2.729,7.176,7.176,0,0,1-.532,2.729,5.448,5.448,0,0,1-1.5,2.288,6.048,6.048,0,0,1-2.288,1.5,7.168,7.168,0,0,1-2.728.532H0V17.606H16.984a1.658,1.658,0,0,0,.7-.177,1.841,1.841,0,0,0,.532-.352,3.722,3.722,0,0,0,.44-.616l.088-.616c0-.264-.088-.532-.088-.7-.088-.177-.264-.352-.352-.532a1.578,1.578,0,0,0-.616-.44l-.7-.088ZM70.4,8.8H81.049l.616-.177a5.046,5.046,0,0,0,.616-.352c.088-.177.352-.264.352-.532l.264-.7-.177-.616c0-.264-.175-.44-.44-.616l-.532-.352-.7-.177H70.4ZM43.12,22.888V0H48.4V22.888ZM104.281,8.8V7.043c0-.264-.088-.44-.088-.7a2.335,2.335,0,0,0-.44-.532l-.532-.352-.616-.177H93.721a1.251,1.251,0,0,0-.532.177l-.616.44a2.791,2.791,0,0,0-.44.532l-.177.616V8.8Z" fill="#101628"/></svg>
+</td></tr>
+
+<tr><td><table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="background:#C9E0D6; padding:14px 28px; font-size:13px; font-weight:600; color:#1a5d40; letter-spacing:0.02em;">✓ Pago aprobado</td></tr></table></td></tr>
+
+<tr><td style="padding:32px 28px 8px;">
+<span style="display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:#676B70; background:#F5F7F8; padding:5px 11px; border-radius:9999px; margin-bottom:14px;">Pedido #684220</span>
+<h1 style="font-size:24px; font-weight:700; color:#101628; letter-spacing:-0.01em; line-height:1.25; margin:0 0 16px 0;">¡Gracias por tu compra!</h1>
+<p style="font-size:15px; line-height:1.65; color:#293148; margin:0;">
+Hola <strong style="color:#101628; font-weight:600;">Alexander</strong>, recibimos tu pago y tu pedido ya está en proceso. Te avisaremos cuando salga con la transportadora.
+</p>
+</td></tr>
+
+<tr><td style="padding:24px 28px 0;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="background:#F5F7F8; border-left:3px solid #101628; padding:18px 20px; border-radius:6px;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:4px;">Entrega estimada</div>
+<div style="font-size:16px; font-weight:700; color:#101628; letter-spacing:-0.01em;">Lunes 26 de mayo de 2026</div>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td align="center" style="padding:24px 28px 12px;">
+<a href="#" style="display:inline-block; background:#101628; color:#ffffff; padding:14px 36px; border-radius:8px; font-size:14px; font-weight:700; text-decoration:none; letter-spacing:0.02em;">Ver mi pedido</a>
+</td></tr>
+
+<tr><td align="center" style="padding:16px 28px 28px; border-top:1px solid #EBF0F4; border-bottom:1px solid #EBF0F4; background:#FAFBFB;">
+<div style="font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:#676B70; font-weight:600; margin-bottom:6px;">Total pagado</div>
+<div style="font-size:32px; font-weight:700; color:#101628; letter-spacing:-0.02em;">$ 247.000</div>
+<div style="font-size:13px; color:#676B70; margin-top:8px;">Método de pago · <strong style="color:#293148; font-weight:600;">PSE</strong></div>
+</td></tr>
+
+<tr><td style="padding:24px 28px 8px; font-size:11px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:#676B70;">Resumen del pedido</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="vertical-align:top; padding-right:16px;"><div style="width:80px; height:92px; background:#293148; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:9px;">jean</div></td>
+<td valign="top" style="vertical-align:top;">
+<div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Typer</div>
+<div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Lewis jean relaxed con corte en costado</div>
+<div style="font-size:12.5px; color:#676B70; line-height:1.55;">SKU: <strong style="color:#293148; font-weight:500;">836637</strong><br>Color: <strong style="color:#293148; font-weight:500;">Negro</strong> · Talla: <strong style="color:#293148; font-weight:500;">32</strong></div>
+</td>
+<td width="90" align="right" valign="top" style="vertical-align:top;">
+<div style="font-size:12px; color:#999C9F; text-decoration:line-through; font-weight:500; margin-bottom:2px;">$ 149.000</div>
+<div style="font-size:15px; font-weight:700; color:#29845A;">$ 119.000</div>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="vertical-align:top; padding-right:16px;"><div style="width:80px; height:92px; background:#F1F3F5; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#676B70; font-size:9px;">levis</div></td>
+<td valign="top" style="vertical-align:top;">
+<div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Levis</div>
+<div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Camiseta levis manga corta</div>
+<div style="font-size:12.5px; color:#676B70; line-height:1.55;">SKU: <strong style="color:#293148; font-weight:500;">133400</strong><br>Color: <strong style="color:#293148; font-weight:500;">Blanco</strong> · Talla: <strong style="color:#293148; font-weight:500;">M</strong></div>
+</td>
+<td width="90" align="right" valign="top" style="vertical-align:top;"><div style="font-size:15px; font-weight:700; color:#101628;">$ 89.000</div></td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:24px 28px 32px; border-top:1px solid #DBE2EA;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Subtotal</td><td align="right" style="padding:6px 0; font-size:14px; color:#293148; font-weight:500;">$ 208.000</td></tr>
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Descuentos</td><td align="right" style="padding:6px 0; font-size:14px; color:#29845A; font-weight:600;">-$ 30.000</td></tr>
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Envío</td><td align="right" style="padding:6px 0; font-size:14px; color:#293148; font-weight:500;">$ 9.000</td></tr>
+<tr><td style="border-top:1px solid #DBE2EA; padding:16px 0 0; font-size:18px; font-weight:700; color:#101628;">Total</td><td align="right" style="border-top:1px solid #DBE2EA; padding:16px 0 0; font-size:18px; font-weight:700; color:#101628;">$ 247.000</td></tr>
+</table>
+</td></tr>
+
+<tr><td style="padding:28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="50%" valign="top" style="vertical-align:top; padding-right:16px;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Dirección de entrega</div>
+<div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Alexander Pérez</strong><br>Cra 25 # 14-30<br>Barrio Cabecera<br>Bucaramanga, Santander</div>
+</td>
+<td width="50%" valign="top" style="vertical-align:top; padding-left:16px;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Método de envío</div>
+<div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Coordinadora</strong><br><span style="color:#676B70;">Llega el lunes 26 de mayo</span></div>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:18px 28px 24px; text-align:center; font-size:12.5px; color:#676B70; line-height:1.55; border-top:1px solid #EBF0F4;">
+📄 Recibirás tu <strong style="color:#293148; font-weight:600;">factura electrónica</strong> en otro correo en las próximas horas.
+</td></tr>
+
+<tr><td align="center" style="background:#101628; padding:36px 28px 28px; text-align:center; color:rgba(255,255,255,0.7); font-size:12px; line-height:1.65;">
+<div style="font-size:13px; font-weight:700; color:#ffffff; letter-spacing:0.02em; margin-bottom:18px;">¿Necesitas ayuda?</div>
+<div style="font-size:12.5px; line-height:1.95; color:rgba(255,255,255,0.75);">
+<strong style="color:#ffffff; font-weight:600;">WhatsApp</strong> &nbsp;321 392 7795<br>
+<strong style="color:#ffffff; font-weight:600;">Línea Nacional</strong> &nbsp;01 8000 423 550 · Op. 2<br>
+<a href="mailto:servicioalcliente@stirpe.co" style="color:#ffffff; text-decoration:none; border-bottom:1px solid rgba(255,255,255,0.3); padding-bottom:1px;">servicioalcliente@stirpe.co</a>
+</div>
+<div style="margin-top:22px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.12); font-size:10.5px; color:rgba(255,255,255,0.5);">
+&copy; 2026 <span style="color:rgba(255,255,255,0.3);">·</span> <a href="https://stirpe.co" style="color:rgba(255,255,255,0.85); text-decoration:none; font-weight:600;">stirpe.co</a>
+</div>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+  </div>
+
+  <div class="between">⏱ Pasan 2 días. Bodega despacha y registra guía Coordinadora <strong>62360090250</strong>.</div>
+
+  <!-- ============ EMAIL 3: DESPACHO (Transportadora) ============ -->
+  <div class="email-meta">
+    <div><span class="email-chip">EMAIL 3</span> &nbsp;<strong>De:</strong> Stirpe &lt;notificaciones@stirpe.co&gt; &nbsp;<strong>Para:</strong> alexander.perez@email.com</div>
+    <div><strong>Asunto:</strong> Tu pedido #684220 va en camino con Coordinadora</div>
+  </div>
+  <div class="email-shell">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+<tr><td align="center">
+<table align="center" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; width:100%; font-family:'Inter',Arial,sans-serif;">
+
+<tr><td align="center" style="padding:40px 28px 32px;">
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="25" viewBox="0 0 109.218 22.896" style="display:inline-block;"><path d="M90.553,22.36a7.2,7.2,0,0,1-3.784-3.873,1.969,1.969,0,0,1-.264-.881,6.1,6.1,0,0,1-.263-1.762V11.356a2.372,2.372,0,0,1-.616.7,7.5,7.5,0,0,1-2.2,1.5,5.691,5.691,0,0,1-1.144.352,3.885,3.885,0,0,1-1.5.177H70.4v8.8H65.121V7.923H59.84V7.043a1.939,1.939,0,0,0-.088-.7,2.334,2.334,0,0,0-.44-.532l-.532-.352-.611-.173h-3.7V22.888H49.281V0h8.8a5.875,5.875,0,0,1,2.64.532,6.806,6.806,0,0,1,2.287,1.489,6.884,6.884,0,0,1,1.5,2.288,15.172,15.172,0,0,1,.616,1.848V0H80.7c.532,0,.968.088,1.408.088a11.562,11.562,0,0,1,1.32.443,7.784,7.784,0,0,1,2.286,1.489,7.049,7.049,0,0,1,1.32,1.848,8.026,8.026,0,0,1,1.322-1.848A6.882,6.882,0,0,1,90.641.532a3.687,3.687,0,0,1,1.32-.355A6.838,6.838,0,0,1,93.368,0h8.888a6.143,6.143,0,0,1,2.64.532,7.784,7.784,0,0,1,2.29,1.489,6.885,6.885,0,0,1,1.5,2.293,7.748,7.748,0,0,1,.44,1.321,7.116,7.116,0,0,1,.088,1.409v7.043h-17.6v1.759a1.719,1.719,0,0,0,.088.616c.088.177.264.352.44.616l.532.352.616.177h15.845v5.282H93.285a6.558,6.558,0,0,1-2.728-.532Zm-83.6-8.275a6.838,6.838,0,0,1-1.408-.177,7.329,7.329,0,0,1-1.32-.352,6.983,6.983,0,0,1-2.2-1.5A9.774,9.774,0,0,1,.532,9.684,7.066,7.066,0,0,1,0,7.043,7.118,7.118,0,0,1,.089,5.636c.088-.352.177-.792.352-1.321a11.918,11.918,0,0,1,1.58-2.295A9.3,9.3,0,0,1,4.312.532,6.732,6.732,0,0,1,6.953,0H42.241V5.282h-8.8V22.888H28.16V5.282H6.953a.838.838,0,0,0-.616.177,1.419,1.419,0,0,0-.616.352l-.352.532-.088.7a.773.773,0,0,0,.088.616,1.419,1.419,0,0,0,.352.616l.616.352.616.177H16.985a7.111,7.111,0,0,1,1.408.088,7.329,7.329,0,0,1,1.32.352A8.948,8.948,0,0,1,22,10.831a7.656,7.656,0,0,1,1.584,2.288,6.86,6.86,0,0,1,.532,2.729,7.176,7.176,0,0,1-.532,2.729,5.448,5.448,0,0,1-1.5,2.288,6.048,6.048,0,0,1-2.288,1.5,7.168,7.168,0,0,1-2.728.532H0V17.606H16.984a1.658,1.658,0,0,0,.7-.177,1.841,1.841,0,0,0,.532-.352,3.722,3.722,0,0,0,.44-.616l.088-.616c0-.264-.088-.532-.088-.7-.088-.177-.264-.352-.352-.532a1.578,1.578,0,0,0-.616-.44l-.7-.088ZM70.4,8.8H81.049l.616-.177a5.046,5.046,0,0,0,.616-.352c.088-.177.352-.264.352-.532l.264-.7-.177-.616c0-.264-.175-.44-.44-.616l-.532-.352-.7-.177H70.4ZM43.12,22.888V0H48.4V22.888ZM104.281,8.8V7.043c0-.264-.088-.44-.088-.7a2.335,2.335,0,0,0-.44-.532l-.532-.352-.616-.177H93.721a1.251,1.251,0,0,0-.532.177l-.616.44a2.791,2.791,0,0,0-.44.532l-.177.616V8.8Z" fill="#101628"/></svg>
+</td></tr>
+
+<tr><td style="padding:0 28px 8px;">
+<span style="display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:#676B70; background:#F5F7F8; padding:5px 11px; border-radius:9999px; margin-bottom:14px;">Pedido #684220</span>
+<h1 style="font-size:24px; font-weight:700; color:#101628; letter-spacing:-0.01em; line-height:1.25; margin:0 0 16px 0;">Tu pedido ya va en camino</h1>
+<p style="font-size:15px; line-height:1.65; color:#293148; margin:0;">
+Hola <strong style="color:#101628; font-weight:600;">Alexander</strong>, tu pedido fue despachado y va por <strong style="color:#101628; font-weight:600;">Coordinadora</strong>. Puedes rastrearlo en cualquier momento desde el portal de la transportadora.
+</p>
+</td></tr>
+
+<tr><td style="padding:24px 28px 0;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="background:#F5F7F8; border-left:3px solid #101628; padding:20px 22px; border-radius:6px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td style="padding:0 0 8px; font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70;">Transportadora</td><td align="right" style="padding:0 0 8px; font-size:15px; font-weight:600; color:#101628;">Coordinadora</td></tr>
+<tr><td style="padding:8px 0; border-top:1px solid #EBF0F4; font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70;">Número de guía</td><td align="right" style="padding:8px 0; border-top:1px solid #EBF0F4; font-size:15px; font-weight:600; color:#101628; font-variant-numeric:tabular-nums; letter-spacing:0.03em;">62360090250</td></tr>
+<tr><td style="padding:8px 0 0; border-top:1px solid #EBF0F4; font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70;">Despachado</td><td align="right" style="padding:8px 0 0; border-top:1px solid #EBF0F4; font-size:15px; font-weight:600; color:#101628;">22 de mayo · 10:14 a.m.</td></tr>
+</table>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td align="center" style="padding:24px 28px 12px;">
+<a href="https://coordinadora.com/rastreo?guia=62360090250" style="display:inline-block; background:#101628; color:#ffffff; padding:14px 36px; border-radius:8px; font-size:14px; font-weight:700; text-decoration:none; letter-spacing:0.02em;">Rastrear mi pedido</a>
+</td></tr>
+
+<tr><td align="center" style="padding:0 28px 28px;">
+<a href="#" style="color:#676B70; font-size:12.5px; font-weight:500; text-decoration:none;">o <span style="border-bottom:1px solid #DBE2EA; padding-bottom:1px;">ver detalle del pedido</span></a>
+</td></tr>
+
+<tr><td style="padding:24px 28px 8px; font-size:11px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:#676B70;">Productos en camino</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="vertical-align:top; padding-right:16px;"><div style="width:80px; height:92px; background:#293148; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:9px;">jean</div></td>
+<td valign="top" style="vertical-align:top;">
+<div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Typer</div>
+<div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Lewis jean relaxed con corte en costado</div>
+<div style="font-size:12.5px; color:#676B70; line-height:1.55;">SKU: <strong style="color:#293148; font-weight:500;">836637</strong><br>Color: <strong style="color:#293148; font-weight:500;">Negro</strong> · Talla: <strong style="color:#293148; font-weight:500;">32</strong></div>
+</td>
+<td width="90" align="right" valign="top" style="vertical-align:top;">
+<div style="font-size:12px; color:#999C9F; text-decoration:line-through; font-weight:500; margin-bottom:2px;">$ 149.000</div>
+<div style="font-size:15px; font-weight:700; color:#29845A;">$ 119.000</div>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="vertical-align:top; padding-right:16px;"><div style="width:80px; height:92px; background:#F1F3F5; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#676B70; font-size:9px;">levis</div></td>
+<td valign="top" style="vertical-align:top;">
+<div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Levis</div>
+<div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Camiseta levis manga corta</div>
+<div style="font-size:12.5px; color:#676B70; line-height:1.55;">SKU: <strong style="color:#293148; font-weight:500;">133400</strong><br>Color: <strong style="color:#293148; font-weight:500;">Blanco</strong> · Talla: <strong style="color:#293148; font-weight:500;">M</strong></div>
+</td>
+<td width="90" align="right" valign="top" style="vertical-align:top;"><div style="font-size:15px; font-weight:700; color:#101628;">$ 89.000</div></td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="50%" valign="top" style="vertical-align:top; padding-right:16px;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Dirección de entrega</div>
+<div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Alexander Pérez</strong><br>Cra 25 # 14-30<br>Barrio Cabecera<br>Bucaramanga, Santander</div>
+</td>
+<td width="50%" valign="top" style="vertical-align:top; padding-left:16px;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Fecha estimada de entrega</div>
+<div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Lunes 26 de mayo de 2026</strong></div>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td align="center" style="background:#101628; padding:36px 28px 28px; color:rgba(255,255,255,0.7); font-size:12px; line-height:1.65;">
+<div style="font-size:13px; font-weight:700; color:#ffffff; letter-spacing:0.02em; margin-bottom:18px;">¿Necesitas ayuda?</div>
+<div style="font-size:12.5px; line-height:1.95; color:rgba(255,255,255,0.75);">
+<strong style="color:#ffffff; font-weight:600;">WhatsApp</strong> &nbsp;321 392 7795<br>
+<a href="mailto:servicioalcliente@stirpe.co" style="color:#ffffff; text-decoration:none; border-bottom:1px solid rgba(255,255,255,0.3); padding-bottom:1px;">servicioalcliente@stirpe.co</a>
+</div>
+<div style="margin-top:22px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.12); font-size:10.5px; color:rgba(255,255,255,0.5);">&copy; 2026 · <a href="https://stirpe.co" style="color:rgba(255,255,255,0.85); text-decoration:none; font-weight:600;">stirpe.co</a></div>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+  </div>
+
+  <div class="between">⏱ Pasan 4 días. Coordinadora actualiza estado a "ENTREGADA" (código 6).</div>
+
+  <!-- ============ EMAIL 4: ENTREGADO (Transportadora) ============ -->
+  <div class="email-meta">
+    <div><span class="email-chip">EMAIL 4</span> &nbsp;<strong>De:</strong> Stirpe &lt;notificaciones@stirpe.co&gt; &nbsp;<strong>Para:</strong> alexander.perez@email.com</div>
+    <div><strong>Asunto:</strong> Recibiste tu pedido #684220</div>
+  </div>
+  <div class="email-shell">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+<tr><td align="center">
+<table align="center" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; width:100%; font-family:'Inter',Arial,sans-serif;">
+
+<tr><td align="center" style="padding:40px 28px 32px;">
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="25" viewBox="0 0 109.218 22.896"><path d="M90.553,22.36a7.2,7.2,0,0,1-3.784-3.873,1.969,1.969,0,0,1-.264-.881,6.1,6.1,0,0,1-.263-1.762V11.356a2.372,2.372,0,0,1-.616.7,7.5,7.5,0,0,1-2.2,1.5,5.691,5.691,0,0,1-1.144.352,3.885,3.885,0,0,1-1.5.177H70.4v8.8H65.121V7.923H59.84V7.043a1.939,1.939,0,0,0-.088-.7,2.334,2.334,0,0,0-.44-.532l-.532-.352-.611-.173h-3.7V22.888H49.281V0h8.8a5.875,5.875,0,0,1,2.64.532,6.806,6.806,0,0,1,2.287,1.489,6.884,6.884,0,0,1,1.5,2.288,15.172,15.172,0,0,1,.616,1.848V0H80.7c.532,0,.968.088,1.408.088a11.562,11.562,0,0,1,1.32.443,7.784,7.784,0,0,1,2.286,1.489,7.049,7.049,0,0,1,1.32,1.848,8.026,8.026,0,0,1,1.322-1.848A6.882,6.882,0,0,1,90.641.532a3.687,3.687,0,0,1,1.32-.355A6.838,6.838,0,0,1,93.368,0h8.888a6.143,6.143,0,0,1,2.64.532,7.784,7.784,0,0,1,2.29,1.489,6.885,6.885,0,0,1,1.5,2.293,7.748,7.748,0,0,1,.44,1.321,7.116,7.116,0,0,1,.088,1.409v7.043h-17.6v1.759a1.719,1.719,0,0,0,.088.616c.088.177.264.352.44.616l.532.352.616.177h15.845v5.282H93.285a6.558,6.558,0,0,1-2.728-.532Zm-83.6-8.275a6.838,6.838,0,0,1-1.408-.177,7.329,7.329,0,0,1-1.32-.352,6.983,6.983,0,0,1-2.2-1.5A9.774,9.774,0,0,1,.532,9.684,7.066,7.066,0,0,1,0,7.043,7.118,7.118,0,0,1,.089,5.636c.088-.352.177-.792.352-1.321a11.918,11.918,0,0,1,1.58-2.295A9.3,9.3,0,0,1,4.312.532,6.732,6.732,0,0,1,6.953,0H42.241V5.282h-8.8V22.888H28.16V5.282H6.953a.838.838,0,0,0-.616.177,1.419,1.419,0,0,0-.616.352l-.352.532-.088.7a.773.773,0,0,0,.088.616,1.419,1.419,0,0,0,.352.616l.616.352.616.177H16.985a7.111,7.111,0,0,1,1.408.088,7.329,7.329,0,0,1,1.32.352A8.948,8.948,0,0,1,22,10.831a7.656,7.656,0,0,1,1.584,2.288,6.86,6.86,0,0,1,.532,2.729,7.176,7.176,0,0,1-.532,2.729,5.448,5.448,0,0,1-1.5,2.288,6.048,6.048,0,0,1-2.288,1.5,7.168,7.168,0,0,1-2.728.532H0V17.606H16.984a1.658,1.658,0,0,0,.7-.177,1.841,1.841,0,0,0,.532-.352,3.722,3.722,0,0,0,.44-.616l.088-.616c0-.264-.088-.532-.088-.7-.088-.177-.264-.352-.352-.532a1.578,1.578,0,0,0-.616-.44l-.7-.088ZM70.4,8.8H81.049l.616-.177a5.046,5.046,0,0,0,.616-.352c.088-.177.352-.264.352-.532l.264-.7-.177-.616c0-.264-.175-.44-.44-.616l-.532-.352-.7-.177H70.4ZM43.12,22.888V0H48.4V22.888ZM104.281,8.8V7.043c0-.264-.088-.44-.088-.7a2.335,2.335,0,0,0-.44-.532l-.532-.352-.616-.177H93.721a1.251,1.251,0,0,0-.532.177l-.616.44a2.791,2.791,0,0,0-.44.532l-.177.616V8.8Z" fill="#101628"/></svg>
+</td></tr>
+
+<tr><td style="padding:0 28px 8px;">
+<span style="display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:#676B70; background:#F5F7F8; padding:5px 11px; border-radius:9999px; margin-bottom:14px;">Pedido #684220</span>
+<h1 style="font-size:24px; font-weight:700; color:#101628; letter-spacing:-0.01em; line-height:1.25; margin:0 0 16px 0;">Recibiste tu pedido</h1>
+<p style="font-size:15px; line-height:1.65; color:#293148; margin:0;">Hola <strong style="color:#101628; font-weight:600;">Alexander</strong>, confirmamos la entrega de tu pedido. Gracias por confiar en nosotros, esperamos que disfrutes tu compra.</p>
+</td></tr>
+
+<tr><td style="padding:24px 28px 0;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="background:#F5F7F8; border-left:3px solid #101628; padding:20px 22px; border-radius:6px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td style="padding:0 0 8px; font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70;">Entregado</td><td align="right" style="padding:0 0 8px; font-size:15px; font-weight:600; color:#101628;">26 de mayo · 3:42 p.m.</td></tr>
+<tr><td style="padding:8px 0 0; border-top:1px solid #EBF0F4; font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70;">Por</td><td align="right" style="padding:8px 0 0; border-top:1px solid #EBF0F4; font-size:15px; font-weight:600; color:#101628;">Coordinadora · Guía 62360090250</td></tr>
+</table>
+</td></tr></table>
+</td></tr>
+
+<tr><td align="center" style="padding:24px 28px 12px;">
+<a href="#" style="display:inline-block; background:#101628; color:#ffffff; padding:14px 36px; border-radius:8px; font-size:14px; font-weight:700; text-decoration:none; letter-spacing:0.02em;">Ver mi pedido</a>
+</td></tr>
+
+<tr><td align="center" style="padding:0 28px 28px;">
+<a href="#" style="color:#676B70; font-size:12.5px; font-weight:500; text-decoration:none;">o <span style="border-bottom:1px solid #DBE2EA; padding-bottom:1px;">contar tu experiencia</span></a>
+</td></tr>
+
+<tr><td style="padding:24px 28px 8px; font-size:11px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:#676B70;">Productos entregados</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="vertical-align:top; padding-right:16px;"><div style="width:80px; height:92px; background:#293148; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:9px;">jean</div></td>
+<td valign="top" style="vertical-align:top;">
+<div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Typer</div>
+<div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Lewis jean relaxed con corte en costado</div>
+<div style="font-size:12.5px; color:#676B70; line-height:1.55;">SKU: <strong style="color:#293148; font-weight:500;">836637</strong><br>Color: <strong style="color:#293148; font-weight:500;">Negro</strong> · Talla: <strong style="color:#293148; font-weight:500;">32</strong></div>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="vertical-align:top; padding-right:16px;"><div style="width:80px; height:92px; background:#F1F3F5; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#676B70; font-size:9px;">levis</div></td>
+<td valign="top" style="vertical-align:top;">
+<div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Levis</div>
+<div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Camiseta levis manga corta</div>
+<div style="font-size:12.5px; color:#676B70; line-height:1.55;">SKU: <strong style="color:#293148; font-weight:500;">133400</strong><br>Color: <strong style="color:#293148; font-weight:500;">Blanco</strong> · Talla: <strong style="color:#293148; font-weight:500;">M</strong></div>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:28px; border-top:1px solid #EBF0F4;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Dirección de entrega</div>
+<div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Alexander Pérez</strong><br>Cra 25 # 14-30<br>Barrio Cabecera<br>Bucaramanga, Santander</div>
+</td></tr>
+
+<tr><td align="center" style="background:#101628; padding:36px 28px 28px; color:rgba(255,255,255,0.7); font-size:12px; line-height:1.65;">
+<div style="font-size:13px; font-weight:700; color:#ffffff; letter-spacing:0.02em; margin-bottom:18px;">¿Necesitas ayuda?</div>
+<div style="font-size:12.5px; line-height:1.95; color:rgba(255,255,255,0.75);">
+<strong style="color:#ffffff; font-weight:600;">WhatsApp</strong> &nbsp;321 392 7795<br>
+<a href="mailto:servicioalcliente@stirpe.co" style="color:#ffffff; text-decoration:none; border-bottom:1px solid rgba(255,255,255,0.3); padding-bottom:1px;">servicioalcliente@stirpe.co</a>
+</div>
+<div style="margin-top:22px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.12); font-size:10.5px; color:rgba(255,255,255,0.5);">&copy; 2026 · <a href="https://stirpe.co" style="color:rgba(255,255,255,0.85); text-decoration:none; font-weight:600;">stirpe.co</a></div>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+  </div>
+
+  <!-- =========================================== -->
+  <!--  FLUJO 2 · MENSAJERÍA PAGO ANTICIPADO       -->
+  <!-- =========================================== -->
+  <div class="flow-divider"><span>Flujo 2 · Mensajería interna · Pago anticipado</span></div>
+
+  <div class="max-w-2xl mx-auto mb-8 text-sm text-slate-600 text-center leading-relaxed">
+    Asesor arma carrito · cliente paga online · coordinador agenda mensajero · mensajero entrega en el mismo día.<br>
+    <strong>3 correos en total</strong> (no hay "Despacho" porque el evento equivalente "En ruta" es solo por WhatsApp).
+  </div>
+
+  <!-- TIMELINE FLUJO 2 -->
+  <div class="max-w-2xl mx-auto mb-12">
+    <div class="timeline-row"><span class="timeline-num">1</span><div class="timeline-content"><span class="channel-tag channel-email">Email</span> <strong>Recibimos tu pedido</strong> · cliente paga online (PSE / tarjeta / QUAC)</div></div>
+    <div class="timeline-row"><span class="timeline-num">2</span><div class="timeline-content"><span class="channel-tag channel-email">Email</span> <span class="channel-tag channel-wa">WA</span> <strong>¡Gracias por tu compra!</strong> · pasarela aprueba pago</div></div>
+    <div class="timeline-row"><span class="timeline-num">3</span><div class="timeline-content"><span class="channel-tag channel-wa">WA</span> <strong>Tu pedido está agendado</strong> · coordinador asigna mensajero (disparo manual)</div></div>
+    <div class="timeline-row"><span class="timeline-num">4</span><div class="timeline-content"><span class="channel-tag channel-wa">WA</span> <strong>Mensajero salió</strong> · mensajero arranca ruta (botón panel)</div></div>
+    <div class="timeline-row"><span class="timeline-num">5</span><div class="timeline-content"><span class="channel-tag channel-email">Email</span> <strong>Recibiste tu pedido</strong> · mensajero confirma entrega</div></div>
+  </div>
+
+  <!-- ============ EMAIL 1: CREACIÓN (Mensajería anticipado) ============ -->
+  <div class="email-meta">
+    <div><span class="email-chip">EMAIL 1</span> &nbsp;<strong>Asunto:</strong> Recibimos tu pedido #684221</div>
+    <div>Variante mensajería</div>
+  </div>
+  <div class="email-shell">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+<tr><td align="center">
+<table align="center" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; font-family:'Inter',Arial,sans-serif;">
+
+<tr><td align="center" style="padding:40px 28px 32px;">
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="25" viewBox="0 0 109.218 22.896"><path d="M90.553,22.36a7.2,7.2,0,0,1-3.784-3.873,1.969,1.969,0,0,1-.264-.881,6.1,6.1,0,0,1-.263-1.762V11.356a2.372,2.372,0,0,1-.616.7,7.5,7.5,0,0,1-2.2,1.5,5.691,5.691,0,0,1-1.144.352,3.885,3.885,0,0,1-1.5.177H70.4v8.8H65.121V7.923H59.84V7.043a1.939,1.939,0,0,0-.088-.7,2.334,2.334,0,0,0-.44-.532l-.532-.352-.611-.173h-3.7V22.888H49.281V0h8.8a5.875,5.875,0,0,1,2.64.532,6.806,6.806,0,0,1,2.287,1.489,6.884,6.884,0,0,1,1.5,2.288,15.172,15.172,0,0,1,.616,1.848V0H80.7c.532,0,.968.088,1.408.088a11.562,11.562,0,0,1,1.32.443,7.784,7.784,0,0,1,2.286,1.489,7.049,7.049,0,0,1,1.32,1.848,8.026,8.026,0,0,1,1.322-1.848A6.882,6.882,0,0,1,90.641.532a3.687,3.687,0,0,1,1.32-.355A6.838,6.838,0,0,1,93.368,0h8.888a6.143,6.143,0,0,1,2.64.532,7.784,7.784,0,0,1,2.29,1.489,6.885,6.885,0,0,1,1.5,2.293,7.748,7.748,0,0,1,.44,1.321,7.116,7.116,0,0,1,.088,1.409v7.043h-17.6v1.759a1.719,1.719,0,0,0,.088.616c.088.177.264.352.44.616l.532.352.616.177h15.845v5.282H93.285a6.558,6.558,0,0,1-2.728-.532Zm-83.6-8.275a6.838,6.838,0,0,1-1.408-.177,7.329,7.329,0,0,1-1.32-.352,6.983,6.983,0,0,1-2.2-1.5A9.774,9.774,0,0,1,.532,9.684,7.066,7.066,0,0,1,0,7.043,7.118,7.118,0,0,1,.089,5.636c.088-.352.177-.792.352-1.321a11.918,11.918,0,0,1,1.58-2.295A9.3,9.3,0,0,1,4.312.532,6.732,6.732,0,0,1,6.953,0H42.241V5.282h-8.8V22.888H28.16V5.282H6.953a.838.838,0,0,0-.616.177,1.419,1.419,0,0,0-.616.352l-.352.532-.088.7a.773.773,0,0,0,.088.616,1.419,1.419,0,0,0,.352.616l.616.352.616.177H16.985a7.111,7.111,0,0,1,1.408.088,7.329,7.329,0,0,1,1.32.352A8.948,8.948,0,0,1,22,10.831a7.656,7.656,0,0,1,1.584,2.288,6.86,6.86,0,0,1,.532,2.729,7.176,7.176,0,0,1-.532,2.729,5.448,5.448,0,0,1-1.5,2.288,6.048,6.048,0,0,1-2.288,1.5,7.168,7.168,0,0,1-2.728.532H0V17.606H16.984a1.658,1.658,0,0,0,.7-.177,1.841,1.841,0,0,0,.532-.352,3.722,3.722,0,0,0,.44-.616l.088-.616c0-.264-.088-.532-.088-.7-.088-.177-.264-.352-.352-.532a1.578,1.578,0,0,0-.616-.44l-.7-.088ZM70.4,8.8H81.049l.616-.177a5.046,5.046,0,0,0,.616-.352c.088-.177.352-.264.352-.532l.264-.7-.177-.616c0-.264-.175-.44-.44-.616l-.532-.352-.7-.177H70.4ZM43.12,22.888V0H48.4V22.888ZM104.281,8.8V7.043c0-.264-.088-.44-.088-.7a2.335,2.335,0,0,0-.44-.532l-.532-.352-.616-.177H93.721a1.251,1.251,0,0,0-.532.177l-.616.44a2.791,2.791,0,0,0-.44.532l-.177.616V8.8Z" fill="#101628"/></svg>
+</td></tr>
+
+<tr><td style="padding:0 28px 8px;">
+<span style="display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:#676B70; background:#F5F7F8; padding:5px 11px; border-radius:9999px; margin-bottom:14px;">Pedido #684221</span>
+<h1 style="font-size:22px; font-weight:700; color:#101628; line-height:1.25; margin:0 0 16px 0;">Recibimos tu pedido</h1>
+<p style="font-size:15px; line-height:1.65; color:#293148; margin:0;">Hola <strong style="color:#101628; font-weight:600;">Alexander</strong>, tu pedido quedó registrado. Estamos esperando la confirmación de tu pago para empezar a prepararlo. Te avisaremos tan pronto la recibamos.</p>
+</td></tr>
+
+<tr><td style="padding:24px 28px 32px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="background:#F5F7F8; border-left:3px solid #101628; padding:16px 18px; border-radius:6px; font-size:14px; line-height:1.6; color:#293148;">Tu pedido va por <strong>mensajería interna</strong>. El mensajero te visita en la fecha y franja agendadas.</td>
+</tr></table>
+</td></tr>
+
+<tr><td align="center" style="padding:28px; border-top:1px solid #EBF0F4; border-bottom:1px solid #EBF0F4; background:#FAFBFB;">
+<div style="font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:#676B70; font-weight:600; margin-bottom:6px;">Total del pedido</div>
+<div style="font-size:32px; font-weight:700; color:#101628;">$ 247.000</div>
+<div style="font-size:13px; color:#676B70; margin-top:8px;">Método de pago · <strong style="color:#293148; font-weight:600;">QUAC (crédito)</strong></div>
+</td></tr>
+
+<tr><td style="padding:24px 28px 8px; font-size:11px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:#676B70;">Resumen del pedido</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="padding-right:16px;"><div style="width:80px; height:92px; background:#293148; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:9px;">jean</div></td>
+<td valign="top">
+<div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Typer</div>
+<div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Lewis jean relaxed con corte en costado</div>
+<div style="font-size:12.5px; color:#676B70;">SKU: <strong style="color:#293148; font-weight:500;">836637</strong><br>Color: <strong style="color:#293148; font-weight:500;">Negro</strong> · Talla: <strong style="color:#293148; font-weight:500;">32</strong></div>
+</td>
+<td width="90" align="right" valign="top"><div style="font-size:12px; color:#999C9F; text-decoration:line-through; margin-bottom:2px;">$ 149.000</div><div style="font-size:15px; font-weight:700; color:#29845A;">$ 119.000</div></td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="padding-right:16px;"><div style="width:80px; height:92px; background:#F1F3F5; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#676B70; font-size:9px;">levis</div></td>
+<td valign="top">
+<div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Levis</div>
+<div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Camiseta levis manga corta</div>
+<div style="font-size:12.5px; color:#676B70;">SKU: <strong style="color:#293148; font-weight:500;">133400</strong><br>Color: <strong style="color:#293148; font-weight:500;">Blanco</strong> · Talla: <strong style="color:#293148; font-weight:500;">M</strong></div>
+</td>
+<td width="90" align="right" valign="top"><div style="font-size:15px; font-weight:700; color:#101628;">$ 89.000</div></td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:24px 28px 32px; border-top:1px solid #DBE2EA;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Subtotal</td><td align="right" style="padding:6px 0; font-size:14px; color:#293148; font-weight:500;">$ 208.000</td></tr>
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Envío</td><td align="right" style="padding:6px 0; font-size:14px; color:#293148; font-weight:500;">$ 9.000</td></tr>
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Descuentos</td><td align="right" style="padding:6px 0; font-size:14px; color:#29845A; font-weight:600;">-$ 30.000</td></tr>
+<tr><td style="border-top:1px solid #DBE2EA; padding:16px 0 0; font-size:18px; font-weight:700; color:#101628;">Total</td><td align="right" style="border-top:1px solid #DBE2EA; padding:16px 0 0; font-size:18px; font-weight:700; color:#101628;">$ 247.000</td></tr>
+</table>
+</td></tr>
+
+<tr><td style="padding:28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="50%" valign="top" style="padding-right:16px;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Dirección de envío</div>
+<div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Alexander Pérez</strong><br>Cra 25 # 14-30<br>Barrio Cabecera<br>Bucaramanga, Santander</div>
+</td>
+<td width="50%" valign="top" style="padding-left:16px;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Método de envío</div>
+<div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Mensajería interna</strong><br><span style="color:#676B70;">Sáb 23 de mayo · 3:00 a 5:00 p.m.</span></div>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td align="center" style="background:#101628; padding:36px 28px 28px; color:rgba(255,255,255,0.7); font-size:12px;">
+<div style="font-size:13px; font-weight:700; color:#ffffff; margin-bottom:18px;">¿Necesitas ayuda?</div>
+<div style="font-size:12.5px; line-height:1.95; color:rgba(255,255,255,0.75);"><strong style="color:#ffffff;">WhatsApp</strong> &nbsp;321 392 7795 · <a href="mailto:servicioalcliente@stirpe.co" style="color:#ffffff; text-decoration:none;">servicioalcliente@stirpe.co</a></div>
+<div style="margin-top:18px; font-size:10.5px; color:rgba(255,255,255,0.55);">&copy; 2026 · stirpe.co</div>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+  </div>
+
+  <div class="between">⏱ Pasarela aprueba pago en segundos.</div>
+
+  <!-- ============ EMAIL 2: CONFIRMACIÓN (Mensajería anticipado) ============ -->
+  <div class="email-meta">
+    <div><span class="email-chip">EMAIL 2</span> &nbsp;<strong>Asunto:</strong> ¡Gracias por tu compra! · Pedido #684221</div>
+    <div>Variante mensajería</div>
+  </div>
+  <div class="email-shell">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+<tr><td align="center">
+<table align="center" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; font-family:'Inter',Arial,sans-serif;">
+
+<tr><td align="center" style="padding:40px 28px 28px;"><svg xmlns="http://www.w3.org/2000/svg" width="120" height="25" viewBox="0 0 109.218 22.896"><path d="M90.553,22.36a7.2,7.2,0,0,1-3.784-3.873,1.969,1.969,0,0,1-.264-.881,6.1,6.1,0,0,1-.263-1.762V11.356a2.372,2.372,0,0,1-.616.7,7.5,7.5,0,0,1-2.2,1.5,5.691,5.691,0,0,1-1.144.352,3.885,3.885,0,0,1-1.5.177H70.4v8.8H65.121V7.923H59.84V7.043a1.939,1.939,0,0,0-.088-.7,2.334,2.334,0,0,0-.44-.532l-.532-.352-.611-.173h-3.7V22.888H49.281V0h8.8a5.875,5.875,0,0,1,2.64.532,6.806,6.806,0,0,1,2.287,1.489,6.884,6.884,0,0,1,1.5,2.288,15.172,15.172,0,0,1,.616,1.848V0H80.7c.532,0,.968.088,1.408.088a11.562,11.562,0,0,1,1.32.443,7.784,7.784,0,0,1,2.286,1.489,7.049,7.049,0,0,1,1.32,1.848,8.026,8.026,0,0,1,1.322-1.848A6.882,6.882,0,0,1,90.641.532a3.687,3.687,0,0,1,1.32-.355A6.838,6.838,0,0,1,93.368,0h8.888a6.143,6.143,0,0,1,2.64.532,7.784,7.784,0,0,1,2.29,1.489,6.885,6.885,0,0,1,1.5,2.293,7.748,7.748,0,0,1,.44,1.321,7.116,7.116,0,0,1,.088,1.409v7.043h-17.6v1.759a1.719,1.719,0,0,0,.088.616c.088.177.264.352.44.616l.532.352.616.177h15.845v5.282H93.285a6.558,6.558,0,0,1-2.728-.532Zm-83.6-8.275a6.838,6.838,0,0,1-1.408-.177,7.329,7.329,0,0,1-1.32-.352,6.983,6.983,0,0,1-2.2-1.5A9.774,9.774,0,0,1,.532,9.684,7.066,7.066,0,0,1,0,7.043,7.118,7.118,0,0,1,.089,5.636c.088-.352.177-.792.352-1.321a11.918,11.918,0,0,1,1.58-2.295A9.3,9.3,0,0,1,4.312.532,6.732,6.732,0,0,1,6.953,0H42.241V5.282h-8.8V22.888H28.16V5.282H6.953a.838.838,0,0,0-.616.177,1.419,1.419,0,0,0-.616.352l-.352.532-.088.7a.773.773,0,0,0,.088.616,1.419,1.419,0,0,0,.352.616l.616.352.616.177H16.985a7.111,7.111,0,0,1,1.408.088,7.329,7.329,0,0,1,1.32.352A8.948,8.948,0,0,1,22,10.831a7.656,7.656,0,0,1,1.584,2.288,6.86,6.86,0,0,1,.532,2.729,7.176,7.176,0,0,1-.532,2.729,5.448,5.448,0,0,1-1.5,2.288,6.048,6.048,0,0,1-2.288,1.5,7.168,7.168,0,0,1-2.728.532H0V17.606H16.984a1.658,1.658,0,0,0,.7-.177,1.841,1.841,0,0,0,.532-.352,3.722,3.722,0,0,0,.44-.616l.088-.616c0-.264-.088-.532-.088-.7-.088-.177-.264-.352-.352-.532a1.578,1.578,0,0,0-.616-.44l-.7-.088ZM70.4,8.8H81.049l.616-.177a5.046,5.046,0,0,0,.616-.352c.088-.177.352-.264.352-.532l.264-.7-.177-.616c0-.264-.175-.44-.44-.616l-.532-.352-.7-.177H70.4ZM43.12,22.888V0H48.4V22.888ZM104.281,8.8V7.043c0-.264-.088-.44-.088-.7a2.335,2.335,0,0,0-.44-.532l-.532-.352-.616-.177H93.721a1.251,1.251,0,0,0-.532.177l-.616.44a2.791,2.791,0,0,0-.44.532l-.177.616V8.8Z" fill="#101628"/></svg></td></tr>
+
+<tr><td><table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="background:#C9E0D6; padding:14px 28px; font-size:13px; font-weight:600; color:#1a5d40;">✓ Pago aprobado</td></tr></table></td></tr>
+
+<tr><td style="padding:32px 28px 8px;">
+<span style="display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:#676B70; background:#F5F7F8; padding:5px 11px; border-radius:9999px; margin-bottom:14px;">Pedido #684221</span>
+<h1 style="font-size:24px; font-weight:700; color:#101628; line-height:1.25; margin:0 0 16px 0;">¡Gracias por tu compra!</h1>
+<p style="font-size:15px; line-height:1.65; color:#293148; margin:0;">Hola <strong style="color:#101628; font-weight:600;">Alexander</strong>, recibimos tu pago. El mensajero te visita en la fecha y franja que agendaste.</p>
+</td></tr>
+
+<tr><td style="padding:24px 28px 0;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="background:#F5F7F8; border-left:3px solid #101628; padding:18px 20px; border-radius:6px;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:4px;">Visita agendada</div>
+<div style="font-size:16px; font-weight:700; color:#101628;">Sábado 23 de mayo · 3:00 a 5:00 p.m.</div>
+</td></tr></table>
+</td></tr>
+
+<tr><td align="center" style="padding:24px 28px 12px;">
+<a href="#" style="display:inline-block; background:#101628; color:#ffffff; padding:14px 36px; border-radius:8px; font-size:14px; font-weight:700; text-decoration:none;">Ver mi pedido</a>
+</td></tr>
+
+<tr><td align="center" style="padding:16px 28px 28px; border-top:1px solid #EBF0F4; border-bottom:1px solid #EBF0F4; background:#FAFBFB;">
+<div style="font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:#676B70; font-weight:600; margin-bottom:6px;">Total pagado</div>
+<div style="font-size:32px; font-weight:700; color:#101628;">$ 247.000</div>
+<div style="font-size:13px; color:#676B70; margin-top:8px;">Método de pago · <strong style="color:#293148; font-weight:600;">QUAC (crédito)</strong></div>
+</td></tr>
+
+<tr><td style="padding:24px 28px 8px; font-size:11px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:#676B70;">Resumen del pedido</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="padding-right:16px;"><div style="width:80px; height:92px; background:#293148; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:9px;">jean</div></td>
+<td valign="top"><div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Typer</div><div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Lewis jean relaxed con corte en costado</div><div style="font-size:12.5px; color:#676B70;">SKU: <strong style="color:#293148; font-weight:500;">836637</strong><br>Color: <strong style="color:#293148; font-weight:500;">Negro</strong> · Talla: <strong style="color:#293148; font-weight:500;">32</strong></div></td>
+<td width="90" align="right" valign="top"><div style="font-size:12px; color:#999C9F; text-decoration:line-through; margin-bottom:2px;">$ 149.000</div><div style="font-size:15px; font-weight:700; color:#29845A;">$ 119.000</div></td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="padding-right:16px;"><div style="width:80px; height:92px; background:#F1F3F5; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#676B70; font-size:9px;">levis</div></td>
+<td valign="top"><div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Levis</div><div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Camiseta levis manga corta</div><div style="font-size:12.5px; color:#676B70;">SKU: <strong style="color:#293148; font-weight:500;">133400</strong><br>Color: <strong style="color:#293148; font-weight:500;">Blanco</strong> · Talla: <strong style="color:#293148; font-weight:500;">M</strong></div></td>
+<td width="90" align="right" valign="top"><div style="font-size:15px; font-weight:700; color:#101628;">$ 89.000</div></td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:24px 28px 32px; border-top:1px solid #DBE2EA;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Subtotal</td><td align="right" style="padding:6px 0; font-size:14px; color:#293148; font-weight:500;">$ 208.000</td></tr>
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Descuentos</td><td align="right" style="padding:6px 0; font-size:14px; color:#29845A; font-weight:600;">-$ 30.000</td></tr>
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Envío</td><td align="right" style="padding:6px 0; font-size:14px; color:#293148; font-weight:500;">$ 9.000</td></tr>
+<tr><td style="border-top:1px solid #DBE2EA; padding:16px 0 0; font-size:18px; font-weight:700; color:#101628;">Total</td><td align="right" style="border-top:1px solid #DBE2EA; padding:16px 0 0; font-size:18px; font-weight:700; color:#101628;">$ 247.000</td></tr>
+</table>
+</td></tr>
+
+<tr><td style="padding:28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="50%" valign="top" style="padding-right:16px;"><div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Dirección de entrega</div><div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Alexander Pérez</strong><br>Cra 25 # 14-30<br>Barrio Cabecera<br>Bucaramanga, Santander</div></td>
+<td width="50%" valign="top" style="padding-left:16px;"><div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Método de envío</div><div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Mensajería interna</strong><br><span style="color:#676B70;">Sáb 23 de mayo · 3:00 a 5:00 p.m.</span></div></td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:18px 28px 24px; text-align:center; font-size:12.5px; color:#676B70; border-top:1px solid #EBF0F4;">
+📄 Recibirás tu <strong style="color:#293148; font-weight:600;">factura electrónica</strong> en otro correo en las próximas horas.
+</td></tr>
+
+<tr><td align="center" style="background:#101628; padding:36px 28px 28px; color:rgba(255,255,255,0.7); font-size:12px;">
+<div style="font-size:13px; font-weight:700; color:#ffffff; margin-bottom:18px;">¿Necesitas ayuda?</div>
+<div style="font-size:12.5px; line-height:1.95; color:rgba(255,255,255,0.75);"><strong style="color:#ffffff;">WhatsApp</strong> &nbsp;321 392 7795 · <a href="mailto:servicioalcliente@stirpe.co" style="color:#ffffff; text-decoration:none;">servicioalcliente@stirpe.co</a></div>
+<div style="margin-top:18px; font-size:10.5px; color:rgba(255,255,255,0.55);">&copy; 2026 · stirpe.co</div>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+  </div>
+
+  <div class="between">📱 Coordinador asigna mensajero · cliente recibe WhatsApp <strong>"Tu pedido está agendado"</strong><br>📱 Más tarde, mensajero arranca ruta · cliente recibe WhatsApp <strong>"Tu mensajero Andrés salió, llega en ~30 min"</strong></div>
+
+  <!-- ============ EMAIL 3: ENTREGADO (Mensajería anticipado) ============ -->
+  <div class="email-meta">
+    <div><span class="email-chip">EMAIL 3</span> &nbsp;<strong>Asunto:</strong> Recibiste tu pedido #684221</div>
+    <div>Variante mensajería</div>
+  </div>
+  <div class="email-shell">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+<tr><td align="center">
+<table align="center" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; font-family:'Inter',Arial,sans-serif;">
+
+<tr><td align="center" style="padding:40px 28px 32px;"><svg xmlns="http://www.w3.org/2000/svg" width="120" height="25" viewBox="0 0 109.218 22.896"><path d="M90.553,22.36a7.2,7.2,0,0,1-3.784-3.873,1.969,1.969,0,0,1-.264-.881,6.1,6.1,0,0,1-.263-1.762V11.356a2.372,2.372,0,0,1-.616.7,7.5,7.5,0,0,1-2.2,1.5,5.691,5.691,0,0,1-1.144.352,3.885,3.885,0,0,1-1.5.177H70.4v8.8H65.121V7.923H59.84V7.043a1.939,1.939,0,0,0-.088-.7,2.334,2.334,0,0,0-.44-.532l-.532-.352-.611-.173h-3.7V22.888H49.281V0h8.8a5.875,5.875,0,0,1,2.64.532,6.806,6.806,0,0,1,2.287,1.489,6.884,6.884,0,0,1,1.5,2.288,15.172,15.172,0,0,1,.616,1.848V0H80.7c.532,0,.968.088,1.408.088a11.562,11.562,0,0,1,1.32.443,7.784,7.784,0,0,1,2.286,1.489,7.049,7.049,0,0,1,1.32,1.848,8.026,8.026,0,0,1,1.322-1.848A6.882,6.882,0,0,1,90.641.532a3.687,3.687,0,0,1,1.32-.355A6.838,6.838,0,0,1,93.368,0h8.888a6.143,6.143,0,0,1,2.64.532,7.784,7.784,0,0,1,2.29,1.489,6.885,6.885,0,0,1,1.5,2.293,7.748,7.748,0,0,1,.44,1.321,7.116,7.116,0,0,1,.088,1.409v7.043h-17.6v1.759a1.719,1.719,0,0,0,.088.616c.088.177.264.352.44.616l.532.352.616.177h15.845v5.282H93.285a6.558,6.558,0,0,1-2.728-.532Zm-83.6-8.275a6.838,6.838,0,0,1-1.408-.177,7.329,7.329,0,0,1-1.32-.352,6.983,6.983,0,0,1-2.2-1.5A9.774,9.774,0,0,1,.532,9.684,7.066,7.066,0,0,1,0,7.043,7.118,7.118,0,0,1,.089,5.636c.088-.352.177-.792.352-1.321a11.918,11.918,0,0,1,1.58-2.295A9.3,9.3,0,0,1,4.312.532,6.732,6.732,0,0,1,6.953,0H42.241V5.282h-8.8V22.888H28.16V5.282H6.953a.838.838,0,0,0-.616.177,1.419,1.419,0,0,0-.616.352l-.352.532-.088.7a.773.773,0,0,0,.088.616,1.419,1.419,0,0,0,.352.616l.616.352.616.177H16.985a7.111,7.111,0,0,1,1.408.088,7.329,7.329,0,0,1,1.32.352A8.948,8.948,0,0,1,22,10.831a7.656,7.656,0,0,1,1.584,2.288,6.86,6.86,0,0,1,.532,2.729,7.176,7.176,0,0,1-.532,2.729,5.448,5.448,0,0,1-1.5,2.288,6.048,6.048,0,0,1-2.288,1.5,7.168,7.168,0,0,1-2.728.532H0V17.606H16.984a1.658,1.658,0,0,0,.7-.177,1.841,1.841,0,0,0,.532-.352,3.722,3.722,0,0,0,.44-.616l.088-.616c0-.264-.088-.532-.088-.7-.088-.177-.264-.352-.352-.532a1.578,1.578,0,0,0-.616-.44l-.7-.088ZM70.4,8.8H81.049l.616-.177a5.046,5.046,0,0,0,.616-.352c.088-.177.352-.264.352-.532l.264-.7-.177-.616c0-.264-.175-.44-.44-.616l-.532-.352-.7-.177H70.4ZM43.12,22.888V0H48.4V22.888ZM104.281,8.8V7.043c0-.264-.088-.44-.088-.7a2.335,2.335,0,0,0-.44-.532l-.532-.352-.616-.177H93.721a1.251,1.251,0,0,0-.532.177l-.616.44a2.791,2.791,0,0,0-.44.532l-.177.616V8.8Z" fill="#101628"/></svg></td></tr>
+
+<tr><td style="padding:0 28px 8px;">
+<span style="display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:#676B70; background:#F5F7F8; padding:5px 11px; border-radius:9999px; margin-bottom:14px;">Pedido #684221</span>
+<h1 style="font-size:24px; font-weight:700; color:#101628; line-height:1.25; margin:0 0 16px 0;">Recibiste tu pedido</h1>
+<p style="font-size:15px; line-height:1.65; color:#293148; margin:0;">Hola <strong style="color:#101628; font-weight:600;">Alexander</strong>, confirmamos la entrega de tu pedido. Gracias por confiar en nosotros, esperamos que disfrutes tu compra.</p>
+</td></tr>
+
+<tr><td style="padding:24px 28px 0;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="background:#F5F7F8; border-left:3px solid #101628; padding:20px 22px; border-radius:6px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td style="padding:0 0 8px; font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70;">Entregado</td><td align="right" style="padding:0 0 8px; font-size:15px; font-weight:600; color:#101628;">23 de mayo · 4:18 p.m.</td></tr>
+<tr><td style="padding:8px 0 0; border-top:1px solid #EBF0F4; font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70;">Por</td><td align="right" style="padding:8px 0 0; border-top:1px solid #EBF0F4; font-size:15px; font-weight:600; color:#101628;">Andrés · Mensajería interna</td></tr>
+</table>
+</td></tr></table>
+</td></tr>
+
+<tr><td align="center" style="padding:24px 28px 12px;">
+<a href="#" style="display:inline-block; background:#101628; color:#ffffff; padding:14px 36px; border-radius:8px; font-size:14px; font-weight:700; text-decoration:none;">Ver mi pedido</a>
+</td></tr>
+
+<tr><td align="center" style="padding:0 28px 28px;">
+<a href="#" style="color:#676B70; font-size:12.5px; font-weight:500; text-decoration:none;">o <span style="border-bottom:1px solid #DBE2EA; padding-bottom:1px;">contar tu experiencia</span></a>
+</td></tr>
+
+<tr><td style="padding:24px 28px 8px; font-size:11px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:#676B70;">Productos entregados</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="padding-right:16px;"><div style="width:80px; height:92px; background:#293148; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:9px;">jean</div></td>
+<td valign="top"><div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Typer</div><div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Lewis jean relaxed con corte en costado</div><div style="font-size:12.5px; color:#676B70;">SKU: <strong style="color:#293148; font-weight:500;">836637</strong><br>Color: <strong style="color:#293148; font-weight:500;">Negro</strong> · Talla: <strong style="color:#293148; font-weight:500;">32</strong></div></td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="padding-right:16px;"><div style="width:80px; height:92px; background:#F1F3F5; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#676B70; font-size:9px;">levis</div></td>
+<td valign="top"><div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Levis</div><div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Camiseta levis manga corta</div><div style="font-size:12.5px; color:#676B70;">SKU: <strong style="color:#293148; font-weight:500;">133400</strong><br>Color: <strong style="color:#293148; font-weight:500;">Blanco</strong> · Talla: <strong style="color:#293148; font-weight:500;">M</strong></div></td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:28px; border-top:1px solid #EBF0F4;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Dirección de entrega</div>
+<div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Alexander Pérez</strong><br>Cra 25 # 14-30<br>Barrio Cabecera<br>Bucaramanga, Santander</div>
+</td></tr>
+
+<tr><td align="center" style="background:#101628; padding:36px 28px 28px; color:rgba(255,255,255,0.7); font-size:12px;">
+<div style="font-size:13px; font-weight:700; color:#ffffff; margin-bottom:18px;">¿Necesitas ayuda?</div>
+<div style="font-size:12.5px; line-height:1.95; color:rgba(255,255,255,0.75);"><strong style="color:#ffffff;">WhatsApp</strong> &nbsp;321 392 7795 · <a href="mailto:servicioalcliente@stirpe.co" style="color:#ffffff; text-decoration:none;">servicioalcliente@stirpe.co</a></div>
+<div style="margin-top:18px; font-size:10.5px; color:rgba(255,255,255,0.55);">&copy; 2026 · stirpe.co</div>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+  </div>
+
+  <!-- =========================================== -->
+  <!--  FLUJO 3 · MENSAJERÍA CONTRA-ENTREGA         -->
+  <!-- =========================================== -->
+  <div class="flow-divider"><span>Flujo 3 · Mensajería interna · Contra-entrega (CONSOLIDADO)</span></div>
+
+  <div class="max-w-2xl mx-auto mb-8 text-sm text-slate-600 text-center leading-relaxed">
+    Asesor arma carrito · cliente confirma agenda sin pagar · mensajero llega con prendas · cliente prueba en casa · paga solo las que se queda.<br>
+    <strong>2 correos en total</strong> — el segundo consolida pago + entrega (el pedido se crea al momento del pago).
+  </div>
+
+  <!-- TIMELINE FLUJO 3 -->
+  <div class="max-w-2xl mx-auto mb-12">
+    <div class="timeline-row"><span class="timeline-num">1</span><div class="timeline-content"><span class="channel-tag channel-email">Email</span> <strong>Recibimos tu pedido</strong> · cliente confirma agenda sin pagar</div></div>
+    <div class="timeline-row"><span class="timeline-num">2</span><div class="timeline-content"><span class="channel-tag channel-wa">WA</span> <strong>Tu pedido está agendado</strong> · coordinador asigna mensajero (disparo manual)</div></div>
+    <div class="timeline-row"><span class="timeline-num">3</span><div class="timeline-content"><span class="channel-tag channel-wa">WA</span> <strong>Mensajero salió</strong> · mensajero arranca ruta</div></div>
+    <div class="timeline-row"><span class="timeline-num">4</span><div class="timeline-content"><span class="channel-tag channel-email">Email</span> <span class="channel-tag channel-wa">WA</span> <strong>¡Gracias por tu compra! · Pedido entregado</strong> · cliente paga al recibir (CONSOLIDADO)</div></div>
+    <div class="timeline-row"><span class="timeline-num">—</span><div class="timeline-content"><span class="channel-tag channel-skip">Skip</span> No se envía un segundo email "Pedido entregado" (ya consolidado en el anterior)</div></div>
+  </div>
+
+  <!-- ============ EMAIL 1: CREACIÓN (Contra-entrega) ============ -->
+  <div class="email-meta">
+    <div><span class="email-chip">EMAIL 1</span> &nbsp;<strong>Asunto:</strong> Recibimos tu pedido · agenda confirmada</div>
+    <div>Variante contra-entrega · sin pago aún</div>
+  </div>
+  <div class="email-shell">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+<tr><td align="center">
+<table align="center" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; font-family:'Inter',Arial,sans-serif;">
+
+<tr><td align="center" style="padding:40px 28px 32px;"><svg xmlns="http://www.w3.org/2000/svg" width="120" height="25" viewBox="0 0 109.218 22.896"><path d="M90.553,22.36a7.2,7.2,0,0,1-3.784-3.873,1.969,1.969,0,0,1-.264-.881,6.1,6.1,0,0,1-.263-1.762V11.356a2.372,2.372,0,0,1-.616.7,7.5,7.5,0,0,1-2.2,1.5,5.691,5.691,0,0,1-1.144.352,3.885,3.885,0,0,1-1.5.177H70.4v8.8H65.121V7.923H59.84V7.043a1.939,1.939,0,0,0-.088-.7,2.334,2.334,0,0,0-.44-.532l-.532-.352-.611-.173h-3.7V22.888H49.281V0h8.8a5.875,5.875,0,0,1,2.64.532,6.806,6.806,0,0,1,2.287,1.489,6.884,6.884,0,0,1,1.5,2.288,15.172,15.172,0,0,1,.616,1.848V0H80.7c.532,0,.968.088,1.408.088a11.562,11.562,0,0,1,1.32.443,7.784,7.784,0,0,1,2.286,1.489,7.049,7.049,0,0,1,1.32,1.848,8.026,8.026,0,0,1,1.322-1.848A6.882,6.882,0,0,1,90.641.532a3.687,3.687,0,0,1,1.32-.355A6.838,6.838,0,0,1,93.368,0h8.888a6.143,6.143,0,0,1,2.64.532,7.784,7.784,0,0,1,2.29,1.489,6.885,6.885,0,0,1,1.5,2.293,7.748,7.748,0,0,1,.44,1.321,7.116,7.116,0,0,1,.088,1.409v7.043h-17.6v1.759a1.719,1.719,0,0,0,.088.616c.088.177.264.352.44.616l.532.352.616.177h15.845v5.282H93.285a6.558,6.558,0,0,1-2.728-.532Zm-83.6-8.275a6.838,6.838,0,0,1-1.408-.177,7.329,7.329,0,0,1-1.32-.352,6.983,6.983,0,0,1-2.2-1.5A9.774,9.774,0,0,1,.532,9.684,7.066,7.066,0,0,1,0,7.043,7.118,7.118,0,0,1,.089,5.636c.088-.352.177-.792.352-1.321a11.918,11.918,0,0,1,1.58-2.295A9.3,9.3,0,0,1,4.312.532,6.732,6.732,0,0,1,6.953,0H42.241V5.282h-8.8V22.888H28.16V5.282H6.953a.838.838,0,0,0-.616.177,1.419,1.419,0,0,0-.616.352l-.352.532-.088.7a.773.773,0,0,0,.088.616,1.419,1.419,0,0,0,.352.616l.616.352.616.177H16.985a7.111,7.111,0,0,1,1.408.088,7.329,7.329,0,0,1,1.32.352A8.948,8.948,0,0,1,22,10.831a7.656,7.656,0,0,1,1.584,2.288,6.86,6.86,0,0,1,.532,2.729,7.176,7.176,0,0,1-.532,2.729,5.448,5.448,0,0,1-1.5,2.288,6.048,6.048,0,0,1-2.288,1.5,7.168,7.168,0,0,1-2.728.532H0V17.606H16.984a1.658,1.658,0,0,0,.7-.177,1.841,1.841,0,0,0,.532-.352,3.722,3.722,0,0,0,.44-.616l.088-.616c0-.264-.088-.532-.088-.7-.088-.177-.264-.352-.352-.532a1.578,1.578,0,0,0-.616-.44l-.7-.088ZM70.4,8.8H81.049l.616-.177a5.046,5.046,0,0,0,.616-.352c.088-.177.352-.264.352-.532l.264-.7-.177-.616c0-.264-.175-.44-.44-.616l-.532-.352-.7-.177H70.4ZM43.12,22.888V0H48.4V22.888ZM104.281,8.8V7.043c0-.264-.088-.44-.088-.7a2.335,2.335,0,0,0-.44-.532l-.532-.352-.616-.177H93.721a1.251,1.251,0,0,0-.532.177l-.616.44a2.791,2.791,0,0,0-.44.532l-.177.616V8.8Z" fill="#101628"/></svg></td></tr>
+
+<tr><td style="padding:0 28px 8px;">
+<span style="display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:#676B70; background:#F5F7F8; padding:5px 11px; border-radius:9999px; margin-bottom:14px;">Carrito #C-998877</span>
+<h1 style="font-size:22px; font-weight:700; color:#101628; line-height:1.25; margin:0 0 16px 0;">Recibimos tu pedido</h1>
+<p style="font-size:15px; line-height:1.65; color:#293148; margin:0;">Hola <strong style="color:#101628; font-weight:600;">Alexander</strong>, tu pedido quedó agendado. El mensajero te visita en la fecha y franja que confirmaste. Pagas solo lo que decidas quedarte después de probarte las prendas.</p>
+</td></tr>
+
+<tr><td style="padding:24px 28px 32px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="background:#F5F7F8; border-left:3px solid #101628; padding:16px 18px; border-radius:6px; font-size:14px; line-height:1.6; color:#293148;">Tu pedido va por <strong>mensajería interna</strong>. El mensajero te visita en la fecha y franja agendadas.</td>
+</tr></table>
+</td></tr>
+
+<tr><td align="center" style="padding:28px; border-top:1px solid #EBF0F4; border-bottom:1px solid #EBF0F4; background:#FAFBFB;">
+<div style="font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:#676B70; font-weight:600; margin-bottom:6px;">Total estimado (a probar)</div>
+<div style="font-size:32px; font-weight:700; color:#101628;">$ 247.000</div>
+<div style="font-size:13px; color:#676B70; margin-top:8px;">Pagas al recibir solo lo que te lleves</div>
+</td></tr>
+
+<tr><td style="padding:24px 28px 8px; font-size:11px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:#676B70;">Prendas que te lleva el mensajero</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="padding-right:16px;"><div style="width:80px; height:92px; background:#293148; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:9px;">jean</div></td>
+<td valign="top"><div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Typer</div><div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Lewis jean relaxed con corte en costado</div><div style="font-size:12.5px; color:#676B70;">SKU: <strong style="color:#293148; font-weight:500;">836637</strong><br>Color: <strong style="color:#293148; font-weight:500;">Negro</strong> · Talla: <strong style="color:#293148; font-weight:500;">32</strong></div></td>
+<td width="90" align="right" valign="top"><div style="font-size:12px; color:#999C9F; text-decoration:line-through; margin-bottom:2px;">$ 149.000</div><div style="font-size:15px; font-weight:700; color:#29845A;">$ 119.000</div></td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="padding-right:16px;"><div style="width:80px; height:92px; background:#F1F3F5; border-radius:6px; display:flex; align-items:center; justify-content:center; color:#676B70; font-size:9px;">levis</div></td>
+<td valign="top"><div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Levis</div><div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Camiseta levis manga corta</div><div style="font-size:12.5px; color:#676B70;">SKU: <strong style="color:#293148; font-weight:500;">133400</strong><br>Color: <strong style="color:#293148; font-weight:500;">Blanco</strong> · Talla: <strong style="color:#293148; font-weight:500;">M</strong></div></td>
+<td width="90" align="right" valign="top"><div style="font-size:15px; font-weight:700; color:#101628;">$ 89.000</div></td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:24px 28px 32px; border-top:1px solid #DBE2EA;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Subtotal (a probar)</td><td align="right" style="padding:6px 0; font-size:14px; color:#293148; font-weight:500;">$ 208.000</td></tr>
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Envío</td><td align="right" style="padding:6px 0; font-size:14px; color:#293148; font-weight:500;">$ 9.000</td></tr>
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Descuentos</td><td align="right" style="padding:6px 0; font-size:14px; color:#29845A; font-weight:600;">-$ 30.000</td></tr>
+<tr><td style="border-top:1px solid #DBE2EA; padding:16px 0 0; font-size:18px; font-weight:700; color:#101628;">Total estimado</td><td align="right" style="border-top:1px solid #DBE2EA; padding:16px 0 0; font-size:18px; font-weight:700; color:#101628;">$ 247.000</td></tr>
+</table>
+</td></tr>
+
+<tr><td style="padding:28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="50%" valign="top" style="padding-right:16px;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Dirección de visita</div>
+<div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Alexander Pérez</strong><br>Cra 25 # 14-30<br>Barrio Cabecera<br>Bucaramanga, Santander</div>
+</td>
+<td width="50%" valign="top" style="padding-left:16px;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Método de envío</div>
+<div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Mensajería · contra-entrega</strong><br><span style="color:#676B70;">Sáb 23 de mayo · 3:00 a 5:00 p.m.</span></div>
+</td>
+</tr></table>
+</td></tr>
+
+<tr><td align="center" style="background:#101628; padding:36px 28px 28px; color:rgba(255,255,255,0.7); font-size:12px;">
+<div style="font-size:13px; font-weight:700; color:#ffffff; margin-bottom:18px;">¿Necesitas ayuda?</div>
+<div style="font-size:12.5px; line-height:1.95; color:rgba(255,255,255,0.75);"><strong style="color:#ffffff;">WhatsApp</strong> &nbsp;321 392 7795 · <a href="mailto:servicioalcliente@stirpe.co" style="color:#ffffff; text-decoration:none;">servicioalcliente@stirpe.co</a></div>
+<div style="margin-top:18px; font-size:10.5px; color:rgba(255,255,255,0.55);">&copy; 2026 · stirpe.co</div>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+  </div>
+
+  <div class="between">📱 Coordinador asigna mensajero · cliente recibe WhatsApp <strong>"Tu pedido está agendado · pagas solo las que decidas quedarte"</strong><br>📱 Más tarde, mensajero arranca ruta · cliente recibe WhatsApp <strong>"Tu mensajero salió con las prendas que elegiste"</strong></div>
+
+  <!-- ============ EMAIL 2: CONFIRMACIÓN CONSOLIDADO (Contra-entrega) ============ -->
+  <div class="email-meta">
+    <div><span class="email-chip">EMAIL 2</span> &nbsp;<strong>Asunto:</strong> ¡Gracias por tu compra! · Pedido entregado · #684222</div>
+    <div>Variante consolidado · contra-entrega</div>
+  </div>
+  <div class="email-shell">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+<tr><td align="center">
+<table align="center" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; font-family:'Inter',Arial,sans-serif;">
+
+<tr><td align="center" style="padding:40px 28px 28px;"><svg xmlns="http://www.w3.org/2000/svg" width="120" height="25" viewBox="0 0 109.218 22.896"><path d="M90.553,22.36a7.2,7.2,0,0,1-3.784-3.873,1.969,1.969,0,0,1-.264-.881,6.1,6.1,0,0,1-.263-1.762V11.356a2.372,2.372,0,0,1-.616.7,7.5,7.5,0,0,1-2.2,1.5,5.691,5.691,0,0,1-1.144.352,3.885,3.885,0,0,1-1.5.177H70.4v8.8H65.121V7.923H59.84V7.043a1.939,1.939,0,0,0-.088-.7,2.334,2.334,0,0,0-.44-.532l-.532-.352-.611-.173h-3.7V22.888H49.281V0h8.8a5.875,5.875,0,0,1,2.64.532,6.806,6.806,0,0,1,2.287,1.489,6.884,6.884,0,0,1,1.5,2.288,15.172,15.172,0,0,1,.616,1.848V0H80.7c.532,0,.968.088,1.408.088a11.562,11.562,0,0,1,1.32.443,7.784,7.784,0,0,1,2.286,1.489,7.049,7.049,0,0,1,1.32,1.848,8.026,8.026,0,0,1,1.322-1.848A6.882,6.882,0,0,1,90.641.532a3.687,3.687,0,0,1,1.32-.355A6.838,6.838,0,0,1,93.368,0h8.888a6.143,6.143,0,0,1,2.64.532,7.784,7.784,0,0,1,2.29,1.489,6.885,6.885,0,0,1,1.5,2.293,7.748,7.748,0,0,1,.44,1.321,7.116,7.116,0,0,1,.088,1.409v7.043h-17.6v1.759a1.719,1.719,0,0,0,.088.616c.088.177.264.352.44.616l.532.352.616.177h15.845v5.282H93.285a6.558,6.558,0,0,1-2.728-.532Zm-83.6-8.275a6.838,6.838,0,0,1-1.408-.177,7.329,7.329,0,0,1-1.32-.352,6.983,6.983,0,0,1-2.2-1.5A9.774,9.774,0,0,1,.532,9.684,7.066,7.066,0,0,1,0,7.043,7.118,7.118,0,0,1,.089,5.636c.088-.352.177-.792.352-1.321a11.918,11.918,0,0,1,1.58-2.295A9.3,9.3,0,0,1,4.312.532,6.732,6.732,0,0,1,6.953,0H42.241V5.282h-8.8V22.888H28.16V5.282H6.953a.838.838,0,0,0-.616.177,1.419,1.419,0,0,0-.616.352l-.352.532-.088.7a.773.773,0,0,0,.088.616,1.419,1.419,0,0,0,.352.616l.616.352.616.177H16.985a7.111,7.111,0,0,1,1.408.088,7.329,7.329,0,0,1,1.32.352A8.948,8.948,0,0,1,22,10.831a7.656,7.656,0,0,1,1.584,2.288,6.86,6.86,0,0,1,.532,2.729,7.176,7.176,0,0,1-.532,2.729,5.448,5.448,0,0,1-1.5,2.288,6.048,6.048,0,0,1-2.288,1.5,7.168,7.168,0,0,1-2.728.532H0V17.606H16.984a1.658,1.658,0,0,0,.7-.177,1.841,1.841,0,0,0,.532-.352,3.722,3.722,0,0,0,.44-.616l.088-.616c0-.264-.088-.532-.088-.7-.088-.177-.264-.352-.352-.532a1.578,1.578,0,0,0-.616-.44l-.7-.088ZM70.4,8.8H81.049l.616-.177a5.046,5.046,0,0,0,.616-.352c.088-.177.352-.264.352-.532l.264-.7-.177-.616c0-.264-.175-.44-.44-.616l-.532-.352-.7-.177H70.4ZM43.12,22.888V0H48.4V22.888ZM104.281,8.8V7.043c0-.264-.088-.44-.088-.7a2.335,2.335,0,0,0-.44-.532l-.532-.352-.616-.177H93.721a1.251,1.251,0,0,0-.532.177l-.616.44a2.791,2.791,0,0,0-.44.532l-.177.616V8.8Z" fill="#101628"/></svg></td></tr>
+
+<tr><td><table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="background:#C9E0D6; padding:14px 28px; font-size:13px; font-weight:600; color:#1a5d40;">✓ Pago aprobado · Pedido entregado</td></tr></table></td></tr>
+
+<tr><td style="padding:32px 28px 8px;">
+<span style="display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:#676B70; background:#F5F7F8; padding:5px 11px; border-radius:9999px; margin-bottom:14px;">Pedido #684222</span>
+<h1 style="font-size:24px; font-weight:700; color:#101628; line-height:1.25; margin:0 0 16px 0;">¡Gracias por tu compra!</h1>
+<p style="font-size:15px; line-height:1.65; color:#293148; margin:0;">Hola <strong style="color:#101628; font-weight:600;">Alexander</strong>, recibimos tu pago al momento de la entrega. Este es el resumen de las prendas que decidiste quedarte.</p>
+</td></tr>
+
+<tr><td style="padding:24px 28px 0;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="background:#F5F7F8; border-left:3px solid #101628; padding:18px 20px; border-radius:6px;">
+<div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:4px;">Entrega completada</div>
+<div style="font-size:16px; font-weight:700; color:#101628; letter-spacing:-0.01em;">Sábado 23 de mayo · 4:18 p.m.</div>
+</td></tr></table>
+</td></tr>
+
+<tr><td align="center" style="padding:24px 28px 12px;">
+<a href="#" style="display:inline-block; background:#101628; color:#ffffff; padding:14px 36px; border-radius:8px; font-size:14px; font-weight:700; text-decoration:none;">Ver mi pedido</a>
+</td></tr>
+
+<tr><td align="center" style="padding:16px 28px 28px; border-top:1px solid #EBF0F4; border-bottom:1px solid #EBF0F4; background:#FAFBFB;">
+<div style="font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:#676B70; font-weight:600; margin-bottom:6px;">Total pagado</div>
+<div style="font-size:32px; font-weight:700; color:#101628;">$ 119.000</div>
+<div style="font-size:13px; color:#676B70; margin-top:8px;">Método de pago · <strong style="color:#293148; font-weight:600;">Datáfono (tarjeta)</strong></div>
+</td></tr>
+
+<tr><td style="padding:24px 28px 8px; font-size:11px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase; color:#676B70;">Te quedaste con</td></tr>
+
+<tr><td style="padding:18px 28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="80" valign="top" style="padding-right:16px;"><div style="width:80px; height:92px; background:#293148; border-radius:6px; display:flex; align-items:center; justify-content:center; color:white; font-size:9px;">jean</div></td>
+<td valign="top"><div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:4px;">Typer</div><div style="font-size:14.5px; font-weight:600; color:#101628; line-height:1.35; margin-bottom:6px;">Lewis jean relaxed con corte en costado</div><div style="font-size:12.5px; color:#676B70;">SKU: <strong style="color:#293148; font-weight:500;">836637</strong><br>Color: <strong style="color:#293148; font-weight:500;">Negro</strong> · Talla: <strong style="color:#293148; font-weight:500;">32</strong></div></td>
+<td width="90" align="right" valign="top"><div style="font-size:12px; color:#999C9F; text-decoration:line-through; margin-bottom:2px;">$ 149.000</div><div style="font-size:15px; font-weight:700; color:#29845A;">$ 119.000</div></td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:24px 28px 32px; border-top:1px solid #DBE2EA;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Subtotal</td><td align="right" style="padding:6px 0; font-size:14px; color:#293148; font-weight:500;">$ 149.000</td></tr>
+<tr><td style="padding:6px 0; font-size:14px; color:#676B70;">Descuentos</td><td align="right" style="padding:6px 0; font-size:14px; color:#29845A; font-weight:600;">-$ 30.000</td></tr>
+<tr><td style="border-top:1px solid #DBE2EA; padding:16px 0 0; font-size:18px; font-weight:700; color:#101628;">Total pagado</td><td align="right" style="border-top:1px solid #DBE2EA; padding:16px 0 0; font-size:18px; font-weight:700; color:#101628;">$ 119.000</td></tr>
+</table>
+<div style="font-size:11.5px; color:#676B70; margin-top:14px; padding-top:14px; border-top:1px dashed #DBE2EA; line-height:1.55;">La camiseta Levis (SKU 133400) no se incluyó · el mensajero la regresó a bodega.</div>
+</td></tr>
+
+<tr><td style="padding:28px; border-top:1px solid #EBF0F4;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="50%" valign="top" style="padding-right:16px;"><div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Dirección de entrega</div><div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Alexander Pérez</strong><br>Cra 25 # 14-30<br>Barrio Cabecera<br>Bucaramanga, Santander</div></td>
+<td width="50%" valign="top" style="padding-left:16px;"><div style="font-size:11px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:#676B70; margin-bottom:8px;">Método de envío</div><div style="font-size:13.5px; line-height:1.55; color:#293148;"><strong style="color:#101628; font-weight:600;">Mensajería · contra-entrega</strong><br><span style="color:#676B70;">Entregado por Andrés · 23 de mayo</span></div></td>
+</tr></table>
+</td></tr>
+
+<tr><td style="padding:18px 28px 24px; text-align:center; font-size:12.5px; color:#676B70; border-top:1px solid #EBF0F4;">
+📄 Recibirás tu <strong style="color:#293148; font-weight:600;">factura electrónica</strong> en otro correo en las próximas horas.
+</td></tr>
+
+<tr><td align="center" style="background:#101628; padding:36px 28px 28px; color:rgba(255,255,255,0.7); font-size:12px;">
+<div style="font-size:13px; font-weight:700; color:#ffffff; margin-bottom:18px;">¿Necesitas ayuda?</div>
+<div style="font-size:12.5px; line-height:1.95; color:rgba(255,255,255,0.75);"><strong style="color:#ffffff;">WhatsApp</strong> &nbsp;321 392 7795 · <a href="mailto:servicioalcliente@stirpe.co" style="color:#ffffff; text-decoration:none;">servicioalcliente@stirpe.co</a></div>
+<div style="margin-top:18px; font-size:10.5px; color:rgba(255,255,255,0.55);">&copy; 2026 · stirpe.co</div>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+  </div>
+
+  <div class="max-w-2xl mx-auto mt-12 p-6 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900 leading-relaxed">
+    <strong>⚠️ Nota sobre el flujo 3:</strong> en contra-entrega, este correo CONSOLIDADO reemplaza tanto a "¡Gracias por tu compra!" como a "Recibiste tu pedido" — antes el cliente recibía ambos, lo que confundía. La task <code class="bg-amber-100 px-1.5 py-0.5 rounded text-xs">B10</code> implementa el salto del segundo email cuando <code class="bg-amber-100 px-1.5 py-0.5 rounded text-xs">metodo_envio = mensajeria AND pago_metodo IN (datafono, efectivo) AND fecha_pago &gt;= fecha_entrega</code>.
+  </div>
+
+</div>
+
+</body>
+</html>
