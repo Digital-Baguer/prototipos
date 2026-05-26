@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PD-1428 · Template Infobip (con placeholders)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  body { background: #eef2f7; color: #1f2937; }
+  .email-shell { max-width: 600px; margin: 0 auto; background: #ffffff; box-shadow: 0 18px 50px -22px rgba(15,23,42,0.22); border-radius: 14px; overflow: hidden; }
+  .placeholder { background: #fef3c7; color: #854d0e; font-weight: 700; padding: 1px 6px; border-radius: 4px; font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 0.92em; }
+  .code-block { background: #0f172a; color: #e2e8f0; padding: 16px 20px; border-radius: 8px; font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 12.5px; line-height: 1.7; overflow-x: auto; }
+  .code-block .pl { color: #fbbf24; }
+  .var-row { display: grid; grid-template-columns: 180px 100px 1fr; gap: 16px; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; align-items: start; }
+  .var-row:last-child { border-bottom: none; }
+  .var-name { font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 13px; color: #1d4ed8; font-weight: 600; }
+  .var-type { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="max-w-4xl mx-auto px-6 py-12">
+
+  <header class="text-center mb-10">
+    <div class="text-xs font-bold tracking-widest text-slate-500 uppercase mb-3">PD-1428 · Template Infobip</div>
+    <h1 class="text-4xl font-bold text-slate-900 tracking-tight mb-4">Plantilla con placeholders para cargar en Infobip</h1>
+    <p class="text-slate-600 leading-relaxed text-base max-w-2xl mx-auto">
+      Este es el HTML exacto que se sube a Infobip (o cualquier proveedor SMTP/SES con templates).
+      Los <span class="placeholder">{{placeholders}}</span> los reemplaza el motor de envío con los datos reales del PQR antes de enviar el correo.
+    </p>
+  </header>
+
+  <!-- ════════════════════════════════════════════════════
+       1 · VARIABLES DEL TEMPLATE
+       ════════════════════════════════════════════════════ -->
+  <section class="mb-12">
+    <h2 class="text-2xl font-bold text-slate-900 mb-2">1 · Variables del template</h2>
+    <p class="text-sm text-slate-600 mb-5">
+      Las 3 variables que envía <code class="bg-slate-200 px-1.5 py-0.5 rounded text-xs">get-api</code> al momento de disparar el correo.
+    </p>
+
+    <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+      <div class="bg-slate-50 px-4 py-3 grid grid-cols-[180px_100px_1fr] gap-4 text-xs font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200">
+        <div>Variable</div>
+        <div>Tipo</div>
+        <div>Ejemplo / Descripción</div>
+      </div>
+      <div class="var-row">
+        <div class="var-name">{{nombreCliente}}</div>
+        <div class="var-type">string</div>
+        <div class="text-sm text-slate-700"><span class="font-medium">"Juan David"</span><br><span class="text-xs text-slate-500">Primer nombre del cliente. Usado en el saludo "Hola {{nombreCliente}},"</span></div>
+      </div>
+      <div class="var-row">
+        <div class="var-name">{{numeroTicket}}</div>
+        <div class="var-type">int / str</div>
+        <div class="text-sm text-slate-700"><span class="font-medium">28547</span><br><span class="text-xs text-slate-500">ID del incidente retornado por el ERP CRM. Aparece en el asunto y en la card central.</span></div>
+      </div>
+      <div class="var-row">
+        <div class="var-name">{{urlConsulta}}</div>
+        <div class="var-type">url</div>
+        <div class="text-sm text-slate-700"><span class="font-medium">https://stirpe.co/pqrs/consulta?ticket=28547</span><br><span class="text-xs text-slate-500">URL completa al detalle del PQR con el ticket precargado en el query string.</span></div>
+      </div>
+    </div>
+
+    <div class="mt-5 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 leading-relaxed">
+      <strong>Asunto del correo (también con variable):</strong><br>
+      <code class="bg-white px-2 py-1 rounded inline-block mt-2">Confirmación de PQRS · Ticket #&#123;&#123;numeroTicket&#125;&#125;</code>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       2 · METADATOS DE ENVÍO
+       ════════════════════════════════════════════════════ -->
+  <section class="mb-12">
+    <h2 class="text-2xl font-bold text-slate-900 mb-2">2 · Metadatos de envío</h2>
+    <p class="text-sm text-slate-600 mb-5">Configuración del remitente que va al proveedor (no dentro del template).</p>
+
+    <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+      <div class="var-row">
+        <div class="var-name">From (name)</div>
+        <div class="var-type">fijo</div>
+        <div class="text-sm text-slate-700 font-medium">Stirpe</div>
+      </div>
+      <div class="var-row">
+        <div class="var-name">From (email)</div>
+        <div class="var-type">fijo</div>
+        <div class="text-sm text-slate-700 font-medium">notificaciones@stirpe.co</div>
+      </div>
+      <div class="var-row">
+        <div class="var-name">To</div>
+        <div class="var-type">dinámico</div>
+        <div class="text-sm text-slate-700"><span class="font-medium">{{correoCliente}}</span><br><span class="text-xs text-slate-500">El email del cliente, que se pasa como destinatario del send, no como variable dentro del template.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       3 · PREVIEW DEL TEMPLATE CON PLACEHOLDERS
+       ════════════════════════════════════════════════════ -->
+  <section class="mb-12">
+    <h2 class="text-2xl font-bold text-slate-900 mb-2">3 · Preview del template (con placeholders visibles)</h2>
+    <p class="text-sm text-slate-600 mb-5">Así se ve el HTML antes de que el motor reemplace los <span class="placeholder">&#123;&#123;...&#125;&#125;</span> con los datos reales.</p>
+
+    <div class="email-shell">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+<tr><td align="center">
+<table align="center" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; width:100%; font-family:'Inter',Arial,sans-serif;">
+
+<!-- Logo header -->
+<tr><td align="center" style="padding:40px 28px 32px;">
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="25" viewBox="0 0 109.218 22.896" style="display:inline-block; vertical-align:middle;"><path d="M90.553,22.36a7.2,7.2,0,0,1-3.784-3.873,1.969,1.969,0,0,1-.264-.881,6.1,6.1,0,0,1-.263-1.762V11.356a2.372,2.372,0,0,1-.616.7,7.5,7.5,0,0,1-2.2,1.5,5.691,5.691,0,0,1-1.144.352,3.885,3.885,0,0,1-1.5.177H70.4v8.8H65.121V7.923H59.84V7.043a1.939,1.939,0,0,0-.088-.7,2.334,2.334,0,0,0-.44-.532l-.532-.352-.611-.173h-3.7V22.888H49.281V0h8.8a5.875,5.875,0,0,1,2.64.532,6.806,6.806,0,0,1,2.287,1.489,6.884,6.884,0,0,1,1.5,2.288,15.172,15.172,0,0,1,.616,1.848V0H80.7c.532,0,.968.088,1.408.088a11.562,11.562,0,0,1,1.32.443,7.784,7.784,0,0,1,2.286,1.489,7.049,7.049,0,0,1,1.32,1.848,8.026,8.026,0,0,1,1.322-1.848A6.882,6.882,0,0,1,90.641.532a3.687,3.687,0,0,1,1.32-.355A6.838,6.838,0,0,1,93.368,0h8.888a6.143,6.143,0,0,1,2.64.532,7.784,7.784,0,0,1,2.29,1.489,6.885,6.885,0,0,1,1.5,2.293,7.748,7.748,0,0,1,.44,1.321,7.116,7.116,0,0,1,.088,1.409v7.043h-17.6v1.759a1.719,1.719,0,0,0,.088.616c.088.177.264.352.44.616l.532.352.616.177h15.845v5.282H93.285a6.558,6.558,0,0,1-2.728-.532Zm-83.6-8.275a6.838,6.838,0,0,1-1.408-.177,7.329,7.329,0,0,1-1.32-.352,6.983,6.983,0,0,1-2.2-1.5A9.774,9.774,0,0,1,.532,9.684,7.066,7.066,0,0,1,0,7.043,7.118,7.118,0,0,1,.089,5.636c.088-.352.177-.792.352-1.321a11.918,11.918,0,0,1,1.58-2.295A9.3,9.3,0,0,1,4.312.532,6.732,6.732,0,0,1,6.953,0H42.241V5.282h-8.8V22.888H28.16V5.282H6.953a.838.838,0,0,0-.616.177,1.419,1.419,0,0,0-.616.352l-.352.532-.088.7a.773.773,0,0,0,.088.616,1.419,1.419,0,0,0,.352.616l.616.352.616.177H16.985a7.111,7.111,0,0,1,1.408.088,7.329,7.329,0,0,1,1.32.352A8.948,8.948,0,0,1,22,10.831a7.656,7.656,0,0,1,1.584,2.288,6.86,6.86,0,0,1,.532,2.729,7.176,7.176,0,0,1-.532,2.729,5.448,5.448,0,0,1-1.5,2.288,6.048,6.048,0,0,1-2.288,1.5,7.168,7.168,0,0,1-2.728.532H0V17.606H16.984a1.658,1.658,0,0,0,.7-.177,1.841,1.841,0,0,0,.532-.352,3.722,3.722,0,0,0,.44-.616l.088-.616c0-.264-.088-.532-.088-.7-.088-.177-.264-.352-.352-.532a1.578,1.578,0,0,0-.616-.44l-.7-.088ZM70.4,8.8H81.049l.616-.177a5.046,5.046,0,0,0,.616-.352c.088-.177.352-.264.352-.532l.264-.7-.177-.616c0-.264-.175-.44-.44-.616l-.532-.352-.7-.177H70.4ZM43.12,22.888V0H48.4V22.888ZM104.281,8.8V7.043c0-.264-.088-.44-.088-.7a2.335,2.335,0,0,0-.44-.532l-.532-.352-.616-.177H93.721a1.251,1.251,0,0,0-.532.177l-.616.44a2.791,2.791,0,0,0-.44.532l-.177.616V8.8Z" fill="#101628"/></svg>
+</td></tr>
+
+<!-- Chip + título + intro -->
+<tr><td style="padding:0 28px 8px;">
+<span style="display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:#676B70; background:#F5F7F8; padding:5px 11px; border-radius:9999px; margin-bottom:14px;">Radicación PQRS</span>
+<h1 style="font-size:24px; font-weight:700; color:#101628; letter-spacing:-0.01em; line-height:1.25; margin:0 0 16px 0;">¡Hemos recibido tu PQRS!</h1>
+<p style="font-size:15px; line-height:1.65; color:#293148; margin:0;">
+Hola <strong style="color:#101628; font-weight:600;"><span class="placeholder">&#123;&#123;nombreCliente&#125;&#125;</span></strong>, recibimos tu solicitud y uno de nuestros asesores la atenderá en un plazo máximo de <strong style="color:#101628; font-weight:600;">15 días hábiles</strong>, conforme a la Ley 1480 de 2011.
+</p>
+</td></tr>
+
+<!-- Card central con número de ticket -->
+<tr><td align="center" style="padding:32px 28px 32px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td align="center" style="background:#FAFBFB; border-top:1px solid #EBF0F4; border-bottom:1px solid #EBF0F4; padding:36px 28px;">
+<div style="font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#676B70; font-weight:700; margin-bottom:10px;">Número de ticket</div>
+<div style="font-size:42px; font-weight:700; color:#101628; letter-spacing:-0.02em; line-height:1;">#<span class="placeholder">&#123;&#123;numeroTicket&#125;&#125;</span></div>
+</td>
+</tr></table>
+</td></tr>
+
+<!-- CTA -->
+<tr><td align="center" style="padding:0 28px 16px;">
+<a href="#" style="display:inline-block; background:#101628; color:#ffffff; padding:14px 36px; border-radius:8px; font-size:14px; font-weight:700; text-decoration:none; letter-spacing:0.02em;">Consultar mi PQRS</a>
+<div style="font-size:11px; color:#94a3b8; margin-top:8px;">href = <span class="placeholder">&#123;&#123;urlConsulta&#125;&#125;</span></div>
+</td></tr>
+
+<!-- Texto bajo CTA -->
+<tr><td align="center" style="padding:0 28px 36px;">
+<p style="font-size:13px; line-height:1.6; color:#676B70; margin:0;">
+Consulta el estado de tu solicitud en cualquier momento con tu número de ticket y documento.
+</p>
+</td></tr>
+
+<!-- Footer oscuro -->
+<tr><td align="center" style="background:#101628; padding:36px 28px 28px; text-align:center; color:rgba(255,255,255,0.7); font-size:12px; line-height:1.65;">
+<div style="font-size:13px; font-weight:700; color:#ffffff; letter-spacing:0.02em; margin-bottom:18px;">¿Necesitas ayuda?</div>
+<div style="font-size:12.5px; line-height:1.95; color:rgba(255,255,255,0.75);">
+<strong style="color:#ffffff; font-weight:600;">WhatsApp</strong> &nbsp;321 392 7795<br>
+<strong style="color:#ffffff; font-weight:600;">Línea Nacional</strong> &nbsp;01 8000 423 550 · Op. 2<br>
+<a href="mailto:servicioalcliente@stirpe.co" style="color:#ffffff; text-decoration:none; border-bottom:1px solid rgba(255,255,255,0.3); padding-bottom:1px;">servicioalcliente@stirpe.co</a>
+</div>
+<div style="margin-top:22px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.12); font-size:10.5px; color:rgba(255,255,255,0.55);">
+&copy; 2026 <span style="margin:0 4px; color:rgba(255,255,255,0.3);">·</span><a href="https://stirpe.co" style="color:rgba(255,255,255,0.85); text-decoration:none; font-weight:600;">stirpe.co</a>
+</div>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       4 · CÓDIGO FUENTE DEL TEMPLATE (para copiar a Infobip)
+       ════════════════════════════════════════════════════ -->
+  <section class="mb-12">
+    <h2 class="text-2xl font-bold text-slate-900 mb-2">4 · Código fuente del template HTML</h2>
+    <p class="text-sm text-slate-600 mb-5">Copia este HTML tal cual al editor de Infobip. Las únicas modificaciones que necesita son las <span class="placeholder">&#123;&#123;...&#125;&#125;</span> (que Infobip ya reconoce nativamente).</p>
+
+<pre class="code-block">&lt;table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;"&gt;
+&lt;tr&gt;&lt;td align="center"&gt;
+&lt;table align="center" width="600" cellpadding="0" cellspacing="0" border="0"
+       style="max-width:600px; width:100%; font-family:'Inter',Arial,sans-serif;"&gt;
+
+  &lt;!-- Logo header --&gt;
+  &lt;tr&gt;&lt;td align="center" style="padding:40px 28px 32px;"&gt;
+    &lt;svg width="120" height="25" viewBox="0 0 109.218 22.896"&gt;...&lt;/svg&gt;
+  &lt;/td&gt;&lt;/tr&gt;
+
+  &lt;!-- Chip + título + intro --&gt;
+  &lt;tr&gt;&lt;td style="padding:0 28px 8px;"&gt;
+    &lt;span style="display:inline-block; font-size:10.5px; font-weight:700;
+                 letter-spacing:0.18em; text-transform:uppercase; color:#676B70;
+                 background:#F5F7F8; padding:5px 11px; border-radius:9999px;
+                 margin-bottom:14px;"&gt;Radicación PQRS&lt;/span&gt;
+    &lt;h1 style="font-size:24px; font-weight:700; color:#101628;
+               letter-spacing:-0.01em; line-height:1.25; margin:0 0 16px 0;"&gt;
+      ¡Hemos recibido tu PQRS!
+    &lt;/h1&gt;
+    &lt;p style="font-size:15px; line-height:1.65; color:#293148; margin:0;"&gt;
+      Hola &lt;strong style="color:#101628; font-weight:600;"&gt;<span class="pl">&#123;&#123;nombreCliente&#125;&#125;</span>&lt;/strong&gt;,
+      recibimos tu solicitud y uno de nuestros asesores la atenderá en un plazo
+      máximo de &lt;strong style="color:#101628; font-weight:600;"&gt;15 días hábiles&lt;/strong&gt;,
+      conforme a la Ley 1480 de 2011.
+    &lt;/p&gt;
+  &lt;/td&gt;&lt;/tr&gt;
+
+  &lt;!-- Card central con número de ticket --&gt;
+  &lt;tr&gt;&lt;td align="center" style="padding:32px 28px 32px;"&gt;
+    &lt;table width="100%" cellpadding="0" cellspacing="0" border="0"&gt;&lt;tr&gt;
+      &lt;td align="center" style="background:#FAFBFB;
+                                 border-top:1px solid #EBF0F4;
+                                 border-bottom:1px solid #EBF0F4;
+                                 padding:36px 28px;"&gt;
+        &lt;div style="font-size:11px; letter-spacing:0.18em;
+                    text-transform:uppercase; color:#676B70;
+                    font-weight:700; margin-bottom:10px;"&gt;Número de ticket&lt;/div&gt;
+        &lt;div style="font-size:42px; font-weight:700; color:#101628;
+                    letter-spacing:-0.02em; line-height:1;"&gt;#<span class="pl">&#123;&#123;numeroTicket&#125;&#125;</span>&lt;/div&gt;
+      &lt;/td&gt;
+    &lt;/tr&gt;&lt;/table&gt;
+  &lt;/td&gt;&lt;/tr&gt;
+
+  &lt;!-- CTA --&gt;
+  &lt;tr&gt;&lt;td align="center" style="padding:0 28px 16px;"&gt;
+    &lt;a href="<span class="pl">&#123;&#123;urlConsulta&#125;&#125;</span>"
+       style="display:inline-block; background:#101628; color:#ffffff;
+              padding:14px 36px; border-radius:8px; font-size:14px;
+              font-weight:700; text-decoration:none; letter-spacing:0.02em;"&gt;
+      Consultar mi PQRS
+    &lt;/a&gt;
+  &lt;/td&gt;&lt;/tr&gt;
+
+  &lt;!-- Texto bajo CTA --&gt;
+  &lt;tr&gt;&lt;td align="center" style="padding:0 28px 36px;"&gt;
+    &lt;p style="font-size:13px; line-height:1.6; color:#676B70; margin:0;"&gt;
+      Consulta el estado de tu solicitud en cualquier momento con tu número de
+      ticket y documento.
+    &lt;/p&gt;
+  &lt;/td&gt;&lt;/tr&gt;
+
+  &lt;!-- Footer oscuro --&gt;
+  &lt;tr&gt;&lt;td align="center" style="background:#101628; padding:36px 28px 28px;
+                                   text-align:center; color:rgba(255,255,255,0.7);
+                                   font-size:12px; line-height:1.65;"&gt;
+    &lt;div style="font-size:13px; font-weight:700; color:#ffffff;
+                letter-spacing:0.02em; margin-bottom:18px;"&gt;¿Necesitas ayuda?&lt;/div&gt;
+    &lt;div style="font-size:12.5px; line-height:1.95;
+                color:rgba(255,255,255,0.75);"&gt;
+      &lt;strong style="color:#ffffff; font-weight:600;"&gt;WhatsApp&lt;/strong&gt;
+        &amp;nbsp;321 392 7795&lt;br&gt;
+      &lt;strong style="color:#ffffff; font-weight:600;"&gt;Línea Nacional&lt;/strong&gt;
+        &amp;nbsp;01 8000 423 550 · Op. 2&lt;br&gt;
+      &lt;a href="mailto:servicioalcliente@stirpe.co"
+         style="color:#ffffff; text-decoration:none;
+                border-bottom:1px solid rgba(255,255,255,0.3);
+                padding-bottom:1px;"&gt;servicioalcliente@stirpe.co&lt;/a&gt;
+    &lt;/div&gt;
+    &lt;div style="margin-top:22px; padding-top:18px;
+                border-top:1px solid rgba(255,255,255,0.12);
+                font-size:10.5px; color:rgba(255,255,255,0.55);"&gt;
+      &amp;copy; 2026
+      &lt;span style="margin:0 4px; color:rgba(255,255,255,0.3);"&gt;·&lt;/span&gt;
+      &lt;a href="https://stirpe.co"
+         style="color:rgba(255,255,255,0.85); text-decoration:none;
+                font-weight:600;"&gt;stirpe.co&lt;/a&gt;
+    &lt;/div&gt;
+  &lt;/td&gt;&lt;/tr&gt;
+
+&lt;/table&gt;
+&lt;/td&gt;&lt;/tr&gt;
+&lt;/table&gt;</pre>
+
+    <div class="mt-5 bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-900 leading-relaxed">
+      <strong>SVG del logo:</strong> El path completo del logo Stirpe está omitido del snippet de arriba por brevedad. Cópialo del archivo <code class="bg-white px-1.5 py-0.5 rounded text-xs">PD-1428-correo-confirmacion.html</code> (sección <code class="bg-white px-1.5 py-0.5 rounded text-xs">Logo header</code>) o de cualquier otro template Stirpe ya cargado en Infobip.
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       5 · CHECKLIST PARA CARGAR EN INFOBIP
+       ════════════════════════════════════════════════════ -->
+  <section class="mb-12">
+    <h2 class="text-2xl font-bold text-slate-900 mb-2">5 · Checklist para cargar el template en Infobip</h2>
+
+    <div class="bg-white border border-slate-200 rounded-lg p-6 space-y-3 text-sm text-slate-700">
+      <label class="flex gap-3 items-start"><input type="checkbox" class="mt-1"> <span><strong>Crear plantilla</strong> en Infobip → People → Email Templates → New.</span></label>
+      <label class="flex gap-3 items-start"><input type="checkbox" class="mt-1"> <span><strong>Asunto:</strong> <code class="bg-slate-100 px-1.5 py-0.5 rounded">Confirmación de PQRS · Ticket #&#123;&#123;numeroTicket&#125;&#125;</code></span></label>
+      <label class="flex gap-3 items-start"><input type="checkbox" class="mt-1"> <span><strong>From name:</strong> <code class="bg-slate-100 px-1.5 py-0.5 rounded">Stirpe</code></span></label>
+      <label class="flex gap-3 items-start"><input type="checkbox" class="mt-1"> <span><strong>From email:</strong> <code class="bg-slate-100 px-1.5 py-0.5 rounded">notificaciones@stirpe.co</code> (debe estar verificado en el dominio)</span></label>
+      <label class="flex gap-3 items-start"><input type="checkbox" class="mt-1"> <span><strong>Pegar el HTML</strong> de la sección 4 en el editor de Infobip (modo source / HTML).</span></label>
+      <label class="flex gap-3 items-start"><input type="checkbox" class="mt-1"> <span><strong>Reemplazar el SVG del logo</strong> con el path completo del logo Stirpe.</span></label>
+      <label class="flex gap-3 items-start"><input type="checkbox" class="mt-1"> <span><strong>Declarar las 3 variables</strong> en la sección de personalización: <code class="bg-slate-100 px-1.5 py-0.5 rounded">nombreCliente</code>, <code class="bg-slate-100 px-1.5 py-0.5 rounded">numeroTicket</code>, <code class="bg-slate-100 px-1.5 py-0.5 rounded">urlConsulta</code>.</span></label>
+      <label class="flex gap-3 items-start"><input type="checkbox" class="mt-1"> <span><strong>Probar con un envío real</strong> a un correo del equipo, usando valores de prueba (ej. <code class="bg-slate-100 px-1.5 py-0.5 rounded">Juan / 28547 / https://stirpe-qa.local/pqrs/consulta?ticket=28547</code>).</span></label>
+      <label class="flex gap-3 items-start"><input type="checkbox" class="mt-1"> <span><strong>Validar visualmente</strong> en Gmail, Outlook web, Apple Mail (iOS + macOS) que el correo se ve igual al preview de la sección 3.</span></label>
+      <label class="flex gap-3 items-start"><input type="checkbox" class="mt-1"> <span><strong>Compartir el ID de la plantilla</strong> con backend (get-api) para que <code class="bg-slate-100 px-1.5 py-0.5 rounded">PqrStirpeService</code> lo use al disparar el envío.</span></label>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════
+       6 · CONTRATO DEL ENVÍO DESDE get-api
+       ════════════════════════════════════════════════════ -->
+  <section class="mb-8">
+    <h2 class="text-2xl font-bold text-slate-900 mb-2">6 · Cómo dispara get-api el correo</h2>
+    <p class="text-sm text-slate-600 mb-5">Ejemplo del payload que <code class="bg-slate-200 px-1.5 py-0.5 rounded text-xs">PqrStirpeService</code> envía al endpoint de Infobip (Task A6 del plan).</p>
+
+<pre class="code-block">POST https://api.infobip.com/email/3/send
+Authorization: App {INFOBIP_API_KEY}
+Content-Type: multipart/form-data
+
+{
+  "messages": [
+    {
+      "templateId": <span class="pl">42</span>,
+      "from": "Stirpe &lt;notificaciones@stirpe.co&gt;",
+      "to": "<span class="pl">juan.perez@correo.com</span>",
+      "subject": "Confirmación de PQRS · Ticket #<span class="pl">28547</span>",
+      "placeholders": {
+        "nombreCliente": "<span class="pl">Juan David</span>",
+        "numeroTicket": <span class="pl">28547</span>,
+        "urlConsulta": "<span class="pl">https://stirpe.co/pqrs/consulta?ticket=28547</span>"
+      }
+    }
+  ]
+}</pre>
+
+    <div class="mt-5 bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-slate-700 leading-relaxed">
+      <strong>Alternativa con AWS SES + Blade:</strong> si por alguna razón se descarta Infobip, el mismo template puede vivir como un Blade en <code class="bg-white px-1.5 py-0.5 rounded text-xs">resources/views/emails/pqr-stirpe-confirmacion.blade.php</code> con sintaxis <code class="bg-white px-1.5 py-0.5 rounded text-xs">{{ $nombreCliente }}</code>. La decisión de proveedor está pendiente de cerrar (ver decisión <strong>OPS-PD-1428-5</strong> en spec §11).
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>
