@@ -1,0 +1,2064 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PD-1456 · Flujos Status QUAC · UI + Trace técnico por paso</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&family=Roboto:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --quac-primary: #5f36b2;
+  --quac-primary-hover: #2e1380;
+  --quac-deep: #2E1380;
+  --quac-accent: #7633ff;
+  --quac-soft-bg: #f0f0ff;
+  --lvl-silver: linear-gradient(135deg, #c8ccd2 0%, #a3a8b1 60%, #8e9299 100%);
+  --lvl-gold: linear-gradient(135deg, #ecc66a 0%, #c89d3c 60%, #8a6a1e 100%);
+  --lvl-black: linear-gradient(135deg, #2c2c2c, #0a0a0a);
+  --ink: #0e0d1a;
+  --ink-soft: #5a5969;
+  --ink-mute: #8a8a96;
+  --rule: #ececf2;
+  --bg: #f5f4fa;
+  --bg-card: #ffffff;
+  --green-ok: #16a34a;
+  --green-soft: #dcfce7;
+  --red: #ef4444;
+  --red-soft: #fee2e2;
+  --amber: #f59e0b;
+  --amber-soft: #fef3c7;
+  --code-bg: #1e1e2e;
+  --code-text: #cdd6f4;
+  --code-string: #a6e3a1;
+  --code-key: #89b4fa;
+  --code-number: #fab387;
+  --code-comment: #6c7086;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Nunito Sans', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   HEADER + TABS
+   ============================================================ */
+.app-header {
+  background: linear-gradient(135deg, var(--quac-deep) 0%, var(--quac-primary) 100%);
+  color: white;
+  padding: 2rem 2rem 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.app-header h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 0.25rem;
+  letter-spacing: -0.5px;
+}
+.app-header .subtitle {
+  font-size: 0.875rem;
+  opacity: 0.85;
+  font-weight: 400;
+}
+.app-header .meta-row {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.app-header .meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.app-header .meta-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #22c55e;
+}
+
+.scenario-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+.scenario-tabs button {
+  background: rgba(255,255,255,0.1);
+  color: white;
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 0.625rem 1rem;
+  border-radius: 0.5rem;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.scenario-tabs button:hover {
+  background: rgba(255,255,255,0.2);
+}
+.scenario-tabs button.active {
+  background: white;
+  color: var(--quac-deep);
+  border-color: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* ============================================================
+   SCENARIO DESCRIPTION
+   ============================================================ */
+.scenario-desc {
+  background: white;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--rule);
+  display: none;
+}
+.scenario-desc.active { display: block; }
+.scenario-desc h2 {
+  font-size: 1.125rem;
+  color: var(--quac-deep);
+  font-weight: 700;
+  margin-bottom: 0.375rem;
+}
+.scenario-desc p {
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+}
+.scenario-desc .cart-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  background: var(--quac-soft-bg);
+  color: var(--quac-deep);
+  padding: 0.375rem 0.625rem;
+  border-radius: 0.375rem;
+  margin-top: 0.625rem;
+  font-weight: 600;
+}
+
+/* ============================================================
+   STEPS
+   ============================================================ */
+.scenario-content {
+  display: none;
+  padding: 2rem;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+.scenario-content.active { display: block; }
+
+.step {
+  background: var(--bg-card);
+  border-radius: 1rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.step-header {
+  background: linear-gradient(135deg, #fafafe 0%, #f3f0ff 100%);
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--quac-primary);
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+.step-num.new {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  position: relative;
+}
+.step-num.new::after {
+  content: 'NUEVO PD-1456';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--amber);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+.step-num.async { background: #6b7280; }
+.step-title {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--quac-deep);
+  flex: 1;
+}
+.step-title small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  margin-top: 0.125rem;
+}
+
+.step-body {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  min-height: 200px;
+}
+@media (max-width: 1100px) {
+  .step-body { grid-template-columns: 1fr; }
+}
+
+.ui-mockup {
+  background: linear-gradient(135deg, #fafbfc 0%, #f3f4f6 100%);
+  padding: 1.25rem;
+  border-right: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-start;
+}
+.ui-mockup-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.375rem;
+}
+.phone-frame {
+  background: white;
+  border-radius: 1.25rem;
+  padding: 1rem;
+  width: 100%;
+  max-width: 320px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  font-family: 'Roboto', sans-serif;
+}
+
+.trace {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: var(--bg-card);
+}
+.trace-block {
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+}
+.trace-block-header {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.trace-block.req .trace-block-header { background: #e0e7ff; color: #3730a3; }
+.trace-block.res .trace-block-header { background: var(--green-soft); color: #166534; }
+.trace-block.err .trace-block-header { background: var(--red-soft); color: #991b1b; }
+.trace-block.db .trace-block-header { background: var(--amber-soft); color: #92400e; }
+.trace-block.note .trace-block-header { background: #f3f4f6; color: var(--ink-soft); }
+.trace-block.impl .trace-block-header { background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%); color: var(--quac-deep); }
+
+.impl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+.impl-table th, .impl-table td {
+  padding: 0.5rem 0.625rem;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.impl-table th {
+  background: #faf9ff;
+  font-weight: 700;
+  color: var(--quac-deep);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.impl-table .repo-badge {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  text-transform: lowercase;
+  letter-spacing: 0.3px;
+}
+.impl-table .repo-badge.get-api { background: #dbeafe; color: #1e3a8a; }
+.impl-table .repo-badge.api-compras-quac { background: #fce7f3; color: #831843; }
+.impl-table .repo-badge.api-crontab-v2 { background: #fef3c7; color: #78350f; }
+.impl-table .impl-path {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--ink);
+  word-break: break-all;
+}
+.impl-table .impl-method {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--quac-primary);
+  font-weight: 600;
+}
+.impl-table .impl-purpose {
+  font-size: 0.68rem;
+  color: var(--ink-soft);
+}
+.impl-tag {
+  display: inline-block;
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 0.063rem 0.313rem;
+  border-radius: 0.25rem;
+  letter-spacing: 0.3px;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+}
+.impl-tag.new { background: var(--amber); color: white; }
+.impl-tag.mod { background: #3b82f6; color: white; }
+.impl-tag.exist { background: #9ca3af; color: white; }
+
+.http-method {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  background: var(--quac-primary);
+  color: white;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.5px;
+}
+.http-method.POST { background: #2563eb; }
+.http-method.GET { background: #059669; }
+.http-method.PUT { background: #d97706; }
+
+.http-path {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.code-block {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.5;
+}
+.code-block.compact { padding: 0.5rem 0.75rem; font-size: 0.65rem; }
+.code-block .k { color: var(--code-key); }
+.code-block .s { color: var(--code-string); }
+.code-block .n { color: var(--code-number); }
+.code-block .c { color: var(--code-comment); }
+.code-block .star { color: #f59e0b; font-weight: 700; }
+
+.db-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+}
+.db-table th, .db-table td {
+  padding: 0.375rem 0.625rem;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.db-table th {
+  background: #f9fafb;
+  font-weight: 700;
+  color: var(--ink-soft);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.db-table .tbl-name {
+  color: var(--quac-deep);
+  font-weight: 600;
+}
+.db-table .op { display: inline-block; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.65rem; font-weight: 700; }
+.op-insert { background: var(--green-soft); color: #166534; }
+.op-update { background: #dbeafe; color: #1e40af; }
+.op-none { background: #f3f4f6; color: var(--ink-mute); }
+
+.note-text {
+  padding: 0.625rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+  background: #fafafe;
+}
+.note-text strong { color: var(--ink); }
+.note-text code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  background: var(--quac-soft-bg);
+  color: var(--quac-deep);
+  padding: 0.0625rem 0.25rem;
+  border-radius: 0.25rem;
+}
+
+/* ============================================================
+   PHONE FRAME UI ELEMENTS
+   ============================================================ */
+.phone-title {
+  font-weight: 800;
+  font-size: 1.0625rem;
+  color: var(--quac-deep);
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+.phone-subtitle {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  text-align: center;
+  margin-bottom: 0.875rem;
+}
+.phone-card {
+  background: var(--quac-soft-bg);
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.phone-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8125rem;
+  padding: 0.25rem 0;
+}
+.phone-row .label { color: var(--ink-soft); font-size: 0.75rem; }
+.phone-row .value { font-weight: 600; color: var(--ink); }
+.phone-row .value.green { color: var(--green-ok); }
+.phone-row .value.strike { text-decoration: line-through; color: var(--ink-mute); }
+.phone-row.total {
+  border-top: 1px solid #d8d3f0;
+  margin-top: 0.375rem;
+  padding-top: 0.5rem;
+  font-weight: 700;
+}
+.phone-row.total .value { font-size: 1rem; color: var(--quac-deep); font-weight: 800; }
+.phone-btn {
+  background: var(--quac-primary);
+  color: white;
+  border: none;
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 999px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  margin-top: 0.625rem;
+  cursor: pointer;
+}
+.phone-input {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9375rem;
+  width: 100%;
+  text-align: center;
+  letter-spacing: 0.5rem;
+  margin: 0.5rem 0;
+}
+.phone-chip {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+}
+.phone-chip.green { background: var(--green-soft); color: #166534; }
+.phone-chip.amber { background: var(--amber-soft); color: #92400e; }
+.phone-chip.red { background: var(--red-soft); color: #991b1b; }
+.phone-chip.gray { background: #f3f4f6; color: var(--ink-soft); }
+
+.membership-card {
+  border-radius: 0.625rem;
+  padding: 0.875rem;
+  margin-bottom: 0.625rem;
+  color: white;
+}
+.membership-card.silver { background: var(--lvl-silver); color: #1f2937; }
+.membership-card.gold { background: var(--lvl-gold); color: #1f2937; }
+.membership-card.black { background: var(--lvl-black); }
+.membership-card .lvl-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  opacity: 0.75;
+  letter-spacing: 1px;
+}
+.membership-card .lvl-name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin-top: 0.125rem;
+}
+.membership-card .lvl-points {
+  font-size: 0.75rem;
+  opacity: 0.9;
+  margin-top: 0.25rem;
+}
+
+.strategy-card {
+  border: 2px solid var(--rule);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  margin-bottom: 0.375rem;
+  font-size: 0.75rem;
+}
+.strategy-card.active {
+  border-color: var(--quac-deep);
+  background: var(--quac-soft-bg);
+}
+.strategy-card .s-name {
+  font-weight: 700;
+  color: var(--quac-deep);
+}
+.strategy-card .s-detail {
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+  margin-top: 0.125rem;
+}
+
+.abandon-overlay {
+  background: rgba(0,0,0,0.5);
+  position: relative;
+  border-radius: 0.625rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: white;
+}
+.abandon-overlay .x-icon {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+
+.url-bar {
+  background: #f3f4f6;
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--ink-soft);
+  margin-bottom: 0.75rem;
+  word-break: break-all;
+}
+
+/* Modal split: cuando hay 2 botones */
+.action-buttons-2 {
+  display: flex;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+.action-buttons-2 button {
+  flex: 1;
+  font-size: 0.7rem;
+  padding: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--quac-primary);
+  background: transparent;
+  color: var(--quac-primary);
+  font-family: inherit;
+  font-weight: 700;
+}
+.action-buttons-2 button.primary {
+  background: var(--quac-primary);
+  color: white;
+}
+
+/* Footer */
+.app-footer {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--ink-mute);
+  font-size: 0.75rem;
+  border-top: 1px solid var(--rule);
+  background: white;
+}
+.app-footer a {
+  color: var(--quac-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>PD-1456 · Flujos Status QUAC · UI + Trace técnico por paso</h1>
+  <div class="subtitle">Cada paso muestra: pantalla que ve el cliente · service HTTP que llama el front · response del backend · cambios en BD</div>
+  <div class="meta-row">
+    <div class="meta-item"><span class="meta-dot"></span>Carrito ejemplo: 1 Jean UNSER ($350K) + 1 Sneaker ($135K) = $485K subtotal + $15K envío = <strong>$500K total</strong></div>
+    <div class="meta-item">Tienda: <strong>stirpe</strong></div>
+    <div class="meta-item">Cliente: NIT <strong>447624</strong></div>
+  </div>
+  <div class="meta-row" style="margin-top:0.5rem;flex-wrap:wrap;align-items:center;">
+    <span style="font-size:0.7rem;opacity:0.75;">Bloques ⚙️ Implementación backend · leyenda:</span>
+    <span class="impl-tag new" style="margin-left:0;">NUEVO PD-1456</span>
+    <span class="impl-tag mod" style="margin-left:0;">MOD PD-1456</span>
+    <span class="impl-tag exist" style="margin-left:0;">EXISTENTE</span>
+    <span style="font-size:0.7rem;opacity:0.75;">Repos:</span>
+    <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:0.62rem;font-weight:700;padding:0.125rem 0.375rem;border-radius:0.25rem;background:#dbeafe;color:#1e3a8a;">get-api</span>
+    <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:0.62rem;font-weight:700;padding:0.125rem 0.375rem;border-radius:0.25rem;background:#fce7f3;color:#831843;">api-compras-quac</span>
+    <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:0.62rem;font-weight:700;padding:0.125rem 0.375rem;border-radius:0.25rem;background:#fef3c7;color:#78350f;">api-crontab-v2</span>
+    <span style="font-size:0.7rem;opacity:0.75;">· Rama: <code style="background:rgba(255,255,255,0.15);padding:0.063rem 0.25rem;border-radius:0.25rem;">feature/PD-1456</code></span>
+  </div>
+  <div class="scenario-tabs">
+    <button data-scenario="a-total" class="active">🟢 A · Pago TOTAL Quac (Silver, cupo cubre $500K)</button>
+    <button data-scenario="a-mixto">🔵 A · Pago MIXTO (Black, cupo $300K + PSE $200K · MIX-2)</button>
+    <button data-scenario="b-total">🟣 B · Pedido pendiente · UPDATE in-place (Gold)</button>
+    <button data-scenario="abandono">⚠️ Abandono · Cliente cierra ventana</button>
+  </div>
+</header>
+
+<!-- ============================================================
+     SCENARIO A · PAGO TOTAL · SILVER
+     ============================================================ -->
+<div class="scenario-desc active" data-scenario="a-total">
+  <h2>Escenario A · Pago total Quac (Silver, cupo $500K cubre $500K)</h2>
+  <p>Cliente Silver con compra de $500K. Cupo Quac disponible $800K — cubre el 100%. <strong>Orden de cálculo:</strong> (1) Envío gratis aplica porque subtotal $485K ≥ umbral Silver $299.900 → envío pasa de $15K a $0; el nuevo total base es $485K. (2) Descuento Silver 5% se aplica sobre el nuevo total $485K → descuento $24.250. (3) Total final = $485K − $24.250 = <strong>$460.750</strong>.</p>
+  <span class="cart-line">subtotal: 485000 · envío: 15000 · total: 500000 · cupo_disponible: 800000 · resultado: pago_total</span>
+</div>
+
+<section class="scenario-content active" data-scenario="a-total">
+
+  <!-- PASO 1 -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">1</span>
+      <div class="step-title">Cliente selecciona "Cupo personal Quac" en <code style="font-size:0.7rem">/checkout/payment</code><small>App pide al backend validar cupo del cliente</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Modal métodos de pago</span>
+        <div class="phone-frame">
+          <div class="phone-title">Selecciona método</div>
+          <div class="phone-card" style="background:white;border:2px solid var(--quac-primary);">
+            <div class="phone-row"><span class="value">💜 Cupo personal Quac</span><span class="phone-chip green">SELECCIONADO</span></div>
+          </div>
+          <div class="phone-card" style="background:#fafafa;">
+            <div class="phone-row"><span class="label">PSE / Tarjeta / Bancolombia</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/cart/quac/verify/{tokenCart}</span></div>
+<pre class="code-block">{}    <span class="c">// tokenCart va en la URL</span></pre>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag exist">EXISTENTE</span></div>
+          <table class="impl-table">
+            <tr><th>Repo</th><th>Archivo</th><th>Método / responsabilidad</th></tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">routes/shop/v2/routes.php:71</td>
+              <td class="impl-purpose">Ruta → CheckoutController@verifyQuacPaymentCart</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Http/Controllers/V2/Shop/CheckoutController.php:153</td>
+              <td><span class="impl-method">verifyQuacPaymentCart(Request)</span> · valida tokenCart, delega al service</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/CheckoutService.php:938</td>
+              <td><span class="impl-method">verifyQuacPayment(typeEntity='cart')</span> · consulta cupo en api.quac.co + INSERT store_quac_transacciones</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge api-compras-quac">api-compras-quac</span></td>
+              <td class="impl-path">app/Services/V1/Quac/InternalQuacGatewayService.php</td>
+              <td><span class="impl-method">verifyAvailability($nit, $amount)</span> · llama CRM Baguer Status QUAC para cupo disponible</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">✓ Response · 200 OK</div>
+<pre class="code-block">{
+  <span class="k">"validation_result"</span>: <span class="s">"pago_total"</span>,
+  <span class="k">"purchase_information"</span>: {
+    <span class="k">"purchase_value"</span>: <span class="n">500000</span>,
+    <span class="k">"available_balance"</span>: <span class="n">800000</span>,
+    <span class="k">"outstanding_amount"</span>: <span class="n">0</span>
+  }
+}</pre>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Cambios en BD</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td><span class="op op-insert">INSERT</span></td><td>carrito_id · nit · total_pagar=500K · total_pagar_quac=500K · cupo_disponible=800K · resultado_validacion='tokenizar' · transaccion_estado=0</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 2 -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">2</span>
+      <div class="step-title">Cliente ingresa clave dinámica 4 dígitos<small>Validación contra api.quac.co + <strong>backend consulta planes con monto ORIGINAL</strong></small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Modal clave dinámica (existente)</span>
+        <div class="phone-frame">
+          <div class="phone-title">Ingresa tu clave</div>
+          <div class="phone-subtitle">Te enviamos la clave dinámica a tu app QUAC</div>
+          <input class="phone-input" value="1234" readonly>
+          <button class="phone-btn">Validar</button>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/cart/quac/validate_identity/{tokenCart}</span></div>
+<pre class="code-block">{
+  <span class="k">"reference"</span>: <span class="s">"uuid-quac-txn"</span>,
+  <span class="k">"code"</span>: <span class="s">"1234"</span>
+}</pre>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag exist">EXISTENTE</span></div>
+          <table class="impl-table">
+            <tr><th>Repo</th><th>Archivo</th><th>Método / responsabilidad</th></tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">routes/shop/v2/routes.php:73</td>
+              <td class="impl-purpose">Ruta → CheckoutController@validateIdentityCart</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Http/Controllers/V2/Shop/CheckoutController.php:284</td>
+              <td><span class="impl-method">validateIdentityCart(ValidateIdentityRequest)</span></td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/CheckoutService.php:1064</td>
+              <td><span class="impl-method">validateIdentity(typeEntity='cart')</span> · valida clave dinámica + invoca getPlanPayment sobre monto original</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge api-compras-quac">api-compras-quac</span></td>
+              <td class="impl-path">app/Services/V1/Quac/InternalQuacGatewayService.php</td>
+              <td><span class="impl-method">validateIdentity() + getPlanPayment(amount=500K)</span> · retorna estrategias sobre $500K (sin Status QUAC todavía)</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">✓ Response · 200 OK</div>
+<pre class="code-block">{
+  <span class="k">"result_validation"</span>: <span class="s">"pago_total"</span>,
+  <span class="k">"plan_payment"</span>: {     <span class="c">// ← calculado sobre $500K (sin Status QUAC todavía)</span>
+    <span class="k">"strategies"</span>: [...],
+    <span class="k">"count_installments"</span>: [<span class="n">1</span>,<span class="n">2</span>,<span class="n">3</span>,<span class="n">6</span>,<span class="n">12</span>]
+  }
+}</pre>
+        </div>
+        <div class="trace-block note">
+          <div class="trace-block-header">💡 Importante</div>
+          <div class="note-text"><strong>Hoy</strong> el frontend ya recibe <code>plan_payment</code> aquí y lo guarda en memoria — pero <strong>NO lo pinta todavía</strong>. Va a esperar el response del paso 3 (Status QUAC) que puede reescribir los planes con monto descontado.</div>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Cambios en BD</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td><span class="op op-update">UPDATE</span></td><td>clave_dinamica_validacion_estado=1 · resultado_validacion='validar_token' · quac_respuesta_api_plan=JSON (sobre $500K) · quac_estrategia_mostrada · quac_nro_cuotas</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 3 NUEVO -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num new">3</span>
+      <div class="step-title">★ Frontend pide cálculo Status QUAC<small>Endpoint NUEVO PD-1456 hace 3 cosas: calcula descuento + persiste temporal + re-consulta planes con monto descontado</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">(sin UI · llamada automática)</span>
+        <div class="phone-frame" style="text-align:center;padding:2rem 1rem;background:#fafafa;">
+          <div style="font-size:2.5rem;">⚡</div>
+          <div style="font-size:0.75rem;color:var(--ink-soft);margin-top:0.5rem;">Frontend dispara el call sin acción del cliente · Loader mientras carga</div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/cart/quac/status/{tokenCart}</span></div>
+<pre class="code-block">{}    <span class="c">// body vacío · tokenCart en URL</span></pre>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag new">NUEVO PD-1456</span> · cadena cross-repo de 7 archivos</div>
+          <table class="impl-table">
+            <tr><th>#</th><th>Repo</th><th>Archivo</th><th>Método / responsabilidad</th></tr>
+            <tr>
+              <td>1</td>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">routes/shop/v2/routes.php:78-81</td>
+              <td class="impl-purpose">Ruta → CartQuacStatusController@calculate</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Http/Controllers/V2/Shop/Cart/CartQuacStatusController.php</td>
+              <td><span class="impl-method">calculate(CalculateStatusQuacRequest, $tokenCart)</span> · controller delgado, delega al service</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/Quac/QuacStatusService.php:54</td>
+              <td><span class="impl-method">calculateForCart($tokenCart): StatusQuacDTO</span> · idempotencia (cache hit si fecha_up ≤ calculado_en) + orquesta los 3 sub-pasos siguientes</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Integrations/ApiPurchaseQuac.php:105</td>
+              <td><span class="impl-method">getStatusQuacForCartOrder($nit, $subtotal, $envio, $total, $totalPagarQuac)</span> · cliente HTTP M2M (Passport client_credentials) → api-compras-quac</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td><span class="repo-badge api-compras-quac">api-compras-quac</span></td>
+              <td class="impl-path">routes/api.php:102</td>
+              <td class="impl-purpose">Ruta → QuacStatusController@calculate</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td><span class="repo-badge api-compras-quac">api-compras-quac</span></td>
+              <td class="impl-path">app/Http/Controllers/V1/QuacStatusController.php:32</td>
+              <td><span class="impl-method">calculate(QuacStatusCalculateRequest)</span> · valida payload, delega al service</td>
+            </tr>
+            <tr>
+              <td>7</td>
+              <td><span class="repo-badge api-compras-quac">api-compras-quac</span></td>
+              <td class="impl-path">app/Services/V1/Quac/QuacStatusService.php:57</td>
+              <td><span class="impl-method">calculateForCart()</span> · invoca IntegrationsCRM::getStatusQuacCliente (heredado PD-1458), aplica regla envío gratis primero + % sobre subtotal post-envío, retorna desglose</td>
+            </tr>
+            <tr style="background:#fef3c7;">
+              <td colspan="4" style="padding:0.5rem 0.625rem;font-weight:600;font-size:0.7rem;color:#78350f;">⬇ get-api recibe response y ejecuta 2 sub-pasos finales:</td>
+            </tr>
+            <tr>
+              <td>8</td>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/Quac/QuacStatusService.php:212</td>
+              <td><span class="impl-method">persistTemporalCalculation($transaction, $dto)</span> · UPDATE store_quac_transacciones con status_quac_* (NO toca store_carrito)</td>
+            </tr>
+            <tr>
+              <td>9</td>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/Quac/QuacStatusService.php:237</td>
+              <td><span class="impl-method">recalcularPlanesConDescuento()</span> · vuelve a llamar gateway-&gt;getPlanPayment(amount=$460.750) en api-compras-quac → reescribe quac_respuesta_api_plan</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block note">
+          <div class="trace-block-header">🔧 Backend hace 3 cosas en secuencia</div>
+          <div class="note-text">
+            <strong>3.1</strong> Consulta <code>GET apibaguer.../api/StatusQuac/cliente/447624</code> al CRM → recibe nivel Silver, 7.500 puntos, beneficio descuentoPermanente=5%, compraMinimaEnvioGratis=$299.900.<br>
+            <strong>3.2</strong> Orden de cálculo: <br>
+            &nbsp;&nbsp;&nbsp;a) envío gratis aplica ($485K ≥ $299.900) → envío $15K → $0; base de cálculo nueva = subtotal $485K. <br>
+            &nbsp;&nbsp;&nbsp;b) descuento 5% × <strong>$485K</strong> (no $500K) = <strong>$24.250</strong>.<br>
+            <strong>3.3 ★</strong> Re-llama <code>gateway-&gt;getPlanPayment(amount: 460750)</code> = subtotal $485K − descuento $24.250 = $460.750. Cuotas recalculadas sobre ese monto.
+          </div>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">✓ Response · 200 OK (con plan_payment recalculado)</div>
+<pre class="code-block">{
+  <span class="k">"isSuccess"</span>: <span class="n">true</span>,
+  <span class="k">"result"</span>: {
+    <span class="k">"status_quac"</span>: {
+      <span class="k">"nivel"</span>: <span class="s">"silver"</span>,
+      <span class="k">"nivel_nombre"</span>: <span class="s">"QUAC SILVER"</span>,
+      <span class="k">"puntos_actuales"</span>: <span class="n">7500</span>,
+      <span class="k">"siguiente_nivel"</span>: { <span class="k">"nivel"</span>: <span class="s">"gold"</span>, <span class="k">"puntos_faltantes"</span>: <span class="n">2500</span> },
+      <span class="k">"beneficios_activos"</span>: {
+        <span class="k">"envio_gratis_aplicable"</span>: <span class="n">true</span>,
+        <span class="k">"compra_minima_envio_gratis"</span>: <span class="n">299900</span>,
+        <span class="k">"descuento_permanente_pct"</span>: <span class="n">5.00</span>
+      },
+      <span class="k">"aplicacion_en_carrito"</span>: {
+        <span class="k">"envio_gratis_aplicado"</span>: <span class="n">true</span>,
+        <span class="k">"envio_gratis_valor_descontado"</span>: <span class="n">15000</span>,
+        <span class="k">"descuento_pct_aplicado"</span>: <span class="n">5.00</span>,
+        <span class="k">"descuento_valor_aplicado"</span>: <span class="n">24250</span>,         <span class="c">// ★ 5% × $485K (subtotal post envío gratis)</span>
+        <span class="k">"base_calculo_descuento"</span>: <span class="n">485000</span>,
+        <span class="k">"aplicado_sobre"</span>: <span class="s">"carrito_total"</span>,
+        <span class="k">"total_original"</span>: <span class="n">500000</span>,
+        <span class="k">"total_final"</span>: <span class="n">460750</span>                      <span class="c">// = 485000 - 24250</span>
+      }
+    },
+    <span class="star">"plan_payment"</span>: {     <span class="c">// ★ RECALCULADO sobre $460.750 (no $500K)</span>
+      <span class="k">"strategies"</span>: [...],
+      <span class="k">"count_installments"</span>: [<span class="n">1</span>,<span class="n">2</span>,<span class="n">3</span>,<span class="n">6</span>,<span class="n">9</span>,<span class="n">12</span>],
+      <span class="k">"amount_calculated_over"</span>: <span class="n">460750</span>
+    },
+    <span class="k">"degraded"</span>: <span class="n">false</span>,
+    <span class="k">"plan_payment_outdated"</span>: <span class="n">false</span>
+  }
+}</pre>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Cambios en BD (temporal — NO toca carrito)</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td><span class="op op-update">UPDATE</span></td><td>status_quac_nivel='silver' · status_quac_descuento_pct=5.00 · status_quac_descuento_valor=<strong>24250</strong> · status_quac_envio_gratis=1 · status_quac_envio_valor=15000 · status_quac_calculado_en=NOW() · status_quac_response_api=JSON</td></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td><span class="op op-update">UPDATE</span></td><td><em>reescritura plan</em>: quac_respuesta_api_plan=JSON (sobre $460.750) · quac_estrategia_mostrada · quac_nro_cuotas</td></tr>
+            <tr><td class="tbl-name">store_carrito</td><td><span class="op op-none">SIN CAMBIOS</span></td><td>carrito_total sigue en $500K; status_quac_* siguen NULL</td></tr>
+            <tr><td class="tbl-name">store_carrito_productos</td><td><span class="op op-none">SIN CAMBIOS</span></td><td>aplica_descuento_estrategia_quac=0 todavía</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 4 -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num new">4</span>
+      <div class="step-title">★ Pantalla intermedia "Eres Quac Silver"<small>UI pura · sin call backend · cliente lee el desglose</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Pantalla intermedia (NUEVA)</span>
+        <div class="phone-frame">
+          <div class="phone-title">Eres Quac Silver</div>
+          <div class="phone-subtitle">Estos son los beneficios que aplican a tu compra</div>
+          <div class="membership-card silver">
+            <div class="lvl-label">Tu nivel</div>
+            <div class="lvl-name">QUAC SILVER</div>
+            <div class="lvl-points">7.500 Quacs acumulados</div>
+          </div>
+          <span class="phone-chip gray" style="display:block;text-align:center;margin-bottom:0.625rem;">Te faltan 2.500 Quacs para Gold</span>
+          <div class="phone-card">
+            <div class="phone-row"><span class="label">Subtotal</span><span class="value">$485.000</span></div>
+            <div class="phone-row"><span class="label">Envío</span><span class="value strike">$15.000</span></div>
+            <div class="phone-row" style="color:var(--green-ok);"><span style="font-size:0.7rem;font-weight:600;">✓ Envío gratis Silver</span><span class="value green">−$15.000</span></div>
+            <div class="phone-row" style="color:var(--green-ok);"><span style="font-size:0.7rem;font-weight:600;">✓ 5% descuento Silver</span><span class="value green">−$24.250</span></div>
+            <div class="phone-row total"><span>Total</span><span class="value">$460.750</span></div>
+            <div class="phone-row" style="font-size:0.6rem;color:var(--ink-mute);"><span>= 485.000 − 24.250 (5% sobre subtotal post envío gratis)</span><span></span></div>
+          </div>
+          <button class="phone-btn">Continuar a planes de pago →</button>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block note">
+          <div class="trace-block-header">🚫 Sin call backend</div>
+          <div class="note-text">El frontend ya tiene todo lo que necesita del paso 3 (status_quac + plan_payment recalculado). El cliente lee el desglose y decide si continuar o no.</div>
+        </div>
+        <div class="trace-block note">
+          <div class="trace-block-header">⚠️ Si el cliente cierra aquí</div>
+          <div class="note-text">Ver escenario <strong>Abandono</strong>. <code>store_quac_transacciones</code> queda con cálculo pending; <code>store_carrito</code> intacto.</div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 5 -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">5</span>
+      <div class="step-title">Modal "Confirma tu compra" — cliente elige plan + cuotas<small>Renderiza <code style="font-size:0.7rem">plan_payment</code> del paso 3 (recalculado), NO el de validateIdentity (obsoleto)</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Modal plan (existente, ahora con valor descontado)</span>
+        <div class="phone-frame">
+          <div class="phone-title" style="font-size:1rem;">Confirma tu compra</div>
+          <div class="phone-card">
+            <div class="phone-row"><span class="label">Valor a pagar con Quac</span><span class="value">$460.750</span></div>
+            <div class="phone-row"><span class="label">Saldo disponible</span><span class="value">$800.000</span></div>
+          </div>
+          <div class="strategy-card"><div class="s-name">0% interés</div><div class="s-detail">3 cuotas de $153.583</div></div>
+          <div class="strategy-card active"><div class="s-name">Paga en 60 días</div><div class="s-detail">9 cuotas de $51.194 · sin interés primeros 60 días</div></div>
+          <div class="strategy-card"><div class="s-name">Financiación Estándar</div><div class="s-detail">hasta 12 cuotas · interés según plan</div></div>
+          <button class="phone-btn">FINALIZAR COMPRA</button>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/cart/quac/select_plan_payment/{tokenCart}</span></div>
+<pre class="code-block">{
+  <span class="k">"reference"</span>: <span class="s">"uuid-quac-txn"</span>,
+  <span class="k">"strategy_id"</span>: <span class="s">"aplica_plazo"</span>,
+  <span class="k">"installments"</span>: <span class="n">9</span>
+}</pre>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag mod">MODIFICADO PD-1456</span></div>
+          <table class="impl-table">
+            <tr><th>Repo</th><th>Archivo</th><th>Método / responsabilidad</th></tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">routes/shop/v2/routes.php:74</td>
+              <td class="impl-purpose">Ruta → CheckoutController@selectPlanPaymentCart</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Http/Controllers/V2/Shop/CheckoutController.php:344</td>
+              <td><span class="impl-method">selectPlanPaymentCart(SelectPlanPaymentRequest)</span> · existente, sin cambios</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/CheckoutService.php:1158</td>
+              <td><span class="impl-method">selectPlanPayment(typeEntity='cart')</span> <span class="impl-tag mod">MOD</span> · existente, extendido: invoca promoteStatusQuacToCart antes de confirmar plan</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/CheckoutService.php:1385</td>
+              <td><span class="impl-method">promoteStatusQuacToCart(Cart, StoreQuacTransaction)</span> <span class="impl-tag new">NEW</span> · helper privado · DB::transaction: UPDATE store_carrito + UPDATE store_carrito_productos (flag por item) + recalcula pricing</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge api-compras-quac">api-compras-quac</span></td>
+              <td class="impl-path">app/Services/V1/Quac/InternalQuacGatewayService.php</td>
+              <td><span class="impl-method">selectPlanPayment()</span> · existente · confirma plan + cuotas en api.quac.co</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block note">
+          <div class="trace-block-header">🔧 Backend hace 2 cosas (★ con modificación PD-1456)</div>
+          <div class="note-text">
+            <strong>5.1 ★ PROMOCIÓN del cálculo temporal → carrito:</strong> lee <code>store_quac_transacciones.status_quac_*</code> y hace UPDATE sobre <code>store_carrito</code>. Marca items elegibles. Recalcula pricing.<br>
+            <strong>5.2 Confirma plan en api.quac.co</strong> (lógica existente).
+          </div>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">✓ Response · 200 OK</div>
+<pre class="code-block">{ <span class="k">"success"</span>: <span class="n">true</span>, <span class="k">"plan_id"</span>: <span class="s">"..."</span> }</pre>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Cambios en BD (★ aplicación efectiva)</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">store_carrito</td><td><span class="op op-update">UPDATE</span></td><td>★ status_quac_nivel='silver' · status_quac_descuento_pct=5 · status_quac_descuento_valor=<strong>24250</strong> · status_quac_envio_gratis=1 · status_quac_calculado_en · carrito_envio=0 · carrito_descuento=<strong>24250</strong> · carrito_total=<strong>460750</strong></td></tr>
+            <tr><td class="tbl-name">store_carrito_productos</td><td><span class="op op-update">UPDATE</span></td><td>aplica_descuento_estrategia_quac=1 (en items sin precio_autorizado)</td></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td><span class="op op-update">UPDATE</span></td><td>quac_estrategia_seleccionada='aplica_plazo' · quac_nro_cuotas=9 · valor_cuota=51194 · transaccion_estado=1 · resultado_validacion='pago_total'</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 6 -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">6</span>
+      <div class="step-title">Sistema crea el pedido (processCartPayment → createOrder)<small>Auto · sin acción cliente · copia carrito→pedido + INSERT quacapi.transactions canonical</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Pantalla loader → redirect</span>
+        <div class="phone-frame" style="text-align:center;padding:2rem 1rem;background:#fafafa;">
+          <div style="font-size:2rem;">⏳</div>
+          <div style="font-size:0.75rem;color:var(--ink-soft);margin-top:0.5rem;">Procesando tu compra…</div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/cart/payment/{tokenCart}</span></div>
+<pre class="code-block">{ <span class="k">"payment_method"</span>: <span class="s">"cupo"</span> }</pre>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag mod">MODIFICADO PD-1456</span></div>
+          <table class="impl-table">
+            <tr><th>Repo</th><th>Archivo</th><th>Método / responsabilidad</th></tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">routes/shop/v2/routes.php:86</td>
+              <td class="impl-purpose">Ruta → CheckoutController@processCartPayment</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/CheckoutService.php:48</td>
+              <td><span class="impl-method">processCartPayment(PaymentRequestDTO)</span> · existente · orquesta creación de pedido + transacción Quac canonical</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Repositories/V2/Order/OrderRepository.php:291</td>
+              <td><span class="impl-method">createOrderFromCartDTO()</span> <span class="impl-tag mod">MOD</span> · INSERT shop_pedidos con 5 cols pedido_status_quac_* copiadas del carrito + INSERT shop_pedido_detalle con flag aplica_descuento_estrategia_quac por item</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/Order/OrderService.php:520</td>
+              <td><span class="impl-method">getParamsSyncOrder()</span> <span class="impl-tag mod">MOD</span> · agrega bloque informativo "status_quac" + porcentaje_descuento compuesto por item al JSON CompraV2 que se persiste en shop_pedidos.json_enviado</td>
+            </tr>
+            <tr style="background:#fef3c7;">
+              <td colspan="3" style="padding:0.5rem 0.625rem;font-weight:600;font-size:0.7rem;color:#78350f;">⬇ get-api envía bloque opcional status_quac a api-compras-quac vía HTTP M2M:</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge api-compras-quac">api-compras-quac</span></td>
+              <td class="impl-path">app/Http/Controllers/OrderController.php:46</td>
+              <td><span class="impl-method">createOrder(CreateOrderRequest)</span> <span class="impl-tag mod">MOD</span> · mapea bloque opcional status_quac del payload a $dataOrder</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge api-compras-quac">api-compras-quac</span></td>
+              <td class="impl-path">app/Models/Orders/Order.php:67</td>
+              <td><span class="impl-method">Order::createOrder($dataCreate)</span> <span class="impl-tag mod">MOD</span> · INSERT quacapi.transactions con 10 cols Status QUAC + JSON snapshot (status_quac_response_api)</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">✓ Response · 200 OK</div>
+<pre class="code-block">{
+  <span class="k">"order_id"</span>: <span class="n">12345</span>,
+  <span class="k">"pedido_token"</span>: <span class="s">"c5a7-0afa-..."</span>,
+  <span class="k">"redirect_url"</span>: <span class="s">"/order/c5a7-0afa-..."</span>
+}</pre>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Cambios en BD</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">shop_pedidos</td><td><span class="op op-insert">INSERT</span></td><td>todas las cols + ★ pedido_status_quac_nivel='silver' · pedido_status_quac_descuento_pct=5 · pedido_status_quac_descuento_valor=<strong>24250</strong> · pedido_status_quac_envio_gratis=1 · pedido_envio=0 · pedido_descuento=<strong>24250</strong> · pedido_total=<strong>460750</strong></td></tr>
+            <tr><td class="tbl-name">shop_pedido_detalle</td><td><span class="op op-insert">INSERT</span></td><td>1 fila por item + ★ aplica_descuento_estrategia_quac=1 · descuento_aplicado (% compuesto)</td></tr>
+            <tr><td class="tbl-name">store_carrito</td><td><span class="op op-update">UPDATE</span></td><td>carrito_cerrado=1 · pedido_id_convertido=12345</td></tr>
+            <tr><td class="tbl-name">store_pedido_transacciones</td><td><span class="op op-insert">INSERT</span></td><td>pedido_id · metodo_pago='cupo' · total=<strong>460750</strong> · estado=2</td></tr>
+            <tr><td class="tbl-name">quacapi.transactions</td><td><span class="op op-insert">INSERT</span></td><td>★ 10 cols Status QUAC: payment_total_original=500000 · payment_total=460750 · status_quac_categoria=3 · status_quac_categoria_nombre='QUAC SILVER' · status_quac_descuento_permanente=5 · compra_descuento_quac_pct=5 · compra_descuento_quac_valor=<strong>24250</strong> · status_quac_response_api=JSON snapshot · ...</td></tr>
+            <tr><td class="tbl-name">shop_pedidos.json_enviado</td><td><span class="op op-update">UPDATE</span></td><td>JSON CompraV2 con bloque status_quac informativo + porcentaje_descuento compuesto por item</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 7 -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num async">7</span>
+      <div class="step-title">(Async) Task 52 sync al CRM cada 5 min<small>Lee shop_pedidos.json_enviado literal y lo envía al CRM Baguer</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Sin UI (proceso server-side)</span>
+        <div class="phone-frame" style="text-align:center;padding:2rem 1rem;background:#fafafa;">
+          <div style="font-size:2rem;">🕐</div>
+          <div style="font-size:0.7rem;color:var(--ink-soft);margin-top:0.5rem;">Task 52 corre cada 5 min · sync automático</div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag exist">SIN CAMBIOS PD-1456</span></div>
+          <table class="impl-table">
+            <tr><th>Repo</th><th>Archivo</th><th>Método / responsabilidad</th></tr>
+            <tr>
+              <td><span class="repo-badge api-crontab-v2">api-crontab-v2</span></td>
+              <td class="impl-path">app/Console/Commands/Tasks/Task52SyncOrdersCRM.php</td>
+              <td><span class="impl-method">Task 52 · scheduled cada 5 min</span> · lee shop_pedidos.json_enviado literal (sin modificar) y POSTea a CompraV2. PD-1456 NO toca este cron: el bloque status_quac viene ya armado desde get-api.</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block req">
+          <div class="trace-block-header">api-crontab-v2 · Task 52 <span class="http-method POST">POST</span><span class="http-path">{BASE_URL_CRM}/CompraWeb/CompraV2</span></div>
+<pre class="code-block">{
+  <span class="k">"nitTercero"</span>: <span class="n">447624</span>,
+  <span class="k">"pedido_subtotal"</span>: <span class="n">485000</span>,
+  <span class="k">"pedido_envio"</span>: <span class="n">0</span>,
+  <span class="k">"pedido_descuento"</span>: <span class="n">0</span>,        <span class="c">// distribuido en items</span>
+  <span class="k">"pedido_total"</span>: <span class="n">460750</span>,
+  <span class="star">"status_quac"</span>: {              <span class="c">// ★ NUEVO PD-1456 (informativo)</span>
+    <span class="k">"nivel"</span>: <span class="s">"silver"</span>,
+    <span class="k">"puntos_actuales"</span>: <span class="n">7500</span>,
+    <span class="k">"envio_gratis_aplicado"</span>: <span class="n">true</span>,
+    <span class="k">"envio_gratis_valor"</span>: <span class="n">15000</span>,
+    <span class="k">"descuento_porcentaje"</span>: <span class="n">5</span>,
+    <span class="k">"descuento_valor"</span>: <span class="n">24250</span>,
+    <span class="k">"base_calculo"</span>: <span class="n">485000</span>,    <span class="c">// subtotal post envío gratis</span>
+    <span class="k">"aplicado_sobre"</span>: <span class="s">"carrito_total"</span>
+  },
+  <span class="k">"items"</span>: [
+    { <span class="k">"sku"</span>: <span class="s">"JEAN-UNSER"</span>, <span class="k">"producto_precio"</span>: <span class="n">350000</span>, <span class="k">"porcentaje_descuento"</span>: <span class="n">18.58</span> },
+    { <span class="k">"sku"</span>: <span class="s">"SNEAKER-X"</span>, <span class="k">"producto_precio"</span>: <span class="n">135000</span>, <span class="k">"porcentaje_descuento"</span>: <span class="n">5</span> },
+    { <span class="k">"sku"</span>: <span class="s">"FLETES"</span>,      <span class="k">"producto_precio"</span>: <span class="n">15000</span>,  <span class="k">"porcentaje_descuento"</span>: <span class="n">100</span> }
+  ],
+  <span class="k">"pagos"</span>: [ { <span class="k">"tipoPago"</span>: <span class="n">7</span>, <span class="k">"valor"</span>: <span class="n">460750</span> } ]
+}</pre>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Cambios en BD post-sync OK</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">shop_pedidos</td><td><span class="op op-update">UPDATE</span></td><td>id_remoto · pedido_fecha_sincronizado · sync=1</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+</section>
+
+<!-- ============================================================
+     SCENARIO A · PAGO MIXTO · BLACK (cupo $300K + PSE $200K)
+     ============================================================ -->
+<div class="scenario-desc" data-scenario="a-mixto">
+  <h2>Escenario A · Pago MIXTO Quac + PSE (Black, MIX-2)</h2>
+  <p>Cliente Black con compra de $500K. Cupo Quac disponible <strong>$300K</strong> — cubre solo el 60%. El resto $200K va por PSE. <strong>Regla MIX-2:</strong> descuento Black 10% se aplica sobre <code>total_pagar_quac</code> = $300K (no sobre $500K), envío gratis evalúa umbral Black ($99.900) sobre carrito_subtotal $485K → aplica.</p>
+  <span class="cart-line">subtotal: 485000 · envío: 15000 · total: 500000 · cupo_disponible: 300000 · resultado: pago_parcial · total_pagar_quac: 300000</span>
+</div>
+
+<section class="scenario-content" data-scenario="a-mixto">
+
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">1</span>
+      <div class="step-title">Cliente selecciona Cupo Quac · sistema detecta pago mixto<small>cupo_disponible $300K &lt; total $500K → resultado_validacion='pago_parcial'</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Modal info mixto</span>
+        <div class="phone-frame">
+          <div class="phone-title">Pago mixto detectado</div>
+          <div class="phone-card">
+            <div class="phone-row"><span class="label">Tu compra</span><span class="value">$500.000</span></div>
+            <div class="phone-row"><span class="label">Tu cupo Quac</span><span class="value">$300.000</span></div>
+            <div class="phone-row total"><span>Faltan</span><span class="value" style="color:var(--amber);">$200.000</span></div>
+          </div>
+          <span class="phone-chip amber" style="display:block;text-align:center;">Después eliges cómo pagar el resto</span>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/cart/quac/verify/{tokenCart}</span></div>
+<pre class="code-block">{}</pre>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag exist">EXISTENTE</span> · idéntico a escenario A pago total</div>
+          <table class="impl-table">
+            <tr><th>Repo</th><th>Archivo</th><th>Método</th></tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/CheckoutService.php:938</td>
+              <td><span class="impl-method">verifyQuacPayment(typeEntity='cart')</span> · detecta pago parcial (cupo $300K &lt; total $500K) y guarda total_pagar_quac=300K</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">✓ Response · 200 OK</div>
+<pre class="code-block">{
+  <span class="k">"validation_result"</span>: <span class="s">"pago_parcial"</span>,
+  <span class="k">"purchase_information"</span>: {
+    <span class="k">"purchase_value"</span>: <span class="n">500000</span>,
+    <span class="k">"available_balance"</span>: <span class="n">300000</span>,
+    <span class="k">"outstanding_amount"</span>: <span class="n">200000</span>
+  }
+}</pre>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Cambios en BD</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td><span class="op op-insert">INSERT</span></td><td>total_pagar=500000 · total_pagar_quac=300000 · cupo_disponible=300000 · resultado_validacion='tokenizar'</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">2</span>
+      <div class="step-title">Clave dinámica (igual a escenario A)<small>validateIdentity llama getPlanPayment sobre total_pagar_quac = $300K</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Modal clave dinámica</span>
+        <div class="phone-frame">
+          <div class="phone-title">Ingresa tu clave</div>
+          <input class="phone-input" value="9876" readonly>
+          <button class="phone-btn">Validar</button>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/cart/quac/validate_identity/{tokenCart}</span></div>
+<pre class="code-block">{ <span class="k">"reference"</span>: <span class="s">"uuid"</span>, <span class="k">"code"</span>: <span class="s">"9876"</span> }</pre>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag exist">EXISTENTE</span></div>
+          <table class="impl-table">
+            <tr><th>Repo</th><th>Archivo</th><th>Método</th></tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/CheckoutService.php:1064</td>
+              <td><span class="impl-method">validateIdentity('cart')</span> · invoca gateway.getPlanPayment(amount=$300K) · planes sobre porción cupo</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">✓ Response · 200 OK · plan_payment calculado sobre $300K (sin descuento todavía)</div>
+<pre class="code-block">{
+  <span class="k">"result_validation"</span>: <span class="s">"pago_parcial"</span>,
+  <span class="k">"plan_payment"</span>: { ... },   <span class="c">// sobre $300K</span>
+  <span class="k">"purchase_information"</span>: { ... }
+}</pre>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Cambios en BD</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td><span class="op op-update">UPDATE</span></td><td>clave_dinamica_validacion_estado=1 · quac_respuesta_api_plan (sobre $300K) · resultado_validacion='validar_token'</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num new">3</span>
+      <div class="step-title">★ Status QUAC con MIX-2<small>Descuento 10% × total_pagar_quac ($300K) = $30K · Envío gratis sí (subtotal $485K ≥ $99.900) · Re-calcula planes sobre $270K</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Loader auto-trigger</span>
+        <div class="phone-frame" style="text-align:center;padding:2rem 1rem;background:#fafafa;">
+          <div style="font-size:2.5rem;">⚡</div>
+          <div style="font-size:0.7rem;color:var(--ink-soft);margin-top:0.5rem;">Calculando tu beneficio Black con tu cupo $300K…</div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/cart/quac/status/{tokenCart}</span></div>
+<pre class="code-block">{}</pre>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag new">NUEVO PD-1456</span> · misma cadena · regla MIX-2 dispara en api-compras-quac</div>
+          <table class="impl-table">
+            <tr><th>Repo</th><th>Archivo</th><th>Diferencia con escenario A pago total</th></tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/Quac/QuacStatusService.php:54</td>
+              <td><span class="impl-method">calculateForCart()</span> · al construir payload para api-compras-quac, agrega total_pagar_quac=300000 desde store_quac_transacciones (porque pago_parcial)</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge api-compras-quac">api-compras-quac</span></td>
+              <td class="impl-path">app/Services/V1/Quac/QuacStatusService.php:57</td>
+              <td><span class="impl-method">calculateForCart($nit, $subtotal, $envio, $total, $totalPagarQuac=300000)</span> · detecta MIX-2: base del % = total_pagar_quac (no carrito_total). Envío gratis sigue evaluando subtotal. aplicado_sobre='total_pagar_quac' en el response.</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/Quac/QuacStatusService.php:237</td>
+              <td><span class="impl-method">recalcularPlanesConDescuento()</span> · re-llama gateway.getPlanPayment(amount=$270K = $300K cupo − $30K descuento) · planes Quac sobre porción cupo descontada</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block note">
+          <div class="trace-block-header">🔧 Backend con MIX-2</div>
+          <div class="note-text">
+            <strong>3.1</strong> CRM responde: nivel Black, 25.000 puntos, descuentoPermanente=10%, compraMinimaEnvioGratis=$99.900.<br>
+            <strong>3.2 ★ MIX-2:</strong> base del % = <code>total_pagar_quac = $300K</code> (no $500K). Descuento = 10% × $300K = <strong>$30K</strong>. Envío gratis sí ($485K ≥ $99.900). Aplicado_sobre = <code>"total_pagar_quac"</code>.<br>
+            <strong>3.3</strong> Re-llama <code>getPlanPayment(amount: 300000 − 30000 − 15000 = 255000)</code>. <em>Wait — el envío no se descuenta del monto Quac · solo del subtotal · revisar:</em> en mixto, monto efectivo Quac = $300K − $30K = <strong>$270K</strong> (las cuotas se calculan sobre $270K).
+          </div>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">✓ Response · 200 OK</div>
+<pre class="code-block">{
+  <span class="k">"result"</span>: {
+    <span class="k">"status_quac"</span>: {
+      <span class="k">"nivel"</span>: <span class="s">"black"</span>,
+      <span class="k">"nivel_nombre"</span>: <span class="s">"QUAC BLACK"</span>,
+      <span class="k">"puntos_actuales"</span>: <span class="n">25000</span>,
+      <span class="k">"siguiente_nivel"</span>: <span class="n">null</span>,
+      <span class="k">"beneficios_activos"</span>: {
+        <span class="k">"envio_gratis_aplicable"</span>: <span class="n">true</span>,
+        <span class="k">"compra_minima_envio_gratis"</span>: <span class="n">99900</span>,
+        <span class="k">"descuento_permanente_pct"</span>: <span class="n">10.00</span>
+      },
+      <span class="k">"aplicacion_en_carrito"</span>: {
+        <span class="k">"envio_gratis_aplicado"</span>: <span class="n">true</span>,
+        <span class="k">"envio_gratis_valor_descontado"</span>: <span class="n">15000</span>,
+        <span class="k">"descuento_pct_aplicado"</span>: <span class="n">10.00</span>,
+        <span class="k">"descuento_valor_aplicado"</span>: <span class="n">30000</span>,
+        <span class="star">"aplicado_sobre"</span>: <span class="s">"total_pagar_quac"</span>,  <span class="c">// ★ MIX-2</span>
+        <span class="k">"total_original"</span>: <span class="n">500000</span>,
+        <span class="k">"total_final"</span>: <span class="n">455000</span>,
+        <span class="k">"desglose_mixto"</span>: {
+          <span class="k">"pagado_con_cupo"</span>: <span class="n">270000</span>,
+          <span class="k">"pagado_con_complementario"</span>: <span class="n">185000</span>
+        }
+      }
+    },
+    <span class="k">"plan_payment"</span>: {     <span class="c">// recalculado sobre $270K (porción Quac descontada)</span>
+      <span class="k">"strategies"</span>: [...],
+      <span class="k">"amount_calculated_over"</span>: <span class="n">270000</span>
+    },
+    <span class="k">"degraded"</span>: <span class="n">false</span>
+  }
+}</pre>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Cambios en BD (temporal · sin tocar carrito)</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td><span class="op op-update">UPDATE</span></td><td>status_quac_nivel='black' · status_quac_descuento_pct=10 · status_quac_descuento_valor=30000 (sobre $300K, MIX-2) · status_quac_envio_gratis=1 · status_quac_envio_valor=15000 · status_quac_calculado_en=NOW() · status_quac_response_api=JSON</td></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td><span class="op op-update">UPDATE</span></td><td>quac_respuesta_api_plan=JSON (sobre $270K, no $300K) · quac_estrategia_mostrada · quac_nro_cuotas</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num new">4</span>
+      <div class="step-title">★ Pantalla "Eres Quac Black" con desglose MIXTO<small>UI explica claramente: descuento solo sobre porción Quac</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Pantalla intermedia con mixto</span>
+        <div class="phone-frame">
+          <div class="phone-title">Eres Quac Black</div>
+          <div class="phone-subtitle">Estos son los beneficios que aplican a tu compra</div>
+          <div class="membership-card black">
+            <div class="lvl-label">Tu nivel</div>
+            <div class="lvl-name">QUAC BLACK</div>
+            <div class="lvl-points">25.000 Quacs · Nivel máximo 🏆</div>
+          </div>
+          <div class="phone-card" style="background:#fef3c7;">
+            <div class="phone-row"><span style="font-size:0.7rem;font-weight:600;color:#92400e;">⚠️ Pago mixto</span></div>
+            <div class="phone-row"><span class="label">Tu cupo cubre</span><span class="value">$300.000</span></div>
+            <div class="phone-row"><span class="label">Faltan</span><span class="value" style="color:var(--amber);">$200.000</span></div>
+          </div>
+          <div class="phone-card">
+            <div class="phone-row"><span class="label">Subtotal</span><span class="value">$485.000</span></div>
+            <div class="phone-row" style="color:var(--green-ok);"><span style="font-size:0.7rem;font-weight:600;">✓ Envío gratis Black</span><span class="value green">−$15.000</span></div>
+            <div class="phone-row" style="color:var(--green-ok);"><span style="font-size:0.7rem;font-weight:600;">✓ 10% Black sobre $300K Quac</span><span class="value green">−$30.000</span></div>
+            <div class="phone-row total"><span>Total final</span><span class="value">$455.000</span></div>
+            <div class="phone-row" style="font-size:0.65rem;color:var(--ink-mute);"><span>= $270K con cupo + $185K con otro método</span><span></span></div>
+          </div>
+          <button class="phone-btn">Continuar a planes de pago →</button>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block note">
+          <div class="trace-block-header">💡 Diferencia con escenario A pago total</div>
+          <div class="note-text">El cliente Black con cupo cubriendo TODO recibiría 10% × $500K = $50K. En mixto recibe 10% × $300K = $30K. Esto evita arbitraje (cliente usando $1K cupo para activar descuento completo).</div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">5</span>
+      <div class="step-title">Confirma plan + cuotas (sobre $270K) → promoción al carrito + crea pedido + ★ cliente paga el complementario PSE<small>Pedido nace con pedido_estado_pago_id=3 (parcial); confirma cuando ambas transacciones aprobadas</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Plan + selector método complementario</span>
+        <div class="phone-frame">
+          <div class="phone-title" style="font-size:0.9rem;">Tu pago con cupo: $270K</div>
+          <div class="strategy-card active"><div class="s-name">Paga en 60 días</div><div class="s-detail">9 cuotas de $30.000</div></div>
+          <div style="margin:0.5rem 0;border-top:1px solid var(--rule);padding-top:0.5rem;">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--quac-deep);margin-bottom:0.375rem;">Falta pagar $185.000:</div>
+            <div class="strategy-card"><div class="s-name">💳 PSE</div></div>
+            <div class="strategy-card active"><div class="s-name">💳 Tarjeta crédito</div></div>
+          </div>
+          <button class="phone-btn">FINALIZAR PAGO MIXTO</button>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/cart/quac/select_plan_payment/{tokenCart}</span> <em style="font-size:0.7rem;color:var(--ink-mute);">(primero)</em></div>
+<pre class="code-block">{ <span class="k">"reference"</span>: <span class="s">"uuid"</span>, <span class="k">"strategy_id"</span>: <span class="s">"aplica_plazo"</span>, <span class="k">"installments"</span>: <span class="n">9</span> }</pre>
+        </div>
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/order/payment/{tokenOrder}</span> <em style="font-size:0.7rem;color:var(--ink-mute);">(después · pago complementario)</em></div>
+<pre class="code-block">{ <span class="k">"payment_method"</span>: <span class="s">"pse"</span>, <span class="k">"bank_code"</span>: <span class="s">"1007"</span> }</pre>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag mod">MOD PD-1456</span> + <span class="impl-tag exist">EXISTENTE</span></div>
+          <table class="impl-table">
+            <tr><th>Repo</th><th>Archivo</th><th>Método / responsabilidad</th></tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/CheckoutService.php:1385</td>
+              <td><span class="impl-method">promoteStatusQuacToCart()</span> <span class="impl-tag new">NEW</span> · UPDATE store_carrito con descuento_valor=30000 (sobre $300K MIX-2) + envío=0 + total=455000</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Repositories/V2/Order/OrderRepository.php:291</td>
+              <td><span class="impl-method">createOrderFromCartDTO()</span> <span class="impl-tag mod">MOD</span> · INSERT shop_pedidos con pedido_estado_pago_id=3 (PARCIAL) por ser mixto</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/CheckoutService.php:573</td>
+              <td><span class="impl-method">processOrderPayment()</span> · existente · maneja pago PSE complementario sobre el pedido + INSERT 2da fila store_pedido_transacciones</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Cambios en BD</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">store_carrito</td><td><span class="op op-update">UPDATE</span></td><td>★ status_quac_* promovidos · carrito_descuento=30000 · carrito_envio=0 · carrito_total=455000</td></tr>
+            <tr><td class="tbl-name">shop_pedidos</td><td><span class="op op-insert">INSERT</span></td><td>★ pedido_status_quac_* · pedido_total=455000 · pedido_estado_pago_id=<strong>3 (PARCIAL)</strong></td></tr>
+            <tr><td class="tbl-name">store_pedido_transacciones</td><td><span class="op op-insert">INSERT</span></td><td><strong>2 filas</strong>: (a) metodo_pago='cupo', total=270000 · (b) metodo_pago='pse', total=185000</td></tr>
+            <tr><td class="tbl-name">quacapi.transactions</td><td><span class="op op-insert">INSERT</span></td><td>Status QUAC con compra_descuento_quac_valor=30000 · payment_total=270000 · payment_total_original=300000</td></tr>
+            <tr><td class="tbl-name">shop_pedidos.pedido_estado_pago_id</td><td><span class="op op-update">UPDATE</span></td><td>Pasa a <strong>2 (pagado)</strong> cuando ambas transacciones quedan estado=1 y getOutstandingBalance()=0</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+</section>
+
+<!-- ============================================================
+     SCENARIO B · PEDIDO PENDIENTE · GOLD · UPDATE IN-PLACE
+     ============================================================ -->
+<div class="scenario-desc" data-scenario="b-total">
+  <h2>Escenario B · Pedido pendiente · UPDATE in-place (Gold)</h2>
+  <p>Cliente Gold con pedido $500K creado intentando pagar con PSE. PSE rechazado → pedido en <code>pedido_estado_pago_id=4</code>. Cliente en <code>/order/{tokenOrder}</code> toca "Cambiar método de pago" → "Cupo personal Quac". Cupo disponible $1.5M cubre 100% → pago total. <strong>El pedido NO se cancela</strong>: se modifica in-place.</p>
+  <span class="cart-line">pedido_id: 12345 · pedido_total: 500000 · cupo_disponible: 1500000 · pre-condiciones: id_remoto=NULL · pedido_facturado=0 · pedido_cancelado=0</span>
+</div>
+
+<section class="scenario-content" data-scenario="b-total">
+
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">1</span>
+      <div class="step-title">Cliente en <code style="font-size:0.7rem">/order/{tokenOrder}</code> toca "Cambiar método de pago" → Cupo Quac<small>Inicia flujo Quac sobre pedido (existente espejo del flujo sobre carrito)</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Vista /order/{tokenOrder}</span>
+        <div class="phone-frame">
+          <div class="url-bar">stirpe.com/order/c5a7-0afa-4015...</div>
+          <div class="phone-card" style="background:#fee2e2;">
+            <div style="font-size:0.75rem;color:#991b1b;font-weight:600;">❌ No fue posible procesar tu pago con PSE</div>
+          </div>
+          <div class="phone-card">
+            <div class="phone-row"><span class="label">Pedido #</span><span class="value">PED-12345</span></div>
+            <div class="phone-row"><span class="label">Total</span><span class="value">$500.000</span></div>
+            <div class="phone-row"><span class="label">Estado</span><span class="phone-chip amber">PENDIENTE</span></div>
+          </div>
+          <div class="action-buttons-2">
+            <button class="primary">Cambiar método</button>
+            <button>Modificar compra</button>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/cart/quac/verify/{tokenOrder}</span> <em style="font-size:0.65rem;">→ verifyQuacPaymentOrder</em></div>
+<pre class="code-block">{}</pre>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag exist">EXISTENTE</span> · flujo espejo del de carrito</div>
+          <table class="impl-table">
+            <tr><th>Repo</th><th>Archivo</th><th>Método</th></tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">routes/shop/v2/routes.php:108</td>
+              <td class="impl-purpose">Ruta → CheckoutController@verifyQuacPaymentOrder</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Http/Controllers/V2/Shop/CheckoutController.php:180</td>
+              <td><span class="impl-method">verifyQuacPaymentOrder(Request)</span></td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/CheckoutService.php:938</td>
+              <td><span class="impl-method">verifyQuacPayment(typeEntity='order', $orderToken)</span> · valida pre-condiciones (id_remoto NULL, no facturado, no cancelado) vía validateStatusOrder + INSERT store_quac_transacciones con pedido_id (no carrito_id)</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block note">
+          <div class="trace-block-header">💡 Diferencia con "Modificar compra"</div>
+          <div class="note-text">"Cambiar método de pago" inicia flujo Quac sobre el pedido existente. "Modificar compra" cancelaría el pedido y crearía carrito nuevo (camino alternativo cuando cliente quiere cambiar productos). Acá usamos el primero.</div>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Cambios en BD</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td><span class="op op-insert">INSERT</span></td><td><strong>pedido_id=12345</strong> (no carrito_id) · nit · total_pagar=500000 · total_pagar_quac=500000 · transaccion_estado=0</td></tr>
+            <tr><td class="tbl-name">shop_pedidos</td><td><span class="op op-none">SIN CAMBIOS</span></td><td>pedido_estado_pago_id sigue en 4 hasta confirmar plan</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">2</span>
+      <div class="step-title">Clave dinámica (validateIdentityOrder)<small>Endpoint espejo del de carrito · usa validateStepQuacPayment(typeEntity='order')</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Modal clave dinámica</span>
+        <div class="phone-frame">
+          <div class="phone-title">Ingresa tu clave</div>
+          <input class="phone-input" value="5432" readonly>
+          <button class="phone-btn">Validar</button>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/orders/quac/validate_identity/{tokenOrder}</span></div>
+<pre class="code-block">{ <span class="k">"reference"</span>: <span class="s">"uuid"</span>, <span class="k">"code"</span>: <span class="s">"5432"</span> }</pre>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag exist">EXISTENTE</span></div>
+          <table class="impl-table">
+            <tr><th>Repo</th><th>Archivo</th><th>Método</th></tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">routes/shop/v2/routes.php:110</td>
+              <td class="impl-purpose">Ruta → CheckoutController@validateIdentityOrder</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Http/Controllers/V2/Shop/CheckoutController.php:312</td>
+              <td><span class="impl-method">validateIdentityOrder(ValidateIdentityRequest)</span></td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/CheckoutService.php:1064</td>
+              <td><span class="impl-method">validateIdentity(typeEntity='order', $orderToken)</span> · misma firma que cart pero con typeEntity='order' (helper compartido)</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Cambios en BD</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td><span class="op op-update">UPDATE</span></td><td>clave_dinamica_validacion_estado=1 · quac_respuesta_api_plan (sobre $500K · sin Status QUAC)</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num new">3</span>
+      <div class="step-title">★ Status QUAC sobre PEDIDO<small>Endpoint espejo: /orders/quac/status/{tokenOrder} en lugar de /cart/quac/status/{tokenCart}</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Loader auto-trigger</span>
+        <div class="phone-frame" style="text-align:center;padding:2rem 1rem;background:#fafafa;">
+          <div style="font-size:2.5rem;">⚡</div>
+          <div style="font-size:0.7rem;color:var(--ink-soft);margin-top:0.5rem;">Calculando tu beneficio Gold sobre tu pedido…</div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/orders/quac/status/{tokenOrder}</span></div>
+<pre class="code-block">{}</pre>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag new">NUEVO PD-1456</span> · espejo del de carrito</div>
+          <table class="impl-table">
+            <tr><th>Repo</th><th>Archivo</th><th>Diferencia con escenario A</th></tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">routes/shop/v2/routes.php:114-117</td>
+              <td class="impl-purpose">Ruta NUEVA → OrderQuacStatusController@calculate</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Http/Controllers/V2/Shop/Order/OrderQuacStatusController.php</td>
+              <td><span class="impl-method">calculate(CalculateOrderStatusQuacRequest, $tokenOrder)</span> · controller espejo del de cart</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/Quac/QuacStatusService.php:128</td>
+              <td><span class="impl-method">calculateForOrder($tokenOrder): StatusQuacDTO</span> · mismo flujo que calculateForCart pero busca el pedido y su transaction asociada (pedido_id en lugar de carrito_id)</td>
+            </tr>
+            <tr>
+              <td colspan="3" style="text-align:center;padding:0.375rem;background:#f3f4f6;font-size:0.65rem;color:var(--ink-soft);">↓ A partir de acá, mismos archivos que escenario A pasos 4-9 ↓</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge api-compras-quac">api-compras-quac</span></td>
+              <td class="impl-path">app/Services/V1/Quac/QuacStatusService.php:57</td>
+              <td><span class="impl-method">calculateForCart()</span> · misma lógica (el service de api-compras-quac no distingue cart/order, solo recibe montos)</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block note">
+          <div class="trace-block-header">🔧 Mismo service que escenario A · typeEntity='order'</div>
+          <div class="note-text">CRM responde: nivel Gold, descuentoPermanente=5%, compraMinimaEnvioGratis=$199.900. Subtotal $485K ≥ umbral → envío gratis aplica → base post-envío = $485K. Descuento 5% × $485K = <strong>$24.250</strong>. Re-llama getPlanPayment(amount: 460750). <strong>NO toca shop_pedidos todavía</strong>.</div>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">✓ Response · 200 OK</div>
+<pre class="code-block">{
+  <span class="k">"result"</span>: {
+    <span class="k">"status_quac"</span>: {
+      <span class="k">"nivel"</span>: <span class="s">"gold"</span>, <span class="k">"nivel_nombre"</span>: <span class="s">"QUAC GOLD"</span>,
+      <span class="k">"puntos_actuales"</span>: <span class="n">12500</span>,
+      <span class="k">"aplicacion_en_carrito"</span>: {
+        <span class="k">"descuento_pct_aplicado"</span>: <span class="n">5.00</span>,
+        <span class="k">"descuento_valor_aplicado"</span>: <span class="n">24250</span>,
+        <span class="k">"base_calculo_descuento"</span>: <span class="n">485000</span>,
+        <span class="k">"envio_gratis_aplicado"</span>: <span class="n">true</span>,
+        <span class="k">"envio_gratis_valor_descontado"</span>: <span class="n">15000</span>,
+        <span class="k">"total_original"</span>: <span class="n">500000</span>,
+        <span class="k">"total_final"</span>: <span class="n">460750</span>,
+        <span class="k">"aplicado_sobre"</span>: <span class="s">"carrito_total"</span>
+      }
+    },
+    <span class="k">"plan_payment"</span>: { ... <span class="k">"amount_calculated_over"</span>: <span class="n">460750</span> }
+  }
+}</pre>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Cambios en BD (temporal · pedido INTACTO)</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td><span class="op op-update">UPDATE</span></td><td>status_quac_* (descuento_valor=24250) + quac_respuesta_api_plan reescrito sobre $460.750</td></tr>
+            <tr><td class="tbl-name">shop_pedidos</td><td><span class="op op-none">SIN CAMBIOS</span></td><td>pedido_total sigue $500K · pedido_status_quac_* siguen NULL</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num new">4</span>
+      <div class="step-title">★ Pantalla "Eres Quac Gold"<small>Igual al escenario A pero datos calculados sobre el pedido existente</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Misma pantalla que A</span>
+        <div class="phone-frame">
+          <div class="phone-title">Eres Quac Gold</div>
+          <div class="membership-card gold">
+            <div class="lvl-label">Tu nivel</div>
+            <div class="lvl-name">QUAC GOLD</div>
+            <div class="lvl-points">12.500 Quacs acumulados</div>
+          </div>
+          <span class="phone-chip gray" style="display:block;text-align:center;margin-bottom:0.5rem;">Te faltan 7.500 Quacs para Black</span>
+          <div class="phone-card">
+            <div class="phone-row"><span class="label">Subtotal pedido</span><span class="value">$485.000</span></div>
+            <div class="phone-row" style="color:var(--green-ok);"><span style="font-size:0.7rem;font-weight:600;">✓ Envío gratis Gold</span><span class="value green">−$15.000</span></div>
+            <div class="phone-row" style="color:var(--green-ok);"><span style="font-size:0.7rem;font-weight:600;">✓ 5% descuento Gold</span><span class="value green">−$24.250</span></div>
+            <div class="phone-row total"><span>Total</span><span class="value">$460.750</span></div>
+          </div>
+          <button class="phone-btn">Continuar a planes de pago →</button>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block note">
+          <div class="trace-block-header">🎨 UI idéntica</div>
+          <div class="note-text">El componente <code>NivelQuac.vue</code> es el MISMO en escenario A y B. Cambia el orquestador (modal en checkout vs modal en /order/{tokenOrder}) y el endpoint que llama, no el componente.</div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num new">5</span>
+      <div class="step-title">★ Confirma plan → UPDATE in-place del pedido<small>selectPlanPaymentOrder modificado: applyStatusQuacToOrder + regenera json_enviado</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Modal confirma compra</span>
+        <div class="phone-frame">
+          <div class="phone-title" style="font-size:0.95rem;">Confirma tu compra</div>
+          <div class="phone-card">
+            <div class="phone-row"><span class="label">Valor a pagar</span><span class="value">$460.750</span></div>
+          </div>
+          <div class="strategy-card active"><div class="s-name">Paga en 60 días</div><div class="s-detail">9 cuotas de $51.194</div></div>
+          <button class="phone-btn">FINALIZAR COMPRA</button>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/orders/quac/select_plan_payment/{tokenOrder}</span></div>
+<pre class="code-block">{ <span class="k">"reference"</span>: <span class="s">"uuid"</span>, <span class="k">"strategy_id"</span>: <span class="s">"aplica_plazo"</span>, <span class="k">"installments"</span>: <span class="n">9</span> }</pre>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag mod">MOD PD-1456</span> · UPDATE in-place (no INSERT pedido nuevo)</div>
+          <table class="impl-table">
+            <tr><th>Repo</th><th>Archivo</th><th>Método / responsabilidad</th></tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">routes/shop/v2/routes.php:111</td>
+              <td class="impl-purpose">Ruta → CheckoutController@selectPlanPaymentOrder</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Http/Controllers/V2/Shop/CheckoutController.php:373</td>
+              <td><span class="impl-method">selectPlanPaymentOrder(SelectPlanPaymentRequest)</span></td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/CheckoutService.php:1158</td>
+              <td><span class="impl-method">selectPlanPayment(typeEntity='order', $orderToken)</span> <span class="impl-tag mod">MOD</span> · extendido: si typeEntity='order' invoca applyStatusQuacToOrder (en lugar de promoteStatusQuacToCart)</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/Order/OrderService.php:1846</td>
+              <td><span class="impl-method">applyStatusQuacToOrder(Order, StoreQuacTransaction)</span> <span class="impl-tag new">NEW</span> · helper · DB::transaction: UPDATE shop_pedidos in-place (5 cols pedido_status_quac_*) + UPDATE shop_pedido_detalle por item con descuento_aplicado recalculado + regenera json_enviado vía getParamsSyncOrder</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/Order/OrderService.php:520</td>
+              <td><span class="impl-method">getParamsSyncOrder()</span> <span class="impl-tag mod">MOD</span> · regenera el JSON CompraV2 con bloque status_quac informativo (cron Task 52 lo enviará al CRM)</td>
+            </tr>
+            <tr>
+              <td><span class="repo-badge api-compras-quac">api-compras-quac</span></td>
+              <td class="impl-path">app/Models/Orders/Order.php:67</td>
+              <td><span class="impl-method">Order::createOrder()</span> <span class="impl-tag mod">MOD</span> · INSERT quacapi.transactions con 10 cols Status QUAC (mismo que escenario A · transacción canonical nueva)</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block note">
+          <div class="trace-block-header">🔧 ★ UPDATE IN-PLACE (no INSERT pedido nuevo)</div>
+          <div class="note-text">A diferencia del escenario A donde <code>createOrder</code> hace INSERT, acá <code>OrderService::applyStatusQuacToOrder()</code> hace <strong>UPDATE</strong> al pedido existente. Recalcula totales, recalcula descuento_aplicado por item, regenera json_enviado. Pre-condiciones validadas por <code>validateStatusOrder</code> existente.</div>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Cambios en BD (★ pedido MODIFICADO IN-PLACE)</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">shop_pedidos</td><td><span class="op op-update">UPDATE</span></td><td>★ pedido_status_quac_nivel='gold' · pedido_status_quac_descuento_pct=5 · pedido_status_quac_descuento_valor=<strong>24250</strong> · pedido_status_quac_envio_gratis=1 · pedido_envio=<strong>0</strong> (era 15K) · pedido_descuento=<strong>24250</strong> (era 0) · pedido_total=<strong>460750</strong> (era 500K)</td></tr>
+            <tr><td class="tbl-name">shop_pedido_detalle</td><td><span class="op op-update">UPDATE</span></td><td>Por cada item: ★ aplica_descuento_estrategia_quac=1 · descuento_aplicado recalculado (% compuesto) · producto_precio actualizado con descuento. Línea FLETES: producto_precio=0 · descuento_aplicado=100</td></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td><span class="op op-update">UPDATE</span></td><td>quac_estrategia_seleccionada · quac_nro_cuotas=9 · transaccion_estado=1</td></tr>
+            <tr><td class="tbl-name">store_pedido_transacciones</td><td><span class="op op-insert">INSERT</span></td><td>nueva fila: metodo_pago='cupo' · total=<strong>460750</strong> · estado=2 → 1 al aprobar</td></tr>
+            <tr><td class="tbl-name">quacapi.transactions</td><td><span class="op op-insert">INSERT</span></td><td>10 cols Status QUAC + snapshot</td></tr>
+            <tr><td class="tbl-name">shop_pedidos.json_enviado</td><td><span class="op op-update">UPDATE</span></td><td>★ REGENERADO con bloque status_quac informativo + porcentaje_descuento por item recalculado</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+</section>
+
+<!-- ============================================================
+     SCENARIO ABANDONO
+     ============================================================ -->
+<div class="scenario-desc" data-scenario="abandono">
+  <h2>Escenario Abandono · Cliente cierra ventana sin confirmar</h2>
+  <p>Cliente Silver con compra $500K. Ve la pantalla intermedia con descuento $25K calculado. <strong>Cierra la pestaña del navegador antes de tocar FINALIZAR.</strong> Después decide pagar con PSE. <strong>El descuento Status QUAC NO debe aplicarse</strong> porque el cliente no confirmó.</p>
+  <span class="cart-line">subtotal: 485000 · envío: 15000 · total: 500000 · cliente: SILVER (NIT 447624)</span>
+</div>
+
+<section class="scenario-content" data-scenario="abandono">
+
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">1</span>
+      <div class="step-title">Cliente avanza hasta la pantalla intermedia<small>Pasos 1-3 idénticos al escenario A pago total Silver</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Pantalla intermedia visible</span>
+        <div class="phone-frame">
+          <div class="phone-title">Eres Quac Silver</div>
+          <div class="membership-card silver">
+            <div class="lvl-label">Tu nivel</div>
+            <div class="lvl-name">QUAC SILVER</div>
+          </div>
+          <div class="phone-card">
+            <div class="phone-row total"><span>Total con descuento</span><span class="value">$460.750</span></div>
+          </div>
+          <button class="phone-btn">Continuar a planes de pago →</button>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block note">
+          <div class="trace-block-header">📍 Estado BD al llegar acá</div>
+          <div class="note-text">Igual al paso 3 del escenario A: <code>store_quac_transacciones.status_quac_*</code> populados, <code>store_carrito.status_quac_*</code> NULL.</div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">2</span>
+      <div class="step-title">★ Cliente cierra la pestaña del navegador<small>Sin call backend · sin notificación · sin cleanup automático</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Cliente cierra navegador</span>
+        <div class="phone-frame">
+          <div class="abandon-overlay">
+            <div class="x-icon">✕</div>
+            <div style="font-weight:700;">Cliente cierra ventana</div>
+            <div style="font-size:0.7rem;opacity:0.8;margin-top:0.5rem;">Sin toca "FINALIZAR"</div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block note">
+          <div class="trace-block-header">🚫 Cero calls HTTP</div>
+          <div class="note-text">El frontend simplemente cierra. No hay endpoint de "cancelar Status QUAC". El estado en BD queda tal cual estaba después del paso 1.</div>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Estado BD (queda en limbo controlado)</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Estado</th></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td>transaccion_estado=0 (pending) · status_quac_* populadas · NUNCA se aplican</td></tr>
+            <tr><td class="tbl-name">store_carrito</td><td>★ <strong>INTACTO</strong> · status_quac_* siguen NULL · carrito_total sigue $500K</td></tr>
+            <tr><td class="tbl-name">store_carrito_productos</td><td>aplica_descuento_estrategia_quac=0 en todos los items</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">3</span>
+      <div class="step-title">Cliente vuelve al checkout y elige PSE en lugar de Quac<small>El sistema NO sabe (ni necesita saber) del intento Quac previo</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Selecciona PSE</span>
+        <div class="phone-frame">
+          <div class="phone-title">Selecciona método</div>
+          <div class="phone-card" style="background:white;border:2px solid var(--quac-primary);">
+            <div class="phone-row"><span class="value">💳 PSE</span><span class="phone-chip green">SELECCIONADO</span></div>
+          </div>
+          <div class="phone-card">
+            <div class="phone-row"><span class="label">Total a pagar</span><span class="value" style="font-size:1.1rem;font-weight:800;">$500.000</span></div>
+          </div>
+          <span style="font-size:0.65rem;color:var(--ink-mute);text-align:center;display:block;">⚠️ Sin descuento Status QUAC porque no completó el flujo Quac</span>
+          <button class="phone-btn">Pagar con PSE</button>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/cart/payment/{tokenCart}</span></div>
+<pre class="code-block">{ <span class="k">"payment_method"</span>: <span class="s">"pse"</span>, <span class="k">"bank_code"</span>: <span class="s">"1007"</span> }</pre>
+        </div>
+        <div class="trace-block note">
+          <div class="trace-block-header">✅ Garantía importante</div>
+          <div class="note-text">El pedido se crea con <code>pedido_total=500000</code>, <code>pedido_status_quac_nivel=NULL</code>, <code>pedido_descuento=0</code>, items sin flag Status QUAC. <strong>El cliente paga $500K · NO recibe descuento Status QUAC.</strong> Es lo correcto: no confirmó el flujo Quac, no se le aplica el beneficio.</div>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 BD final</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Op</th><th>Columnas</th></tr>
+            <tr><td class="tbl-name">shop_pedidos</td><td><span class="op op-insert">INSERT</span></td><td>pedido_total=500000 · pedido_descuento=0 · pedido_envio=15000 · pedido_status_quac_nivel=<strong>NULL</strong></td></tr>
+            <tr><td class="tbl-name">shop_pedido_detalle</td><td><span class="op op-insert">INSERT</span></td><td>aplica_descuento_estrategia_quac=<strong>0</strong> en todos</td></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td><em>QUEDA</em></td><td>transaccion_estado=0 (pending) · status_quac_* populadas pero NUNCA aplicadas a este pedido · queda para audit</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">4</span>
+      <div class="step-title">Cliente vuelve más tarde y reintenta Quac sobre el carrito · cache válido<small>Sistema reusa cálculo cacheado si el carrito no cambió</small></div>
+    </div>
+    <div class="step-body">
+      <div class="ui-mockup">
+        <span class="ui-mockup-label">Re-intenta Cupo Quac</span>
+        <div class="phone-frame">
+          <div class="phone-title">Eres Quac Silver</div>
+          <div style="font-size:0.7rem;color:var(--green-ok);text-align:center;margin-top:0.5rem;font-weight:600;">📋 Cache válido · sin re-consulta al CRM</div>
+          <div class="phone-card">
+            <div class="phone-row total"><span>Total con descuento</span><span class="value">$460.750</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header"><span class="http-method POST">POST</span><span class="http-path">/v2/stirpe/cart/quac/status/{tokenCart}</span></div>
+<pre class="code-block">{}</pre>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación backend <span class="impl-tag new">NUEVO PD-1456</span> · misma cadena · cache hit corta el flujo</div>
+          <table class="impl-table">
+            <tr><th>Repo</th><th>Archivo</th><th>Diferencia</th></tr>
+            <tr>
+              <td><span class="repo-badge get-api">get-api</span></td>
+              <td class="impl-path">app/Services/V2/Quac/QuacStatusService.php:54</td>
+              <td><span class="impl-method">calculateForCart()</span> · al inicio verifica idempotencia: si <code>strtotime($cart-&gt;fecha_up) &lt;= strtotime($transaction-&gt;status_quac_calculado_en)</code> → ejecuta <span class="impl-method">buildDtoFromCachedTransaction()</span> y retorna sin tocar api-compras-quac ni CRM</td>
+            </tr>
+            <tr>
+              <td colspan="3" style="text-align:center;padding:0.375rem;background:#dcfce7;font-size:0.65rem;color:#166534;font-weight:600;">✓ Cero llamadas a api-compras-quac · cero llamadas al CRM Baguer · cero UPDATEs</td>
+            </tr>
+          </table>
+        </div>
+        <div class="trace-block note">
+          <div class="trace-block-header">🔧 Backend detecta cache válido</div>
+          <div class="note-text">Verifica: <code>store_quac_transacciones.status_quac_calculado_en</code> existe AND <code>store_carrito.fecha_up &lt;= status_quac_calculado_en</code>. Si ambos true → <strong>NO consulta al CRM</strong> ni a getPlanPayment. Devuelve los valores cacheados de la fila pending.</div>
+        </div>
+        <div class="trace-block db">
+          <div class="trace-block-header">📦 Sin cambios</div>
+          <table class="db-table">
+            <tr><th>Tabla</th><th>Estado</th></tr>
+            <tr><td class="tbl-name">store_quac_transacciones</td><td>Misma fila pending · status_quac_* tal cual</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </article>
+
+</section>
+
+<footer class="app-footer">
+  <p>Mockup interactivo de PD-1456 · Generado a partir de <a href="../requirements/PD-1456-status-quac-checkout-web/flujos.md">flujos.md</a> · Para detalle técnico ver <a href="../requirements/PD-1456-status-quac-checkout-web/spec.md">spec.md</a></p>
+  <p style="margin-top:0.5rem;">Última actualización: 2026-06-09 · Carrito de ejemplo: $500K · 4 escenarios: A pago total · A mixto · B in-place · Abandono · Backend trace mapeado a archivos reales de rama <code>feature/PD-1456</code></p>
+</footer>
+
+<script>
+const tabs = document.querySelectorAll('.scenario-tabs button');
+const descs = document.querySelectorAll('.scenario-desc');
+const contents = document.querySelectorAll('.scenario-content');
+
+tabs.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const scn = btn.dataset.scenario;
+    tabs.forEach(b => b.classList.toggle('active', b === btn));
+    descs.forEach(d => d.classList.toggle('active', d.dataset.scenario === scn));
+    contents.forEach(c => c.classList.toggle('active', c.dataset.scenario === scn));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+});
+</script>
+
+</body>
+</html>
