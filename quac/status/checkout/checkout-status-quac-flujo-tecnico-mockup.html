@@ -846,7 +846,7 @@ footer.notes h2 {
     <div class="icon">✓</div>
     <div>
       <span class="label" id="bannerLabel">Escenario: Happy path</span>
-      <span class="desc" id="bannerDesc">Cliente con Status QUAC activo. La orden v2 trae snapshot completo en BD y el endpoint expone los 4 bloques.</span>
+      <span class="desc" id="bannerDesc">Cliente con Status QUAC activo. La orden v2 trae snapshot completo en BD y el endpoint expone dataTransaction enriquecido + status_quac + benefits_ladder.</span>
     </div>
   </div>
 
@@ -975,13 +975,13 @@ footer.notes h2 {
           <div class="trace-section backend">
             <div class="trace-section-label">Backend <span class="trace-tag new">PD-1461 ⭐ NUEVO</span></div>
             <div class="trace-row"><span class="k">Repo</span><span class="v">api-compras-quac</span></div>
-            <div class="trace-row"><span class="k">Rama</span><span class="v">feature/PD-1461-portal-pantalla-status-quac (5 commits, pendiente PR a develop)</span></div>
+            <div class="trace-row"><span class="k">Rama</span><span class="v">feature/PD-1461-clean (10 commits limpios sobre master · ⚠ pendiente DEP-1462-1)</span></div>
             <div class="trace-row"><span class="k">Ruta declarada</span><span class="v">routes/v2/api.php:47</span></div>
             <div class="trace-row"><span class="k">Middleware</span><span class="v">check-token (CustomPassport) + client + throttle:60,1</span></div>
             <div class="trace-row"><span class="k">FormRequest</span><span class="v">app/Http/Requests/OrdersStore/GetDataStoreSaleV2Request.php</span></div>
             <div class="trace-row"><span class="k">Controller</span><span class="v">app/Http/Controllers/V2/TransactionStoreController.php → getDataStoreSale() (línea 44)</span></div>
             <div class="trace-row"><span class="k">Modelo</span><span class="v">app/Models/Orders/OrderStore.php → getDataStoreSaleV2() (línea 1131)</span></div>
-            <div class="trace-row"><span class="k">Helpers privados</span><span class="v">buildPaymentShape + buildStoreShape + buildStatusQuacShape + getBenefitsLadder</span></div>
+            <div class="trace-row"><span class="k">Helpers privados</span><span class="v">buildPaymentShape + buildStoreShape + buildStatusQuacShape + getBenefitsLadder <span class="trace-tag pending">DEP-1462-1 realinea a getDataTransactionV2</span></span></div>
             <div class="trace-row"><span class="k">Models del catálogo</span><span class="v">app/Models/StatusQuac/StatusQuacNivel.php + StatusQuacBeneficio.php</span></div>
             <div class="trace-row"><span class="k">Tablas leídas</span><span class="v">quacapi.transactions_store + status_quac_niveles + status_quac_beneficios + users</span></div>
             <div class="trace-row"><span class="k">CRMs invocados</span><span class="v dim">BASE_URL_CRM (Cliente, Cartera) — desde helpers reutilizados v1</span></div>
@@ -993,7 +993,7 @@ footer.notes h2 {
             <div class="trace-row"><span class="k">Vista que dispara</span><span class="v">src/views/HomeView.vue (onMounted)</span></div>
             <div class="trace-row"><span class="k">Store action</span><span class="v">src/stores/quac.ts → useQuacStore.validateReference()</span></div>
             <div class="trace-row"><span class="k">Service</span><span class="v">src/services/quacService.ts → validateReference() <span class="trace-tag modified">PD-1462 cambia path</span></span></div>
-            <div class="trace-row"><span class="k">Tipos consumidos</span><span class="v">src/types/quac.ts → ResponseServicePlanV2 + StatusQuac + BenefitsLadderItem</span></div>
+            <div class="trace-row"><span class="k">Tipos consumidos</span><span class="v">src/types/quac.ts → ResponseServicePlanV2 + StatusQuac + Benefit + BenefitsLadderItem</span></div>
             <div class="trace-row"><span class="k">Auth</span><span class="v dim">Bearer token cargado por interceptor de src/api/client.ts desde localStorage.quac_token</span></div>
           </div>
         </div>
@@ -1002,13 +1002,13 @@ footer.notes h2 {
   </section>
 
   <!-- ============================================================
-       PASO 2 · Pantalla intermedia "Eres Quac X"
+       PASO 2 · Pantalla intermedia "Cliente Quac X" (variante C · X2)
        ============================================================ -->
   <section class="step" data-step="2" id="step2">
     <div class="step-header">
       <div class="step-num" id="step2num">2</div>
       <div class="step-title">
-        <div class="t" id="step2title">Pantalla intermedia "Eres Quac <span id="step2-nivel">Quac</span>"</div>
+        <div class="t" id="step2title">Pantalla intermedia "Cliente <span id="step2-nivel">Quac</span>" (variante C · X2)</div>
         <div class="s">⭐ Pantalla NUEVA del portal (PD-1462 · vista <code>StatusQuacView.vue</code>) · aparece DESPUÉS del paso de aceptar términos (ya existente en el SPA, no mostrado por simplicidad). NO llama endpoint, sólo pinta lo recibido en el Paso 1</div>
       </div>
     </div>
@@ -1016,19 +1016,19 @@ footer.notes h2 {
       <div class="client-view">
         <div class="cv-label">Lo que ve el cliente</div>
         <div class="cv-mock" id="step2mock">
-          <div class="iscreen-eyebrow">QUAC · MEMBRESÍA</div>
-          <div class="iscreen-title">Eres <span id="iscreen-nombre">Quac</span></div>
-          <div class="iscreen-points" id="iscreen-points">850 Quacs acumulados</div>
-          <div class="iscreen-card">
-            <div class="row"><span>Valor de la compra</span><span id="iscreen-vc">$500.000</span></div>
-            <div class="row discount-row" id="iscreen-dr" style="display:none"><span>Descuento Status QUAC</span><span id="iscreen-d">−$0</span></div>
-            <div class="row total-row"><span>Pagas hoy</span><span id="iscreen-vp">$500.000</span></div>
+          <div class="iscreen-title" id="iscreen-titulo">Cliente Quac</div>
+          <div class="iscreen-points" style="margin-bottom:14px;">Estos son los beneficios que aplican a tu compra</div>
+          <!-- Bloque único de total (variante C · X2) -->
+          <div style="background:linear-gradient(135deg,#fafafe,#f3eeff);border:1px solid rgba(118,51,255,0.15);border-radius:14px;padding:14px 16px;text-align:center;margin-bottom:12px;">
+            <div style="font-size:11px;color:var(--ink-soft);">Total a pagar</div>
+            <div id="iscreen-vc" style="font-size:11px;color:var(--ink-mute);text-decoration:line-through;">$500.000</div>
+            <div id="iscreen-vp" style="font-size:22px;font-weight:800;color:var(--quac-deep);line-height:1.15;">$475.000</div>
+            <div id="iscreen-ahorro" style="font-size:10.5px;font-weight:800;color:var(--green-ok);">↓ Ahorras $25.000 con tu descuento Quac Gold</div>
+            <div style="display:inline-block;background:#f0f0ff;color:#7633ff;border-radius:999px;padding:2px 10px;font-size:10px;margin-top:4px;">Saldo disponible: <b>$3.128.928</b></div>
           </div>
-          <div class="iscreen-ladder">
-            <div class="iscreen-ladder-title">Tus beneficios</div>
-            <div id="iscreen-ladder"></div>
-          </div>
-          <button class="btn-portal">Ver mis planes de pago</button>
+          <!-- Card de beneficios del nivel actual (variante C · sin escalera) -->
+          <div id="iscreen-bn" style="border:1px solid var(--rule);border-radius:12px;overflow:hidden;background:white;text-align:left;margin-bottom:12px;"></div>
+          <button class="btn-portal">Continuar a planes de pago →</button>
         </div>
       </div>
       <div class="api-panel">
@@ -1046,12 +1046,12 @@ footer.notes h2 {
         <div class="ui-decision" id="paso2-decision">
           <div class="ui-decision-title">→ Reglas de pintado</div>
           <ul>
-            <li><code>status_quac.categoria_nombre</code> → título <i>"Eres Quac X"</i></li>
-            <li><code>status_quac.puntos_actuales</code> → header bajo el título</li>
-            <li><code>dataTransaction.payment.total_original</code> → <i>"Valor de la compra"</i> (sólo si no es null)</li>
-            <li><code>dataTransaction.payment.total</code> → <i>"Pagas hoy"</i> (total a financiar)</li>
-            <li><code>status_quac.compra_descuento_quac_valor</code> → diferencia entre los dos anteriores</li>
-            <li><code>benefits_ladder[]</code> → escalera de 5 niveles · matching por <code>status_quac.categoria == benefits_ladder[N].id</code> para marcar "Tú estás aquí"</li>
+            <li><code>status_quac.categoria_nombre</code> → título <i>"Cliente Quac X"</i> (nivel 1 = "Cliente Quac", nunca "Quac Quac")</li>
+            <li><code>dataTransaction.payment.total_original</code> → valor tachado del bloque de total (sólo si no es null)</li>
+            <li><code>dataTransaction.payment.total</code> → total grande <i>"Total a pagar"</i></li>
+            <li><code>status_quac.compra_descuento_quac_valor</code> → línea verde <i>"↓ Ahorras $X con tu descuento"</i></li>
+            <li><code>dataTransaction.payment.credit_available</code> → pill <i>"Saldo disponible"</i></li>
+            <li><code>benefits_ladder[]</code> → <b>nivel actual</b> por <code>id == status_quac.categoria</code> → checks de la card (% descuento, Plazo 60, cuotas máximas) + <code>status_quac.puntos_actuales</code> en el header · <b>siguiente nivel</b> por <code>orden</code> → footer "★ Te faltan <code>umbral_quacs − puntos_actuales</code> Quacs" (X2: la escalera de 5 niveles fue eliminada)</li>
           </ul>
         </div>
         <div class="code-trace">
@@ -1061,10 +1061,10 @@ footer.notes h2 {
             <div class="trace-row"><span class="k">Repo</span><span class="v">comprasquac-client</span></div>
             <div class="trace-row"><span class="k">Ruta del SPA</span><span class="v">/store/:reference/status-quac (a sumar en src/router/index.ts)</span></div>
             <div class="trace-row"><span class="k">Vista NUEVA</span><span class="v">src/views/StatusQuacView.vue <span class="trace-tag new">NUEVO</span></span></div>
-            <div class="trace-row"><span class="k">Componentes NUEVOS</span><span class="v">src/components/StatusQuacBadge.vue + PriceBreakdown.vue + BenefitsLadder.vue</span></div>
+            <div class="trace-row"><span class="k">Componentes</span><span class="v">Vista autocontenida (X2: los 3 componentes del diseño original fueron eliminados)</span></div>
             <div class="trace-row"><span class="k">Store</span><span class="v">src/stores/quac.ts → useQuacStore.statusQuac, benefitsLadder, dataResponsePlan</span></div>
             <div class="trace-row"><span class="k">Cuándo aparece</span><span class="v dim">Tras AcceptTermsView.acceptTerms() exitoso · sólo si status_quac != null (regla D4)</span></div>
-            <div class="trace-row"><span class="k">CTA "Ver planes"</span><span class="v">router.replace({ name: 'plan-payment' })</span></div>
+            <div class="trace-row"><span class="k">CTA "Ver planes"</span><span class="v">router.push({ name: 'plan-payment' }) — "atrás" regresa a status-quac (criterio #7)</span></div>
           </div>
           <div class="trace-section backend">
             <div class="trace-section-label">Backend</div>
@@ -1110,7 +1110,7 @@ footer.notes h2 {
         <div class="api-block">
           <div class="api-header">
             <span class="method POST">POST</span>
-            <span class="endpoint">/api/v1/orders/select-plan-payment-store</span>
+            <span class="endpoint">/api/v1/transactions-store/select-plan-payment-store</span>
             <span class="api-source">EXISTENTE</span>
           </div>
           <div class="api-section">
@@ -1125,7 +1125,7 @@ footer.notes h2 {
         <div class="api-block">
           <div class="api-header">
             <span class="method POST">POST</span>
-            <span class="endpoint">/api/v1/orders/confirm-order-store</span>
+            <span class="endpoint">/api/v1/transactions-store/confirm-order-store</span>
             <span class="api-source">EXISTENTE</span>
           </div>
           <div class="api-section">
@@ -1139,7 +1139,7 @@ footer.notes h2 {
         </div>
         <div class="ui-decision">
           <div class="ui-decision-title">→ Cierre del flujo</div>
-          Tras <code>confirm-order-store</code> el portal redirige a la pantalla de aprobación final del CRM Baguer (<code>/api/Compras/aprobar</code> en <code>BASE_URL_CRM_AZ</code>). PD-1461 NO interviene en este paso.
+          Tras <code>confirm-order-store</code> el backend aprueba la orden contra el CRM Baguer (<code>/api/Compras/aprobar</code> en <code>BASE_URL_CRM_AZ</code>) y el SPA navega a <code>summary-order</code> pintando el bloque <code>summary</code> del response. PD-1461 NO interviene en este paso.
         </div>
         <div class="code-trace">
           <div class="code-trace-title">📍 Dónde vive el código real</div>
@@ -1176,7 +1176,7 @@ footer.notes h2 {
     <div class="notes-grid">
       <div class="note-card">
         <h3>Repositorios y ramas</h3>
-        <p><b>api-compras-quac</b> · rama <code>feature/PD-1461-portal-pantalla-status-quac</code> · base <code>develop</code> (PD-1458 mergeado). <b>Acción pendiente:</b> reabrir rama para reemplazar <code>payment_plans</code> por <code>config_plan_playment.strategies</code> (D5 X1).<br><b>comprasquac-client</b> (Vue 3 + TS + Pinia + Tailwind 4) · rama <code>feature/PD-1462-portal-pantalla-status-quac-frontend</code> · pendiente de crear con <code>/fase-b PD-1462</code>.</p>
+        <p><b>api-compras-quac</b> · rama <code>feature/PD-1461-clean</code> · base <code>master</code> (10 commits limpios: 5 de PD-1458 + 5 de PD-1461). <b>Acción pendiente (DEP-1462-1):</b> reabrir la rama para alinear <code>getDataStoreSaleV2()</code> al shape de <code>getDataTransactionV2</code> — diff exacto en plan.md Anexo A de PD-1462.<br><b>comprasquac-client</b> (Vue 3 + TS + Pinia + Tailwind 4) · rama <code>feature/PD-1462-portal-pantalla-status-quac-frontend</code> · base <code>master</code> (OPS-1462-C resuelta) · pendiente de crear con <code>/fase-b PD-1462</code>.</p>
       </div>
       <div class="note-card">
         <h3>Catálogo Status QUAC en BD</h3>
@@ -1207,8 +1207,8 @@ footer.notes h2 {
         <p>Token <code>Bearer</code> emitido por <code>AuthClient::getToken()</code> al crearse la orden en PD-1458. Viaja en la URL del push o lo recupera el portal de su sesión.</p>
       </div>
       <div class="note-card">
-        <h3>Decisión D5 X1 (replanteada)</h3>
-        <p>El response del endpoint nuevo devuelve <code>config_plan_playment.strategies</code> (shape v1) en vez de <code>payment_plans</code> (shape nuevo). Razón: PD-1461 + PD-1462 van juntos a DEV/PROD, no hay riesgo de incompatibilidad. <code>PlanQuacView</code> cero cambios en su lógica de planes.</p>
+        <h3>Decisión D5 X1 + corrección DEP-1462-1</h3>
+        <p>El response del endpoint nuevo devuelve <code>config_plan_playment.strategies</code> (shape v1) en vez de <code>payment_plans</code>. <b>Corrección DEP-1462-1 (2026-06-09):</b> la implementación pusheada lo anidó dentro de <code>payment</code> con el shape del trait <code>OrderUtils::getSummaryPlanPayment</code> (el del portal viejo) y omitió <code>term_pay_status</code> y <code>credit_available</code>. Se realinea al shape de <code>getDataTransactionV2</code> (el que consume comprasquac-client) usando <code>getSummaryPlanPaymentV2</code> + <code>getSummaryOrderV2</code>. <code>PlanQuacView</code> cero cambios en su lógica de planes.</p>
       </div>
       <div class="note-card">
         <h3>Paso oculto en este mockup</h3>
@@ -1429,63 +1429,65 @@ function buildPaso1(c, nivelKey, degraded) {
     ],
   });
 
+  // Contrato §0bis del plan PD-1462 (shape de getDataTransactionV2 + bloques nuevos · DEP-1462-1).
+  // Sin wrapper isSuccess/result: el controller retorna el shape directo (igual que el endpoint v1).
   const res = {
-    isSuccess: true,
-    code: 200,
-    result: {
-      cancellation_options: { allowed: true, reasons: ['No quiero pagar a cuotas', 'Pago con otro medio', 'Otro'] },
-      slug_step: 'sync-stores',
-      dataTransaction: {
-        payment_reference: COMPRA.payment_reference,
-        products: [
-          { sku: 'STR-CHAQ-1872', nombre: 'Chaqueta Stirpe Premium', cantidad: 1, valor_unitario: 350000 },
-          { sku: 'STR-PANT-9210', nombre: 'Pantalón Stirpe Slim',    cantidad: 1, valor_unitario: 150000 },
-        ],
-        store: { code: 110, nombre: 'STIRPE CABECERA', ciudad: 'BUCARAMANGA', logo: 'https://...' },
-        payment: {
-          total: c.valorPago,
-          total_original: total_original,
-          medio: 'Status QUAC',
-          moneda: 'COP',
-        },
-        config_plan_playment: {
-          count_installments: cuotasMax,
-          strategies: strategies,
-        },
-        term_pay_status: 0,
+    cancellation_options: [
+      { id: 1, text: 'Cambié de opinión', another_reason: 0 },
+      { id: 2, text: 'Pago con otro medio', another_reason: 0 },
+    ],
+    slug_step: { urlSlug: 'sync-stores' },
+    dataTransaction: {
+      payment_reference: COMPRA.payment_reference,
+      payment: {
+        total: String(c.valorPago),                       // DECIMAL en BD → viaja como string
+        total_original: total_original === null ? null : String(total_original), // ★ NUEVO · null si orden v1/degradada
+        credit_available: '3128928',
+        number_installments: 0,
+        value_quota: '0',
+        first_installment_payment_date: '',
+        has_quac: true,
+        client: { name: 'Pedro Pérez' },
       },
-      status_quac: status_quac,
-      benefits_ladder: benefits_ladder,
-      summary: null,
+      config_plan_playment: {                             // TOP-LEVEL (lo lee PlanQuacView) · de getSummaryPlanPaymentV2
+        count_installments: cuotasMax,
+        strategies: strategies,
+      },
+      store_logo: 'https://cdn.quac.co/stores/stirpe-logo.png',
+      store_gif: 'https://cdn.quac.co/stores/stirpe.gif',
+      term_pay_status: 0,
     },
+    status_quac: status_quac,         // ★ NUEVO · null si orden v1/degradada
+    benefits_ladder: benefits_ladder, // ★ NUEVO · siempre 5 niveles
+    summary: null,                    // SummaryOrder cuando la orden ya no está PENDING
   };
 
   return { req, res };
 }
 
 function buildPaso3Requests(c, nivelKey) {
+  // Endpoints EXISTENTES pre-PD-1461 · shapes reales verificados en TransactionStoreController
   const reqSelect = {
     payment_reference: COMPRA.payment_reference,
-    plan_type: c.plazo60 ? 'aplica_plazo' : 'sin_interes',
-    cuotas: c.plazo60 ? c.cuotasMax : 3,
+    payment_condition: c.plazo60 ? 'R2' : 'R0',
+    strategy_quac_crm: c.plazo60 ? 'aplica_plazo' : 'sin_interes',
   };
   const resSelect = {
-    isSuccess: true,
-    code: 200,
-    result: { plan_id: 'PLN-' + COMPRA.transaction_id + '-A', confirmed: true },
+    payment_date_formatted: c.plazo60 ? '08 de agosto, 2026' : '08 de julio, 2026',
   };
 
   const reqConfirm = {
     payment_reference: COMPRA.payment_reference,
-    plan_id: 'PLN-' + COMPRA.transaction_id + '-A',
-    accept_terms: true,
   };
   const resConfirm = {
-    isSuccess: true,
-    code: 200,
-    result: {
-      transaction_status: 'APPROVED',
-      redirect_url: 'https://crm.baguer.com.co/api/Compras/aprobar?ref=' + COMPRA.payment_reference,
+    cancellation_options: '[ ...igual que Paso 1 ]',
+    dataTransaction: '{ ...mismo shape del Paso 1 }',
+    summary: {
+      response_status: 4,
+      response_code: 200,
+      response_title: 'Compra aprobada',
+      response_message: 'Tu compra ha sido aprobada exitosamente',
+      transaction_date_finished: '2026-06-09 11:38:12',
     },
   };
 
@@ -1511,7 +1513,7 @@ function render(nivelKey, degraded) {
     bannerDesc.textContent = 'El CRM Baguer no respondió cuando se creó la orden en POS. La fila en BD quedó con status_quac_categoria = null. El endpoint expone status_quac = null y total_original = null (consistencia post-audit P1-4). El portal omite la pantalla intermedia y va directo al modal de planes.';
   } else {
     bannerLabel.textContent = 'Escenario: Happy path · Cliente ' + cfg.nombre;
-    bannerDesc.textContent = 'Cliente con Status QUAC activo. La orden v2 trae snapshot completo en BD (8 columnas Status QUAC pobladas). El endpoint expone los bloques: dataTransaction (con config_plan_playment.strategies legacy) + status_quac + benefits_ladder.';
+    bannerDesc.textContent = 'Cliente con Status QUAC activo. La orden v2 trae snapshot completo en BD (8 columnas Status QUAC pobladas). El endpoint expone el shape v1 de getDataTransactionV2 (config_plan_playment.strategies + term_pay_status + total_original) + status_quac + benefits_ladder.';
   }
 
   // POS mock
@@ -1538,7 +1540,7 @@ function render(nivelKey, degraded) {
     <ul>
       <li>Si <code>summary != null</code> (orden ya cerrada) → va directo a <code>summary-order</code>.</li>
       <li>Si <code>term_pay_status === 0</code> → va a <code>accept-terms</code> (paso preexistente del SPA, no mostrado en el mockup).</li>
-      <li class="${degraded ? 'inactive-path' : 'active-path'}">Tras aceptar términos, si <code>status_quac != null</code> → pinta <b>Paso 2</b> (pantalla intermedia "Eres Quac ${cfg.nombre}") y luego <b>Paso 3</b> al click del CTA.</li>
+      <li class="${degraded ? 'inactive-path' : 'active-path'}">Tras aceptar términos, si <code>status_quac != null</code> → pinta <b>Paso 2</b> (pantalla intermedia "Cliente Quac") y luego <b>Paso 3</b> al click del CTA.</li>
       <li class="${degraded ? 'active-path' : 'inactive-path'}">Tras aceptar términos, si <code>status_quac == null</code> → <b>SALTA Paso 2</b> y va directo al <b>Paso 3</b> (modal de planes).</li>
       <li>Si <code>config_plan_playment.strategies</code> viene vacío (CRM degradó al consultar) → Paso 3 muestra fallback estático.</li>
     </ul>
@@ -1552,40 +1554,53 @@ function render(nivelKey, degraded) {
     step2.classList.remove('skipped');
   }
 
-  document.getElementById('step2-nivel').textContent = cfg.nombre.replace('QUAC ', '').replace('QUAC', 'Quac');
-  document.getElementById('iscreen-nombre').textContent = cfg.nombre.replace('QUAC ', 'Quac ').replace('QUAC', 'Quac');
-  document.getElementById('iscreen-points').textContent = ctx.puntos.toLocaleString('es-CO') + ' Quacs acumulados';
-  document.getElementById('iscreen-vc').textContent = fmt(c.valorCompra);
+  // Paso 2 · variante C (X2): título + bloque de total + card de beneficios del nivel
+  const displayNombre = nivelKey === 'quac' ? 'Quac' : 'Quac ' + NIVELES_CTX[nivelKey].label;
+  document.getElementById('step2-nivel').textContent = displayNombre;
+  document.getElementById('iscreen-titulo').textContent = 'Cliente ' + displayNombre;
+  const iscVc = document.getElementById('iscreen-vc');
+  iscVc.style.display = c.descValor > 0 ? 'block' : 'none';
+  iscVc.textContent = fmt(c.valorCompra);
   document.getElementById('iscreen-vp').textContent = fmt(c.valorPago);
-  const iscDr = document.getElementById('iscreen-dr');
-  if (c.descValor > 0) {
-    iscDr.style.display = 'flex';
-    document.getElementById('iscreen-d').textContent = '−' + fmt(c.descValor);
-  } else {
-    iscDr.style.display = 'none';
-  }
+  const iscAhorro = document.getElementById('iscreen-ahorro');
+  iscAhorro.style.display = c.descValor > 0 ? 'block' : 'none';
+  iscAhorro.textContent = '↓ Ahorras ' + fmt(c.descValor) + ' con tu descuento ' + displayNombre;
 
-  // Ladder
-  const ladderEl = document.getElementById('iscreen-ladder');
-  const currentId = ctx.id;
-  ladderEl.innerHTML = CATALOGO_NIVELES.map(n => {
-    const state = n.id < currentId ? 'achieved' : n.id === currentId ? 'current' : 'locked';
-    return `
-      <div class="ladder-step ${state}">
-        <div class="node"></div>
-        <div>
-          <div class="name">${n.nombre}</div>
-          ${state === 'current' ? '<div style="color:var(--quac-accent);font-size:10px;font-weight:700">Tú estás aquí</div>' : ''}
-        </div>
+  const GRAD = {
+    quac: 'linear-gradient(135deg,#8a4bff,#7633ff,#5e26c9)',
+    plus: 'linear-gradient(135deg,#8b2849,#5a1e6d,#2c0d6e)',
+    silver: 'linear-gradient(135deg,#f8f8fb,#c8ccd2,#8e9299)',
+    gold: 'linear-gradient(135deg,#fff1c2,#ecc66a,#b08a2e)',
+    black: 'linear-gradient(135deg,#2c2c2c,#0a0a0a)',
+  };
+  const FG = { quac: '#fff', plus: '#f5e0eb', silver: '#2a2a30', gold: '#3a2a05', black: '#d8dce0' };
+  const bnRows = [];
+  if (cfg.descuento_permanente_pct > 0) bnRows.push(`<span style="color:var(--green-ok);font-weight:900;">✓</span> ${cfg.descuento_permanente_pct}% de descuento siempre al pagar con Quac`);
+  if (cfg.plazo60) bnRows.push('<span style="color:var(--green-ok);font-weight:900;">✓</span> Plazo 60: primera cuota hasta en 60 días');
+  bnRows.push(`<b style="color:var(--green-ok);">${cfg.cuotas_maximas}</b> cuotas máximas`);
+  const nextNivel = CATALOGO_NIVELES.find(n => n.orden === cfg.orden + 1);
+  const bnFooter = nextNivel
+    ? `★ Te faltan ${(nextNivel.umbral_quacs - ctx.puntos).toLocaleString('es-CO')} Quacs para ser Quac ${NIVELES_CTX[nextNivel.codigo].label}`
+    : '★ Estás en el nivel máximo del programa';
+  document.getElementById('iscreen-bn').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;background:${GRAD[nivelKey]};color:${FG[nivelKey]};">
+      <div>
+        <div style="font-size:8.5px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;opacity:0.8;">Tus beneficios</div>
+        <div style="font-size:15px;font-weight:800;">${displayNombre}</div>
       </div>
-    `;
-  }).join('');
+      <div style="text-align:right;">
+        <div style="font-size:15px;font-weight:800;line-height:1;">${ctx.puntos.toLocaleString('es-CO')}</div>
+        <div style="font-size:8px;font-weight:800;letter-spacing:1px;opacity:0.75;">QUACS</div>
+      </div>
+    </div>
+    <div style="padding:2px 14px;">${bnRows.map((r, i) => `<div style="padding:7px 0;${i > 0 ? 'border-top:1px solid var(--rule);' : ''}font-size:11.5px;color:var(--ink);">${r}</div>`).join('')}</div>
+    <div style="padding:7px 14px;background:#f0f0ff;color:#7633ff;font-size:10px;font-weight:700;">${bnFooter}</div>`;
 
   // Paso 2 bindings panel (solo si no skipped)
   document.getElementById('paso2-bindings').innerHTML = jsonHL({
-    status_quac: degraded ? null : { categoria: ctx.id, categoria_nombre: cfg.nombre, puntos_actuales: ctx.puntos, compra_descuento_quac_valor: c.descValor },
-    dataTransaction_payment: { total: c.valorPago, total_original: degraded ? null : c.valorCompra },
-    benefits_ladder: '[5 niveles del catálogo]',
+    status_quac: degraded ? null : { categoria: ctx.id, categoria_nombre: cfg.nombre, puntos_actuales: ctx.puntos, descuento_permanente_pct: cfg.descuento_permanente_pct, compra_descuento_quac_valor: c.descValor },
+    dataTransaction_payment: { total: String(c.valorPago), total_original: degraded ? null : String(c.valorCompra) },
+    benefits_ladder: '[5 niveles · se usa el nivel actual (id == categoria) y el siguiente por orden]',
   });
 
   // Paso 3 plans list
@@ -1621,8 +1636,8 @@ function render(nivelKey, degraded) {
       strategies: '[3 estrategias: sin_interes · aplica_plazo · ninguno]',
     },
     dataTransaction_payment: {
-      total: c.valorPago,
-      total_original: c.descValor > 0 ? c.valorCompra : null,
+      total: String(c.valorPago),
+      total_original: c.descValor > 0 ? String(c.valorCompra) : null,
     },
   });
 
