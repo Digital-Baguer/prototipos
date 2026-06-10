@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PD-1456 · Handoff Fix P0-10 — Status QUAC en el checkout web</title>
+<style>
+  :root {
+    --lila: #6c4bb4;
+    --lila-suave: #f1ecfa;
+    --verde: #1e8e5a;
+    --verde-suave: #e7f6ee;
+    --rojo: #c43d3d;
+    --rojo-suave: #fdeeee;
+    --ambar: #b07d18;
+    --ambar-suave: #fdf6e3;
+    --tinta: #2b2b35;
+    --gris: #6b6b78;
+    --borde: #e3e3ea;
+    --fondo: #fafafc;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--tinta);
+    background: var(--fondo);
+    line-height: 1.55;
+    padding: 32px 16px 64px;
+  }
+  .doc { max-width: 880px; margin: 0 auto; }
+
+  header.cab {
+    background: linear-gradient(135deg, #2b2140, #6c4bb4);
+    color: #fff; border-radius: 14px; padding: 28px 32px; margin-bottom: 28px;
+  }
+  header.cab .req { font-size: 13px; letter-spacing: 2px; opacity: .8; text-transform: uppercase; }
+  header.cab h1 { font-size: 26px; margin: 6px 0 10px; line-height: 1.25; }
+  header.cab .meta { font-size: 13px; opacity: .85; display: flex; flex-wrap: wrap; gap: 14px; }
+  header.cab .meta code { background: rgba(255,255,255,.15); padding: 1px 7px; border-radius: 5px; font-size: 12px; }
+
+  h2 {
+    font-size: 19px; margin: 38px 0 14px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--lila-suave);
+  }
+  h2 .num {
+    display: inline-block; background: var(--lila); color: #fff; border-radius: 7px;
+    width: 26px; height: 26px; text-align: center; line-height: 26px;
+    font-size: 14px; margin-right: 9px; vertical-align: 2px;
+  }
+  p { margin: 10px 0; }
+  .doc > section > p, .doc section li { font-size: 15px; }
+  strong { color: #1d1d26; }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px;
+    background: #efeff4; border-radius: 5px; padding: 1px 6px;
+  }
+
+  .tarjeta {
+    background: #fff; border: 1px solid var(--borde); border-radius: 12px;
+    padding: 18px 22px; margin: 14px 0;
+  }
+  .destacado { border-left: 5px solid var(--lila); background: var(--lila-suave); }
+  .alerta    { border-left: 5px solid var(--ambar); background: var(--ambar-suave); }
+  .ok        { border-left: 5px solid var(--verde); background: var(--verde-suave); }
+  .malo      { border-left: 5px solid var(--rojo); background: var(--rojo-suave); }
+
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; background: #fff; font-size: 14px; }
+  th, td { border: 1px solid var(--borde); padding: 9px 12px; text-align: left; vertical-align: top; }
+  th { background: #f3f1fa; font-size: 13px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tachado { text-decoration: line-through; color: var(--gris); }
+  .verde { color: var(--verde); font-weight: 600; }
+  .rojo  { color: var(--rojo); font-weight: 600; }
+
+  /* ---------- Diagramas de flujo ---------- */
+  .flujo { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; margin: 18px 0; }
+  .paso {
+    flex: 1 1 150px; min-width: 150px; background: #fff; border: 2px solid var(--borde);
+    border-radius: 10px; padding: 12px 13px; position: relative; margin-right: 34px; margin-bottom: 14px;
+  }
+  .paso:last-child { margin-right: 0; }
+  .paso:not(:last-child)::after {
+    content: "➜"; position: absolute; right: -28px; top: 50%; transform: translateY(-50%);
+    font-size: 19px; color: var(--gris);
+  }
+  .paso .etq {
+    font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--gris); display: block; margin-bottom: 5px;
+  }
+  .paso .txt { font-size: 13.5px; }
+  .paso.bien  { border-color: var(--verde); background: var(--verde-suave); }
+  .paso.mal   { border-color: var(--rojo); background: var(--rojo-suave); }
+  .paso.neutro{ border-color: var(--lila); background: var(--lila-suave); }
+  .paso .icono { font-size: 17px; }
+
+  .titulo-flujo {
+    display: inline-block; font-size: 13px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; padding: 4px 12px; border-radius: 99px; margin-top: 8px;
+  }
+  .titulo-flujo.antes { background: var(--rojo-suave); color: var(--rojo); }
+  .titulo-flujo.ahora { background: var(--verde-suave); color: var(--verde); }
+
+  /* ---------- Diagrama de cuadre ---------- */
+  .cuadre { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; margin: 18px 0; }
+  .cuadre .caja {
+    background: #fff; border: 2px solid var(--lila); border-radius: 12px;
+    padding: 14px 20px; text-align: center; min-width: 215px;
+  }
+  .cuadre .caja .titulo { font-size: 12.5px; font-weight: 700; color: var(--gris); text-transform: uppercase; letter-spacing: 1px; }
+  .cuadre .caja .valor { font-size: 24px; font-weight: 800; color: var(--lila); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .cuadre .igual { font-size: 30px; font-weight: 800; color: var(--verde); }
+
+  .pie {
+    margin-top: 44px; padding-top: 14px; border-top: 1px solid var(--borde);
+    font-size: 12.5px; color: var(--gris);
+  }
+  ul { padding-left: 22px; margin: 8px 0; }
+  li { margin: 5px 0; }
+  @media print { body { padding: 0; } header.cab { border-radius: 0; } }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="cab">
+  <span class="req">PD-1456 · Status QUAC en el checkout web · Handoff técnico</span>
+  <h1>Fix P0-10 — el pedido no quedaba con el descuento ni el envío gratis que el cliente ya había aceptado</h1>
+  <div class="meta">
+    <span>📅 2026-06-10</span>
+    <span>🔧 Repo: <code>get-api</code> · rama <code>feature/PD-1456-clean</code> · commit <code>82b4a</code></span>
+    <span>👥 Audiencia: coordinador + developer</span>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">1</span>El problema, en una frase</h2>
+  <div class="tarjeta malo">
+    <p><strong>El cliente aceptó pagar $387.000</strong> (su compra con el 10% de descuento Black y envío gratis),
+    el crédito Quac se aprobó por ese valor… <strong>pero el pedido quedó facturando $437.530</strong>:
+    sin descuento, cobrando el envío, y así viajaba al CRM para facturación.</p>
+  </div>
+  <p>Se descubrió en la prueba real del 10 de junio (pedido <code>700562</code>): el cliente vio en pantalla
+  "Pagas hoy $387.000" y firmó 4 cuotas de $96.750 — pero la tienda iba a facturar $50.530 de más.</p>
+
+  <table>
+    <tr><th>Concepto</th><th class="num">Lo que el cliente aceptó</th><th class="num">Lo que quedó en el pedido</th></tr>
+    <tr><td>Descuento nivel Black (10%)</td><td class="num verde">−$43.000</td><td class="num rojo">$0</td></tr>
+    <tr><td>Envío</td><td class="num verde">$0 (gratis por su nivel)</td><td class="num rojo">$7.530</td></tr>
+    <tr><td><strong>Total</strong></td><td class="num verde"><strong>$387.000</strong></td><td class="num rojo"><strong>$437.530</strong></td></tr>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">2</span>¿Por qué pasaba? (la causa raíz)</h2>
+  <p>Piensa en el carrito como una cuenta que <strong>un cajero vuelve a sumar desde cero cada vez que la mira</strong>,
+  usando únicamente su lista oficial de precios: matriz de fletes, cupones y estrategias de venta.
+  Ese "cajero" es el motor de pricing (<code>CartService::calculatePricing</code>) y corre en
+  <em>cada lectura del carrito</em>.</p>
+  <p>El código original escribía el beneficio Status QUAC directamente sobre los totales del carrito
+  cuando el cliente confirmaba su plan. Pero el beneficio <strong>no estaba en la "lista oficial" del cajero</strong>:
+  en la siguiente lectura (que ocurre siempre al pulsar FINALIZAR COMPRA), el cajero re-sumaba todo
+  y <strong>borraba el descuento y el envío gratis</strong>. Dos segundos después, el pedido se creaba
+  copiando esos totales ya borrados.</p>
+
+  <span class="titulo-flujo antes">⛔ Antes — flujo roto</span>
+  <div class="flujo">
+    <div class="paso neutro">
+      <span class="etq">Pantalla Status QUAC</span>
+      <span class="txt">El cliente ve <strong>"Pagas hoy $387.000"</strong> y elige sus cuotas</span>
+    </div>
+    <div class="paso bien">
+      <span class="etq">Confirma plan</span>
+      <span class="txt"><span class="icono">✅</span> El beneficio se escribe en los totales del carrito</span>
+    </div>
+    <div class="paso mal">
+      <span class="etq">Finalizar compra</span>
+      <span class="txt"><span class="icono">💥</span> El motor de pricing re-suma el carrito desde cero y <strong>pisa el beneficio</strong></span>
+    </div>
+    <div class="paso mal">
+      <span class="etq">Pedido creado</span>
+      <span class="txt">Nace copiando los totales pisados: <strong>$437.530, envío cobrado</strong></span>
+    </div>
+  </div>
+
+  <div class="tarjeta alerta">
+    <p><strong>No era un caso raro:</strong> rompía el 100% de las compras del flujo de carrito,
+    porque la re-suma del motor ocurre <em>siempre</em> entre la confirmación del plan y la creación del pedido.
+    El crédito Quac sí salía bien ($387.000) porque su monto se calcula desde la transacción, no desde el carrito —
+    por eso el síntoma era un <strong>descuadre entre crédito y factura</strong>.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">3</span>El ajuste: dejar de pelear con el cajero</h2>
+  <p>En vez de escribir el beneficio donde el motor lo borra (y en vez de enseñarle el beneficio al motor,
+  que se evaluó y se descartó — ver recuadro al final), el fix cambia <strong>dónde y cuándo</strong> se aplica el dinero:</p>
+
+  <div class="tarjeta destacado">
+    <p><strong>El carrito y el pedido permanecen con precios normales durante todo el proceso.
+    El beneficio se aplica UNA sola vez, directamente sobre el pedido, en el momento exacto en que
+    el pago con cupo Quac queda APROBADO</strong> — tomando los valores de la misma transacción que pagó.</p>
+  </div>
+
+  <span class="titulo-flujo ahora">✅ Ahora — flujo corregido</span>
+  <div class="flujo">
+    <div class="paso neutro">
+      <span class="etq">Pantalla Status QUAC</span>
+      <span class="txt">El cliente ve <strong>"Pagas hoy $387.000"</strong> y elige sus cuotas</span>
+    </div>
+    <div class="paso">
+      <span class="etq">Confirma plan</span>
+      <span class="txt">Solo se deja una <strong>marca de trazabilidad</strong> en el carrito (sin tocar dinero)</span>
+    </div>
+    <div class="paso bien">
+      <span class="etq">Finalizar compra</span>
+      <span class="txt"><span class="icono">🛡️</span> El motor re-suma el carrito… <strong>y no hay nada que pisar</strong></span>
+    </div>
+    <div class="paso bien">
+      <span class="etq">Pago cupo aprobado</span>
+      <span class="txt"><span class="icono">🎯</span> El beneficio se aplica al pedido <strong>desde la transacción que pagó</strong></span>
+    </div>
+    <div class="paso bien">
+      <span class="etq">Pedido final</span>
+      <span class="txt"><strong>$387.000 · envío $0 · FLETES 100% dcto</strong> — y nadie lo vuelve a recalcular</span>
+    </div>
+  </div>
+
+  <p>Tres reglas de oro que el nuevo diseño garantiza <em>por construcción</em>:</p>
+  <ul>
+    <li>🛡️ <strong>Nada lo puede pisar:</strong> los pedidos no pasan por el motor de pricing; lo aplicado queda fijo.</li>
+    <li>💳 <strong>El descuento es exclusivo del cupo Quac:</strong> si el cliente termina pagando con tarjeta, PSE o
+    Bancolombia, el pedido nace con precios normales — el beneficio jamás se filtra a otros medios de pago.</li>
+    <li>⚖️ <strong>Crédito y factura siempre cuadran:</strong> el monto que se cobra al cupo y el dinero que se
+    aplica al pedido salen de la <em>misma</em> transacción.</li>
+  </ul>
+
+  <div class="cuadre">
+    <div class="caja">
+      <div class="titulo">💳 Crédito aprobado al cupo</div>
+      <div class="valor">$387.000</div>
+    </div>
+    <div class="igual">=</div>
+    <div class="caja">
+      <div class="titulo">🧾 Pedido facturado al CRM</div>
+      <div class="valor">$387.000</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">4</span>¿Y el pago mixto? (cupo + otro medio)</h2>
+  <p>La regla de negocio, verificada en el código del cálculo: <strong>el envío gratis se gana si la compra
+  COMPLETA supera la compra mínima del nivel</strong>, sin importar qué parte se pague con cupo.
+  Lo que cambia en mixto es <em>quién recibe el ahorro del envío</em>: el cobro al cupo solo baja por el
+  descuento %, y el ahorro del envío reduce lo que paga el medio complementario.</p>
+
+  <table>
+    <tr><th colspan="2">Ejemplo mixto · Black 10% · compra $455.000 (envío $15.000 incluido) · cupo $300.000</th></tr>
+    <tr><td>Cobro al cupo Quac</td><td class="num">$300.000 − $30.000 (10%) = <strong>$270.000</strong></td></tr>
+    <tr><td>Pedido materializado</td><td class="num">$440.000 + envío $0 − $30.000 = <strong>$410.000</strong></td></tr>
+    <tr><td>Pago complementario (el "resto")</td><td class="num">$410.000 − $270.000 = <strong>$140.000</strong> <span class="verde">(absorbe el envío: sin beneficio pagaría $155.000)</span></td></tr>
+    <tr><td><strong>Cuadre</strong></td><td class="num">$270.000 + $140.000 = <strong>$410.000</strong> ✅ nadie paga de más</td></tr>
+  </table>
+
+  <p>Detalle importante del fix: como el beneficio se aplica al pedido <strong>al aprobarse el cupo parcial</strong>,
+  cuando llega el pago complementario el sistema calcula el "resto" sobre el total <em>ya descontado</em>.</p>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">5</span>Qué cambió en el código (3 archivos · commit <code>82b4a</code>)</h2>
+  <table>
+    <tr><th>Archivo</th><th>Antes</th><th>Ahora</th></tr>
+    <tr>
+      <td><code>CheckoutService.php</code></td>
+      <td>Al confirmar el plan, escribía el dinero del beneficio en el carrito (y en el pedido, escenario B)</td>
+      <td>Al confirmar el plan solo deja trazabilidad. El beneficio se aplica en <code>processCartPayment</code> /
+      <code>processOrderPayment</code>, dentro del bloque de pago <strong>aprobado</strong>, solo si el método es
+      <code>cupo</code> y la transacción trae el cálculo Status QUAC</td>
+    </tr>
+    <tr>
+      <td><code>OrderRepository.php</code></td>
+      <td><code>createOrderFromCartDTO</code> copiaba columnas Status QUAC del carrito y componía el descuento por item</td>
+      <td>El pedido <strong>nace 100% virgen</strong> (precios normales). Solo conserva, por item, el flag de
+      elegibilidad que viene del carrito (excluye items con precio autorizado de venta asistida)</td>
+    </tr>
+    <tr>
+      <td><code>OrderService.php</code></td>
+      <td><code>applyStatusQuacToOrder</code> solo se usaba en el escenario B (pedido existente), invocado al confirmar el plan</td>
+      <td>Es el <strong>materializador único</strong> de ambos escenarios: aplica las 5 columnas de trazabilidad,
+      el envío $0, el descuento, el total, compone los items elegibles, pone la línea FLETES al 100% y regenera el
+      <code>json_enviado</code> para el CRM</td>
+    </tr>
+  </table>
+
+  <div class="tarjeta">
+    <p><strong>🧪 Cómo se verificó:</strong> sintaxis limpia en los 3 archivos + verificación aritmética con los
+    números del caso real (pedido $387.000 / envío $0 / FLETES 100% / item 10% / crédito == factura), el descuento
+    compuesto (promo 20% + Status 10% = 28%), el pago con otro método (pedido virgen) y las 2 variantes de mixto.
+    <strong>Falta la prueba E2E completa</strong>, que depende de los prerrequisitos de abajo.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">6</span>Prerrequisitos antes de desplegar (⚠️ leer sí o sí)</h2>
+  <table>
+    <tr><th>#</th><th>Pendiente</th><th>Por qué importa</th></tr>
+    <tr>
+      <td>1</td>
+      <td><strong>Aplicar el DDL completo ANTES de desplegar</strong> (en especial el <code>ALTER</code> de
+      <code>shop_pedido_detalle</code> que agrega <code>aplica_descuento_estrategia_quac</code>)</td>
+      <td class="rojo">Si se despliega el código sin esa columna, el INSERT de items revienta y se rompe la creación
+      de TODOS los pedidos del checkout v2 — no solo los de Quac</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Completar el DDL de <code>quacapi.transactions</code> antes de desplegar el commit <code>d963f</code>
+      de api-compras-quac</td>
+      <td>Sin las columnas, el INSERT de la transacción canonical falla</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Anular los residuos de la prueba en producción: crédito Quac <strong>aprobado por $387.000</strong>
+      (transacción <code>299684</code>) y pedido pagado <code>700562</code></td>
+      <td>Son un crédito y un pedido REALES; gestionarlo con el equipo del CRM</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Re-auditoría del commit <code>82b4a</code> + QA E2E (27 escenarios de <code>qa.md</code>)</td>
+      <td>El fix se verificó con aritmética y trazado estático; la prueba integral con los 3 servidores es la
+      validación final</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">7</span>Para el curioso: ¿por qué no se le "enseñó" el beneficio al motor de pricing?</h2>
+  <div class="tarjeta">
+    <p>Era la alternativa obvia (que el motor re-derivara el beneficio en cada pasada, como hace con los cupones),
+    pero se descartó por tres razones:</p>
+    <ul>
+      <li><strong>Filtraría el descuento a otros medios de pago:</strong> un carrito persistido con el descuento se
+      cobraría descontado también al pagar con tarjeta o PSE.</li>
+      <li><strong>Riesgo de doble descuento:</strong> al recargar el checkout, las transacciones nuevas nacerían del
+      total ya descontado y el recálculo aplicaría el % otra vez.</li>
+      <li><strong>Rompía la validación del gateway:</strong> el pago con cupo exige que el monto del carrito coincida
+      con el de la transacción (<code>amount == total_pagar</code>); un carrito en $387.000 contra una transacción
+      nacida en $437.530 habría bloqueado el pago con "El saldo a pagar con quac ha cambiado".</li>
+    </ul>
+    <p>Detalle completo en <code>auditoria-backend.md §7</code>.</p>
+  </div>
+</section>
+
+<footer class="pie">
+  <p><strong>Documentos relacionados:</strong> <code>docs/requirements/PD-1456-status-quac-checkout-web/auditoria-backend.md</code> (§7 · P0-10 y hallazgos E1-E4)
+  · <code>spec.md §7</code> (reglas de cálculo) · <code>qa.md</code> (escenarios E2E).</p>
+  <p>Generado el 2026-06-10 · Coordinador: Francisco Lizcano · Fix implementado y auditado dentro del flujo PD-1456.</p>
+</footer>
+
+</div>
+</body>
+</html>
