@@ -395,6 +395,7 @@
           <tr><td>Envío gratis desde</td><td><span class="dash">—</span></td><td><span class="dash">—</span></td><td>$299.900</td><td>$199.900</td><td>$99.900</td></tr>
           <tr><td>Plazo 60</td><td><span class="dash">—</span></td><td><svg class="ck"><use href="#i-check"/></svg></td><td><svg class="ck"><use href="#i-check"/></svg></td><td><svg class="ck"><use href="#i-check"/></svg></td><td><svg class="ck"><use href="#i-check"/></svg></td></tr>
           <tr><td>Cuotas máximas</td><td>10</td><td>10</td><td>12</td><td>15</td><td>18</td></tr>
+          <tr><td>Personal Shopper</td><td><span class="dash">—</span></td><td><span class="dash">—</span></td><td><span class="dash">—</span></td><td><span class="dash">—</span></td><td><svg class="ck"><use href="#i-check"/></svg></td></tr>
         </tbody>
       </table>
     </div>
@@ -543,7 +544,7 @@ var LV = [
   b:[['pct','5% de descuento siempre','Al pagar con Quac'],['truck','Envío gratis','En compras online desde $199.900'],['card','Hasta 15 cuotas','Financiación estándar'],['cal','Plazo 60','Primera cuota a 60 días']]},
  {n:'QUAC BLACK',pts:'22.500',since:'Miembro Élite · 2025',range:'20.000+ Quacs',accent:'#D4A93F',
   bg:'linear-gradient(135deg,var(--blk1),var(--blk2))',txt:'var(--blkTxt)',dot:'linear-gradient(135deg,#3a3a3a,#0A0A0A)',
-  b:[['pct','10% de descuento siempre','El máximo del programa'],['truck','Envío gratis','En compras online desde $99.900'],['card','Hasta 18 cuotas','Financiación estándar'],['cal','Plazo 60','Primera cuota a 60 días']]}
+  b:[['pct','10% de descuento siempre','El máximo del programa'],['truck','Envío gratis','En compras online desde $99.900'],['card','Hasta 18 cuotas','Financiación estándar'],['cal','Plazo 60','Primera cuota a 60 días'],['user','Personal Shopper','Atención dedicada exclusiva']]}
 ];
 
 var pk = document.getElementById('picker');
@@ -582,53 +583,38 @@ document.querySelectorAll('.rv').forEach(function(el){ io.observe(el); });
 setNaming('plus');
 playSecuencia();
 
-/* storytelling: contadores + barra — se RE-ANIMA en cada pasada por la sección */
+/* storytelling: contadores que cuentan + barra de progreso al entrar en viewport */
 (function(){
   var sec = document.getElementById('story');
   if (!sec) return;
-  var pfill = document.getElementById('pfill');
+  var done = false;
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduce){ // sin animación: valores finales fijos, una sola vez
+  function setFinal(){
     sec.querySelectorAll('.num').forEach(function(n){
       n.textContent = Number(n.getAttribute('data-target')).toLocaleString('es-CO');
     });
-    pfill.style.width = '32%'; // 650 de 2.000 Quacs para Plus
-    return;
+    document.getElementById('pfill').style.width = '32%'; // 650 de 2.000 Quacs para Plus
   }
-  var timers = [], gen = 0;
-  function clearTimers(){ timers.forEach(clearTimeout); timers = []; gen++; }
-  function reset(){
-    clearTimers();
-    sec.querySelectorAll('.num').forEach(function(n){ n.textContent = '0'; });
-    pfill.style.transition = 'none';
-    pfill.style.width = '0%';
-    void pfill.offsetWidth;        // forzar reflow para que el corte aplique ya
-    pfill.style.transition = '';   // restaura la transición del CSS
-  }
-  function count(n, delay, g){
+  function count(n, delay){
     var target = Number(n.getAttribute('data-target'));
-    timers.push(setTimeout(function(){
+    setTimeout(function(){
       var t0 = performance.now(), dur = 1300;
       (function step(){
-        if (g !== gen) return;     // una animación vieja se aborta sola
         var p = Math.min(1, (performance.now() - t0) / dur);
         var e = 1 - Math.pow(1 - p, 3); // ease-out
         n.textContent = Math.round(target * e).toLocaleString('es-CO');
         if (p < 1) requestAnimationFrame(step);
       })();
-    }, delay));
+    }, delay);
   }
   function animate(){
-    clearTimers();
-    var g = gen;
-    sec.querySelectorAll('.num').forEach(function(n, i){ count(n, i * 300, g); });
-    timers.push(setTimeout(function(){ pfill.style.width = '32%'; }, 1200));
+    if (done) return; done = true;
+    if (reduce){ setFinal(); return; }
+    sec.querySelectorAll('.num').forEach(function(n, i){ count(n, i * 300); });
+    setTimeout(function(){ document.getElementById('pfill').style.width = '32%'; }, 1200);
   }
-  new IntersectionObserver(function(es){
-    es.forEach(function(e){
-      if (e.isIntersecting) animate();
-      else reset();
-    });
+  new IntersectionObserver(function(es, obs){
+    es.forEach(function(e){ if (e.isIntersecting){ animate(); obs.disconnect(); } });
   }, {threshold:.35}).observe(sec);
 })();
 
