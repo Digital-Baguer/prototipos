@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PD-1456 · Handoff dev — cambios en los 3 repos + decisión del carrito</title>
+<style>
+  :root {
+    --lila: #6c4bb4; --lila-suave: #f1ecfa;
+    --verde: #1e8e5a; --verde-suave: #e7f6ee;
+    --rojo: #c43d3d; --rojo-suave: #fdeeee;
+    --ambar: #b07d18; --ambar-suave: #fdf6e3;
+    --azul: #2563ab; --azul-suave: #e8f1fb;
+    --tinta: #2b2b35; --gris: #6b6b78; --borde: #e3e3ea; --fondo: #fafafc;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--tinta); background: var(--fondo); line-height: 1.55; padding: 32px 16px 64px;
+  }
+  .doc { max-width: 900px; margin: 0 auto; }
+  header.cab {
+    background: linear-gradient(135deg, #2b2140, #6c4bb4);
+    color: #fff; border-radius: 14px; padding: 26px 32px; margin-bottom: 26px;
+  }
+  header.cab .req { font-size: 13px; letter-spacing: 2px; opacity: .8; text-transform: uppercase; }
+  header.cab h1 { font-size: 24px; margin: 6px 0 8px; line-height: 1.3; }
+  header.cab .meta { font-size: 13px; opacity: .9; display: flex; flex-wrap: wrap; gap: 14px; }
+  header.cab .meta code { background: rgba(255,255,255,.15); padding: 1px 7px; border-radius: 5px; font-size: 12px; }
+
+  h2 { font-size: 19px; margin: 38px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--lila-suave); }
+  h2 .num {
+    display: inline-block; background: var(--lila); color: #fff; border-radius: 7px;
+    width: 26px; height: 26px; text-align: center; line-height: 26px; font-size: 14px; margin-right: 9px; vertical-align: 2px;
+  }
+  h3 { font-size: 15px; margin: 20px 0 8px; color: var(--azul); }
+  p, li { font-size: 14.5px; }
+  p { margin: 9px 0; }
+  ul { padding-left: 22px; margin: 8px 0; }
+  li { margin: 5px 0; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; background: #efeff4; border-radius: 5px; padding: 1px 6px; }
+
+  .tarjeta { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 16px 20px; margin: 12px 0; }
+  .destacado { border-left: 5px solid var(--lila); background: var(--lila-suave); }
+  .alerta    { border-left: 5px solid var(--ambar); background: var(--ambar-suave); }
+  .ok        { border-left: 5px solid var(--verde); background: var(--verde-suave); }
+  .clave     { border-left: 5px solid var(--azul); background: var(--azul-suave); }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; background: #fff; font-size: 13.5px; }
+  th, td { border: 1px solid var(--borde); padding: 8px 11px; text-align: left; vertical-align: top; }
+  th { background: #f3f1fa; font-size: 12.5px; }
+  .repo-chip {
+    display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: .5px;
+    padding: 3px 11px; border-radius: 99px; margin-right: 6px;
+  }
+  .chip-api  { background: var(--lila-suave); color: var(--lila); }
+  .chip-cron { background: var(--ambar-suave); color: var(--ambar); }
+  .chip-web  { background: var(--verde-suave); color: var(--verde); }
+
+  /* Diagrama de capas */
+  .capas { display: flex; flex-wrap: wrap; gap: 0; align-items: stretch; margin: 16px 0; }
+  .capa {
+    flex: 1 1 160px; min-width: 160px; background: #fff; border: 2px solid var(--borde);
+    border-radius: 10px; padding: 11px 12px; position: relative; margin-right: 32px; margin-bottom: 12px;
+  }
+  .capa:last-child { margin-right: 0; }
+  .capa:not(:last-child)::after {
+    content: "➜"; position: absolute; right: -26px; top: 50%; transform: translateY(-50%);
+    font-size: 18px; color: var(--gris);
+  }
+  .capa .etq { font-size: 10.5px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--gris); display: block; margin-bottom: 4px; }
+  .capa .txt { font-size: 12.5px; }
+  .capa.web   { border-color: var(--azul); background: var(--azul-suave); }
+  .capa.money { border-color: var(--verde); background: var(--verde-suave); }
+  .capa.crm   { border-color: var(--lila); background: var(--lila-suave); }
+
+  .pie { margin-top: 44px; padding-top: 14px; border-top: 1px solid var(--borde); font-size: 12.5px; color: var(--gris); }
+  .verde { color: var(--verde); font-weight: 700; }
+  .rojo  { color: var(--rojo); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="cab">
+  <span class="req">PD-1456 · Status QUAC en el checkout web · Handoff técnico para el developer</span>
+  <h1>Cambios del 2026-06-10 en los 3 repos + por qué el descuento NO vive en el carrito</h1>
+  <div class="meta">
+    <span>📅 2026-06-10</span>
+    <span>👥 Audiencia: developer backend/frontend</span>
+    <span>📄 Complementa a <code>handoff-fix-p0-10.html</code> y <code>auditoria-backend.md §7-§9</code></span>
+  </div>
+</header>
+
+<!-- ============ PRINCIPIO RECTOR ============ -->
+<section>
+  <h2><span class="num">0</span>El principio rector que explica TODOS los cambios</h2>
+
+  <div class="tarjeta destacado">
+    <p><strong>El descuento Status QUAC no es un atributo de la compra — es un atributo del MÉTODO DE PAGO.</strong>
+    Un cupón o una promo de la tienda le pertenecen al carrito (aplican pagues como pagues). El descuento
+    Status QUAC solo existe si el cliente efectivamente paga con su cupo Quac — hasta ese instante es una
+    <em>promesa condicionada</em>, no un hecho. Y las promesas no se escriben en los precios.</p>
+    <p>Piénsalo como el clásico "pague con la tarjeta X y reciba el 10%": el almacén no re-etiqueta la
+    góndola cuando el cliente dice "creo que voy a pagar con esa tarjeta" — el descuento aparece <strong>en la
+    caja, en el recibo, cuando la tarjeta efectivamente pasa</strong>. Nuestra "góndola" es el carrito;
+    nuestro "recibo" es el pedido.</p>
+  </div>
+
+  <div class="capas">
+    <div class="capa web">
+      <span class="etq">Solo web · volátil</span>
+      <span class="txt"><strong>CARRITO</strong><br>Precios vírgenes siempre.<br>Lleva el "sticker" de trazabilidad (<code>status_quac_*</code>)</span>
+    </div>
+    <div class="capa money">
+      <span class="etq">Fuente de verdad del dinero</span>
+      <span class="txt"><strong>PEDIDO</strong><br>Al aprobarse el cupo: envío $0, descuento, total, items con %, FLETES 100%</span>
+    </div>
+    <div class="capa crm">
+      <span class="etq">Lo único que el CRM entiende</span>
+      <span class="txt"><strong>JSON CompraV2</strong><br>Header que cuadra + items con % + bloque <code>status_quac</code> informativo</span>
+    </div>
+  </div>
+
+  <h3>¿Qué pasaría si escribiéramos el descuento en el carrito? — 3 escenarios concretos</h3>
+  <p>El carrito es una entidad <strong>VIVA</strong>: cambias la dirección y recalcula el flete; agregas un producto
+  y recalcula el subtotal; recargas la página y el motor de precios (<code>CartService::calculatePricing</code>)
+  reconstruye <em>todo</em> desde su lista oficial (matriz de fletes + cupones + estrategias). Además es
+  <strong>neutral al método de pago</strong>: el mismo carrito puede terminar pagándose con cupo, tarjeta, PSE o
+  Bancolombia. Escribirle un descuento condicionado a un pago que aún no ocurre produce esto:</p>
+
+  <table>
+    <tr><th>Escenario</th><th>Qué pasa</th><th>Consecuencia</th></tr>
+    <tr>
+      <td><strong>1 · El cliente se arrepiente</strong></td>
+      <td>Ve la pantalla Status QUAC, confirma plan (carrito queda descontado)… y a última hora paga con PSE o tarjeta. El pedido nace copiando el carrito descontado</td>
+      <td class="rojo">La tienda REGALA el 10% + envío gratis a un pago que no otorga el beneficio — pérdida directa de dinero en cada compra así</td>
+    </tr>
+    <tr>
+      <td><strong>2 · El motor lo borra</strong></td>
+      <td>Cualquier recálculo posterior (recarga, cambio de dirección, el propio paso de pago) reconstruye los precios desde cero y el descuento desaparece en silencio — el motor no lo conoce, no es cupón ni estrategia</td>
+      <td class="rojo">Es EXACTAMENTE el bug P0-10 que vivimos: el cliente acordó $387.000 y el pedido 700562 facturó $437.530. No es hipótesis, pasó hoy</td>
+    </tr>
+    <tr>
+      <td><strong>3 · Se rompe el propio pago Quac</strong></td>
+      <td>La transacción Quac nace con el total del carrito ($437.530). Si después el carrito cambia a $387.000, la validación del gateway (<code>amount == total_pagar</code>) revienta con "El saldo a pagar con quac ha cambiado"; y un recálculo de Status QUAC sobre el carrito ya descontado aplicaría el 10% <strong>dos veces</strong> (sobre $387.000)</td>
+      <td class="rojo">Pagos bloqueados en reintentos/recargas + riesgo de doble descuento</td>
+    </tr>
+  </table>
+
+  <h3>Qué ganamos materializando SOLO en el pedido</h3>
+  <ul>
+    <li>🪨 <strong>Escribimos en piedra, no en arena:</strong> el pedido se crea UNA vez y nadie lo recalcula — es una foto congelada. Lo aplicado ahí es estable para siempre.</li>
+    <li>⏱️ <strong>Aplicamos cuando la condición es un HECHO:</strong> el único instante donde "pagó con cupo Quac" dejó de ser promesa es el pago aprobado — imposible regalar el beneficio a otro método, por construcción (no por validaciones extra).</li>
+    <li>⚖️ <strong>Crédito y factura cuadran solos:</strong> el monto cobrado al cupo y el dinero del pedido salen de la MISMA transacción — el descuadre del 700562 se vuelve imposible.</li>
+    <li>📬 <strong>Escribimos donde el CRM lee:</strong> el CRM no sabe qué es un carrito; solo conoce el pedido y su <code>json_enviado</code>. Persistir dinero en el carrito es decorar un documento que el destinatario jamás abrirá.</li>
+    <li>🧘 <strong>Cero pelea con el motor de pricing:</strong> no competimos con el recálculo — simplemente no hay nada que pueda pisar.</li>
+  </ul>
+
+  <div class="tarjeta clave">
+    <p><strong>🔭 ¿Y dónde verá negocio el descuento?</strong> En el <strong>módulo de pedidos de get-web (CMS)</strong>
+    que se construirá como REQ futuro: ahí el operador verá el detalle del PEDIDO (la fuente de verdad del dinero),
+    con su descuento Status QUAC, envío gratis y nivel. El carrito conserva su "sticker" de trazabilidad
+    (<code>store_carrito.status_quac_nivel/pct/valor/envio_gratis/calculado_en</code>) por si alguna vista lo
+    necesita como contexto — pero el dinero SIEMPRE se consulta en el pedido.</p>
+  </div>
+</section>
+
+<!-- ============ REPO 1: GET-API ============ -->
+<section>
+  <h2><span class="num">1</span><span class="repo-chip chip-api">get-api</span> rama <code>feature/PD-1456-clean</code> — 4 commits</h2>
+
+  <table>
+    <tr><th>Commit</th><th>Qué hace</th><th>Archivos</th></tr>
+    <tr>
+      <td><code>82b4a</code></td>
+      <td><strong>Fix P0-10 · materialización al pago aprobado.</strong>
+      <ul>
+        <li><code>promoteStatusQuacToCart</code> ya NO toca dinero del carrito: solo escribe las 5 columnas de trazabilidad + marca flags de elegibilidad por item (excluye <code>precio_autorizado</code>)</li>
+        <li><code>createOrderFromCartDTO</code>: el pedido nace 100% virgen (sin columnas Status QUAC, sin composición de items); conserva la copia del flag por item</li>
+        <li><code>applyStatusQuacToOrder</code> = materializador ÚNICO de ambos escenarios (A carrito y B pedido): 5 cols + envío $0 + descuento + total + composición de items elegibles + FLETES + regeneración del JSON</li>
+        <li>Call sites nuevos: <code>processCartPayment</code> y <code>processOrderPayment</code>, dentro del bloque <code>approved</code>, ANTES de <code>confirmOrder</code>, condicionado a <code>methodKey=='cupo'</code> + transacción con cálculo</li>
+        <li><code>selectPlanPayment</code> ya no muta el pedido (escenario B)</li>
+      </ul></td>
+      <td><code>CheckoutService.php</code><br><code>OrderService.php</code><br><code>OrderRepository.php</code></td>
+    </tr>
+    <tr>
+      <td><code>41ed1</code></td>
+      <td>Limpieza: variable <code>$order</code> muerta en <code>selectPlanPayment</code> (observación R1 de la re-auditoría)</td>
+      <td><code>CheckoutService.php</code></td>
+    </tr>
+    <tr>
+      <td><code>ddb01</code></td>
+      <td><strong>Convención de items</strong> (prueba 700630): <code>shop_pedido_detalle.producto_precio</code> NO se altera —
+      el descuento compuesto viaja únicamente en <code>descuento_aplicado</code> (% vs precio full, fórmula
+      <code>1−(1−promo)×(1−sq)</code>). FLETES sí queda <code>producto_precio=0 + descuento_aplicado=100</code>
+      (confirmado por el coordinador). Bonus: <code>pedido_subtotal</code> vuelve a cuadrar con Σ items</td>
+      <td><code>OrderService.php</code></td>
+    </tr>
+    <tr>
+      <td><code>336c7</code></td>
+      <td><strong><code>pedido_descuento</code> del JSON viaja COMPLETO</strong> (prueba 700658): se eliminó la exclusión
+      <code>max(0, descuento − sq_valor)</code> del P0-6. El validador pre-sync del crontab exige la identidad
+      <code>subtotal − descuento + envío == total</code> (regla 3) y que <code>Σ items netos == total</code> (regla 7) —
+      el CRM factura por items, el descuento del header es aritmético: el doble descuento que temía P0-6 es imposible</td>
+      <td><code>OrderService.php::getParamsSyncOrder</code></td>
+    </tr>
+  </table>
+
+  <div class="tarjeta ok">
+    <p><strong>Cómo queda el JSON de un pedido Black de $430.000 con flete $7.530:</strong>
+    header <code>subtotal 430.000 · descuento 43.000 · envío 0 · total 387.000</code> (✓ cuadra) ·
+    items <code>[producto: full 430.000 al 10%, FLETES: 7.530 al 100%]</code> (Σ netos = 387.000 = total ✓) ·
+    pagos <code>cupo 387.000</code> ✓ · bloque <code>status_quac</code> informativo completo. Las 3 reglas del
+    <code>OrderSyncValidator</code> pasan.</p>
+  </div>
+</section>
+
+<!-- ============ REPO 2: CRONTAB ============ -->
+<section>
+  <h2><span class="num">2</span><span class="repo-chip chip-cron">api-crontab-v2</span> rama <code>PD-1456-status-quac-json-respaldo</code> (desde master) — 1 commit</h2>
+
+  <table>
+    <tr><th>Commit</th><th>Qué hace</th><th>Archivos</th></tr>
+    <tr>
+      <td><code>58ba0</code></td>
+      <td><strong>Bloque <code>status_quac</code> informativo en el builder de RESPALDO.</strong>
+      Cuando get-api no guarda el <code>json_enviado</code> (o queda corrupto), <code>getDataSentSyncOrder</code>
+      reconstruye el JSON desde la BD. Gracias a la convención de items (<code>ddb01</code>), el respaldo ya producía
+      header/items/FLETES/pagos correctos para pedidos Status QUAC — este cambio agrega lo único que faltaba:
+      el bloque informativo, espejo exacto del de get-api, leyendo <code>shop_pedidos.pedido_status_quac_*</code> +
+      el snapshot de <code>store_quac_transacciones</code></td>
+      <td><code>app/Global/Orders.php::getDataSentSyncOrder</code></td>
+    </tr>
+  </table>
+
+  <div class="tarjeta alerta">
+    <p><strong>⚠️ Contexto del validador</strong> (mismo repo, <code>app/Services/Validators/OrderSyncValidator.php</code>):
+    corre ANTES de cada envío al CRM. Hoy está en <strong>modo advertencia</strong> (marca
+    <code>sync_validation_error</code> + <code>OrderEvent</code> pero deja pasar); si se activa
+    <code>sync.validation_block_mode</code>, los JSON que no cuadren <strong>dejan de sincronizarse</strong>.
+    El commit <code>336c7</code> de get-api es lo que hace que los pedidos Status QUAC pasen la regla 3.</p>
+  </div>
+</section>
+
+<!-- ============ REPO 3: STIRPE-WEB ============ -->
+<section>
+  <h2><span class="num">3</span><span class="repo-chip chip-web">stirpe-web</span> rama <code>feature/PD-1456</code> — correcciones post-auditoría (re-auditadas APPROVED)</h2>
+
+  <table>
+    <tr><th>Commit</th><th>Qué hace</th></tr>
+    <tr><td><code>b0cf7</code> + <code>fe044</code></td><td><strong>P0-1</strong>: handlers BFF de Nuxt <code>server/api/cart/quac/status/[token].post.ts</code> y <code>server/api/orders/quac/status/[token].post.ts</code> — sin ellos, el endpoint del cálculo era inalcanzable (404 del BFF) y la pantalla siempre degradaba</td></tr>
+    <tr><td><code>b81d6</code></td><td><strong>P1-1</strong>: en pago mixto, el modal "Confirma tu compra" usa <code>desglose_mixto.pagado_con_cupo</code> (la porción cupo descontada), no <code>total_final</code> — el monto queda consistente con las cuotas</td></tr>
+    <tr><td><code>db0f9</code></td><td><strong>P2-1</strong>: envío gratis "ya incluido" (cuando el envío ya estaba en $0 por otro beneficio) ahora visible en el detalle</td></tr>
+    <tr><td><code>4ee7c</code></td><td><strong>P2-2</strong>: guardias de nulidad sin <code>!</code> non-null assertion (fallback tipado <code>APLICACION_VACIA</code>)</td></tr>
+    <tr><td><code>a4b79</code></td><td><strong>P2-3</strong>: <code>openModal()</code> resetea <code>statusQuacResult</code> (estado stale al reabrir)</td></tr>
+    <tr><td>—</td><td><strong>P2-5</strong>: fix de <code>fonts.css</code> (Nunito Sans nunca cargaba) — side-effect intencional en 3 componentes existentes, verificar visualmente (detalle en <code>qa-frontend.md</code>)</td></tr>
+  </table>
+</section>
+
+<!-- ============ ESTADO Y SIGUIENTES PASOS ============ -->
+<section>
+  <h2><span class="num">4</span>Estado operativo y qué sigue</h2>
+
+  <table>
+    <tr><th>Ítem</th><th>Estado</th></tr>
+    <tr><td>DDL PD-1456 en PROD (5 sentencias · <code>docs/sql/DDL-PD-1456-status-quac-checkout.sql</code>)</td><td>✅ <strong>100% aplicado</strong> (la sentencia 5 se ejecutó el 2026-06-10 en la tarde)</td></tr>
+    <tr><td>Deploy get-api hasta <code>336c7</code></td><td>⏳ Listo para desplegar — sin prerrequisitos</td></tr>
+    <tr><td>Deploy api-compras-quac <code>d963f</code> (canonical de <code>quacapi.transactions</code>)</td><td>⏳ Listo — su DDL ya estaba aplicado</td></tr>
+    <tr><td>Deploy api-crontab-v2 <code>58ba0</code></td><td>⏳ Listo — sin prerrequisitos de DDL</td></tr>
+    <tr><td>Deploy stirpe-web <code>a4b79</code></td><td>⏳ Listo</td></tr>
+    <tr><td>Anular residuos de prueba con CRM: pedidos <code>700562</code>/<code>700630</code>/<code>700658</code> + crédito Quac aprobado $387.000 (<code>299684</code>)</td><td>⏳ Gestionar con el equipo CRM</td></tr>
+  </table>
+
+  <h3>Checklist del re-test (compra Black con flete, post-deploy)</h3>
+  <ul>
+    <li>[ ] <code>shop_pedidos</code>: <code>pedido_envio=0</code> · <code>pedido_descuento</code> con el valor Status QUAC · <code>pedido_total</code> descontado · 5 cols <code>pedido_status_quac_*</code></li>
+    <li>[ ] <code>shop_pedido_detalle</code>: <code>producto_precio</code> SIN alterar · <code>descuento_aplicado</code> con el % compuesto · flag por item · FLETES 0/100</li>
+    <li>[ ] <code>json_enviado</code>: la fórmula cuadra (<code>subtotal − descuento + envío == total</code>) · items con % · bloque <code>status_quac</code></li>
+    <li>[ ] <code>sync_validation_error</code> en NULL tras el paso del cron</li>
+    <li>[ ] <code>quacapi.transactions</code>: 10 cols Status QUAC pobladas + <code>payment_total</code> efectivo (requiere <code>d963f</code>)</li>
+    <li>[ ] Pago con tarjeta/PSE de un carrito que pasó por la pantalla Status QUAC → pedido 100% virgen (sin descuento)</li>
+    <li>[ ] Mixto parcial: saldo del pago complementario calculado sobre el total ya descontado</li>
+  </ul>
+</section>
+
+<footer class="pie">
+  <p><strong>Documentación relacionada:</strong> <code>auditoria-backend.md</code> (§7 reapertura · §8 re-auditoría · §9 ajustes A1-A5)
+  · <code>auditoria-frontend.md</code> (re-auditoría APPROVED) · <code>spec.md</code> (§7.6/§9.4 rediseñados · D3 corregida)
+  · <code>handoff-fix-p0-10.html</code> (explicación del P0-10) · <code>explicacion-hallazgos-3.html</code> (hallazgos 700658).</p>
+  <p>Generado el 2026-06-10 · Coordinador: Francisco Lizcano</p>
+</footer>
+
+</div>
+</body>
+</html>
