@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PD-1456 · Mockup — Pago mixto con cupo completo (decisión 2026-06-12)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .hero-lila { background: linear-gradient(135deg, #f4f0fc, #ece4f9); border: 1px solid #ddd0f2; }
+  .grad-black { background: linear-gradient(135deg, #1c1c24, #3a3a46); }
+  .font-mono-num { font-variant-numeric: tabular-nums; }
+  .paso-oculto { display: none; }
+  .bambalinas { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+<!-- ====================== BARRA SUPERIOR / STEPPER ====================== -->
+<div class="bg-white border-b sticky top-0 z-40 shadow-sm">
+  <div class="max-w-5xl mx-auto px-4 py-3">
+    <div class="flex items-center justify-between mb-2">
+      <div>
+        <span class="text-xs tracking-widest text-purple-700 font-bold uppercase">PD-1456 · Mockup de validación</span>
+        <h1 class="text-base font-bold">Pago mixto · modelo CUPO COMPLETO <span class="text-gray-400 font-normal">(caso real 701045 · decisión 2026-06-12)</span></h1>
+      </div>
+      <label class="flex items-center gap-2 text-xs text-gray-500 cursor-pointer select-none">
+        <input type="checkbox" id="toggleBambalinas" onchange="toggleBambalinas()" class="accent-purple-600">
+        🔧 Tras bambalinas (BD / estados)
+      </label>
+    </div>
+    <div class="flex gap-1 text-xs" id="stepper"></div>
+  </div>
+</div>
+
+<div class="max-w-5xl mx-auto px-4 py-6">
+
+<!-- ====================== PASO 1 · CHECKOUT ====================== -->
+<section id="paso1" class="paso">
+  <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Paso 1 · Checkout — el cliente elige pagar con Cupo Quac</h2>
+  <div class="grid md:grid-cols-5 gap-5">
+    <div class="md:col-span-3 bg-white rounded-xl border p-5">
+      <h3 class="font-bold mb-3">Selecciona tu método de pago</h3>
+      <div class="space-y-2">
+        <div class="border-2 border-purple-500 bg-purple-50 rounded-lg p-3 flex items-center justify-between cursor-pointer">
+          <div class="flex items-center gap-3">
+            <span class="w-4 h-4 rounded-full border-4 border-purple-600 bg-white inline-block"></span>
+            <div><p class="font-semibold">Cupo personal Quac</p><p class="text-xs text-gray-500">Paga a cuotas con tu cupo</p></div>
+          </div>
+          <span class="text-purple-700 text-xl">◎</span>
+        </div>
+        <div class="border rounded-lg p-3 flex items-center gap-3 opacity-60"><span class="w-4 h-4 rounded-full border-2 inline-block"></span> PSE</div>
+        <div class="border rounded-lg p-3 flex items-center gap-3 opacity-60"><span class="w-4 h-4 rounded-full border-2 inline-block"></span> Tarjeta de crédito</div>
+        <div class="border rounded-lg p-3 flex items-center gap-3 opacity-60"><span class="w-4 h-4 rounded-full border-2 inline-block"></span> Botón Bancolombia</div>
+      </div>
+      <button onclick="irPaso(2)" class="mt-5 w-full bg-purple-700 hover:bg-purple-800 text-white font-bold py-3 rounded-lg">Continuar con Cupo Quac →</button>
+      <p class="text-xs text-gray-400 mt-2 text-center">(el flujo Quac valida identidad con clave dinámica y luego muestra la pantalla de beneficios)</p>
+    </div>
+    <div class="md:col-span-2 bg-white rounded-xl border p-5 h-fit">
+      <h3 class="font-bold mb-3">Productos (2)</h3>
+      <div class="space-y-3 text-sm">
+        <div class="flex justify-between gap-2"><span>🎒 MORRAL NIKE ELMNTL BKPK<br><span class="text-xs text-gray-400">Talla: UN · Color: AZUL</span></span><span class="font-semibold font-mono-num">$217.950</span></div>
+        <div class="flex justify-between gap-2"><span>👕 SPORT AURUM 79 T SHIRT<br><span class="text-xs text-gray-400">Talla: S · Color: BLANCO</span></span><span class="font-semibold font-mono-num">$290.000</span></div>
+      </div>
+      <hr class="my-3">
+      <div class="text-sm space-y-1 font-mono-num">
+        <div class="flex justify-between"><span class="text-gray-500">Subtotal</span><span>$507.950</span></div>
+        <div class="flex justify-between"><span class="text-gray-500">Envío</span><span>$7.530</span></div>
+        <div class="flex justify-between font-bold text-base pt-2 border-t mt-2"><span>Total compra</span><span>$515.480</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="bambalinas-box hidden mt-4 bg-gray-900 text-green-300 rounded-lg p-4 bambalinas">
+    <p class="text-gray-400 mb-1">— BD en este punto —</p>
+    <p>store_carrito 104891: subtotal 507.950 · envío 7.530 · total 515.480 (VIRGEN — el carrito nunca cambia de precios)</p>
+    <p>store_quac_transacciones 38285: total_pagar 515.480 · cupo disponible 300.000 → resultado_validacion = <b>pago_parcial</b> (MIXTO)</p>
+  </div>
+</section>
+
+<!-- ====================== PASO 2 · MODAL STATUS QUAC ====================== -->
+<section id="paso2" class="paso paso-oculto">
+  <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Paso 2 · Pantalla Status QUAC — el cliente ve sus beneficios y el desglose mixto</h2>
+  <div class="max-w-md mx-auto bg-white rounded-2xl shadow-xl border p-6">
+    <div class="text-center mb-3">
+      <p class="text-2xl">🟣 <span class="font-black text-purple-800">Quac</span></p>
+      <h3 class="text-xl font-extrabold text-purple-900 mt-1">Cliente Quac Black</h3>
+      <p class="text-xs text-gray-500">Estos son los beneficios que aplican a tu compra</p>
+    </div>
+
+    <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm mb-3">
+      <p class="font-bold text-amber-800">⚠ Pago mixto</p>
+      <p>Tu cupo cubre <b>$300.000</b> · Faltan <b>$215.480</b></p>
+    </div>
+
+    <div class="hero-lila rounded-xl p-4 text-center mb-4">
+      <p class="text-xs text-gray-500 uppercase tracking-wide">Pagas hoy</p>
+      <p class="text-3xl font-black text-purple-900 font-mono-num">$477.950</p>
+      <span class="inline-block mt-1 text-xs bg-white border border-purple-200 text-purple-800 rounded-full px-3 py-0.5">Saldo disponible: <b>$300.000</b></span>
+    </div>
+
+    <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-1">Detalle de compra</p>
+    <div class="text-sm font-mono-num border rounded-lg divide-y">
+      <div class="flex justify-between px-3 py-1.5"><span>Valor de tu compra</span><span>$515.480</span></div>
+      <div class="flex justify-between px-3 py-1.5 text-green-700"><span>✓ Envío gratis Quac Black</span><span>−$7.530</span></div>
+      <div class="flex justify-between px-3 py-1.5 text-green-700"><span>✓ 10% sobre porción Quac</span><span>−$30.000</span></div>
+      <div class="flex justify-between px-3 py-2 font-bold bg-gray-50"><span>Total</span><span>$477.950</span></div>
+    </div>
+    <p class="text-center text-xs text-gray-500 mt-1.5">= <b class="text-purple-800">$300.000 con cupo Quac</b> + <b>$177.950 con otro método</b> <span class="ml-1 inline-block bg-green-100 text-green-700 text-[10px] font-bold rounded px-1.5">★ AJUSTE</span></p>
+
+    <div class="grad-black text-white rounded-xl mt-4 overflow-hidden">
+      <div class="flex justify-between items-center px-4 py-2.5">
+        <div><p class="text-[10px] tracking-widest text-gray-300 uppercase">Tus beneficios</p><p class="font-bold">Quac Black</p></div>
+        <div class="text-right"><p class="font-black text-lg leading-4">2.800</p><p class="text-[10px] tracking-widest text-gray-300">QUACS</p></div>
+      </div>
+      <div class="bg-white text-gray-800 text-sm divide-y">
+        <p class="px-4 py-2">✓ 10% de descuento siempre al pagar con Quac</p>
+        <p class="px-4 py-2">✓ Envío gratis en compras desde $99.900</p>
+        <p class="px-4 py-2">✓ Plazo 60: primera cuota hasta en 60 días</p>
+        <p class="px-4 py-2"><b class="text-purple-800">10</b> cuotas máximas</p>
+        <p class="px-4 py-2 text-xs text-purple-800 bg-purple-50">★ Estás en el nivel máximo del programa</p>
+      </div>
+    </div>
+
+    <button onclick="irPaso(3)" class="mt-4 w-full bg-purple-700 hover:bg-purple-800 text-white font-bold py-3 rounded-lg">Continuar a planes de pago →</button>
+  </div>
+  <div class="bambalinas-box hidden mt-4 bg-gray-900 text-green-300 rounded-lg p-4 bambalinas max-w-2xl mx-auto">
+    <p class="text-gray-400 mb-1">— Lo que cambió con el ajuste (commit 03592) —</p>
+    <p>desglose_mixto = { pagado_con_cupo: <b>300000</b>, pagado_con_complementario: <b>177950</b> }  ← antes {270000, 207950}</p>
+    <p>modificaMontoQuac() → <b>false</b> en mixto: la porción cupo no varía → NO se re-cotizan planes (los de validateIdentity sobre 300.000 siguen vigentes)</p>
+    <p>El cálculo (10% × 300.000 = 30.000 + envío 7.530) se persiste TEMPORAL en la tx 38285 — carrito y pedido siguen vírgenes</p>
+  </div>
+</section>
+
+<!-- ====================== PASO 3 · CONFIRMA TU COMPRA ====================== -->
+<section id="paso3" class="paso paso-oculto">
+  <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Paso 3 · Confirma tu compra — cuotas sobre la porción cupo COMPLETA</h2>
+  <div class="max-w-md mx-auto bg-white rounded-2xl shadow-xl border p-6">
+    <h3 class="text-center text-lg font-extrabold text-purple-900 mb-3">Confirma tu compra</h3>
+    <div class="hero-lila rounded-xl p-4 text-center mb-4">
+      <p class="text-xs text-gray-500 uppercase tracking-wide">Pagarás con tu cupo Quac</p>
+      <p class="text-3xl font-black text-purple-900 font-mono-num">$300.000</p>
+      <p class="text-xs text-gray-500 mt-1">tu cupo completo <span class="inline-block bg-green-100 text-green-700 text-[10px] font-bold rounded px-1.5">★ AJUSTE — antes $270.000</span></p>
+    </div>
+    <p class="text-sm font-semibold mb-2">Elige tus cuotas</p>
+    <div class="space-y-2 text-sm font-mono-num">
+      <div class="border rounded-lg p-3 flex justify-between opacity-60"><span>4 cuotas quincenales</span><span>$87.450</span></div>
+      <div class="border-2 border-purple-500 bg-purple-50 rounded-lg p-3 flex justify-between font-bold"><span>✔ 8 cuotas quincenales</span><span>$47.310</span></div>
+      <div class="border rounded-lg p-3 flex justify-between opacity-60"><span>10 cuotas quincenales</span><span>$39.180</span></div>
+    </div>
+    <p class="text-xs text-gray-400 mt-2">Primera cuota hasta en 60 días (Plazo 60 · beneficio Black). Cuotas calculadas sobre $300.000.</p>
+    <button onclick="irPaso(4)" class="mt-4 w-full bg-purple-700 hover:bg-purple-800 text-white font-bold py-3 rounded-lg">FINALIZAR PAGO CON CUPO</button>
+  </div>
+  <div class="bambalinas-box hidden mt-4 bg-gray-900 text-green-300 rounded-lg p-4 bambalinas max-w-2xl mx-auto">
+    <p class="text-gray-400 mb-1">— Al confirmar (selectPlanPayment) —</p>
+    <p>promoteStatusQuacToCart: marca trazabilidad en el carrito (5 cols + flags de items) — SIN tocar dinero</p>
+    <p>Confirmación del plan en api.quac.co con getEffectiveQuacAmount = <b>300.000</b> (porción intacta — antes 270.000)</p>
+  </div>
+</section>
+
+<!-- ====================== PASO 4 · PAGO PARCIAL APROBADO ====================== -->
+<section id="paso4" class="paso paso-oculto">
+  <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Paso 4 · Cupo aprobado (parcial) — el pedido nace CON los beneficios y pide el saldo</h2>
+  <div class="grid md:grid-cols-5 gap-5">
+    <div class="md:col-span-3 bg-white rounded-xl border p-5">
+      <div class="flex items-center gap-2 text-sm mb-4">
+        <span class="bg-green-100 text-green-700 rounded-full px-3 py-1 font-bold">✓ Pedido recibido</span>
+        <span class="bg-amber-100 text-amber-700 rounded-full px-3 py-1 font-bold">⏳ Pago pendiente (parcial)</span>
+      </div>
+      <p class="font-bold">LUIS JESÚS PÉREZ MADARIAGA</p>
+      <p class="text-sm text-gray-500">CC. 10989092 · luisperez9401@gmail.com</p>
+      <div class="mt-3 text-sm">
+        <p class="font-bold">Forma de pago</p>
+        <p>Cupo Personal QUAC x <b class="font-mono-num">$300.000</b> <span class="inline-block bg-green-100 text-green-700 text-[10px] font-bold rounded px-1.5">★ AJUSTE — antes $270.000</span></p>
+        <p class="text-xs text-gray-400">8 cuotas quincenales de $47.310</p>
+      </div>
+      <hr class="my-4">
+      <h3 class="font-bold mb-2">Completa el pago del saldo</h3>
+      <div class="space-y-2 text-sm">
+        <div class="border-2 border-purple-500 bg-purple-50 rounded-lg p-3 flex items-center gap-3 cursor-pointer"><span class="w-4 h-4 rounded-full border-4 border-purple-600 bg-white inline-block"></span> PSE</div>
+        <div class="border rounded-lg p-3 flex items-center gap-3 opacity-60"><span class="w-4 h-4 rounded-full border-2 inline-block"></span> Tarjeta de crédito</div>
+        <div class="border rounded-lg p-3 flex items-center gap-3 opacity-60"><span class="w-4 h-4 rounded-full border-2 inline-block"></span> Botón Bancolombia</div>
+        <div class="border rounded-lg p-3 flex items-center gap-3 opacity-40"><span class="w-4 h-4 rounded-full border-2 inline-block"></span> Cupo personal Quac <span class="text-xs text-red-500 ml-1">No disponible</span></div>
+      </div>
+      <button onclick="irPaso(5)" class="mt-4 w-full bg-purple-700 hover:bg-purple-800 text-white font-bold py-3 rounded-lg">Pagar $177.950 con PSE →</button>
+    </div>
+    <div class="md:col-span-2 bg-white rounded-xl border p-5 h-fit">
+      <h3 class="font-bold mb-3">Resumen del pedido</h3>
+      <div class="text-sm space-y-1 font-mono-num">
+        <div class="flex justify-between"><span class="text-gray-500">Subtotal</span><span>$507.950</span></div>
+        <div class="flex justify-between"><span class="text-gray-500">Envío</span><span>$7.530</span></div>
+        <div class="flex justify-between text-green-700"><span>✓ Envío gratis Quac Black</span><span>−$7.530</span></div>
+        <div class="flex justify-between text-green-700"><span>✓ Descuento Quac (10% porción cupo)</span><span>−$30.000</span></div>
+        <div class="flex justify-between font-bold text-base pt-2 border-t mt-2"><span>Total compra</span><span>$477.950 <span class="text-green-600 text-xs">★</span></span></div>
+        <p class="text-xs font-bold text-gray-400 uppercase pt-2">Pagos parciales</p>
+        <div class="flex justify-between"><span class="text-gray-500 pl-2">Cupo Personal QUAC</span><span class="text-purple-800 font-bold">−$300.000</span></div>
+        <div class="flex justify-between font-bold text-base pt-2 border-t mt-2"><span>Saldo a pagar</span><span class="text-purple-900">$177.950</span></div>
+      </div>
+      <p class="text-[11px] text-gray-400 mt-3">Antes del ajuste esta pantalla mostraba: Total $515.480 (sin beneficios) · cupo −$270.000 · saldo <s>$245.480</s>.</p>
+    </div>
+  </div>
+  <div class="bambalinas-box hidden mt-4 bg-gray-900 text-green-300 rounded-lg p-4 bambalinas">
+    <p class="text-gray-400 mb-1">— El corazón del fix (commit 03592) —</p>
+    <p>Gateway cupo retorna <b>approved_partial</b> → ahora SÍ dispara applyStatusQuacToOrder (antes solo con 'approved' → pedido quedaba virgen)</p>
+    <p>shop_pedidos 701045: total 515.480 → <b>477.950</b> · envío 7.530 → <b>0</b> · descuento 0 → <b>30.000</b> · 5 cols pedido_status_quac_* pobladas</p>
+    <p>store_pedido_transacciones: cupo approved_partial por <b>300.000</b> (antes 270.000)</p>
+    <p>getOutstandingBalance = 477.950 − 300.000 = <b>177.950</b> ← el saldo del complementario ya sale del total CON beneficios</p>
+    <p>confirmOrder NO corre todavía (solo con 'approved' — el pedido parcial no se confirma ni se sincroniza al CRM)</p>
+  </div>
+</section>
+
+<!-- ====================== PASO 5 · PAGO COMPLETO ====================== -->
+<section id="paso5" class="paso paso-oculto">
+  <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Paso 5 · Saldo pagado — pedido completo y cuadre final</h2>
+  <div class="grid md:grid-cols-5 gap-5">
+    <div class="md:col-span-3 bg-white rounded-xl border p-5">
+      <div class="flex items-center gap-2 text-sm mb-4">
+        <span class="bg-green-100 text-green-700 rounded-full px-3 py-1 font-bold">✓ Pedido recibido</span>
+        <span class="bg-green-100 text-green-700 rounded-full px-3 py-1 font-bold">✓ Pagado</span>
+        <span class="bg-gray-100 text-gray-500 rounded-full px-3 py-1">En preparación</span>
+      </div>
+      <p class="text-lg font-extrabold text-green-700 mb-1">¡Tu pago está completo! 🎉</p>
+      <p class="text-sm text-gray-600 mb-4">Pagaste $477.950 por una compra de $515.480 — tu nivel <b>Quac Black</b> te ahorró <b class="text-green-700">$37.530</b>.</p>
+      <div class="text-sm space-y-2">
+        <p class="font-bold">Formas de pago</p>
+        <div class="flex justify-between font-mono-num"><span>🟣 Cupo Personal QUAC (8 cuotas de $47.310)</span><b>$300.000</b></div>
+        <div class="flex justify-between font-mono-num"><span>🏦 PSE</span><b>$177.950</b></div>
+        <div class="flex justify-between font-mono-num border-t pt-2 font-bold"><span>Total pagado</span><span>$477.950</span></div>
+      </div>
+    </div>
+    <div class="md:col-span-2 bg-white rounded-xl border p-5 h-fit">
+      <h3 class="font-bold mb-3">El cuadre (imposible de romper)</h3>
+      <div class="text-sm space-y-2 font-mono-num">
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center"><p class="text-xs text-gray-500">Cupo + PSE</p><p class="font-black text-purple-900">$300.000 + $177.950</p></div>
+        <p class="text-center font-black text-green-600">=</p>
+        <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center"><p class="text-xs text-gray-500">pedido_total = Σ items netos del JSON</p><p class="font-black text-green-700">$477.950</p></div>
+      </div>
+      <p class="text-[11px] text-gray-400 mt-3">Todos los montos salen de la misma transacción Quac → crédito, pedido y factura CRM siempre cuadran.</p>
+    </div>
+  </div>
+  <div class="bambalinas-box hidden mt-4 bg-gray-900 text-green-300 rounded-lg p-4 bambalinas">
+    <p class="text-gray-400 mb-1">— Al aprobar el complementario —</p>
+    <p>confirmOrder corre AHORA (pago completo): json_enviado construido desde el pedido YA materializado</p>
+    <p>JSON: subtotal 507.950 − descuento 30.000 + envío 0 = 477.950 ✓ regla 3 · Σ items netos = 477.950 ✓ regla 7 · pagos 300.000 + 177.950 ✓ regla 4</p>
+    <p>sync_validation_error = NULL → Task 52 sincroniza al CRM sin advertencias</p>
+  </div>
+</section>
+
+<!-- ====================== NAVEGACIÓN ====================== -->
+<div class="flex justify-between mt-8 max-w-5xl">
+  <button id="btnPrev" onclick="navRel(-1)" class="bg-white border rounded-lg px-5 py-2 font-semibold text-sm disabled:opacity-30">← Paso anterior</button>
+  <button id="btnNext" onclick="navRel(1)" class="bg-purple-700 text-white rounded-lg px-5 py-2 font-semibold text-sm disabled:opacity-30">Paso siguiente →</button>
+</div>
+
+<p class="text-xs text-gray-400 mt-6">Mockup de validación · no es código de producción · números del caso real 701045 · decisión documentada en <code>docs/contexto/STATUS-QUAC-PAGO-MIXTO.md</code> · implementación: get-api <code>03592</code></p>
+</div>
+
+<script>
+const PASOS = [
+  { id: 1, titulo: '1 · Checkout' },
+  { id: 2, titulo: '2 · Status QUAC (mixto)' },
+  { id: 3, titulo: '3 · Confirma tu compra' },
+  { id: 4, titulo: '4 · Parcial aprobado + saldo' },
+  { id: 5, titulo: '5 · Pago completo' },
+];
+let pasoActual = 1;
+
+function renderStepper() {
+  document.getElementById('stepper').innerHTML = PASOS.map(p =>
+    `<button onclick="irPaso(${p.id})" class="px-3 py-1.5 rounded-full font-semibold ${p.id === pasoActual ? 'bg-purple-700 text-white' : p.id < pasoActual ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-400'}">${p.titulo}</button>`
+  ).join('');
+  document.getElementById('btnPrev').disabled = pasoActual === 1;
+  document.getElementById('btnNext').disabled = pasoActual === PASOS.length;
+}
+
+function irPaso(n) {
+  pasoActual = n;
+  document.querySelectorAll('.paso').forEach(s => s.classList.add('paso-oculto'));
+  document.getElementById('paso' + n).classList.remove('paso-oculto');
+  renderStepper();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function navRel(d) { irPaso(Math.min(PASOS.length, Math.max(1, pasoActual + d))); }
+
+function toggleBambalinas() {
+  const on = document.getElementById('toggleBambalinas').checked;
+  document.querySelectorAll('.bambalinas-box').forEach(b => b.classList.toggle('hidden', !on));
+}
+
+renderStepper();
+</script>
+</body>
+</html>
