@@ -1,0 +1,2190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AQ-002 · Integración App ↔ API · Módulo de autenticación</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --quac-primary: #5f36b2;
+  --quac-primary-hover: #2e1380;
+  --quac-deep: #2E1380;
+  --quac-accent: #7633ff;
+  --quac-soft-bg: #f0f0ff;
+  --quac-card-bg: #F8F9FA;
+  --quac-border: #d1d5db;
+  --green-ok: #16a34a;
+  --green-soft: #dcfce7;
+  --amber: #d97706;
+  --amber-soft: #fef3c7;
+  --red: #dc2626;
+  --red-soft: #fee2e2;
+  --blue: #2563eb;
+  --blue-soft: #dbeafe;
+  --ink: #0e0d1a;
+  --ink-soft: #5a5969;
+  --ink-mute: #8a8a96;
+  --rule: #ececf2;
+  --bg: #f5f4fa;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  font-family: 'Nunito Sans', system-ui, sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 50% 0%, #ede9ff 0%, transparent 60%),
+    radial-gradient(circle at 100% 100%, #f0e5ff 0%, transparent 50%),
+    var(--bg);
+  background-attachment: fixed;
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1440px; margin: 0 auto; padding: 32px 24px 64px; }
+
+/* ---------- HEADER ---------- */
+header.hero {
+  background: linear-gradient(135deg, #2E1380 0%, #5f36b2 50%, #7633ff 100%);
+  color: #fff;
+  border-radius: 20px;
+  padding: 32px 36px;
+  margin-bottom: 24px;
+  box-shadow: 0 18px 40px -22px rgba(46,19,128,0.5);
+}
+header.hero h1 {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+}
+header.hero .subtitle {
+  font-size: 14.5px;
+  opacity: 0.9;
+  max-width: 920px;
+  margin-bottom: 18px;
+}
+header.hero .badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+header.hero .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.22);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+header.hero .badge.ok { background: rgba(34,197,94,0.25); border-color: rgba(34,197,94,0.45); }
+header.hero .badge.warn { background: rgba(217,119,6,0.25); border-color: rgba(217,119,6,0.45); }
+
+/* ---------- TABS ---------- */
+.scenario-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.scenario-tabs button {
+  background: rgba(255,255,255,0.7);
+  border: 1.5px solid var(--rule);
+  color: var(--ink-soft);
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.scenario-tabs button:hover { border-color: var(--quac-accent); color: var(--quac-deep); }
+.scenario-tabs button.active {
+  background: var(--quac-deep);
+  border-color: var(--quac-deep);
+  color: #fff;
+  box-shadow: 0 6px 18px -8px rgba(46,19,128,0.6);
+}
+.scenario-tabs .pill-n {
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+}
+.scenario-tabs button:not(.active) .pill-n {
+  background: var(--quac-soft-bg);
+  border-color: transparent;
+  color: var(--quac-primary);
+}
+
+/* ---------- SECTION SCENARIO ---------- */
+.scenario { display: none; }
+.scenario.active { display: block; }
+
+.scenario-intro {
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-left: 5px solid var(--quac-accent);
+  border-radius: 14px;
+  padding: 22px 26px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 22px -16px rgba(46,19,128,0.18);
+}
+.scenario-intro h2 {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--quac-deep);
+  margin-bottom: 6px;
+}
+.scenario-intro p {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  max-width: 880px;
+}
+.scenario-intro .simple {
+  background: linear-gradient(90deg, #f0f0ff 0%, #fff 100%);
+  border: 1px solid #e0dcff;
+  border-left: 4px solid var(--quac-accent);
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--ink);
+  margin: 12px 0;
+  line-height: 1.6;
+}
+.scenario-intro .simple strong {
+  color: var(--quac-deep);
+  display: inline-block;
+  min-width: 110px;
+}
+.scenario-intro .endpoints-summary {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.scenario-intro .endpoint-chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  background: var(--quac-soft-bg);
+  color: var(--quac-deep);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+.scenario-intro .endpoint-chip .method {
+  font-weight: 800;
+  margin-right: 4px;
+}
+.scenario-intro .endpoint-chip.method-get .method { color: var(--blue); }
+.scenario-intro .endpoint-chip.method-post .method { color: var(--green-ok); }
+
+/* ---------- STEP ---------- */
+.step {
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 18px;
+  padding: 24px 26px;
+  margin-bottom: 18px;
+  box-shadow: 0 8px 22px -18px rgba(46,19,128,0.18);
+}
+.step-header {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+.step-num {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #5f36b2, #7633ff);
+  color: #fff;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+  font-size: 16px;
+  box-shadow: 0 6px 14px -8px rgba(118,51,255,0.55);
+}
+.step-title { flex: 1; }
+.step-title .t {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--quac-deep);
+  letter-spacing: -0.005em;
+  margin-bottom: 2px;
+}
+.step-title .s {
+  font-size: 12.5px;
+  color: var(--ink-mute);
+}
+
+.step-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+}
+@media (max-width: 1000px) {
+  .step-grid { grid-template-columns: 1fr; }
+}
+
+/* ---------- CLIENT VIEW ---------- */
+.client-view {
+  background: var(--quac-card-bg);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 16px;
+}
+.cv-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+}
+.cv-label::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--quac-accent);
+  border-radius: 2px;
+}
+
+/* phone frame */
+.phone {
+  background: #fff;
+  border: 6px solid #1a1a2e;
+  border-radius: 26px;
+  padding: 0;
+  overflow: hidden;
+  max-width: 280px;
+  margin: 0 auto;
+  box-shadow: 0 16px 36px -22px rgba(0,0,0,0.5);
+}
+.phone-screen {
+  padding: 18px 16px;
+  background: #fff;
+  min-height: 380px;
+  display: flex;
+  flex-direction: column;
+}
+.phone-screen.dark {
+  background: linear-gradient(160deg, #2E1380 0%, #5f36b2 100%);
+  color: #fff;
+}
+.phone-status {
+  text-align: center;
+  font-size: 9px;
+  color: var(--ink-mute);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.phone-screen.dark .phone-status { color: rgba(255,255,255,0.6); }
+.phone-logo {
+  text-align: center;
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--quac-deep);
+  margin-bottom: 14px;
+}
+.phone-screen.dark .phone-logo { color: #fff; }
+.phone-hello {
+  text-align: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--quac-deep);
+  margin-bottom: 4px;
+}
+.phone-screen.dark .phone-hello { color: #fff; }
+.phone-sub {
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-mute);
+  margin-bottom: 16px;
+}
+.phone-screen.dark .phone-sub { color: rgba(255,255,255,0.75); }
+
+.phone-input {
+  background: #fff;
+  border: 1.5px solid #e2e2ef;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--ink);
+  margin-bottom: 10px;
+  position: relative;
+}
+.phone-input.placeholder { color: var(--ink-mute); }
+.phone-input .lbl {
+  display: block;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  letter-spacing: 0.08em;
+  margin-bottom: 2px;
+}
+.phone-input .val {
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 600;
+}
+.phone-input.dropdown::after {
+  content: '▾';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-mute);
+  font-size: 10px;
+}
+
+.phone-pin {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin: 10px 0 18px;
+}
+.phone-pin .digit {
+  width: 30px;
+  height: 36px;
+  background: #fff;
+  border: 1.5px solid #e2e2ef;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--quac-deep);
+}
+.phone-pin .digit.filled { background: var(--quac-soft-bg); border-color: var(--quac-primary); }
+
+.phone-btn {
+  background: var(--quac-deep);
+  color: #fff;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  width: 100%;
+  margin-top: 6px;
+}
+.phone-btn.outline {
+  background: transparent;
+  color: #fff;
+  border: 1.5px solid rgba(255,255,255,0.5);
+}
+.phone-btn.disabled { background: #c5c1d4; cursor: not-allowed; }
+.phone-btn.secondary {
+  background: transparent;
+  color: var(--quac-primary);
+  text-transform: none;
+  font-weight: 700;
+  letter-spacing: 0;
+  font-size: 12px;
+}
+
+.phone-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.phone-row .phone-input { flex: 1; margin-bottom: 0; }
+.phone-faceid {
+  background: #ede9ff;
+  border: 1.5px solid var(--quac-accent);
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.phone-link {
+  text-align: center;
+  font-size: 11px;
+  color: var(--quac-primary);
+  font-weight: 700;
+  margin-top: 10px;
+}
+.phone-screen.dark .phone-link { color: #c4b5fd; }
+
+.phone-footer {
+  margin-top: auto;
+  text-align: center;
+  font-size: 9px;
+  color: var(--ink-mute);
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+.phone-screen.dark .phone-footer { color: rgba(255,255,255,0.45); border-color: rgba(255,255,255,0.1); }
+
+/* Tutorial slide */
+.phone-slide {
+  background: linear-gradient(180deg, #5f36b2 0%, #7633ff 100%);
+  color: #fff;
+  border-radius: 14px;
+  padding: 22px 16px;
+  min-height: 340px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.phone-slide .slide-dots {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+.phone-slide .slide-dots .dot {
+  width: 6px;
+  height: 6px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 999px;
+}
+.phone-slide .slide-dots .dot.active { background: #fff; width: 18px; }
+.phone-slide .slide-title { font-size: 18px; font-weight: 800; text-align: center; margin: 18px 0 6px; }
+.phone-slide .slide-sub { font-size: 11px; opacity: 0.85; text-align: center; }
+.phone-slide .slide-emoji { font-size: 64px; text-align: center; margin: 14px 0; }
+
+/* Modal mock */
+.phone-modal {
+  background: rgba(0,0,0,0.45);
+  border-radius: 14px;
+  padding: 30px 14px;
+  min-height: 380px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.phone-modal .modal-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 18px;
+  width: 100%;
+}
+.phone-modal .modal-icon {
+  width: 36px;
+  height: 36px;
+  background: #ede9ff;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin: 0 auto 10px;
+}
+.phone-modal .modal-icon.success { background: var(--green-soft); }
+.phone-modal .modal-icon.error { background: var(--red-soft); }
+.phone-modal .modal-icon.warn { background: var(--amber-soft); }
+.phone-modal .modal-title { font-weight: 800; text-align: center; color: var(--quac-deep); font-size: 14px; margin-bottom: 6px; }
+.phone-modal .modal-msg { font-size: 11.5px; color: var(--ink-soft); text-align: center; margin-bottom: 14px; line-height: 1.4; }
+
+/* No screen call-out */
+.cv-noscreen {
+  background: #fff;
+  border: 1.5px dashed var(--quac-border);
+  border-radius: 10px;
+  padding: 26px 12px;
+  text-align: center;
+  color: var(--ink-mute);
+}
+.cv-noscreen .icon { font-size: 32px; margin-bottom: 6px; }
+.cv-noscreen .lbl { font-size: 11px; font-weight: 700; }
+
+/* ---------- TRACE / API PANEL ---------- */
+.trace { display: flex; flex-direction: column; gap: 14px; }
+
+.trace-block {
+  background: #fff;
+  border: 1.5px solid var(--rule);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.trace-block-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  border-bottom: 1px solid var(--rule);
+}
+.trace-block.req .trace-block-header { background: #e0e7ff; }
+.trace-block.res .trace-block-header { background: var(--green-soft); }
+.trace-block.res-warn .trace-block-header { background: var(--amber-soft); }
+.trace-block.res-err .trace-block-header { background: var(--red-soft); }
+.trace-block.impl .trace-block-header { background: linear-gradient(90deg, #ede9ff, #f0f0ff); color: var(--quac-deep); }
+.trace-block.decision .trace-block-header { background: #fef9c3; }
+.trace-block.no-call .trace-block-header { background: #f3f4f6; color: var(--ink-mute); }
+
+.http-method {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 5px;
+  color: #fff;
+}
+.http-method.POST { background: var(--green-ok); }
+.http-method.GET { background: var(--blue); }
+.http-path {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: var(--quac-deep);
+  font-weight: 600;
+  word-break: break-all;
+}
+.status-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 5px;
+  margin-left: auto;
+}
+.status-pill.s200 { background: var(--green-ok); color: #fff; }
+.status-pill.s422 { background: var(--amber); color: #fff; }
+.status-pill.s401 { background: var(--red); color: #fff; }
+
+.code-block {
+  background: #1a1a2e;
+  color: #e5e5f5;
+  padding: 14px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+}
+.code-block .k { color: #b794f6; }
+.code-block .s { color: #68d391; }
+.code-block .n { color: #63b3ed; }
+.code-block .b { color: #f6ad55; }
+.code-block .nl { color: #fc8181; }
+.code-block .c { color: #718096; font-style: italic; }
+
+.impl-content { padding: 12px 14px; }
+.impl-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.impl-table th, .impl-table td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.impl-table th {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-mute);
+  font-weight: 800;
+  background: #faf9ff;
+}
+.impl-table tr:last-child td { border-bottom: none; }
+.repo-badge {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--quac-soft-bg);
+  color: var(--quac-deep);
+}
+.repo-badge.mobile { background: #fef3c7; color: #92400e; }
+.repo-badge.backend { background: #dbeafe; color: #1e40af; }
+.impl-path { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--ink); word-break: break-all; }
+.impl-method { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--quac-primary); font-weight: 600; }
+
+.decision-content { padding: 14px 16px; }
+.decision-content ul { list-style: none; padding: 0; margin: 0; }
+.decision-content ul li {
+  padding: 6px 0;
+  font-size: 12.5px;
+  color: var(--ink);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border-bottom: 1px dashed var(--rule);
+}
+.decision-content ul li:last-child { border-bottom: none; }
+.decision-content ul li::before {
+  content: '→';
+  color: var(--quac-accent);
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.decision-content code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  background: var(--quac-soft-bg);
+  color: var(--quac-deep);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.no-call-content {
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.callout {
+  background: var(--quac-soft-bg);
+  border-left: 4px solid var(--quac-accent);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 12px;
+}
+.callout strong { color: var(--quac-deep); }
+.callout.warn { background: var(--amber-soft); border-left-color: var(--amber); }
+.callout.warn strong { color: #92400e; }
+.callout.err { background: var(--red-soft); border-left-color: var(--red); }
+
+/* ---------- LEGEND FOOTER ---------- */
+footer.legend {
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 18px;
+  padding: 26px 30px;
+  margin-top: 32px;
+}
+footer.legend h2 {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--quac-deep);
+  margin-bottom: 14px;
+}
+footer.legend .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+footer.legend .card {
+  background: var(--quac-card-bg);
+  border-radius: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+}
+footer.legend .card h3 {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--quac-deep);
+  margin-bottom: 6px;
+}
+footer.legend .card p {
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+footer.legend .card code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  background: #fff;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--quac-deep);
+  border: 1px solid var(--rule);
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ============================ HERO ============================ -->
+<header class="hero">
+  <h1>AQ-002 · Integración App ↔ API · Módulo de autenticación</h1>
+  <p class="subtitle">Cómo se integran las pantallas de <strong>app-quac-v2</strong> con los endpoints de <strong>api-quac-v2</strong> en los 4 viajes principales del usuario: instalación nueva, login recurrente, autorización de dispositivo nuevo y recuperación de contraseña. Cada paso muestra la pantalla que ve el cliente y el endpoint exacto que se dispara, con request, response real verificado contra staging, decisión de UI y dónde vive el código.</p>
+  <div class="badges">
+    <span class="badge">REQ AQ-002</span>
+    <span class="badge">api-quac-v2</span>
+    <span class="badge">app-quac-v2</span>
+    <span class="badge ok">Mergeado a develop</span>
+    <span class="badge ok">Deploy staging arriba</span>
+    <span class="badge ok">148/148 tests backend</span>
+    <span class="badge ok">116/116 tests mobile</span>
+    <span class="badge warn">Infobip API key pendiente</span>
+  </div>
+</header>
+
+<!-- ============================ TABS ============================ -->
+<nav class="scenario-tabs">
+  <button class="active" data-tab="s1">
+    <span>1 · Instalación nueva</span>
+    <span class="pill-n">7 pasos</span>
+  </button>
+  <button data-tab="s2">
+    <span>2 · Login recurrente</span>
+    <span class="pill-n">4 pasos</span>
+  </button>
+  <button data-tab="s3">
+    <span>3 · Device nuevo + OTP</span>
+    <span class="pill-n">4 pasos</span>
+  </button>
+  <button data-tab="s4">
+    <span>4 · Recuperar contraseña</span>
+    <span class="pill-n">4 pasos</span>
+  </button>
+</nav>
+
+<!-- ====================================================================== -->
+<!-- ESCENARIO 1: INSTALACIÓN NUEVA                                         -->
+<!-- ====================================================================== -->
+<section class="scenario active" id="s1">
+  <div class="scenario-intro">
+    <h2>Escenario 1 · Instalación nueva → primer login</h2>
+    <div class="simple">
+      <p><strong>Cuándo pasa:</strong> el cliente acaba de instalar la app por primera vez desde el App Store o Play Store y la abre.</p>
+      <p><strong>Qué sucede:</strong> ve el logo de Quac, después un tutorial con 4 pantallas que explican qué hace la app, después una pantalla de Bienvenida donde escoge entre "Crear cuenta" o "Iniciar sesión". Si toca Iniciar sesión, le pedimos por primera vez su tipo de documento, su cédula y su contraseña. Si ya tiene cuenta y este celular ya estaba autorizado en QUAC, entra directo. Si no, lo mandamos al Escenario 3 para autorizarlo con un código por SMS.</p>
+    </div>
+    <p><em>Detalle técnico:</em> El usuario instaló la app por primera vez. Ve splash nativo, después el tutorial de 4 slides, después la pantalla de Bienvenida con CTA "Iniciar sesión", llega a Login primera vez (SCR-019a) que carga el catálogo de tipos de documento dinámicamente, llena el formulario y entra al Home si el device ya estaba autorizado (caso poco común — usualmente cae en Escenario 3).</p>
+    <div class="endpoints-summary">
+      <span class="endpoint-chip method-get"><span class="method">GET</span>/api/v2/catalogos/tipos_documento</span>
+      <span class="endpoint-chip method-post"><span class="method">POST</span>/api/v2/auth/iniciar_sesion</span>
+    </div>
+  </div>
+
+  <!-- PASO 1 · Splash -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">1</span>
+      <div class="step-title">
+        <div class="t">Splash nativo de arranque</div>
+        <div class="s">Se ve antes que Flutter cargue. No es widget — es LaunchScreen.storyboard (iOS) / launch_background.xml (Android)</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-screen dark" style="justify-content: center; align-items: center; min-height: 380px;">
+            <div style="text-align: center;">
+              <div style="font-size: 60px; margin-bottom: 8px;">🦆</div>
+              <div style="font-size: 32px; font-weight: 800; color: #fff;">Quac</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block no-call">
+          <div class="trace-block-header">Sin llamada al backend</div>
+          <div class="no-call-content">El splash se renderiza ~50ms a nivel del SO. No hay request HTTP. La app aún no terminó de cargar Flutter. Cuando termina, el bootstrap del router decide a cuál pantalla ir según SharedPreferences.</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI · bootstrap del router</div>
+          <div class="decision-content">
+            <ul>
+              <li>Si <code>has_seen_tutorial == false</code> → ir a Tutorial (paso 2)</li>
+              <li>Si <code>has_seen_tutorial == true</code> y <strong>NO</strong> hay <code>nameUser</code> en SharedPreferences → ir a Bienvenida (paso 3)</li>
+              <li>Si hay <code>nameUser</code> en SharedPreferences → ir a Login recurrente (Escenario 2)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 2 · Tutorial -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">2</span>
+      <div class="step-title">
+        <div class="t">Tutorial 4 slides con auto-play</div>
+        <div class="s">SCR-001 a SCR-004 · Slides motivacionales con auto-avance de 5s. Solo se ve la primera vez</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-screen" style="padding: 0;">
+            <div class="phone-slide">
+              <div class="slide-dots">
+                <span class="dot active"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+              </div>
+              <div class="slide-emoji">🎉</div>
+              <div class="slide-title">¡Llegó QUAC!</div>
+              <div class="slide-sub">Compra hoy, paga después con tu cupo aprobado.</div>
+              <div style="margin-top: auto; padding-top: 20px;">
+                <button class="phone-btn outline" style="padding: 10px;">→</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block no-call">
+          <div class="trace-block-header">Sin llamada al backend</div>
+          <div class="no-call-content">El tutorial es 100% client-side. Las 4 imágenes vienen empaquetadas en assets (WebP, 920 KB total). El auto-play usa <code>Timer.periodic(5s)</code>. El primer swipe cancela el auto-play.</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI</div>
+          <div class="decision-content">
+            <ul>
+              <li>Cuando el usuario tap <code>EMPEZAR</code> en slide 4 → marca <code>has_seen_tutorial = true</code> en SharedPreferences y navega a Bienvenida</li>
+              <li>Una vez visto, el tutorial NUNCA se vuelve a mostrar (ni después de "No soy X"). Solo se ve de nuevo si se desinstala y reinstala la app</li>
+            </ul>
+          </div>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación mobile</div>
+          <div class="impl-content">
+            <table class="impl-table">
+              <tr><th>Repo</th><th>Archivo</th><th>Responsabilidad</th></tr>
+              <tr>
+                <td><span class="repo-badge mobile">app-quac-v2</span></td>
+                <td class="impl-path">lib/features/onboarding/presentation/screens/tutorial_screen.dart</td>
+                <td><span class="impl-method">TutorialScreen</span></td>
+              </tr>
+              <tr>
+                <td><span class="repo-badge mobile">app-quac-v2</span></td>
+                <td class="impl-path">lib/features/onboarding/domain/has_seen_tutorial_provider.dart</td>
+                <td>Provider Riverpod del flag SharedPreferences</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 3 · Bienvenida -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">3</span>
+      <div class="step-title">
+        <div class="t">Pantalla de Bienvenida (SCR-005)</div>
+        <div class="s">Hub de entrada: CREAR CUENTA o INICIAR SESIÓN. Sin llamada al backend</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-screen dark">
+            <div class="phone-status">Mar Jun 9 · 100%</div>
+            <div style="text-align: right; font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 8px;">?</div>
+            <div style="text-align: center; margin: 30px 0;">
+              <div style="font-size: 50px; margin-bottom: 10px;">🦆</div>
+              <div style="font-size: 26px; font-weight: 800; color: #fff;">Quac</div>
+              <div style="font-size: 11px; color: rgba(255,255,255,0.85); margin-top: 6px;">Compra hoy, paga después.</div>
+            </div>
+            <button class="phone-btn" style="background: #fff; color: var(--quac-deep);">CREAR CUENTA</button>
+            <button class="phone-btn outline">INICIAR SESIÓN</button>
+            <div class="phone-footer">© 2026 Quac App · V3.7.0</div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block no-call">
+          <div class="trace-block-header">Sin llamada al backend</div>
+          <div class="no-call-content">Pantalla 100% estática. Los botones navegan a otras rutas locales.</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI</div>
+          <div class="decision-content">
+            <ul>
+              <li>Tap <code>CREAR CUENTA</code> → navega a <code>/registro/inicio</code> (placeholder hasta AQ-009)</li>
+              <li>Tap <code>INICIAR SESIÓN</code> → navega a Login primera vez (paso 4)</li>
+              <li>Tap icono <code>?</code> arriba derecha → abre <code>quac.co/ayuda</code> en navegador externo</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 4 · Login primera vez al cargar -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">4</span>
+      <div class="step-title">
+        <div class="t">Login primera vez (SCR-019a) · al abrir la pantalla</div>
+        <div class="s">La app pide el catálogo de tipos de documento ANTES de pintar el dropdown. Si el endpoint falla, usa fallback hardcoded</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-screen dark">
+            <div class="phone-status">Mar Jun 9 · 100%</div>
+            <div class="phone-logo">Quac</div>
+            <div class="phone-input dropdown" style="background: rgba(255,255,255,0.92);">
+              <span class="lbl">Tipo de documento</span>
+              <span class="val">Cédula de ciudadanía</span>
+            </div>
+            <div class="phone-input" style="background: rgba(255,255,255,0.92);">
+              <span class="lbl">Número de documento</span>
+              <span class="val placeholder" style="color: var(--ink-mute);">10 dígitos</span>
+            </div>
+            <div class="phone-input" style="background: rgba(255,255,255,0.92);">
+              <span class="lbl">Contraseña</span>
+              <span class="val placeholder" style="color: var(--ink-mute);">••••••</span>
+            </div>
+            <button class="phone-btn disabled">ENTRAR</button>
+            <div class="phone-link" style="margin-top: 14px;">¿Olvidaste tu contraseña?</div>
+            <div class="phone-footer">© 2026 Quac App</div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header">
+            <span class="http-method GET">GET</span>
+            <span class="http-path">/api/v2/catalogos/tipos_documento</span>
+          </div>
+          <div class="code-block"><span class="c">// Endpoint público — sin headers de autorización</span>
+<span class="c">// Sin body</span></div>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">Response · <span class="status-pill s200">200 OK</span></div>
+          <div class="code-block">{
+  <span class="k">"status"</span>: <span class="s">"success"</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"document_types"</span>: [
+      { <span class="k">"code"</span>: <span class="s">"CC"</span>,  <span class="k">"name"</span>: <span class="s">"Cédula de ciudadanía"</span>,           <span class="k">"min_length"</span>: <span class="n">4</span>, <span class="k">"max_length"</span>: <span class="n">10</span>, <span class="k">"pattern"</span>: <span class="s">"^[0-9]+$"</span> },
+      { <span class="k">"code"</span>: <span class="s">"CE"</span>,  <span class="k">"name"</span>: <span class="s">"Cédula de extranjería"</span>,         <span class="k">"min_length"</span>: <span class="n">6</span>, <span class="k">"max_length"</span>: <span class="n">7</span>,  <span class="k">"pattern"</span>: <span class="s">"^[0-9]+$"</span> },
+      { <span class="k">"code"</span>: <span class="s">"PA"</span>,  <span class="k">"name"</span>: <span class="s">"Pasaporte"</span>,                      <span class="k">"min_length"</span>: <span class="n">8</span>, <span class="k">"max_length"</span>: <span class="n">9</span>,  <span class="k">"pattern"</span>: <span class="s">"^[A-Z0-9]+$"</span> },
+      { <span class="k">"code"</span>: <span class="s">"PPT"</span>, <span class="k">"name"</span>: <span class="s">"Permiso por protección temporal"</span>, <span class="k">"min_length"</span>: <span class="n">6</span>, <span class="k">"max_length"</span>: <span class="n">15</span>, <span class="k">"pattern"</span>: <span class="s">"^[A-Z0-9]+$"</span> }
+    ]
+  }
+}
+<span class="c">// Header: Cache-Control: public, max-age=86400 (24h)</span></div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI</div>
+          <div class="decision-content">
+            <ul>
+              <li>Si el endpoint responde 200 → poblar dropdown <code>tipo_documento</code> con los 4 tipos y aplicar validación dinámica (longitud + regex) según el tipo seleccionado</li>
+              <li>Si el endpoint falla (red caída, 5xx) → usar <strong>fallback hardcoded</strong> con los mismos 4 tipos y mostrar banner sutil <code>"Modo sin conexión, opciones limitadas"</code></li>
+            </ul>
+          </div>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación</div>
+          <div class="impl-content">
+            <table class="impl-table">
+              <tr><th>Repo</th><th>Archivo</th><th>Responsabilidad</th></tr>
+              <tr>
+                <td><span class="repo-badge backend">api-quac-v2</span></td>
+                <td class="impl-path">app/Http/Controllers/V2/Catalogos/TiposDocumentoController.php</td>
+                <td><span class="impl-method">index()</span> · catálogo hardcoded en PHP, cache HTTP 24h</td>
+              </tr>
+              <tr>
+                <td><span class="repo-badge mobile">app-quac-v2</span></td>
+                <td class="impl-path">lib/features/auth/data/catalogos_repository.dart</td>
+                <td>Cliente Dio con fallback hardcoded</td>
+              </tr>
+              <tr>
+                <td><span class="repo-badge mobile">app-quac-v2</span></td>
+                <td class="impl-path">lib/features/auth/presentation/screens/scr_019a_login_doc_screen.dart</td>
+                <td>Pantalla con dropdown server-driven + validación dinámica</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 5 · Submit del login -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">5</span>
+      <div class="step-title">
+        <div class="t">Usuario tap ENTRAR (con device ya autorizado en BD)</div>
+        <div class="s">Caso poco frecuente. Lo normal es que un device nuevo dispare el flujo de Escenario 3</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-screen dark">
+            <div class="phone-logo">Quac</div>
+            <div class="phone-input" style="background: rgba(255,255,255,0.92);">
+              <span class="lbl">Número de documento</span>
+              <span class="val">1234567890</span>
+            </div>
+            <div class="phone-input" style="background: rgba(255,255,255,0.92);">
+              <span class="lbl">Contraseña</span>
+              <span class="val">••••••</span>
+            </div>
+            <button class="phone-btn" style="background: #fff; color: var(--quac-deep);">ENTRAR</button>
+            <div style="text-align: center; margin-top: 20px; opacity: 0.7;">
+              <div style="font-size: 24px;">⏳</div>
+              <div style="font-size: 11px; color: rgba(255,255,255,0.85);">Validando...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header">
+            <span class="http-method POST">POST</span>
+            <span class="http-path">/api/v2/auth/iniciar_sesion</span>
+          </div>
+          <div class="code-block">{
+  <span class="k">"tipo_documento"</span>: <span class="s">"CC"</span>,
+  <span class="k">"documento"</span>: <span class="s">"1234567890"</span>,
+  <span class="k">"password"</span>: <span class="s">"******"</span>,
+  <span class="k">"device_id"</span>: <span class="s">"uuid-v4-app-install-12345"</span>,
+  <span class="k">"device_os"</span>: <span class="s">"ios"</span>,
+  <span class="k">"device_model"</span>: <span class="s">"iPhone 15 Pro"</span>
+}</div>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">Response · happy path · <span class="status-pill s200">200 OK</span></div>
+          <div class="code-block">{
+  <span class="k">"status"</span>: <span class="s">"success"</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"access_token"</span>: <span class="s">"eyJ0eXAiOiJKV1QiLC..."</span>,
+    <span class="k">"token_type"</span>: <span class="s">"Bearer"</span>,
+    <span class="k">"expires_in"</span>: <span class="n">3600</span>,
+    <span class="k">"user"</span>: {
+      <span class="k">"documento"</span>: <span class="s">"1234567890"</span>,
+      <span class="k">"nombre"</span>: <span class="s">"MARIA"</span>,
+      <span class="k">"apellidos"</span>: <span class="s">"PEREZ"</span>,
+      <span class="k">"celular"</span>: <span class="s">"3001234567"</span>,
+      <span class="k">"email"</span>: <span class="s">"maria@example.com"</span>
+    }
+  }
+}</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI</div>
+          <div class="decision-content">
+            <ul>
+              <li>Guardar <code>access_token</code> en <code>flutter_secure_storage</code> (Keychain iOS / EncryptedSharedPreferences Android)</li>
+              <li>Guardar <code>nombre</code>, <code>documento</code>, <code>tipo_documento</code> en SharedPreferences (para próximo login recurrente)</li>
+              <li>Si el login fue con <strong>password</strong> y el device soporta biometría pero el usuario aún no la activó → mostrar modal <code>SCR-PRE-022</code> "¿Quieres activar FaceID?" (paso 6)</li>
+              <li>Si ya tiene biometría activa o eligió "Ahora no" → navegar a <code>/home</code> (paso 7)</li>
+              <li>Si la response trae <code>requiere_autorizacion: true</code> → ir al Escenario 3</li>
+              <li>Si HTTP 422 con <code>escenario: 100</code> → modal "Cuenta no registrada"</li>
+              <li>Si HTTP 422 con <code>escenario: 803</code> → modal SCR-BLOQ "Datos incorrectos"</li>
+            </ul>
+          </div>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación · cadena antifraude de 9 validaciones</div>
+          <div class="impl-content">
+            <table class="impl-table">
+              <tr><th>Repo</th><th>Archivo</th><th>Responsabilidad</th></tr>
+              <tr>
+                <td><span class="repo-badge backend">api-quac-v2</span></td>
+                <td class="impl-path">app/Http/Controllers/V2/Auth/IniciarSesionController.php</td>
+                <td>Controller delgado que delega al service</td>
+              </tr>
+              <tr>
+                <td><span class="repo-badge backend">api-quac-v2</span></td>
+                <td class="impl-path">app/Services/V2/Auth/CadenaValidacionLoginService.php</td>
+                <td>9 validaciones: existe → bloqueado → device cooldown → device sospechoso → cambio reciente → password → device autorizado → 90 días → geo</td>
+              </tr>
+              <tr>
+                <td><span class="repo-badge backend">api-quac-v2</span></td>
+                <td class="impl-path">app/Services/V2/Auth/ResolverDocumentoPptService.php</td>
+                <td>Cascada CRM Baguer + BD local para PPT venezolanos</td>
+              </tr>
+              <tr>
+                <td><span class="repo-badge mobile">app-quac-v2</span></td>
+                <td class="impl-path">lib/features/auth/data/auth_api.dart</td>
+                <td><span class="impl-method">iniciarSesion(LoginRequest)</span></td>
+              </tr>
+              <tr>
+                <td><span class="repo-badge mobile">app-quac-v2</span></td>
+                <td class="impl-path">lib/core/auth/secure_storage_service.dart</td>
+                <td>Persistencia de tokens en almacenamiento cifrado del SO</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+        <div class="callout warn">
+          <strong>Nota real (smoke test 2026-06-09):</strong> con datos reales de Francisco (CC <code>13745898</code>) contra staging, el backend devolvió <code>requiere_autorizacion: true</code> porque sus devices no están replicados en <code>quacapi_dev</code>. El happy path con <code>access_token</code> requiere que la fila de <code>devices</code> también esté en DEV.
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 6 · Modal SCR-PRE-022 oferta FaceID -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">6</span>
+      <div class="step-title">
+        <div class="t">Modal SCR-PRE-022 · ¿Quieres activar FaceID? (opcional)</div>
+        <div class="s">Solo aparece si el login fue con password Y el device soporta biometría Y el usuario aún no la activó</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-modal">
+            <div class="modal-card">
+              <div class="modal-icon">😊</div>
+              <div class="modal-title">Activa Face ID</div>
+              <div class="modal-msg">Entra más rápido sin escribir tu contraseña.</div>
+              <button class="phone-btn">ACTIVAR FACE ID</button>
+              <button class="phone-btn secondary" style="margin-top: 8px;">Ahora no</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block no-call">
+          <div class="trace-block-header">Sin llamada al backend</div>
+          <div class="no-call-content">Modal 100% client-side que se muestra <strong>una sola vez</strong> tras el primer login con password. Si el usuario ya activó FaceID o ya rechazó la oferta, no se vuelve a ver.</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI</div>
+          <div class="decision-content">
+            <ul>
+              <li>Tap <strong>ACTIVAR FACE ID</strong> → navegar a SCR-020 (activación biométrica). Tras éxito, llamar <code>POST /api/v2/auth/gestionar_faceid</code> con <code>activo: true</code> y luego ir al Home</li>
+              <li>Tap <strong>Ahora no</strong> → cerrar modal y navegar al Home directamente. Quedará la marca local de que ya se ofreció</li>
+              <li>Si el device no soporta biometría (sin sensor o no enrolada) → este modal nunca se muestra y se va directo al Home</li>
+            </ul>
+          </div>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación</div>
+          <div class="impl-content">
+            <table class="impl-table">
+              <tr><th>Repo</th><th>Archivo</th><th>Responsabilidad</th></tr>
+              <tr>
+                <td><span class="repo-badge mobile">app-quac-v2</span></td>
+                <td class="impl-path">lib/features/auth/presentation/modals/scr_pre_022_ofrecer_faceid_modal.dart</td>
+                <td><span class="impl-method">ScrPre022OfrecerFaceIdModal.show(context)</span></td>
+              </tr>
+              <tr>
+                <td><span class="repo-badge mobile">app-quac-v2</span></td>
+                <td class="impl-path">lib/features/auth/presentation/screens/scr_019_login_screen.dart:542-577</td>
+                <td>Lógica que decide cuándo invocar el modal post-login</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 7 · Home placeholder real -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">7</span>
+      <div class="step-title">
+        <div class="t">Home · pantalla actual en esta iteración</div>
+        <div class="s">El feature home no se implementó en AQ-002. Lo que ve el usuario hoy es un placeholder literal</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente · HOY</div>
+        <div class="phone">
+          <div class="phone-screen" style="background: #fff; display: flex; align-items: center; justify-content: center; min-height: 380px;">
+            <div style="text-align: center; padding: 0 20px;">
+              <div style="font-size: 13px; color: #000;">Home placeholder AQ-001. AQ-003 lo reemplaza.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block no-call">
+          <div class="trace-block-header">Sin llamada al backend</div>
+          <div class="no-call-content">El placeholder es un <code>Scaffold</code> con un <code>Center(child: Text(...))</code> hardcoded. Vive en <code>lib/core/routing/app_router.dart</code> como widget privado <code>_HomePlaceholder</code>.</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Lo que esto significa para QA</div>
+          <div class="decision-content">
+            <ul>
+              <li>El login termina y se ve esa frase. Eso es <strong>esperado</strong>, no es un bug</li>
+              <li>El bottom nav no existe todavía (se construye en AQ-007)</li>
+              <li>No hay datos de cartera, plan pagos ni transacciones (todo eso es AQ-003)</li>
+              <li>El JWT está activo: la app está autenticada y los próximos endpoints autenticados funcionarán cuando el dev los pruebe directamente con Bruno/Postman</li>
+              <li>Para volver a Bienvenida: borrar storage + reiniciar la app, o usar el flujo de "No soy X" del Escenario 2 cuando vuelva a abrir y vea SCR-019b</li>
+            </ul>
+          </div>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación · placeholder temporal</div>
+          <div class="impl-content">
+            <table class="impl-table">
+              <tr><th>Repo</th><th>Archivo · línea</th><th>Código</th></tr>
+              <tr>
+                <td><span class="repo-badge mobile">app-quac-v2</span></td>
+                <td class="impl-path">lib/core/routing/app_router.dart:172-179</td>
+                <td><span class="impl-method">_HomePlaceholder</span> · Scaffold con Text centrado</td>
+              </tr>
+              <tr>
+                <td><span class="repo-badge mobile">app-quac-v2</span></td>
+                <td class="impl-path">lib/features/home/routing/home_routes.dart</td>
+                <td>Vacío. Lo que se hace en AQ-003 va a poblar este archivo</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+        <div class="callout">
+          <strong>Próximo REQ (AQ-003 · Home):</strong> reemplaza este placeholder por la pantalla real con bottom nav, cartera (cupo disponible, próximo pago), plan de pagos y transacciones recientes. Va a consumir endpoints <code>GET /api/v2/home</code> + <code>GET /api/v2/cartera</code> + <code>GET /api/v2/transacciones</code>.
+        </div>
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ====================================================================== -->
+<!-- ESCENARIO 2: LOGIN RECURRENTE                                          -->
+<!-- ====================================================================== -->
+<section class="scenario" id="s2">
+  <div class="scenario-intro">
+    <h2>Escenario 2 · Login recurrente · "Hola {Nombre}"</h2>
+    <div class="simple">
+      <p><strong>Cuándo pasa:</strong> el cliente ya entró antes en este celular y vuelve a abrir la app otro día.</p>
+      <p><strong>Qué sucede:</strong> la app lo reconoce y lo saluda por su nombre ("Hola María"). No le pide otra vez la cédula ni el tipo de documento, solo el PIN. Si activó FaceID o huella la primera vez, puede entrar con eso. Si está usando el celular de alguien más, puede tocar "No soy María" para que la app olvide los datos guardados y vuelva a empezar como si fuera nueva. También puede tocar "Recuperar contraseña" si olvidó el PIN (Escenario 4).</p>
+    </div>
+    <p><em>Detalle técnico:</em> El usuario ya entró antes en este device. SharedPreferences tiene <code>nameUser</code>, <code>docUser</code> y <code>docTypeUser</code>. El bootstrap del router lo manda directo a SCR-019b (login recurrente) saltándose Tutorial y Bienvenida. Solo le pide el PIN. Opcionalmente puede usar biometría si está activada o tap "No soy {Nombre}" para limpiar la sesión.</p>
+    <div class="endpoints-summary">
+      <span class="endpoint-chip method-post"><span class="method">POST</span>/api/v2/auth/iniciar_sesion</span>
+      <span class="endpoint-chip method-post"><span class="method">POST</span>/api/v2/auth/cambiar_usuario</span>
+    </div>
+  </div>
+
+  <!-- PASO 1 · Hola Maria -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">1</span>
+      <div class="step-title">
+        <div class="t">Apertura de app · directo a SCR-019b</div>
+        <div class="s">El bootstrap del router detecta nameUser en SharedPreferences y salta Tutorial+Bienvenida</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-screen dark">
+            <div class="phone-status">Mar Jun 9 · 100%</div>
+            <div class="phone-logo">Quac</div>
+            <div class="phone-hello" style="margin-top: 20px;">Hola Maria</div>
+            <div class="phone-sub">Ingresa tu contraseña para entrar</div>
+            <div class="phone-row">
+              <div class="phone-input" style="background: rgba(255,255,255,0.92);">
+                <span class="lbl">Contraseña</span>
+                <span class="val placeholder">••••••</span>
+              </div>
+              <div class="phone-faceid">⊕</div>
+            </div>
+            <button class="phone-btn disabled">INGRESAR</button>
+            <div class="phone-link" style="margin-top: 14px;">Recuperar contraseña</div>
+            <div class="phone-link" style="opacity: 0.85; font-size: 11px; margin-top: 8px;">No soy Maria</div>
+            <div class="phone-footer">© 2026 Quac App</div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block no-call">
+          <div class="trace-block-header">Sin llamada al backend (aún)</div>
+          <div class="no-call-content">El "Hola Maria" se lee de SharedPreferences. El botón biométrico aparece si el device <strong>soporta</strong> biometría (no si está activada). Se llama al backend cuando el usuario tap INGRESAR (paso 2).</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI</div>
+          <div class="decision-content">
+            <ul>
+              <li>Si <code>Platform.isIOS</code> → icono FaceID. Si Android → icono huella</li>
+              <li>Tap botón biométrico: si ya activó FaceID/huella → autentica con el SO y dispara request del paso 2. Si NO la activó → navega a SCR-020 Activación biométrica</li>
+              <li>Tap "Recuperar contraseña" → Escenario 4</li>
+              <li>Tap "No soy Maria" → paso 3</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 2 · Submit con PIN -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">2</span>
+      <div class="step-title">
+        <div class="t">Tap INGRESAR (PIN correcto + device autorizado)</div>
+        <div class="s">Mismo endpoint que primer login pero el dropdown tipo_documento y documento vienen de SharedPreferences, no del form</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-screen dark">
+            <div class="phone-logo">Quac</div>
+            <div class="phone-hello" style="margin-top: 20px;">Hola Maria</div>
+            <div class="phone-row">
+              <div class="phone-input" style="background: rgba(255,255,255,0.92);">
+                <span class="lbl">Contraseña</span>
+                <div class="phone-pin" style="margin: 4px 0 0;">
+                  <span class="digit filled">•</span>
+                  <span class="digit filled">•</span>
+                  <span class="digit filled">•</span>
+                  <span class="digit filled">•</span>
+                  <span class="digit filled">•</span>
+                  <span class="digit filled">•</span>
+                </div>
+              </div>
+              <div class="phone-faceid">⊕</div>
+            </div>
+            <button class="phone-btn" style="background: #fff; color: var(--quac-deep);">INGRESAR</button>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header">
+            <span class="http-method POST">POST</span>
+            <span class="http-path">/api/v2/auth/iniciar_sesion</span>
+          </div>
+          <div class="code-block">{
+  <span class="k">"tipo_documento"</span>: <span class="s">"CC"</span>,        <span class="c">// de SharedPreferences</span>
+  <span class="k">"documento"</span>: <span class="s">"1234567890"</span>,    <span class="c">// de SharedPreferences</span>
+  <span class="k">"password"</span>: <span class="s">"******"</span>,
+  <span class="k">"device_id"</span>: <span class="s">"uuid-v4-app-install-12345"</span>,
+  <span class="k">"device_os"</span>: <span class="s">"ios"</span>,
+  <span class="k">"device_model"</span>: <span class="s">"iPhone 15 Pro"</span>,
+  <span class="k">"authentication_type"</span>: <span class="s">"password"</span>    <span class="c">// o "faceid" si entró con biometría</span>
+}</div>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">Response · <span class="status-pill s200">200 OK</span></div>
+          <div class="code-block">{
+  <span class="k">"status"</span>: <span class="s">"success"</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"access_token"</span>: <span class="s">"eyJ..."</span>,
+    <span class="k">"token_type"</span>: <span class="s">"Bearer"</span>,
+    <span class="k">"expires_in"</span>: <span class="n">3600</span>,
+    <span class="k">"user"</span>: { <span class="k">"documento"</span>: <span class="s">"1234567890"</span>, <span class="k">"nombre"</span>: <span class="s">"MARIA"</span>, ... }
+  }
+}</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI</div>
+          <div class="decision-content">
+            <ul>
+              <li>Guardar nuevo <code>access_token</code> en secure storage. El <code>device_id</code> ya estaba.</li>
+              <li>Navegar al Home</li>
+              <li>Si HTTP 422 escenario 803 → modal SCR-BLOQ "Datos incorrectos" + opciones "Reintentar" / "Recuperar contraseña". Incrementa contador local</li>
+              <li>Si 3 fallidos consecutivos → escenario 802 con timer · bloqueo 15 min</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 3 · Home placeholder real -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">3</span>
+      <div class="step-title">
+        <div class="t">Home · pantalla terminal del flujo recurrente</div>
+        <div class="s">No se ofrece FaceID acá (ya se ofreció en el primer login). Va directo al placeholder</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente · HOY</div>
+        <div class="phone">
+          <div class="phone-screen" style="background: #fff; display: flex; align-items: center; justify-content: center; min-height: 380px;">
+            <div style="text-align: center; padding: 0 20px;">
+              <div style="font-size: 13px; color: #000;">Home placeholder AQ-001. AQ-003 lo reemplaza.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block no-call">
+          <div class="trace-block-header">Pantalla terminal del flujo</div>
+          <div class="no-call-content">El feature home no se construyó en AQ-002. Tras un login recurrente exitoso, la app navega a <code>/home</code> que renderiza el placeholder hardcoded.</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Diferencia con el primer login (Escenario 1)</div>
+          <div class="decision-content">
+            <ul>
+              <li>El modal <code>SCR-PRE-022</code> "Activar Face ID" NO aparece acá: solo se ofrece una vez (en el primer login con password). Si el usuario ya lo rechazó o ya lo activó, no se vuelve a preguntar</li>
+              <li>Si el usuario entró con biometría (tap botón FaceID del SCR-019b), el flujo también termina acá sin pasar por el modal</li>
+              <li>El próximo arranque vuelve a ver SCR-019b "Hola Maria" porque <code>nameUser</code> sigue en SharedPreferences</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout">
+          <strong>Próximo REQ (AQ-003 · Home):</strong> reemplaza este placeholder por la pantalla real con bottom nav, cartera, plan de pagos y transacciones.
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 4 · No soy Maria -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">4</span>
+      <div class="step-title">
+        <div class="t">Tap "No soy Maria" · cleanup completo</div>
+        <div class="s">Endpoint del backend + limpieza local de 3 capas (SharedPreferences + SecureStorage + providers)</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-screen dark">
+            <div class="phone-hello" style="margin-top: 60px;">Hola Maria</div>
+            <div style="text-align: center; margin: 80px 0 20px;">
+              <div style="font-size: 32px;">↻</div>
+              <div style="font-size: 12px; color: rgba(255,255,255,0.8);">Cambiando de usuario...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header">
+            <span class="http-method POST">POST</span>
+            <span class="http-path">/api/v2/auth/cambiar_usuario</span>
+          </div>
+          <div class="code-block">{
+  <span class="k">"documento"</span>: <span class="s">"1234567890"</span>,    <span class="c">// el que estaba</span>
+  <span class="k">"device_id"</span>: <span class="s">"uuid-v4-app-install-12345"</span>
+}</div>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">Response · <span class="status-pill s200">200 OK</span></div>
+          <div class="code-block">{
+  <span class="k">"status"</span>: <span class="s">"success"</span>,
+  <span class="k">"data"</span>: { <span class="k">"cambio_iniciado"</span>: <span class="b">true</span> }
+}</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI · cleanup completo (3 capas)</div>
+          <div class="decision-content">
+            <ul>
+              <li>Limpiar SharedPreferences: <code>nameUser</code>, <code>docUser</code>, <code>docTypeUser</code> — pero <strong>preserva</strong> <code>has_seen_tutorial</code> (no se vuelve a mostrar)</li>
+              <li>Limpiar SecureStorage: <code>access_token</code>, <code>refresh_token</code>, <code>passwordBiometric</code></li>
+              <li>Invalidar todos los providers Riverpod del feature auth</li>
+              <li>Navegar a Bienvenida (SCR-005), <strong>no</strong> al Tutorial</li>
+            </ul>
+          </div>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación</div>
+          <div class="impl-content">
+            <table class="impl-table">
+              <tr><th>Repo</th><th>Archivo</th><th>Responsabilidad</th></tr>
+              <tr>
+                <td><span class="repo-badge backend">api-quac-v2</span></td>
+                <td class="impl-path">app/Http/Controllers/V2/Auth/CambiarUsuarioController.php</td>
+                <td>Marca el device para cleanup. No revoca tokens (porque ya está sin sesión)</td>
+              </tr>
+              <tr>
+                <td><span class="repo-badge mobile">app-quac-v2</span></td>
+                <td class="impl-path">lib/features/auth/presentation/screens/scr_019_login_screen.dart</td>
+                <td><span class="impl-method">_onNoSoyTap()</span> · cleanup 3 capas</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ====================================================================== -->
+<!-- ESCENARIO 3: DEVICE NUEVO + OTP                                        -->
+<!-- ====================================================================== -->
+<section class="scenario" id="s3">
+  <div class="scenario-intro">
+    <h2>Escenario 3 · Login en device nuevo → autorización con OTP</h2>
+    <div class="simple">
+      <p><strong>Cuándo pasa:</strong> el cliente intenta entrar desde un celular nuevo, un celular prestado, o desde una app recién reinstalada. Es el caso más común porque cualquier reinstalación reinicia los datos locales.</p>
+      <p><strong>Qué sucede:</strong> aunque la cédula y contraseña sean correctas, por seguridad no lo dejamos entrar todavía. Le enviamos un código de 6 dígitos por SMS, WhatsApp y correo al número y email registrados en QUAC. El cliente lo digita, el sistema valida que sea correcto, y solo entonces lo dejamos entrar y dejamos este celular registrado como autorizado para futuras veces. Esto evita que alguien que se sepa tu cédula y contraseña pueda entrar desde su propio celular sin tu autorización.</p>
+    </div>
+    <p><em>Detalle técnico:</em> El usuario quiere entrar desde un device que el backend no conoce. El login NO devuelve <code>access_token</code> sino una bandera <code>requiere_autorizacion: true</code>. La app pinta SCR-024 (OTP), pide al usuario tocar "Enviar código", el backend dispara SMS+WhatsApp+email al celular registrado en CRM y solo cuando el usuario digita el código correcto se emite el token.</p>
+    <div class="endpoints-summary">
+      <span class="endpoint-chip method-post"><span class="method">POST</span>/api/v2/auth/iniciar_sesion</span>
+      <span class="endpoint-chip method-post"><span class="method">POST</span>/api/v2/auth/autorizar_dispositivo/enviar_otp</span>
+      <span class="endpoint-chip method-post"><span class="method">POST</span>/api/v2/auth/autorizar_dispositivo/validar_otp</span>
+    </div>
+  </div>
+
+  <!-- PASO 1 · Login con device nuevo -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">1</span>
+      <div class="step-title">
+        <div class="t">Login con credenciales OK pero device desconocido</div>
+        <div class="s">El backend valida la cadena antifraude. Detecta que el device no está en la tabla devices y responde con bandera, no error</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-screen dark">
+            <div class="phone-logo">Quac</div>
+            <div class="phone-input" style="background: rgba(255,255,255,0.92);">
+              <span class="lbl">Contraseña</span>
+              <span class="val">••••••</span>
+            </div>
+            <button class="phone-btn" style="background: #fff; color: var(--quac-deep);">ENTRAR</button>
+            <div style="text-align: center; margin-top: 40px;">
+              <div style="font-size: 28px;">⏳</div>
+              <div style="font-size: 11px; color: rgba(255,255,255,0.85);">Validando dispositivo...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header">
+            <span class="http-method POST">POST</span>
+            <span class="http-path">/api/v2/auth/iniciar_sesion</span>
+          </div>
+          <div class="code-block">{
+  <span class="k">"tipo_documento"</span>: <span class="s">"CC"</span>,
+  <span class="k">"documento"</span>: <span class="s">"1234567890"</span>,
+  <span class="k">"password"</span>: <span class="s">"******"</span>,
+  <span class="k">"device_id"</span>: <span class="s">"uuid-NEW-install-78901"</span>,    <span class="c">// device nuevo</span>
+  <span class="k">"device_os"</span>: <span class="s">"ios"</span>,
+  <span class="k">"device_model"</span>: <span class="s">"iPhone 17 Pro"</span>
+}</div>
+        </div>
+        <div class="trace-block res-warn">
+          <div class="trace-block-header">Response · device no autorizado · <span class="status-pill s200">200 OK</span></div>
+          <div class="code-block">{
+  <span class="k">"status"</span>: <span class="s">"success"</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"requiere_autorizacion"</span>: <span class="b">true</span>,
+    <span class="k">"mensaje"</span>: <span class="s">"Por seguridad debes autorizar este dispositivo. Te enviaremos un codigo por SMS."</span>,
+    <span class="k">"data"</span>: {
+      <span class="k">"celular_destino_oculto"</span>: <span class="s">"******4567"</span>    <span class="c">// 6 primeros dígitos enmascarados</span>
+    }
+  }
+}</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI</div>
+          <div class="decision-content">
+            <ul>
+              <li>Si la response trae <code>requiere_autorizacion: true</code> → NO guardar token, navegar a SCR-024 (OTP)</li>
+              <li>Mostrar el <code>mensaje</code> y <code>celular_destino_oculto</code> en la pantalla</li>
+              <li>Persistir el documento y device_id para los próximos requests del flujo OTP</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout">
+          <strong>Diferencia con el spec original:</strong> el spec decía HTTP 422 con <code>escenario: 106</code>. El backend real (verificado 2026-06-09) devuelve HTTP 200 con bandera. Es decisión del backend para que la app trate este caso como un "viaje válido" del usuario, no como error.
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 2 · OTP screen + Enviar -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">2</span>
+      <div class="step-title">
+        <div class="t">SCR-024 OTP · Tap "Enviar código"</div>
+        <div class="s">El backend orquesta envío multicanal SMS + WhatsApp + email</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-logo">Quac</div>
+            <div style="text-align: center; margin: 16px 0;">
+              <div style="font-size: 36px;">📱</div>
+            </div>
+            <div style="text-align: center; font-weight: 800; color: var(--quac-deep); font-size: 14px; margin-bottom: 6px;">Autoriza este dispositivo</div>
+            <div style="text-align: center; font-size: 11px; color: var(--ink-soft); margin-bottom: 16px;">Te enviaremos un código al celular ******4567</div>
+            <button class="phone-btn">ENVIAR CÓDIGO</button>
+            <div class="phone-link" style="margin-top: 18px;">Volver</div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header">
+            <span class="http-method POST">POST</span>
+            <span class="http-path">/api/v2/auth/autorizar_dispositivo/enviar_otp</span>
+          </div>
+          <div class="code-block">{
+  <span class="k">"documento"</span>: <span class="s">"1234567890"</span>,
+  <span class="k">"device_id"</span>: <span class="s">"uuid-NEW-install-78901"</span>,
+  <span class="k">"device_os"</span>: <span class="s">"ios"</span>,
+  <span class="k">"device_model"</span>: <span class="s">"iPhone 17 Pro"</span>
+}</div>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">Response esperado · <span class="status-pill s200">200 OK</span></div>
+          <div class="code-block">{
+  <span class="k">"status"</span>: <span class="s">"success"</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"otp_enviado"</span>: <span class="b">true</span>,
+    <span class="k">"canales"</span>: [<span class="s">"sms"</span>, <span class="s">"whatsapp"</span>, <span class="s">"email"</span>]
+  }
+}</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI</div>
+          <div class="decision-content">
+            <ul>
+              <li>Si 200 → mostrar campo de 6 dígitos para que el usuario digite el OTP (paso 3)</li>
+              <li>Iniciar timer de reenvío (60s) en el botón</li>
+              <li>Si HTTP 422 escenario 802 (rate limit, 5 envíos / min por IP+documento) → mostrar timer "Espera N segundos"</li>
+              <li>Si HTTP 422 escenario 900 (Infobip/Brevo caído) → mostrar modal SCR-BLOQ "Servicio no disponible"</li>
+            </ul>
+          </div>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación · envío multicanal</div>
+          <div class="impl-content">
+            <table class="impl-table">
+              <tr><th>Repo</th><th>Archivo</th><th>Responsabilidad</th></tr>
+              <tr>
+                <td><span class="repo-badge backend">api-quac-v2</span></td>
+                <td class="impl-path">app/Http/Controllers/V2/Auth/AutorizarDispositivoController.php</td>
+                <td><span class="impl-method">enviarOtp()</span> · rate limit aq-otp-envio (5/min dual)</td>
+              </tr>
+              <tr>
+                <td><span class="repo-badge backend">api-quac-v2</span></td>
+                <td class="impl-path">app/Services/V2/Auth/AvisoDispositivoNuevoService.php</td>
+                <td>Orquesta envío 3 canales en paralelo</td>
+              </tr>
+              <tr>
+                <td><span class="repo-badge backend">api-quac-v2</span></td>
+                <td class="impl-path">app/Integrations/InfobipSmsClient.php · WhatsAppClient.php · BrevoEmailClient.php</td>
+                <td>Clientes HTTP de cada proveedor</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+        <div class="callout err">
+          <strong>Estado real hoy (2026-06-09):</strong> Infobip API key no configurada en staging. El endpoint devuelve <code>escenario: 900 · "No se pudo enviar el SMS."</code>. Pendiente OPS-AQ-002-1.
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 3 · Validar OTP -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">3</span>
+      <div class="step-title">
+        <div class="t">Usuario digita los 6 dígitos del OTP y tap CONTINUAR</div>
+        <div class="s">Si el código es correcto, el backend marca el device como autorizado y emite el access_token</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="phone-logo">Quac</div>
+            <div style="text-align: center; margin: 20px 0 10px;"><div style="font-size: 30px;">🔐</div></div>
+            <div style="text-align: center; font-weight: 700; color: var(--quac-deep); font-size: 13px; margin-bottom: 4px;">Ingresa el código</div>
+            <div style="text-align: center; font-size: 11px; color: var(--ink-soft); margin-bottom: 16px;">Te lo enviamos al ******4567</div>
+            <div class="phone-pin">
+              <span class="digit filled">4</span>
+              <span class="digit filled">8</span>
+              <span class="digit filled">2</span>
+              <span class="digit filled">9</span>
+              <span class="digit filled">1</span>
+              <span class="digit filled">6</span>
+            </div>
+            <button class="phone-btn">CONTINUAR</button>
+            <div class="phone-link" style="margin-top: 14px;">Reenviar código (54s)</div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header">
+            <span class="http-method POST">POST</span>
+            <span class="http-path">/api/v2/auth/autorizar_dispositivo/validar_otp</span>
+          </div>
+          <div class="code-block">{
+  <span class="k">"documento"</span>: <span class="s">"1234567890"</span>,
+  <span class="k">"otp"</span>: <span class="s">"482916"</span>,                       <span class="c">// exactamente 6 dígitos</span>
+  <span class="k">"device_id"</span>: <span class="s">"uuid-NEW-install-78901"</span>,
+  <span class="k">"device_model"</span>: <span class="s">"iPhone 17 Pro"</span>
+}</div>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">Response · <span class="status-pill s200">200 OK</span></div>
+          <div class="code-block">{
+  <span class="k">"status"</span>: <span class="s">"success"</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"access_token"</span>: <span class="s">"eyJ..."</span>,
+    <span class="k">"token_type"</span>: <span class="s">"Bearer"</span>,
+    <span class="k">"expires_in"</span>: <span class="n">3600</span>,
+    <span class="k">"user"</span>: { <span class="k">"documento"</span>: <span class="s">"1234567890"</span>, <span class="k">"nombre"</span>: <span class="s">"MARIA"</span>, ... }
+  }
+}</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI</div>
+          <div class="decision-content">
+            <ul>
+              <li>Guardar <code>access_token</code> en secure storage</li>
+              <li>Guardar <code>nombre</code>, <code>documento</code>, <code>tipo_documento</code> en SharedPreferences para próximo login recurrente</li>
+              <li>Navegar al Home</li>
+              <li>Si HTTP 422 escenario 802 (rate limit validación, 10/min) → mostrar timer</li>
+              <li>Si HTTP 422 con OTP incorrecto/expirado → mostrar error inline en el campo</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 4 · Home placeholder real -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">4</span>
+      <div class="step-title">
+        <div class="t">Home · pantalla actual en esta iteración</div>
+        <div class="s">Tras validar OTP exitoso, la app queda autenticada y navega a /home. Esto es lo que ve realmente el usuario hoy</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente · HOY</div>
+        <div class="phone">
+          <div class="phone-screen" style="background: #fff; display: flex; align-items: center; justify-content: center; min-height: 380px;">
+            <div style="text-align: center; padding: 0 20px;">
+              <div style="font-size: 13px; color: #000;">Home placeholder AQ-001. AQ-003 lo reemplaza.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block no-call">
+          <div class="trace-block-header">Pantalla terminal del flujo</div>
+          <div class="no-call-content">El feature home no se construyó en AQ-002. Hoy la app muestra ese texto literal centrado en pantalla blanca, sin bottom nav ni datos.</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Lo que sí está funcionando bajo el capó</div>
+          <div class="decision-content">
+            <ul>
+              <li>El <code>access_token</code> está persistido en secure storage</li>
+              <li>El device quedó marcado como autorizado en la BD del backend</li>
+              <li>El próximo arranque de la app no va a pedir OTP de nuevo: el bootstrap detecta token + nameUser y va directo a SCR-019b "Hola Maria"</li>
+              <li>Todos los requests autenticados llevan <code>Authorization: Bearer &lt;token&gt;</code> y pasan por el middleware antifraude <code>hash_cel</code></li>
+              <li>El interceptor <code>JwtRefreshInterceptor</code> renueva el token cuando faltan 60s para expirar</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout">
+          <strong>Próximo REQ (AQ-003 · Home):</strong> reemplaza este placeholder por la pantalla real con bottom nav, cartera, plan de pagos y transacciones. Consumirá <code>GET /api/v2/home</code> + <code>GET /api/v2/cartera</code> + <code>GET /api/v2/transacciones</code>.
+        </div>
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ====================================================================== -->
+<!-- ESCENARIO 4: RECUPERAR CONTRASEÑA E2E                                  -->
+<!-- ====================================================================== -->
+<section class="scenario" id="s4">
+  <div class="scenario-intro">
+    <h2>Escenario 4 · Recuperar contraseña E2E</h2>
+    <div class="simple">
+      <p><strong>Cuándo pasa:</strong> el cliente olvidó su PIN y no puede entrar a la app. Toca "Recuperar contraseña" desde la pantalla de login.</p>
+      <p><strong>Qué sucede:</strong> le pedimos su tipo y número de documento, le enviamos un código por SMS al número registrado, el cliente lo digita y valida. Después le dejamos escribir una nueva contraseña (PIN de 6 dígitos) y confirmarla. Al guardar, le mostramos un mensaje de éxito y vuelve a la pantalla de login para entrar con la nueva. El código de validación dura solo 5 minutos: si se demora, debe volver a empezar el flujo.</p>
+    </div>
+    <p><em>Detalle técnico:</em> El usuario olvidó su contraseña. Desde SCR-019a o SCR-019b tap "Recuperar contraseña" y sigue 4 pantallas en secuencia: ingresar documento → recibir y validar OTP → escribir nueva clave → modal de éxito. El backend emite un <code>reset_token</code> efímero entre el paso 2 y 3 (single-use).</p>
+    <div class="endpoints-summary">
+      <span class="endpoint-chip method-post"><span class="method">POST</span>/api/v2/auth/enviar_codigo_restablecer_contrasena</span>
+      <span class="endpoint-chip method-post"><span class="method">POST</span>/api/v2/auth/validar_codigo_restablecer_contrasena</span>
+      <span class="endpoint-chip method-post"><span class="method">POST</span>/api/v2/auth/registrar_clave</span>
+    </div>
+  </div>
+
+  <!-- PASO 1 · SCR-025 ingresa documento -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">1</span>
+      <div class="step-title">
+        <div class="t">SCR-025 · Ingresa documento</div>
+        <div class="s">Mismo formulario que login pero solo pide documento. Tap "Enviar código"</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div style="font-size: 18px;">←</div>
+            <div style="margin-top: 16px; font-weight: 800; color: var(--quac-deep); font-size: 16px;">Restablecer contraseña</div>
+            <div style="font-size: 12px; color: var(--ink-soft); margin: 6px 0 18px;">Te enviaremos un código por SMS al celular registrado</div>
+            <div class="phone-input dropdown">
+              <span class="lbl">Tipo de documento</span>
+              <span class="val">Cédula de ciudadanía</span>
+            </div>
+            <div class="phone-input">
+              <span class="lbl">Número de documento</span>
+              <span class="val">1234567890</span>
+            </div>
+            <button class="phone-btn">ENVIAR CÓDIGO</button>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header">
+            <span class="http-method POST">POST</span>
+            <span class="http-path">/api/v2/auth/enviar_codigo_restablecer_contrasena</span>
+          </div>
+          <div class="code-block">{
+  <span class="k">"tipo_documento"</span>: <span class="s">"CC"</span>,
+  <span class="k">"documento"</span>: <span class="s">"1234567890"</span>
+}</div>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">Response · <span class="status-pill s200">200 OK</span></div>
+          <div class="code-block">{
+  <span class="k">"status"</span>: <span class="s">"success"</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"codigo_enviado"</span>: <span class="b">true</span>,
+    <span class="k">"celular_destino_oculto"</span>: <span class="s">"******4567"</span>,
+    <span class="k">"canales"</span>: [<span class="s">"sms"</span>, <span class="s">"email"</span>]
+  }
+}</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI</div>
+          <div class="decision-content">
+            <ul>
+              <li>Navegar a SCR-026 (paso 2) pasando el documento</li>
+              <li>Si HTTP 422 escenario 100 → "No encontramos una cuenta con esa cédula" inline</li>
+              <li>Si HTTP 422 escenario 802 → rate limit, mostrar timer</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout">
+          Mismo rate limit que el flujo de autorización de dispositivo (<code>aq-otp-envio</code>): 5/min por IP + 5/min por documento.
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 2 · SCR-026 ingresa OTP -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">2</span>
+      <div class="step-title">
+        <div class="t">SCR-026 · Ingresa el OTP recibido</div>
+        <div class="s">Validación del código. El backend devuelve un reset_token efímero (single-use)</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div style="font-size: 18px;">←</div>
+            <div style="text-align: center; margin: 20px 0 8px;"><div style="font-size: 30px;">📩</div></div>
+            <div style="text-align: center; font-weight: 700; color: var(--quac-deep); font-size: 14px; margin-bottom: 4px;">Ingresa el código</div>
+            <div style="text-align: center; font-size: 11px; color: var(--ink-soft); margin-bottom: 16px;">Te lo enviamos al ******4567</div>
+            <div class="phone-pin">
+              <span class="digit filled">7</span>
+              <span class="digit filled">3</span>
+              <span class="digit filled">5</span>
+              <span class="digit filled">9</span>
+              <span class="digit filled">1</span>
+              <span class="digit filled">4</span>
+            </div>
+            <button class="phone-btn">CONTINUAR</button>
+            <div class="phone-link" style="margin-top: 14px;">Reenviar código (45s)</div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header">
+            <span class="http-method POST">POST</span>
+            <span class="http-path">/api/v2/auth/validar_codigo_restablecer_contrasena</span>
+          </div>
+          <div class="code-block">{
+  <span class="k">"tipo_documento"</span>: <span class="s">"CC"</span>,
+  <span class="k">"documento"</span>: <span class="s">"1234567890"</span>,
+  <span class="k">"otp"</span>: <span class="s">"735914"</span>
+}</div>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">Response · <span class="status-pill s200">200 OK</span></div>
+          <div class="code-block">{
+  <span class="k">"status"</span>: <span class="s">"success"</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"reset_token"</span>: <span class="s">"opaque-single-use-token-xyz789..."</span>,
+    <span class="k">"expires_in"</span>: <span class="n">300</span>    <span class="c">// 5 minutos TTL</span>
+  }
+}</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI</div>
+          <div class="decision-content">
+            <ul>
+              <li>Guardar <code>reset_token</code> en memoria (NO en secure storage — es efímero)</li>
+              <li>Navegar a SCR-027 (paso 3)</li>
+              <li>Si OTP incorrecto/expirado → escenario 802 con mensaje inline</li>
+              <li>Si rate limit (10/min) → timer en botón</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 3 · SCR-027 nueva clave -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">3</span>
+      <div class="step-title">
+        <div class="t">SCR-027 · Ingresa la nueva contraseña</div>
+        <div class="s">El reset_token se consume en este request. Después de éste, el token queda invalidado</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-screen">
+            <div style="font-size: 18px;">←</div>
+            <div style="margin-top: 16px; font-weight: 800; color: var(--quac-deep); font-size: 16px;">Crea tu nueva clave</div>
+            <div style="font-size: 12px; color: var(--ink-soft); margin: 6px 0 18px;">6 dígitos numéricos</div>
+            <div class="phone-input">
+              <span class="lbl">Nueva contraseña</span>
+              <div class="phone-pin" style="margin: 4px 0 0;">
+                <span class="digit filled">•</span>
+                <span class="digit filled">•</span>
+                <span class="digit filled">•</span>
+                <span class="digit filled">•</span>
+                <span class="digit filled">•</span>
+                <span class="digit filled">•</span>
+              </div>
+            </div>
+            <div class="phone-input">
+              <span class="lbl">Confirma contraseña</span>
+              <div class="phone-pin" style="margin: 4px 0 0;">
+                <span class="digit filled">•</span>
+                <span class="digit filled">•</span>
+                <span class="digit filled">•</span>
+                <span class="digit filled">•</span>
+                <span class="digit filled">•</span>
+                <span class="digit filled">•</span>
+              </div>
+            </div>
+            <button class="phone-btn">GUARDAR</button>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block req">
+          <div class="trace-block-header">
+            <span class="http-method POST">POST</span>
+            <span class="http-path">/api/v2/auth/registrar_clave</span>
+          </div>
+          <div class="code-block">{
+  <span class="k">"reset_token"</span>: <span class="s">"opaque-single-use-token-xyz789..."</span>,
+  <span class="k">"password_nueva"</span>: <span class="s">"823917"</span>
+}</div>
+        </div>
+        <div class="trace-block res">
+          <div class="trace-block-header">Response · <span class="status-pill s200">200 OK</span></div>
+          <div class="code-block">{
+  <span class="k">"status"</span>: <span class="s">"success"</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"clave_actualizada"</span>: <span class="b">true</span>
+  }
+}</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI</div>
+          <div class="decision-content">
+            <ul>
+              <li>Si 200 → abrir modal SCR-028 "Clave actualizada" (paso 4)</li>
+              <li>Validación local previa: ambos campos deben coincidir antes de habilitar el botón GUARDAR</li>
+              <li>Si HTTP 422 escenario 105 → "El token expiró" → volver a SCR-025 (rehacer flujo)</li>
+              <li>El <code>reset_token</code> es single-use: si se reintenta el request, devuelve 105</li>
+            </ul>
+          </div>
+        </div>
+        <div class="trace-block impl">
+          <div class="trace-block-header">⚙️ Implementación</div>
+          <div class="impl-content">
+            <table class="impl-table">
+              <tr><th>Repo</th><th>Archivo</th><th>Responsabilidad</th></tr>
+              <tr>
+                <td><span class="repo-badge backend">api-quac-v2</span></td>
+                <td class="impl-path">app/Http/Controllers/V2/Auth/PasswordController.php</td>
+                <td><span class="impl-method">registrar()</span> · valida reset_token + bcrypt(password)</td>
+              </tr>
+              <tr>
+                <td><span class="repo-badge backend">api-quac-v2</span></td>
+                <td class="impl-path">app/Http/Requests/V2/Auth/RegistrarClaveRequest.php</td>
+                <td>FormRequest con validación de password</td>
+              </tr>
+              <tr>
+                <td><span class="repo-badge mobile">app-quac-v2</span></td>
+                <td class="impl-path">lib/features/auth/presentation/screens/scr_027_recuperar_nueva_clave_screen.dart</td>
+                <td>Form con validación local antes del request</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- PASO 4 · Modal éxito -->
+  <article class="step">
+    <div class="step-header">
+      <span class="step-num">4</span>
+      <div class="step-title">
+        <div class="t">SCR-028 · Modal "¡Clave actualizada!"</div>
+        <div class="s">Modal de confirmación que vuelve al login para que el usuario entre con la nueva clave</div>
+      </div>
+    </div>
+    <div class="step-grid">
+      <div class="client-view">
+        <div class="cv-label">Lo que ve el cliente</div>
+        <div class="phone">
+          <div class="phone-modal">
+            <div class="modal-card">
+              <div class="modal-icon success">✓</div>
+              <div class="modal-title">¡Clave actualizada!</div>
+              <div class="modal-msg">Ya puedes iniciar sesión con tu nueva contraseña.</div>
+              <button class="phone-btn">VOLVER A INICIAR SESIÓN</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="trace">
+        <div class="trace-block no-call">
+          <div class="trace-block-header">Sin llamada al backend</div>
+          <div class="no-call-content">Modal 100% client-side de confirmación. El éxito ya fue confirmado por el response del paso 3.</div>
+        </div>
+        <div class="trace-block decision">
+          <div class="trace-block-header">Decisión de UI</div>
+          <div class="decision-content">
+            <ul>
+              <li>Tap VOLVER A INICIAR SESIÓN → cierra modal y navega a Login (SCR-019a o SCR-019b según haya <code>nameUser</code> en SharedPreferences)</li>
+              <li>El <code>reset_token</code> en memoria se descarta</li>
+              <li>Limpiar todos los inputs de los pasos 1-3 si el usuario vuelve atrás</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ============================ LEGEND FOOTER ============================ -->
+<footer class="legend">
+  <h2>Apuntes y leyendas</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Shapes de respuesta (D12)</h3>
+      <p>Éxito: <code>{status:"success", data:{...}}</code>. Error genérico HTTP: <code>{status:"error", error:{code, message, details}}</code>. Escenario de negocio AQ-002: <code>{escenario, mensaje, data}</code> sin wrapper (HTTP 422).</p>
+    </div>
+    <div class="card">
+      <h3>Path real</h3>
+      <p>Todos los endpoints están bajo <code>/api/v2/</code>. Laravel monta automáticamente el prefijo <code>/api/</code> sobre las rutas de <code>routes/api.php</code>.</p>
+    </div>
+    <div class="card">
+      <h3>Códigos de escenario</h3>
+      <p><code>100</code> cuenta no registrada · <code>106</code> device no autorizado (deprecado, ahora es bandera) · <code>800</code> cooldown 48h · <code>801</code> device sospechoso · <code>802</code> rate limit / demasiados intentos · <code>803</code> credenciales inválidas · <code>804</code> cooldown post-logout · <code>900</code> servicio externo caído · <code>105</code> reset_token expirado / single-use.</p>
+    </div>
+    <div class="card">
+      <h3>Antifraude transversal</h3>
+      <p>El middleware <code>VerificarHashCupoCelular</code> aplica a cualquier request autenticado. Si el celular cambió desde el portal web, revoca el token y devuelve 401. Mitiga el caso de fraude FRZ-2026-001.</p>
+    </div>
+    <div class="card">
+      <h3>Rate limits</h3>
+      <p><code>aq-otp-envio</code>: 5/min por IP + 5/min por documento (dual para evitar proxy rotation). <code>aq-otp-validacion</code>: 10/min por IP + 10/min por documento. Cuando se excede → 429 mapeado a escenario 802.</p>
+    </div>
+    <div class="card">
+      <h3>URL pública (staging)</h3>
+      <p><code>https://testapi-v2.porcuotas.app/api/v2</code>. Verificado funcional 2026-06-09 (después del fix del driver MySQL).</p>
+    </div>
+    <div class="card">
+      <h3>Branches mergeadas</h3>
+      <p><code>feature/AQ-002-auth-antifraude</code> ya está en <code>develop</code> en ambos repos (commit <code>4e47e</code> mobile, <code>19ee4</code> backend).</p>
+    </div>
+    <div class="card">
+      <h3>Pendientes operativos</h3>
+      <p>OPS-AQ-002-1 (Infobip API key) bloquea el envío real de OTP. OPS-AQ-002-2 (Brevo API key) bloquea email transaccional. Replicación de <code>devices</code> de PROD a DEV para que QA pueda probar happy path.</p>
+    </div>
+  </div>
+</footer>
+
+</div>
+
+<script>
+// Tabs simples
+document.querySelectorAll('.scenario-tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.scenario-tabs button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.scenario').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  });
+});
+</script>
+</body>
+</html>
