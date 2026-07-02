@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-47 · Configuración de comisiones (auto-log, sin vigencias visibles) — mockup contrato</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+  .tab-pill.active { background: white; color: #111827; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .num { font-variant-numeric: tabular-nums; }
+  .fade-in { animation: fadeIn .25s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-3px);} to { opacity: 1; transform: none;} }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+<!-- ══════════ Barra de mockup (solo para validación) ══════════ -->
+<div class="bg-gray-900 text-gray-300 text-xs px-4 py-2 flex items-center gap-4 flex-wrap">
+  <span class="font-semibold text-white">MOCKUP GW-47 · ajuste "auto-log invisible"</span>
+  <span class="opacity-60">Cambios vs versión con vigencias: sin selector de vigencia · sin botón "+ Nueva vigencia" · nuevo tab Historial</span>
+  <span class="ml-auto flex items-center gap-2">
+    Estado:
+    <button onclick="setVariante('datos')" id="btn-var-datos" class="px-2 py-0.5 rounded bg-blue-600 text-white">Con configuración</button>
+    <button onclick="setVariante('vacio')" id="btn-var-vacio" class="px-2 py-0.5 rounded bg-gray-700">Primera vez (vacío)</button>
+  </span>
+</div>
+
+<div class="max-w-6xl mx-auto px-4 py-6">
+
+  <!-- Header -->
+  <div class="mb-5">
+    <h1 class="text-2xl font-bold tracking-tight">Configuración de comisiones</h1>
+    <p class="text-sm text-gray-600 mt-1">Tasas de comisión por tienda × métrica + bono diario · editable por la directora</p>
+  </div>
+
+  <!-- Filtros: SOLO tienda (la vigencia desapareció de la UI) -->
+  <div class="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex items-end gap-4 flex-wrap">
+    <div>
+      <label class="block text-[11px] text-gray-500 uppercase tracking-wide mb-1">Tienda</label>
+      <select id="sel-tienda" onchange="cambiarTienda(this.value)" class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 bg-white">
+        <option value="stirpe">STIRPE.CO QEC</option>
+        <option value="derek">DEREK.CO QEC</option>
+      </select>
+    </div>
+    <p class="text-xs text-gray-400 pb-2.5">
+      Los valores que ves son los <strong class="text-gray-500">vigentes hoy</strong>. Cada cambio queda en el
+      <a href="#" onclick="irATab('historial'); return false;" class="text-blue-600 underline">Historial</a>
+      y las liquidaciones de fechas pasadas conservan las tasas que regían ese día.
+    </p>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex gap-1 bg-gray-200/70 p-1 rounded-lg w-fit mb-4 flex-wrap">
+    <button class="tab-pill px-3 py-1.5 text-sm font-medium rounded-md text-gray-600" data-tab="ventas" onclick="irATab('ventas')">Ventas <span class="text-[10px] opacity-60" id="count-ventas"></span></button>
+    <button class="tab-pill px-3 py-1.5 text-sm font-medium rounded-md text-gray-600" data-tab="vpt" onclick="irATab('vpt')">VPT <span class="text-[10px] opacity-60" id="count-vpt"></span></button>
+    <button class="tab-pill px-3 py-1.5 text-sm font-medium rounded-md text-gray-600" data-tab="tcv" onclick="irATab('tcv')">TCV <span class="text-[10px] opacity-60" id="count-tcv"></span></button>
+    <button class="tab-pill px-3 py-1.5 text-sm font-medium rounded-md text-gray-600" data-tab="bono" onclick="irATab('bono')">Bono diario</button>
+    <button class="tab-pill px-3 py-1.5 text-sm font-medium rounded-md text-gray-600" data-tab="historial" onclick="irATab('historial')">
+      Historial de cambios <span id="count-historial" class="ml-0.5 inline-flex items-center justify-center text-[10px] bg-blue-100 text-blue-700 rounded-full px-1.5"></span>
+    </button>
+  </div>
+
+  <!-- ══════════ Tab métrica (ventas / vpt / tcv se renderizan aquí) ══════════ -->
+  <div id="panel-metrica" class="bg-white rounded-xl border border-gray-200 overflow-hidden hidden">
+    <div class="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between gap-3 flex-wrap">
+      <div>
+        <h3 class="text-sm font-semibold" id="metrica-titulo"></h3>
+        <p class="text-xs text-gray-500 mt-0.5" id="metrica-desc"></p>
+      </div>
+      <button onclick="nuevaFila()" id="btn-nueva-fila" class="bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-700">+ Nueva fila</button>
+    </div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-xs text-gray-500 border-b border-gray-100">
+          <th class="px-5 py-2.5 font-medium" id="th-cumplimiento"></th>
+          <th class="px-5 py-2.5 font-medium" id="th-comision"></th>
+          <th class="px-5 py-2.5 font-medium text-right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-metrica"></tbody>
+    </table>
+  </div>
+
+  <!-- ══════════ Tab bono ══════════ -->
+  <div id="panel-bono" class="bg-white rounded-xl border border-gray-200 p-6 hidden">
+    <h3 class="text-sm font-semibold">Bono diario por meta cumplida</h3>
+    <p class="text-sm text-gray-600 mt-2">El asesor recibe este monto fijo por cada día del período en que cumple <strong>ambas</strong> condiciones:</p>
+    <ul class="mt-2 pl-5 list-disc text-sm text-gray-600 space-y-1">
+      <li>Venta real del día ≥ meta de venta del día (asignada en <em>Presupuesto asesor</em>)</li>
+      <li>UPT real del día ≥ meta UPT (default del mes, con override diario opcional)</li>
+    </ul>
+    <div class="mt-5 flex items-end gap-4">
+      <div>
+        <label class="block text-[11px] text-gray-500 uppercase tracking-wide mb-1">Monto por día cumplido</label>
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-500">$</span>
+          <input id="input-bono" type="number" step="1000" min="0" class="border border-gray-300 rounded-lg px-3 py-2 text-base font-semibold w-40 num">
+        </div>
+      </div>
+      <button onclick="guardarBono()" class="bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-700">Guardar</button>
+    </div>
+    <p class="text-xs text-gray-400 mt-3" id="bono-hint"></p>
+  </div>
+
+  <!-- ══════════ Tab historial ══════════ -->
+  <div id="panel-historial" class="bg-white rounded-xl border border-gray-200 overflow-hidden hidden">
+    <div class="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between gap-3 flex-wrap">
+      <div>
+        <h3 class="text-sm font-semibold">Historial de cambios</h3>
+        <p class="text-xs text-gray-500 mt-0.5">Traza de cada ajuste de tasas y bono: quién, cuándo y qué cambió. Las liquidaciones usan la tasa que regía en la fecha liquidada.</p>
+      </div>
+      <select id="filtro-historial" onchange="renderHistorial()" class="border border-gray-300 rounded-lg px-2 py-1.5 text-xs bg-white">
+        <option value="todas">Todas las métricas</option>
+        <option value="Ventas">Ventas</option>
+        <option value="VPT">VPT</option>
+        <option value="TCV">TCV</option>
+        <option value="Bono diario">Bono diario</option>
+      </select>
+    </div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-xs text-gray-500 border-b border-gray-100">
+          <th class="px-5 py-2.5 font-medium">Fecha</th>
+          <th class="px-5 py-2.5 font-medium">Usuario</th>
+          <th class="px-5 py-2.5 font-medium">Elemento</th>
+          <th class="px-5 py-2.5 font-medium">Acción</th>
+          <th class="px-5 py-2.5 font-medium">Cambio</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-historial"></tbody>
+    </table>
+    <div id="historial-vacio" class="hidden px-5 py-10 text-center text-sm text-gray-400">
+      Aún no hay cambios registrados. Cuando agregues o edites tasas, cada movimiento quedará aquí.
+    </div>
+  </div>
+
+  <!-- Estado vacío para tabs de métricas -->
+  <div id="panel-vacio" class="hidden bg-white rounded-xl border border-gray-200 px-6 py-12 text-center">
+    <p class="text-sm text-gray-500 font-medium" id="vacio-titulo">Sin escalones configurados para esta métrica.</p>
+    <p class="text-xs text-gray-400 mt-1">Usa "+ Nueva fila" para agregar el primero. No necesitas configurar nada más: el sistema registra la fecha del cambio automáticamente.</p>
+    <button onclick="nuevaFila()" class="mt-4 bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-700">+ Nueva fila</button>
+  </div>
+
+</div>
+
+<!-- ══════════ Modal confirmar eliminación ══════════ -->
+<div id="modal-eliminar" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 fade-in">
+    <h3 class="text-base font-semibold">Eliminar escalón</h3>
+    <p class="text-sm text-gray-600 mt-2" id="modal-eliminar-texto"></p>
+    <p class="text-xs text-gray-400 mt-2">El cambio quedará registrado en el Historial. Las liquidaciones de fechas anteriores no se afectan.</p>
+    <div class="mt-5 flex justify-end gap-2">
+      <button onclick="cerrarModalEliminar()" class="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
+      <button onclick="confirmarEliminar()" class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-5 right-5 bg-green-600 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg fade-in z-50"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// Estado del mockup (datos de ejemplo realistas)
+// ─────────────────────────────────────────────────────────────
+const USUARIO_ACTUAL = 'Ana María Torres (directora)';
+
+const METRICAS = {
+  ventas: {
+    titulo: 'Escala de comisión sobre ventas',
+    desc: 'Si cumplimiento de ventas ≥ X% → comisión Y% sobre venta neta · aplica el escalón más alto superado',
+    thCumpl: 'Cumplimiento ≥', thCom: '% Comisión', sufijo: '%', signo: false,
+  },
+  vpt: {
+    titulo: 'Bonus por cumplimiento de VPT',
+    desc: 'Si VPT real ≥ X% de la meta → comisión adicional Y% sobre venta neta',
+    thCumpl: 'Cumplimiento de VPT ≥', thCom: '% Comisión adicional', sufijo: '%', signo: true,
+  },
+  tcv: {
+    titulo: 'Bonus por TCV (Tasa de Conversación)',
+    desc: 'TCV = conversaciones cerradas / carritos confirmados · menor es mejor · objetivo actual ≤ 14',
+    thCumpl: 'TCV ≤', thCom: '% Comisión adicional', sufijo: '', signo: true,
+  },
+};
+
+const datosIniciales = () => ({
+  stirpe: {
+    ventas: [ {c: 80, p: 0.80}, {c: 90, p: 1.00}, {c: 100, p: 1.30}, {c: 110, p: 1.40} ],
+    vpt:    [ {c: 100, p: 0.10}, {c: 120, p: 0.15} ],
+    tcv:    [ {c: 10, p: 0.20}, {c: 12, p: 0.15}, {c: 14, p: 0.10} ],
+    bono: 20000,
+    historial: [
+      {f: '01-jul-2026 09:12', u: 'Francisco Lizcano (admin)', el: 'Ventas · escalón 100%', a: 'Alta', cambio: '— → 1,30%'},
+      {f: '01-jul-2026 09:12', u: 'Francisco Lizcano (admin)', el: 'Ventas · escalón 110%', a: 'Alta', cambio: '— → 1,40%'},
+      {f: '01-jul-2026 09:15', u: 'Francisco Lizcano (admin)', el: 'Bono diario', a: 'Alta', cambio: '— → $20.000'},
+      {f: '28-jun-2026 16:40', u: 'Ana María Torres (directora)', el: 'TCV · escalón 14', a: 'Edición', cambio: '+0,08% → +0,10%'},
+    ],
+  },
+  derek: {
+    ventas: [ {c: 80, p: 0.75}, {c: 90, p: 0.95}, {c: 100, p: 1.25}, {c: 110, p: 1.35} ],
+    vpt:    [ {c: 100, p: 0.10} ],
+    tcv:    [ {c: 12, p: 0.15}, {c: 14, p: 0.10} ],
+    bono: 20000,
+    historial: [
+      {f: '01-jul-2026 10:02', u: 'Francisco Lizcano (admin)', el: 'Ventas · escalón 100%', a: 'Alta', cambio: '— → 1,25%'},
+    ],
+  },
+});
+
+let data = datosIniciales();
+let tienda = 'stirpe';
+let tabActivo = 'ventas';
+let variante = 'datos';
+let filaEditando = null;   // índice de fila en edición, o 'nueva'
+let filaAEliminar = null;
+
+// ─────────────────────────────────────────────────────────────
+// Render
+// ─────────────────────────────────────────────────────────────
+function fmtPct(v, m) {
+  const met = METRICAS[m];
+  return (met.signo ? '+ ' : '') + v.toFixed(2).replace('.', ',') + '%';
+}
+function fmtCumpl(v, m) { return m === 'tcv' ? String(v) : v + '%'; }
+function fmtPesos(v) { return '$' + v.toLocaleString('es-CO'); }
+
+function irATab(tab) {
+  tabActivo = tab;
+  filaEditando = null;
+  document.querySelectorAll('.tab-pill').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  render();
+}
+
+function render() {
+  const d = data[tienda];
+  // contadores
+  ['ventas','vpt','tcv'].forEach(m => document.getElementById('count-' + m).textContent = `(${d[m].length})`);
+  document.getElementById('count-historial').textContent = d.historial.length;
+
+  const esMetrica = ['ventas','vpt','tcv'].includes(tabActivo);
+  document.getElementById('panel-metrica').classList.toggle('hidden', !esMetrica || (d[tabActivo] && d[tabActivo].length === 0 && filaEditando === null && esMetrica));
+  document.getElementById('panel-bono').classList.toggle('hidden', tabActivo !== 'bono');
+  document.getElementById('panel-historial').classList.toggle('hidden', tabActivo !== 'historial');
+  document.getElementById('panel-vacio').classList.add('hidden');
+
+  if (esMetrica) {
+    const met = METRICAS[tabActivo];
+    if (d[tabActivo].length === 0 && filaEditando === null) {
+      document.getElementById('panel-metrica').classList.add('hidden');
+      document.getElementById('panel-vacio').classList.remove('hidden');
+      return;
+    }
+    document.getElementById('metrica-titulo').textContent = met.titulo;
+    document.getElementById('metrica-desc').textContent = met.desc;
+    document.getElementById('th-cumplimiento').textContent = met.thCumpl;
+    document.getElementById('th-comision').textContent = met.thCom;
+    renderFilas();
+  }
+  if (tabActivo === 'bono') {
+    document.getElementById('input-bono').value = d.bono ?? '';
+    document.getElementById('bono-hint').textContent = d.bono
+      ? `Vigente: ${fmtPesos(d.bono)} · el próximo cambio quedará en el Historial con tu usuario.`
+      : 'Sin bono configurado todavía.';
+  }
+  if (tabActivo === 'historial') renderHistorial();
+}
+
+function renderFilas() {
+  const d = data[tienda][tabActivo];
+  const tbody = document.getElementById('tbody-metrica');
+  tbody.innerHTML = '';
+  d.forEach((fila, i) => {
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-gray-50 hover:bg-gray-50/60';
+    if (filaEditando === i) {
+      tr.innerHTML = `
+        <td class="px-5 py-2 font-medium num">${fmtCumpl(fila.c, tabActivo)}</td>
+        <td class="px-5 py-2"><input id="edit-pct" type="number" step="0.01" min="0" max="10" value="${fila.p}" class="border border-blue-300 ring-2 ring-blue-100 rounded-lg px-2 py-1 text-sm w-24 num" autofocus></td>
+        <td class="px-5 py-2 text-right">
+          <button onclick="guardarEdicion(${i})" class="bg-gray-900 text-white text-xs px-3 py-1 rounded-lg">Guardar</button>
+          <button onclick="cancelarEdicion()" class="text-xs px-2 py-1 text-gray-500 hover:text-gray-700">Cancelar</button>
+        </td>`;
+    } else {
+      tr.innerHTML = `
+        <td class="px-5 py-2.5 font-medium num">${fmtCumpl(fila.c, tabActivo)}</td>
+        <td class="px-5 py-2.5 num ${METRICAS[tabActivo].signo ? 'text-green-700' : ''}">${fmtPct(fila.p, tabActivo)}</td>
+        <td class="px-5 py-2.5 text-right">
+          <button title="Editar %" onclick="editarFila(${i})" class="text-gray-400 hover:text-gray-700 px-1.5">✎</button>
+          <button title="Eliminar" onclick="abrirModalEliminar(${i})" class="text-gray-400 hover:text-red-600 px-1.5">🗑</button>
+        </td>`;
+    }
+    tbody.appendChild(tr);
+  });
+  // fila nueva
+  if (filaEditando === 'nueva') {
+    const tr = document.createElement('tr');
+    tr.className = 'bg-blue-50/40 fade-in';
+    tr.innerHTML = `
+      <td class="px-5 py-2"><input id="nueva-cumpl" type="number" step="0.01" min="0" max="200" placeholder="${tabActivo === 'tcv' ? '14' : '100'}" class="border border-blue-300 ring-2 ring-blue-100 rounded-lg px-2 py-1 text-sm w-24 num" autofocus></td>
+      <td class="px-5 py-2"><input id="nueva-pct" type="number" step="0.01" min="0" max="10" placeholder="1.30" class="border border-blue-300 ring-2 ring-blue-100 rounded-lg px-2 py-1 text-sm w-24 num"></td>
+      <td class="px-5 py-2 text-right">
+        <button onclick="guardarNueva()" class="bg-gray-900 text-white text-xs px-3 py-1 rounded-lg">Guardar</button>
+        <button onclick="cancelarEdicion()" class="text-xs px-2 py-1 text-gray-500 hover:text-gray-700">Cancelar</button>
+      </td>`;
+    document.getElementById('tbody-metrica').appendChild(tr);
+  }
+}
+
+function renderHistorial() {
+  const filtro = document.getElementById('filtro-historial').value;
+  const h = data[tienda].historial.filter(e => filtro === 'todas' || e.el.startsWith(filtro));
+  const tbody = document.getElementById('tbody-historial');
+  tbody.innerHTML = '';
+  document.getElementById('historial-vacio').classList.toggle('hidden', h.length > 0);
+  const badge = a => a === 'Alta' ? 'bg-green-100 text-green-700' : a === 'Eliminación' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700';
+  h.forEach(e => {
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-gray-50 fade-in';
+    tr.innerHTML = `
+      <td class="px-5 py-2.5 text-xs text-gray-500 whitespace-nowrap num">${e.f}</td>
+      <td class="px-5 py-2.5 text-sm">${e.u}</td>
+      <td class="px-5 py-2.5 text-sm">${e.el}</td>
+      <td class="px-5 py-2.5"><span class="text-[11px] font-medium px-2 py-0.5 rounded-full ${badge(e.a)}">${e.a}</span></td>
+      <td class="px-5 py-2.5 text-sm num font-medium">${e.cambio}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Acciones (simulan los POST — cada una genera entrada de historial)
+// ─────────────────────────────────────────────────────────────
+function ahora() {
+  return new Date().toLocaleDateString('es-CO', {day: '2-digit', month: 'short', year: 'numeric'}) + ' ' +
+         new Date().toLocaleTimeString('es-CO', {hour: '2-digit', minute: '2-digit'});
+}
+function log(el, a, cambio) {
+  data[tienda].historial.unshift({f: ahora(), u: USUARIO_ACTUAL, el, a, cambio});
+}
+function nombreMetrica() { return {ventas: 'Ventas', vpt: 'VPT', tcv: 'TCV'}[tabActivo]; }
+
+function nuevaFila() { filaEditando = 'nueva'; render(); document.getElementById('panel-vacio').classList.add('hidden'); document.getElementById('panel-metrica').classList.remove('hidden'); renderFilas(); }
+function editarFila(i) { filaEditando = i; renderFilas(); }
+function cancelarEdicion() { filaEditando = null; render(); }
+
+function guardarNueva() {
+  const c = parseFloat(document.getElementById('nueva-cumpl').value);
+  const p = parseFloat(document.getElementById('nueva-pct').value);
+  if (!isFinite(c) || !isFinite(p)) { alert('Completa cumplimiento y % de comisión.'); return; }
+  data[tienda][tabActivo].push({c, p});
+  data[tienda][tabActivo].sort((a, b) => a.c - b.c);
+  log(`${nombreMetrica()} · escalón ${fmtCumpl(c, tabActivo)}`, 'Alta', `— → ${fmtPct(p, tabActivo)}`);
+  filaEditando = null;
+  toast('Escalón guardado. Quedó registrado en el Historial.');
+  render();
+}
+
+function guardarEdicion(i) {
+  const p = parseFloat(document.getElementById('edit-pct').value);
+  if (!isFinite(p)) { alert('Digita el % de comisión.'); return; }
+  const fila = data[tienda][tabActivo][i];
+  const anterior = fila.p;
+  fila.p = p;
+  log(`${nombreMetrica()} · escalón ${fmtCumpl(fila.c, tabActivo)}`, 'Edición', `${fmtPct(anterior, tabActivo)} → ${fmtPct(p, tabActivo)}`);
+  filaEditando = null;
+  toast('Cambio guardado. Las liquidaciones anteriores a hoy conservan la tasa anterior.');
+  render();
+}
+
+function abrirModalEliminar(i) {
+  filaAEliminar = i;
+  const fila = data[tienda][tabActivo][i];
+  document.getElementById('modal-eliminar-texto').textContent =
+    `¿Eliminar el escalón ${fmtCumpl(fila.c, tabActivo)} → ${fmtPct(fila.p, tabActivo)} de ${nombreMetrica()}?`;
+  document.getElementById('modal-eliminar').classList.remove('hidden');
+}
+function cerrarModalEliminar() { filaAEliminar = null; document.getElementById('modal-eliminar').classList.add('hidden'); }
+function confirmarEliminar() {
+  const fila = data[tienda][tabActivo][filaAEliminar];
+  data[tienda][tabActivo].splice(filaAEliminar, 1);
+  log(`${nombreMetrica()} · escalón ${fmtCumpl(fila.c, tabActivo)}`, 'Eliminación', `${fmtPct(fila.p, tabActivo)} → —`);
+  cerrarModalEliminar();
+  toast('Escalón eliminado. Quedó registrado en el Historial.');
+  render();
+}
+
+function guardarBono() {
+  const v = parseFloat(document.getElementById('input-bono').value);
+  if (!isFinite(v) || v < 0) { alert('Digita un monto válido.'); return; }
+  const anterior = data[tienda].bono;
+  data[tienda].bono = Math.round(v);
+  log('Bono diario', anterior ? 'Edición' : 'Alta', `${anterior ? fmtPesos(anterior) : '—'} → ${fmtPesos(Math.round(v))}`);
+  toast('Bono guardado. Quedó registrado en el Historial.');
+  render();
+}
+
+function cambiarTienda(t) { tienda = t; filaEditando = null; render(); }
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => el.classList.add('hidden'), 3200);
+}
+
+// Variantes del mockup
+function setVariante(v) {
+  variante = v;
+  document.getElementById('btn-var-datos').className = 'px-2 py-0.5 rounded ' + (v === 'datos' ? 'bg-blue-600 text-white' : 'bg-gray-700');
+  document.getElementById('btn-var-vacio').className = 'px-2 py-0.5 rounded ' + (v === 'vacio' ? 'bg-blue-600 text-white' : 'bg-gray-700');
+  if (v === 'vacio') {
+    data = {stirpe: {ventas: [], vpt: [], tcv: [], bono: null, historial: []}, derek: {ventas: [], vpt: [], tcv: [], bono: null, historial: []}};
+  } else {
+    data = datosIniciales();
+  }
+  filaEditando = null;
+  irATab('ventas');
+}
+
+irATab('ventas');
+</script>
+</body>
+</html>
