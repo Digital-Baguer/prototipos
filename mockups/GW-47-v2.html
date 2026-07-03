@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-47 · Configuración de comisiones — mockup contrato (v2: condiciones del bono)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+  .tab-pill.active { background: white; color: #111827; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .num { font-variant-numeric: tabular-nums; }
+  .fade-in { animation: fadeIn .25s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-3px);} to { opacity: 1; transform: none;} }
+  .toggle { position: relative; width: 36px; height: 20px; border-radius: 999px; transition: background .15s; cursor: pointer; }
+  .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 999px; background: white; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .toggle.on { background: #2563eb; }
+  .toggle.on::after { left: 18px; }
+  .toggle.off { background: #d1d5db; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+<!-- ══════════ Barra de mockup (solo para validación) ══════════ -->
+<div class="bg-gray-900 text-gray-300 text-xs px-4 py-2 flex items-center gap-4 flex-wrap">
+  <span class="font-semibold text-white">MOCKUP GW-47 · v2 (2026-07-02)</span>
+  <span class="opacity-60">Nuevo: condiciones administrables del bono diario (Opción B) · copys alineados a producción</span>
+  <span class="ml-auto flex items-center gap-2">
+    Estado:
+    <button onclick="setVariante('datos')" id="btn-var-datos" class="px-2 py-0.5 rounded bg-blue-600 text-white">Con configuración</button>
+    <button onclick="setVariante('vacio')" id="btn-var-vacio" class="px-2 py-0.5 rounded bg-gray-700">Primera vez (vacío)</button>
+  </span>
+</div>
+
+<div class="max-w-6xl mx-auto px-4 py-6">
+
+  <!-- Header -->
+  <div class="mb-5">
+    <h1 class="text-2xl font-bold tracking-tight">Configuración de comisiones</h1>
+    <p class="text-sm text-gray-600 mt-1">Tasas por tienda × métrica</p>
+  </div>
+
+  <!-- Filtros: solo tienda -->
+  <div class="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex items-end gap-4 flex-wrap">
+    <div>
+      <label class="block text-[11px] text-gray-500 uppercase tracking-wide mb-1">Tienda</label>
+      <select id="sel-tienda" onchange="cambiarTienda(this.value)" class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 bg-white">
+        <option value="stirpe">STIRPE.CO QEC</option>
+        <option value="derek">DEREK.CO QEC</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex gap-1 bg-gray-200/70 p-1 rounded-lg w-fit mb-4 flex-wrap">
+    <button class="tab-pill px-3 py-1.5 text-sm font-medium rounded-md text-gray-600" data-tab="ventas" onclick="irATab('ventas')">Ventas <span class="text-[10px] opacity-60" id="count-ventas"></span></button>
+    <button class="tab-pill px-3 py-1.5 text-sm font-medium rounded-md text-gray-600" data-tab="vpt" onclick="irATab('vpt')">VPT <span class="text-[10px] opacity-60" id="count-vpt"></span></button>
+    <button class="tab-pill px-3 py-1.5 text-sm font-medium rounded-md text-gray-600" data-tab="tcv" onclick="irATab('tcv')">TCV <span class="text-[10px] opacity-60" id="count-tcv"></span></button>
+    <button class="tab-pill px-3 py-1.5 text-sm font-medium rounded-md text-gray-600" data-tab="bono" onclick="irATab('bono')">Bono diario</button>
+    <button class="tab-pill px-3 py-1.5 text-sm font-medium rounded-md text-gray-600" data-tab="historial" onclick="irATab('historial')">
+      Historial de cambios <span id="count-historial" class="ml-0.5 inline-flex items-center justify-center text-[10px] bg-blue-100 text-blue-700 rounded-full px-1.5"></span>
+    </button>
+  </div>
+
+  <!-- ══════════ Tab métrica ══════════ -->
+  <div id="panel-metrica" class="bg-white rounded-xl border border-gray-200 overflow-hidden hidden">
+    <div class="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between gap-3 flex-wrap">
+      <div>
+        <h3 class="text-sm font-semibold" id="metrica-titulo"></h3>
+        <p class="text-xs text-gray-500 mt-0.5" id="metrica-desc"></p>
+      </div>
+      <button onclick="nuevaFila()" class="bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-700">+ Nueva fila</button>
+    </div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-xs text-gray-500 border-b border-gray-100">
+          <th class="px-5 py-2.5 font-medium" id="th-cumplimiento"></th>
+          <th class="px-5 py-2.5 font-medium" id="th-comision"></th>
+          <th class="px-5 py-2.5 font-medium text-right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-metrica"></tbody>
+    </table>
+  </div>
+
+  <!-- ══════════ Tab bono (v2: monto + condiciones Opción B) ══════════ -->
+  <div id="panel-bono" class="bg-white rounded-xl border border-gray-200 p-6 hidden">
+    <h3 class="text-sm font-semibold">Bono diario por meta cumplida</h3>
+
+    <div class="mt-4 flex items-end gap-4">
+      <div>
+        <label class="block text-[11px] text-gray-500 uppercase tracking-wide mb-1">Monto por día cumplido</label>
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-500">$</span>
+          <input id="input-bono" type="number" step="1000" min="0" class="border border-gray-300 rounded-lg px-3 py-2 text-base font-semibold w-40 num">
+        </div>
+      </div>
+      <button onclick="guardarBono()" class="bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-700">Guardar</button>
+    </div>
+
+    <!-- ── NUEVO (Opción B): condiciones administrables ── -->
+    <div class="mt-7 border-t border-gray-200 pt-5">
+      <h4 class="text-sm font-semibold">Condiciones para ganar el bono</h4>
+      <p class="text-xs text-gray-500 mt-0.5 mb-4">El asesor gana el bono del día cuando cumple <strong>todas las condiciones activas</strong>.</p>
+
+      <div id="lista-condiciones" class="space-y-2.5"></div>
+
+      <div id="aviso-sin-condiciones" class="hidden mt-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <svg class="h-4 w-4 shrink-0 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>
+        <span>Sin condiciones activas, ningún asesor gana el bono diario.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ Tab historial ══════════ -->
+  <div id="panel-historial" class="bg-white rounded-xl border border-gray-200 overflow-hidden hidden">
+    <div class="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between gap-3 flex-wrap">
+      <div>
+        <h3 class="text-sm font-semibold">Historial de cambios</h3>
+        <p class="text-xs text-gray-500 mt-0.5">Traza de cada ajuste: quién, cuándo y qué cambió.</p>
+      </div>
+      <select id="filtro-historial" onchange="renderHistorial()" class="border border-gray-300 rounded-lg px-2 py-1.5 text-xs bg-white">
+        <option value="todas">Todo</option>
+        <option value="Ventas">Ventas</option>
+        <option value="VPT">VPT</option>
+        <option value="TCV">TCV</option>
+        <option value="Bono diario">Bono diario</option>
+        <option value="Condición">Condiciones del bono</option>
+      </select>
+    </div>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-xs text-gray-500 border-b border-gray-100">
+          <th class="px-5 py-2.5 font-medium">Fecha</th>
+          <th class="px-5 py-2.5 font-medium">Usuario</th>
+          <th class="px-5 py-2.5 font-medium">Elemento</th>
+          <th class="px-5 py-2.5 font-medium">Acción</th>
+          <th class="px-5 py-2.5 font-medium">Cambio</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-historial"></tbody>
+    </table>
+    <div id="historial-vacio" class="hidden px-5 py-10 text-center text-sm text-gray-400">
+      Aún no hay cambios registrados.
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════ Modal confirmar eliminación ══════════ -->
+<div id="modal-eliminar" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 fade-in">
+    <h3 class="text-base font-semibold">Eliminar tasa</h3>
+    <p class="text-sm text-gray-600 mt-2" id="modal-eliminar-texto"></p>
+    <p class="text-xs text-gray-400 mt-2">El cambio quedará registrado en el Historial. Las liquidaciones de fechas anteriores no se afectan.</p>
+    <div class="mt-5 flex justify-end gap-2">
+      <button onclick="cerrarModalEliminar()" class="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
+      <button onclick="confirmarEliminar()" class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-5 right-5 bg-green-600 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg fade-in z-50"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// Estado del mockup (datos de ejemplo realistas)
+// ─────────────────────────────────────────────────────────────
+const USUARIO_ACTUAL = 'Ana María Torres (directora)';
+
+const METRICAS = {
+  ventas: {
+    titulo: 'Escala de comisión sobre ventas',
+    desc: 'Si cumplimiento de ventas ≥ X% → comisión Y% sobre venta neta · aplica la tasa más alta alcanzada',
+    thCumpl: 'Cumplimiento ≥', thCom: '% Comisión', signo: false,
+  },
+  vpt: {
+    titulo: 'Bonus por cumplimiento de VPT',
+    desc: 'Si VPT real ≥ X% de la meta → comisión adicional Y% sobre venta neta',
+    thCumpl: 'Cumplimiento de VPT ≥', thCom: '% Comisión adicional', signo: true,
+  },
+  tcv: {
+    titulo: 'Bonus por TCV (Tasa de Conversación)',
+    desc: 'TCV = conversaciones cerradas / carritos confirmados · menor es mejor · objetivo actual ≤ 14',
+    thCumpl: 'TCV ≤', thCom: '% Comisión adicional', signo: true,
+  },
+};
+
+// Definición de las condiciones del bono (Opción B)
+const CONDICIONES_DEF = {
+  venta: { label: 'Venta del día', operador: '≥', sufijo: '% de la meta del día' },
+  upt:   { label: 'UPT del día',   operador: '≥', sufijo: '% de la meta' },
+  vpt:   { label: 'VPT del día',   operador: '≥', sufijo: '% de la meta' },
+  tcv:   { label: 'TCV del día',   operador: '≤', sufijo: '' },
+};
+
+const datosIniciales = () => ({
+  stirpe: {
+    ventas: [ {c: 80, p: 0.80}, {c: 90, p: 1.00}, {c: 100, p: 1.30}, {c: 110, p: 1.40} ],
+    vpt:    [ {c: 100, p: 0.10}, {c: 120, p: 0.15} ],
+    tcv:    [ {c: 10, p: 0.20}, {c: 12, p: 0.15}, {c: 14, p: 0.10} ],
+    bono: 20000,
+    condiciones: {
+      venta: { activa: true,  umbral: 100 },
+      upt:   { activa: true,  umbral: 100 },
+      vpt:   { activa: false, umbral: 100 },
+      tcv:   { activa: false, umbral: 14 },
+    },
+    historial: [
+      {f: '01-jul-2026 09:15', u: 'Francisco Lizcano (admin)', el: 'Condición Venta', a: 'Alta', cambio: '— → ≥ 100%'},
+      {f: '01-jul-2026 09:15', u: 'Francisco Lizcano (admin)', el: 'Condición UPT', a: 'Alta', cambio: '— → ≥ 100%'},
+      {f: '01-jul-2026 09:14', u: 'Francisco Lizcano (admin)', el: 'Bono diario', a: 'Alta', cambio: '— → $20.000'},
+      {f: '01-jul-2026 09:12', u: 'Francisco Lizcano (admin)', el: 'Ventas · 100%', a: 'Alta', cambio: '— → 1,30%'},
+      {f: '01-jul-2026 09:12', u: 'Francisco Lizcano (admin)', el: 'Ventas · 110%', a: 'Alta', cambio: '— → 1,40%'},
+    ],
+  },
+  derek: {
+    ventas: [ {c: 80, p: 0.75}, {c: 90, p: 0.95}, {c: 100, p: 1.25}, {c: 110, p: 1.35} ],
+    vpt:    [ {c: 100, p: 0.10} ],
+    tcv:    [ {c: 12, p: 0.15}, {c: 14, p: 0.10} ],
+    bono: 20000,
+    condiciones: {
+      venta: { activa: true,  umbral: 100 },
+      upt:   { activa: true,  umbral: 100 },
+      vpt:   { activa: false, umbral: 100 },
+      tcv:   { activa: false, umbral: 14 },
+    },
+    historial: [
+      {f: '01-jul-2026 10:02', u: 'Francisco Lizcano (admin)', el: 'Ventas · 100%', a: 'Alta', cambio: '— → 1,25%'},
+    ],
+  },
+});
+
+let data = datosIniciales();
+let tienda = 'stirpe';
+let tabActivo = 'ventas';
+let filaEditando = null;
+let filaAEliminar = null;
+
+// ─────────────────────────────────────────────────────────────
+// Render
+// ─────────────────────────────────────────────────────────────
+function fmtPct(v, m) { return (METRICAS[m].signo ? '+ ' : '') + v.toFixed(2).replace('.', ',') + '%'; }
+function fmtCumpl(v, m) { return m === 'tcv' ? String(v) : v + '%'; }
+function fmtPesos(v) { return '$' + v.toLocaleString('es-CO'); }
+function fmtUmbral(clave, v) { return CONDICIONES_DEF[clave].operador + ' ' + v + (clave === 'tcv' ? '' : '%'); }
+
+function irATab(tab) {
+  tabActivo = tab;
+  filaEditando = null;
+  document.querySelectorAll('.tab-pill').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  render();
+}
+
+function render() {
+  const d = data[tienda];
+  ['ventas','vpt','tcv'].forEach(m => document.getElementById('count-' + m).textContent = `(${d[m].length})`);
+  document.getElementById('count-historial').textContent = d.historial.length;
+
+  const esMetrica = ['ventas','vpt','tcv'].includes(tabActivo);
+  document.getElementById('panel-metrica').classList.toggle('hidden', !esMetrica);
+  document.getElementById('panel-bono').classList.toggle('hidden', tabActivo !== 'bono');
+  document.getElementById('panel-historial').classList.toggle('hidden', tabActivo !== 'historial');
+
+  if (esMetrica) {
+    const met = METRICAS[tabActivo];
+    document.getElementById('metrica-titulo').textContent = met.titulo;
+    document.getElementById('metrica-desc').textContent = met.desc;
+    document.getElementById('th-cumplimiento').textContent = met.thCumpl;
+    document.getElementById('th-comision').textContent = met.thCom;
+    renderFilas();
+  }
+  if (tabActivo === 'bono') {
+    document.getElementById('input-bono').value = d.bono ?? '';
+    renderCondiciones();
+  }
+  if (tabActivo === 'historial') renderHistorial();
+}
+
+function renderFilas() {
+  const d = data[tienda][tabActivo];
+  const tbody = document.getElementById('tbody-metrica');
+  tbody.innerHTML = '';
+  d.forEach((fila, i) => {
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-gray-50 hover:bg-gray-50/60';
+    if (filaEditando === i) {
+      tr.innerHTML = `
+        <td class="px-5 py-2 font-medium num">${fmtCumpl(fila.c, tabActivo)}</td>
+        <td class="px-5 py-2"><input id="edit-pct" type="number" step="0.01" min="0" max="10" value="${fila.p}" class="border border-blue-300 ring-2 ring-blue-100 rounded-lg px-2 py-1 text-sm w-24 num" autofocus></td>
+        <td class="px-5 py-2 text-right">
+          <button onclick="guardarEdicion(${i})" class="bg-gray-900 text-white text-xs px-3 py-1 rounded-lg">Guardar</button>
+          <button onclick="cancelarEdicion()" class="text-xs px-2 py-1 text-gray-500 hover:text-gray-700">Cancelar</button>
+        </td>`;
+    } else {
+      tr.innerHTML = `
+        <td class="px-5 py-2.5 font-medium num">${fmtCumpl(fila.c, tabActivo)}</td>
+        <td class="px-5 py-2.5 num ${METRICAS[tabActivo].signo ? 'text-green-700' : ''}">${fmtPct(fila.p, tabActivo)}</td>
+        <td class="px-5 py-2.5 text-right">
+          <button title="Editar %" onclick="editarFila(${i})" class="text-gray-400 hover:text-gray-700 px-1.5">✎</button>
+          <button title="Eliminar" onclick="abrirModalEliminar(${i})" class="text-gray-400 hover:text-red-600 px-1.5">🗑</button>
+        </td>`;
+    }
+    tbody.appendChild(tr);
+  });
+  if (filaEditando === 'nueva') {
+    const tr = document.createElement('tr');
+    tr.className = 'bg-blue-50/40 fade-in';
+    tr.innerHTML = `
+      <td class="px-5 py-2"><input id="nueva-cumpl" type="number" step="0.01" min="0" max="200" placeholder="${tabActivo === 'tcv' ? '14' : '100'}" class="border border-blue-300 ring-2 ring-blue-100 rounded-lg px-2 py-1 text-sm w-24 num" autofocus></td>
+      <td class="px-5 py-2"><input id="nueva-pct" type="number" step="0.01" min="0" max="10" placeholder="1.30" class="border border-blue-300 ring-2 ring-blue-100 rounded-lg px-2 py-1 text-sm w-24 num"></td>
+      <td class="px-5 py-2 text-right">
+        <button onclick="guardarNueva()" class="bg-gray-900 text-white text-xs px-3 py-1 rounded-lg">Guardar</button>
+        <button onclick="cancelarEdicion()" class="text-xs px-2 py-1 text-gray-500 hover:text-gray-700">Cancelar</button>
+      </td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+// ── NUEVO: render de condiciones del bono (Opción B) ─────────
+function renderCondiciones() {
+  const cond = data[tienda].condiciones;
+  const cont = document.getElementById('lista-condiciones');
+  cont.innerHTML = '';
+  let algunaActiva = false;
+
+  Object.entries(CONDICIONES_DEF).forEach(([clave, def]) => {
+    const c = cond[clave];
+    if (c.activa) algunaActiva = true;
+    const fila = document.createElement('div');
+    fila.className = 'flex items-center gap-3 rounded-lg border px-4 py-3 ' + (c.activa ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50');
+    fila.innerHTML = `
+      <div class="toggle ${c.activa ? 'on' : 'off'}" title="${c.activa ? 'Desactivar' : 'Activar'}" onclick="toggleCondicion('${clave}')"></div>
+      <span class="text-sm font-medium w-32 ${c.activa ? '' : 'text-gray-400'}">${def.label}</span>
+      <span class="text-sm ${c.activa ? 'text-gray-600' : 'text-gray-300'}">${def.operador}</span>
+      <input type="number" step="1" min="0" max="200" value="${c.umbral}" id="umbral-${clave}"
+             class="border rounded-lg px-2 py-1 text-sm w-20 num ${c.activa ? 'border-gray-300' : 'border-gray-200 text-gray-300 bg-gray-50'}"
+             ${c.activa ? '' : 'disabled'} onchange="marcarUmbralCambiado('${clave}')">
+      <span class="text-xs ${c.activa ? 'text-gray-500' : 'text-gray-300'}">${def.sufijo}</span>
+      <button id="btn-umbral-${clave}" onclick="guardarUmbral('${clave}')"
+              class="hidden ml-auto bg-gray-900 text-white text-xs px-3 py-1 rounded-lg">Guardar</button>`;
+    cont.appendChild(fila);
+  });
+
+  document.getElementById('aviso-sin-condiciones').classList.toggle('hidden', algunaActiva);
+}
+
+function toggleCondicion(clave) {
+  const c = data[tienda].condiciones[clave];
+  const def = CONDICIONES_DEF[clave];
+  c.activa = !c.activa;
+  if (c.activa) {
+    log(`Condición ${def.label.split(' ')[0] === 'Venta' ? 'Venta' : def.label.split(' ')[0]}`, 'Alta', `— → ${fmtUmbral(clave, c.umbral)}`);
+    toast('Condición activada. Quedó registrada en el Historial.');
+  } else {
+    log(`Condición ${def.label.split(' ')[0]}`, 'Eliminación', `${fmtUmbral(clave, c.umbral)} → —`);
+    toast('Condición desactivada. Quedó registrada en el Historial.');
+  }
+  render();
+}
+
+function marcarUmbralCambiado(clave) {
+  document.getElementById('btn-umbral-' + clave).classList.remove('hidden');
+}
+
+function guardarUmbral(clave) {
+  const c = data[tienda].condiciones[clave];
+  const nuevo = parseFloat(document.getElementById('umbral-' + clave).value);
+  if (!isFinite(nuevo) || nuevo < 0) { alert('Digita un umbral válido.'); return; }
+  if (nuevo !== c.umbral) {
+    const def = CONDICIONES_DEF[clave];
+    log(`Condición ${def.label.split(' ')[0]}`, 'Edición', `${fmtUmbral(clave, c.umbral)} → ${fmtUmbral(clave, nuevo)}`);
+    c.umbral = nuevo;
+    toast('Umbral guardado. Las liquidaciones anteriores a hoy conservan el valor que regía.');
+  }
+  render();
+}
+
+function renderHistorial() {
+  const filtro = document.getElementById('filtro-historial').value;
+  const h = data[tienda].historial.filter(e => filtro === 'todas' || e.el.startsWith(filtro));
+  const tbody = document.getElementById('tbody-historial');
+  tbody.innerHTML = '';
+  document.getElementById('historial-vacio').classList.toggle('hidden', h.length > 0);
+  const badge = a => a === 'Alta' ? 'bg-green-100 text-green-700' : a === 'Eliminación' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700';
+  h.forEach(e => {
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-gray-50 fade-in';
+    tr.innerHTML = `
+      <td class="px-5 py-2.5 text-xs text-gray-500 whitespace-nowrap num">${e.f}</td>
+      <td class="px-5 py-2.5 text-sm">${e.u}</td>
+      <td class="px-5 py-2.5 text-sm">${e.el}</td>
+      <td class="px-5 py-2.5"><span class="text-[11px] font-medium px-2 py-0.5 rounded-full ${badge(e.a)}">${e.a}</span></td>
+      <td class="px-5 py-2.5 text-sm num font-medium">${e.cambio}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Acciones de tasas y bono
+// ─────────────────────────────────────────────────────────────
+function ahora() {
+  return new Date().toLocaleDateString('es-CO', {day: '2-digit', month: 'short', year: 'numeric'}) + ' ' +
+         new Date().toLocaleTimeString('es-CO', {hour: '2-digit', minute: '2-digit'});
+}
+function log(el, a, cambio) {
+  data[tienda].historial.unshift({f: ahora(), u: USUARIO_ACTUAL, el, a, cambio});
+}
+function nombreMetrica() { return {ventas: 'Ventas', vpt: 'VPT', tcv: 'TCV'}[tabActivo]; }
+
+function nuevaFila() { filaEditando = 'nueva'; renderFilas(); }
+function editarFila(i) { filaEditando = i; renderFilas(); }
+function cancelarEdicion() { filaEditando = null; render(); }
+
+function guardarNueva() {
+  const c = parseFloat(document.getElementById('nueva-cumpl').value);
+  const p = parseFloat(document.getElementById('nueva-pct').value);
+  if (!isFinite(c) || !isFinite(p)) { alert('Completa cumplimiento y % de comisión.'); return; }
+  data[tienda][tabActivo].push({c, p});
+  data[tienda][tabActivo].sort((a, b) => a.c - b.c);
+  log(`${nombreMetrica()} · ${fmtCumpl(c, tabActivo)}`, 'Alta', `— → ${fmtPct(p, tabActivo)}`);
+  filaEditando = null;
+  toast('Tasa guardada. Quedó registrada en el Historial.');
+  render();
+}
+
+function guardarEdicion(i) {
+  const p = parseFloat(document.getElementById('edit-pct').value);
+  if (!isFinite(p)) { alert('Digita el % de comisión.'); return; }
+  const fila = data[tienda][tabActivo][i];
+  const anterior = fila.p;
+  if (anterior !== p) {
+    fila.p = p;
+    log(`${nombreMetrica()} · ${fmtCumpl(fila.c, tabActivo)}`, 'Edición', `${fmtPct(anterior, tabActivo)} → ${fmtPct(p, tabActivo)}`);
+    toast('Tasa guardada. Las liquidaciones anteriores a hoy conservan el valor que regía.');
+  }
+  filaEditando = null;
+  render();
+}
+
+function abrirModalEliminar(i) {
+  filaAEliminar = i;
+  const fila = data[tienda][tabActivo][i];
+  document.getElementById('modal-eliminar-texto').textContent =
+    `¿Eliminar la tasa ${fmtCumpl(fila.c, tabActivo)} → ${fmtPct(fila.p, tabActivo)} de ${nombreMetrica()}?`;
+  document.getElementById('modal-eliminar').classList.remove('hidden');
+}
+function cerrarModalEliminar() { filaAEliminar = null; document.getElementById('modal-eliminar').classList.add('hidden'); }
+function confirmarEliminar() {
+  const fila = data[tienda][tabActivo][filaAEliminar];
+  data[tienda][tabActivo].splice(filaAEliminar, 1);
+  log(`${nombreMetrica()} · ${fmtCumpl(fila.c, tabActivo)}`, 'Eliminación', `${fmtPct(fila.p, tabActivo)} → —`);
+  cerrarModalEliminar();
+  toast('Tasa eliminada. Quedó registrada en el Historial.');
+  render();
+}
+
+function guardarBono() {
+  const v = parseFloat(document.getElementById('input-bono').value);
+  if (!isFinite(v) || v < 0) { alert('Digita un monto válido.'); return; }
+  const anterior = data[tienda].bono;
+  if (anterior !== Math.round(v)) {
+    data[tienda].bono = Math.round(v);
+    log('Bono diario', anterior ? 'Edición' : 'Alta', `${anterior ? fmtPesos(anterior) : '—'} → ${fmtPesos(Math.round(v))}`);
+    toast('Bono guardado. Quedó registrado en el Historial.');
+  }
+  render();
+}
+
+function cambiarTienda(t) { tienda = t; filaEditando = null; render(); }
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => el.classList.add('hidden'), 3200);
+}
+
+function setVariante(v) {
+  document.getElementById('btn-var-datos').className = 'px-2 py-0.5 rounded ' + (v === 'datos' ? 'bg-blue-600 text-white' : 'bg-gray-700');
+  document.getElementById('btn-var-vacio').className = 'px-2 py-0.5 rounded ' + (v === 'vacio' ? 'bg-blue-600 text-white' : 'bg-gray-700');
+  if (v === 'vacio') {
+    const vacia = () => ({
+      ventas: [], vpt: [], tcv: [], bono: null,
+      condiciones: { venta: {activa: false, umbral: 100}, upt: {activa: false, umbral: 100}, vpt: {activa: false, umbral: 100}, tcv: {activa: false, umbral: 14} },
+      historial: [],
+    });
+    data = { stirpe: vacia(), derek: vacia() };
+  } else {
+    data = datosIniciales();
+  }
+  filaEditando = null;
+  irATab('ventas');
+}
+
+irATab('ventas');
+</script>
+</body>
+</html>
