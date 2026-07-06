@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-48 · Cargar archivos + Bitácora — mockup contrato</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, sans-serif; }
+  .tab-pill.active { background: white; color: #111827; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .subtab.active { background: white; color: #111827; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .num { font-variant-numeric: tabular-nums; }
+  .fade-in { animation: fadeIn .25s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-3px);} to { opacity: 1; transform: none;} }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .girando { display: inline-block; animation: spin 1s linear infinite; }
+  .cal-day { display: flex; align-items: center; justify-content: center; height: 34px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: default; }
+  .cal-day.full { background: #10b981; color: white; }
+  .cal-day.partial { background: #f59e0b; color: white; }
+  .cal-day.empty { background: white; color: #9ca3af; border: 1px solid #e5e7eb; }
+  .cal-day.hoy { outline: 2px solid #111827; outline-offset: 1px; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+<!-- ══════════ Barra de mockup ══════════ -->
+<div class="bg-gray-900 text-gray-300 text-xs px-4 py-2 flex items-center gap-4 flex-wrap">
+  <span class="font-semibold text-white">MOCKUP GW-48 · Cargar archivos + Bitácora</span>
+  <span class="opacity-60">Fiel a las pestañas II/III del contrato GW-46, en el estilo actual del módulo</span>
+  <span class="ml-auto flex items-center gap-2">
+    Estado:
+    <button id="btn-var-datos" onclick="setVariante('datos')" class="px-2 py-0.5 rounded bg-blue-600 text-white">Con historial</button>
+    <button id="btn-var-vacio" onclick="setVariante('vacio')" class="px-2 py-0.5 rounded bg-gray-700">Primera vez</button>
+  </span>
+</div>
+
+<div class="max-w-6xl mx-auto px-4 py-6">
+
+  <!-- Selector de pantalla -->
+  <div class="flex gap-1 bg-gray-200/70 p-1 rounded-lg w-fit mb-5">
+    <button class="tab-pill px-3 py-1.5 text-sm font-medium rounded-md text-gray-600" data-tab="cargar" onclick="irATab('cargar')"><span id="ic-tab-cargar"></span>Cargar archivos</button>
+    <button class="tab-pill px-3 py-1.5 text-sm font-medium rounded-md text-gray-600" data-tab="bitacora" onclick="irATab('bitacora')"><span id="ic-tab-bitacora"></span>Bitácora de cargas <span id="count-bitacora" class="ml-0.5 text-[10px] bg-blue-100 text-blue-700 rounded-full px-1.5"></span></button>
+  </div>
+
+  <!-- ══════════ PANTALLA CARGAR ══════════ -->
+  <div id="pantalla-cargar" class="space-y-4">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight">Cargar archivos del día</h1>
+      <p class="text-sm text-gray-600 mt-1">Cada archivo se sube y procesa de forma independiente · recargar el mismo día reemplaza la versión anterior</p>
+    </div>
+
+    <!-- Filtro tienda + aviso async -->
+    <div class="flex flex-wrap items-center gap-3">
+      <select id="sel-tienda" class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-56 bg-white">
+        <option>STIRPE.CO QEC</option>
+        <option>DEREK.CO QEC</option>
+      </select>
+      <div class="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+        <span class="text-blue-700"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+        <span><strong>Procesamiento en segundo plano:</strong> al iniciar, el archivo queda en cola y el sistema hace los cálculos cada 10 minutos. El avance se consulta en la Bitácora.</span>
+      </div>
+    </div>
+
+    <!-- Sub-tabs por tipo de archivo (decisión UX 2026-07-05: ancho completo por flujo) -->
+    <div class="flex gap-1 bg-gray-200/70 p-1 rounded-lg w-fit">
+      <button id="subtab-ventas" class="subtab px-3 py-1.5 text-sm font-medium rounded-md text-gray-600" onclick="irASubtab('ventas')">Facturas físicas <span class="text-gray-400 font-normal">(.xls)</span><span id="badge-ventas"></span></button>
+      <button id="subtab-infobip" class="subtab px-3 py-1.5 text-sm font-medium rounded-md text-gray-600" onclick="irASubtab('infobip')">Conversaciones Infobip <span class="text-gray-400 font-normal">(.xlsx)</span><span id="badge-infobip"></span></button>
+    </div>
+
+    <div id="panel-ventas">
+      <div class="bg-white rounded-xl border border-gray-200 p-5 flex flex-col" id="card-ventas"></div>
+    </div>
+    <div id="panel-infobip" class="hidden space-y-4">
+      <div class="bg-white rounded-xl border border-gray-200 p-5 flex flex-col" id="card-infobip"></div>
+      <!-- Mapeo de agentes: vive DENTRO del flujo de Infobip (aparece tras procesar) -->
+      <div id="card-agentes" class="bg-white rounded-xl border border-gray-200 overflow-hidden"></div>
+    </div>
+
+    <!-- Estado de cargas del mes (calendario) -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <div class="flex items-start justify-between mb-3 gap-3 flex-wrap">
+        <div>
+          <h3 class="text-sm font-semibold">Estado de cargas · <span id="cal-mes-titulo">julio 2026</span></h3>
+          <p class="text-xs text-gray-500 mt-0.5">Estado independiente por archivo. Pasa el cursor sobre un día para ver el detalle.</p>
+        </div>
+        <select id="cal-mes" onchange="renderCalendario(this.value)" class="border border-gray-300 rounded-lg px-2 py-1.5 text-xs bg-white">
+          <option value="julio">Julio 2026</option>
+          <option value="junio">Junio 2026</option>
+        </select>
+      </div>
+      <div id="cal-grid" class="grid gap-2" style="grid-template-columns: repeat(15, 1fr);"></div>
+      <div class="flex flex-wrap gap-4 mt-3 text-xs items-center">
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded" style="background:#10b981"></span> Ventas + Infobip</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded" style="background:#f59e0b"></span> Solo uno de los dos / incompleto</span>
+        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded border border-gray-300 bg-white"></span> Sin cargas</span>
+        <span class="ml-auto text-gray-400 text-[11px]" id="cal-contador"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ PANTALLA BITÁCORA ══════════ -->
+  <div id="pantalla-bitacora" class="space-y-4 hidden">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight">Bitácora de cargas</h1>
+      <p class="text-sm text-gray-600 mt-1">Quién cargó qué, cuándo, con qué resultado · el archivo original siempre se puede descargar (auditoría)</p>
+    </div>
+
+    <div class="flex flex-wrap items-end gap-3">
+      <div>
+        <label class="block text-[11px] text-gray-500 uppercase tracking-wide mb-1">Cargado desde</label>
+        <input type="date" value="2026-06-28" class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+      </div>
+      <div>
+        <label class="block text-[11px] text-gray-500 uppercase tracking-wide mb-1">Cargado hasta</label>
+        <input type="date" value="2026-07-05" class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white">
+      </div>
+      <button class="bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-700">Aplicar</button>
+      <button class="ml-auto border border-gray-300 text-sm px-3 py-2 rounded-lg hover:bg-gray-50" onclick="toast('CSV exportado con las cargas del rango.')"><span id="ic-csv"></span>Exportar CSV</button>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 border-b border-gray-100">
+            <th class="px-4 py-2.5 font-medium">Cargado</th>
+            <th class="px-4 py-2.5 font-medium">Tipo</th>
+            <th class="px-4 py-2.5 font-medium">Tienda</th>
+            <th class="px-4 py-2.5 font-medium">Archivo</th>
+            <th class="px-4 py-2.5 font-medium">Rango detectado</th>
+            <th class="px-4 py-2.5 font-medium text-right">Filas</th>
+            <th class="px-4 py-2.5 font-medium text-center">Estado</th>
+            <th class="px-4 py-2.5"></th>
+          </tr>
+        </thead>
+        <tbody id="tbody-bitacora"></tbody>
+      </table>
+      <div id="bitacora-vacia" class="hidden px-5 py-10 text-center text-sm text-gray-400">Aún no hay cargas registradas.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Modal detalle de carga ══════════ -->
+<div id="modal-carga" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 fade-in max-h-[85vh] overflow-y-auto">
+    <div class="flex items-start justify-between">
+      <div>
+        <p class="text-[11px] text-gray-500 uppercase tracking-wider">Detalle de carga</p>
+        <h3 class="text-base font-semibold mt-0.5" id="modal-archivo">—</h3>
+        <p class="text-xs text-gray-500 mt-0.5" id="modal-meta">—</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600" onclick="cerrarModal()">✕</button>
+    </div>
+
+    <div id="modal-error" class="hidden mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"></div>
+
+    <div id="modal-filas-bloque" class="mt-4">
+      <p class="text-xs font-semibold mb-2">Primeras filas persistidas <span class="text-gray-400 font-normal">(de <span id="modal-total-filas">—</span>)</span></p>
+      <div class="border border-gray-100 rounded-lg overflow-hidden">
+        <table class="w-full text-xs">
+          <thead><tr class="text-left text-gray-500 border-b border-gray-100 bg-gray-50" id="modal-filas-head"></tr></thead>
+          <tbody id="modal-filas-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="mt-5 flex justify-between items-center">
+      <p class="text-[11px] text-gray-400">El original queda guardado tal como se subió (copia inmutable en la nube).</p>
+      <button class="bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-700" onclick="toast('Descargando el archivo original desde S3...')"><span id="ic-descarga"></span>Descargar archivo original</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal confirmar "Cargar otro archivo" con pendientes -->
+<div id="modal-confirmar" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 fade-in">
+    <h3 class="text-base font-semibold">¿Confirmas cargar un nuevo archivo de conversaciones?</h3>
+    <p class="text-sm text-gray-600 mt-2">No se ha confirmado el mapeo de asesores en el archivo <strong>conversaciones_04jul.xlsx</strong>.</p>
+    <div class="mt-5 flex justify-end gap-2">
+      <button class="border border-gray-300 text-sm px-4 py-2 rounded-lg hover:bg-gray-50" onclick="cerrarConfirmar()">Cancelar</button>
+      <button class="bg-gray-900 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-700" onclick="confirmarCargarOtro()">Cargar nuevo archivo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-5 right-5 bg-green-600 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg fade-in z-50"></div>
+
+<script>
+// Íconos lucide inline (mismo estilo del resto de la aplicación: stroke, sin relleno)
+const IC = {
+  upload: '<svg class="inline -mt-0.5 mr-1" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>',
+  clipboard: '<svg class="inline -mt-0.5 mr-1" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>',
+  eye: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+  clock: '<svg class="inline -mt-0.5 mr-1" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  spinner: '<svg class="girando inline -mt-0.5 mr-1" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>',
+  check: '<svg class="inline -mt-0.5 mr-1" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  x: '<svg class="inline -mt-0.5 mr-1" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  file: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+  play: '<svg class="inline -mt-0.5 mr-1" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>',
+  alert: '<svg class="inline -mt-0.5 mr-1" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+  download: '<svg class="inline -mt-0.5 mr-1" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
+};
+
+// ─────────────────────────────────────────────────────────────
+// Definición de los dos tipos de archivo (campos del wizard)
+// ─────────────────────────────────────────────────────────────
+const TIPOS = {
+  ventas: {
+    titulo: 'Facturas físicas', ext: '.xls', etiqueta: 'Archivo de Ventas',
+    archivoDemo: '1-15_Julio_STIRPE_VentasDev.xls', pesoDemo: '247 KB · 1.310 filas detectadas',
+    campos: [
+      { campo: 'nit_asesor', req: true,  sugerida: 'nit',           opciones: ['nit', 'nombres', 'NitCliente', 'numero'], preview: '8969900 · 8443600 · 7784400' },
+      { campo: 'fecha', req: true,        sugerida: 'fecha',         opciones: ['fecha'], preview: '02-jul · 03-jul · 04-jul' },
+      { campo: 'numero_factura', req: true, sugerida: 'numero',      opciones: ['numero'], preview: '86485 · 86604 · 86723' },
+      { campo: 'valor_venta', req: true,  sugerida: 'ValorVenta',    opciones: ['ValorVenta'], preview: '227.647 · 584.705 · -259.580' },
+      { campo: 'tipo', req: false,        sugerida: 'tipo',          opciones: ['tipo'], preview: 'G315 · G315 · M315' },
+      { campo: 'pedido_web', req: false,  sugerida: 'PedidoWeb',     opciones: ['PedidoWeb'], preview: '698392 · 698365 · —' },
+      { campo: 'bodega', req: false,      sugerida: 'BodegaFactura', opciones: ['BodegaFactura', 'CentroContrato'], preview: '315 · 315 · 315' },
+    ],
+    filasDemo: { head: ['nit_asesor', 'fecha', 'factura', 'valor'], filas: [
+      ['8969900', '02-jul', '86485', '$ 227.647'], ['8443600', '02-jul', '86486', '$ 584.705'],
+      ['7784400', '02-jul', '86487', '$ -259.580'], ['8969900', '03-jul', '86604', '$ 312.400'], ['8550600', '03-jul', '86605', '$ 118.900'],
+    ]},
+  },
+  infobip: {
+    titulo: 'Conversaciones de agentes', ext: '.xlsx', etiqueta: 'Archivo de Infobip',
+    archivoDemo: 'conversaciones_04jul.xlsx', pesoDemo: '18 KB · 13 filas detectadas',
+    // OJO contrato: el export real de Infobip NO trae columna de fecha —
+    // el dia lo declara quien carga (selector en la tarjeta). Encabezados reales.
+    campos: [
+      { campo: 'nombre_agente', req: true, sugerida: 'Información del agente', opciones: ['Información del agente'], preview: '8550600 - Paola Soto - QEC · Fabian Prada - QEC' },
+      { campo: 'conv_cerradas', req: true, sugerida: 'Número de conversaciones cerradas', opciones: ['Número de conversaciones cerradas', 'Número de conversaciones asignadas', 'Número de conversaciones no gestionadas'], preview: '12 · 9 · 15' },
+      { campo: 'conv_asignadas', req: false, sugerida: 'Número de conversaciones asignadas', opciones: ['Número de conversaciones asignadas'], preview: '14 · 11 · 17' },
+      { campo: 'conv_no_gestionadas', req: false, sugerida: 'Número de conversaciones no gestionadas', opciones: ['Número de conversaciones no gestionadas'], preview: '2 · 2 · 2' },
+      { campo: 'clientes_atendidos', req: false, sugerida: 'Número de clientes atendidos', opciones: ['Número de clientes atendidos'], preview: '11 · 8 · 14' },
+    ],
+    pideFecha: true,
+    filasDemo: { head: ['agente', 'fecha', 'cerradas', 'asignadas'], filas: [
+      ['8550600 - Paola Soto', '04-jul', '12', '14'], ['8969900 - Fabian Prada', '04-jul', '9', '11'], ['7784400 - Carlos Córdoba', '04-jul', '15', '17'],
+    ]},
+  },
+};
+// Nota contrato: en infobip, conv_cerradas arranca SIN sugerencia para demostrar
+// la validación (campo requerido sin mapear = rojo + botón deshabilitado)
+
+// Posición de cada encabezado dentro del archivo (col 1 = primera)
+const POSICIONES = {
+  ventas:  { 'nit': 1, 'nombres': 2, 'fecha': 3, 'numero': 4, 'ValorVenta': 5, 'tipo': 6, 'PedidoWeb': 7, 'BodegaFactura': 8, 'NitCliente': 9, 'CentroContrato': 10 },
+  infobip: { 'Información del agente': 1, 'Número de conversaciones asignadas': 2, 'Número de conversaciones cerradas': 3, 'Número de conversaciones no gestionadas': 4, 'Número de clientes atendidos': 5, 'Tiempo de primera respuesta de agente': 6, 'Average Resolution Time': 7, 'Puntuación de CSAT (%)': 8 },
+};
+
+// ─────────────────────────────────────────────────────────────
+// Estado
+// ─────────────────────────────────────────────────────────────
+const bitacoraInicial = () => ([
+  { f: 'hoy 14:38', u: 'Francisco L.', tipo: 'Ventas', tienda: 'STIRPE QEC', archivo: '1-15_Julio_STIRPE_VentasDev.xls', rango: '01–15 jul · 15 días', filas: '1.309', estado: 'encola', tipoDef: 'ventas' },
+  { f: 'hoy 14:28', u: 'María González', tipo: 'Infobip', tienda: 'DEREK QEC', archivo: 'conversaciones_04jul.xlsx', rango: '04 jul · 1 día', filas: '10', estado: 'procesando', tipoDef: 'infobip' },
+  { f: 'ayer 17:45', u: 'Francisco L.', tipo: 'Ventas', tienda: 'DEREK QEC', archivo: '03-Julio_DEREK_VentasDev.xls', rango: '03 jul · 1 día', filas: '98', estado: 'procesado', tipoDef: 'ventas' },
+  { f: 'ayer 17:40', u: 'María González', tipo: 'Infobip', tienda: 'STIRPE QEC', archivo: 'conversaciones_03jul.xlsx', rango: '03 jul · 1 día', filas: '13', estado: 'procesado', tipoDef: 'infobip' },
+  { f: '02 jul 19:03', u: 'Francisco L.', tipo: 'Ventas', tienda: 'STIRPE QEC', archivo: '02-Julio_STIRPE_VentasDev.xls (v2)', rango: '02 jul · 1 día', filas: '91', estado: 'procesado', tipoDef: 'ventas' },
+  { f: '02 jul 15:21', u: 'Francisco L.', tipo: 'Ventas', tienda: 'STIRPE QEC', archivo: 'prueba_test.xls', rango: '—', filas: '—', estado: 'error', tipoDef: 'ventas', error: 'La columna obligatoria "valor_venta" no se encontró en el archivo. Ninguna fila fue persistida — el intento quedó registrado.' },
+]);
+
+let bitacora = bitacoraInicial();
+let cards = { ventas: 'mapeo', infobip: 'encola' };   // infobip rehidratado: archivo de hoy procesado, con mapeo pendiente debajo
+let tabActivo = 'cargar';
+
+// ─────────────────────────────────────────────────────────────
+// Render de tarjetas de carga
+// ─────────────────────────────────────────────────────────────
+function renderCard(tipoKey) {
+  const t = TIPOS[tipoKey];
+  const estado = cards[tipoKey];
+  const cont = document.getElementById('card-' + tipoKey);
+
+  const header = `
+    <div class="flex items-start justify-between mb-3">
+      <div>
+        <p class="text-[11px] text-gray-500 uppercase tracking-wide">${t.etiqueta}</p>
+        <h3 class="text-base font-semibold">${t.titulo} <span class="text-gray-400 font-normal text-sm">(${t.ext})</span></h3>
+      </div>
+      ${estado === 'vacio' ? '<span class="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Sin archivo</span>'
+        : estado === 'mapeo' ? '<span class="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Confirmar columnas</span>'
+        : `<span class="text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">${IC.clock}En cola</span>`}
+    </div>`;
+
+  if (estado === 'vacio') {
+    cont.innerHTML = header + `
+      <div class="border-2 border-dashed border-gray-300 rounded-lg py-10 text-center">
+        <p class="text-sm font-medium">Arrastra el archivo aquí</p>
+        <p class="text-xs text-gray-500 mt-1">o haz click para seleccionar (${t.ext})</p>
+        <button class="mt-3 bg-gray-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-700" onclick="simularSubida('${tipoKey}')">Seleccionar archivo (simular)</button>
+      </div>
+      <div class="mt-auto pt-4 text-[11px] text-gray-400">— sin archivo —</div>`;
+    actualizarBadges();
+    return;
+  }
+
+  if (estado === 'encola') {
+    cont.innerHTML = header + `
+      <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+        <p class="font-medium">${t.archivoDemo}</p>
+        <p class="text-xs mt-1">Filas persistidas ✓ · copia original guardada ✓ · el sistema calculará en la próxima corrida (máx. 10 min).</p>
+      </div>
+      <p class="mt-3 text-xs text-gray-500">Sigue el avance en la <a href="#" class="text-blue-600 underline" onclick="irATab('bitacora'); return false;">Bitácora</a>. Puedes cargar otro archivo cuando quieras.</p>
+      <div class="mt-auto pt-4"><button class="border border-gray-300 text-xs px-3 py-1.5 rounded-lg hover:bg-gray-50" onclick="cargarOtro('${tipoKey}')">Cargar otro archivo</button></div>`;
+    actualizarBadges();
+    return;
+  }
+
+  // estado 'mapeo': archivo subido + wizard
+  const filasMapa = t.campos.map((c, i) => {
+    const sinMapear = (t.sinEncabezado ? !c.elegida : (c.sugerida === null && !c.elegida));
+    const oculto = `<option value="">—</option>`;
+    const opts = t.sinEncabezado
+      ? Object.values(POSICIONES[tipoKey]).sort((a, b) => a - b).map(pos => `<option value="col${pos}" ${c.elegida === 'col' + pos ? 'selected' : ''}>Col ${pos}</option>`).join('')
+      : c.opciones.map(o => `<option value="${o}" ${((c.elegida ?? c.sugerida) === o) ? 'selected' : ''}>Col ${POSICIONES[tipoKey][o] ?? '?'} · ${o}</option>`).join('');
+    return `
+      <tr class="border-b border-gray-50 ${sinMapear && c.req ? 'bg-red-50/60' : ''}">
+        <td class="px-3 py-1.5 font-medium ${c.req ? '' : 'text-gray-500'}">${c.campo} ${c.req ? '<span class="text-red-500">*</span>' : '<span class="text-gray-400 text-[10px]">(opc)</span>'}</td>
+        <td class="px-3 py-1.5">
+          <select onchange="mapear('${tipoKey}', ${i}, this.value)" class="border rounded px-2 py-1 text-xs w-full ${sinMapear && c.req ? 'border-red-400 ring-1 ring-red-200' : 'border-gray-300'}">
+            ${sinMapear ? '<option value="" selected>— seleccionar —</option>' : oculto}${opts}
+          </select>
+          ${sinMapear && c.req ? '<p class="text-[10px] text-red-600 mt-0.5">Campo obligatorio sin columna asignada</p>' : ''}
+        </td>
+        <td class="px-3 py-1.5 text-gray-500 text-[11px]">${c.preview}</td>
+      </tr>`;
+  }).join('');
+
+  const faltantes = t.campos.filter(c => c.req && (t.sinEncabezado ? !c.elegida : (c.sugerida === null && !c.elegida))).length + ((t.pideFecha && !t.fechaDia) ? 1 : 0);
+  const mapeadas = t.campos.filter(c => (t.sinEncabezado ? c.elegida : (c.elegida ?? c.sugerida))).length;
+
+  cont.innerHTML = header + `
+    <div class="flex items-center gap-3 rounded-lg border border-green-300 bg-green-50/50 px-3 py-2">
+      <span class="text-green-600">${IC.file}</span>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-medium truncate">${t.archivoDemo}</p>
+        <p class="text-[10px] text-gray-500">subido hace un momento · ${t.pesoDemo}</p>
+      </div>
+      <button class="text-[11px] text-gray-500 hover:text-gray-700" onclick="cards['${tipoKey}']='vacio'; renderCard('${tipoKey}')">Cambiar</button>
+    </div>
+
+    <div class="mt-4">
+      <div class="flex items-center justify-between mb-1">
+        <p class="text-xs font-semibold">Confirma qué columna del archivo corresponde a cada campo</p>
+        <span class="text-[10px] text-gray-500">${mapeadas} de ${t.campos.length} mapeadas</span>
+      </div>
+      <label class="flex items-center gap-2 text-[11px] text-gray-600 mb-2 cursor-pointer">
+        <input type="checkbox" ${t.sinEncabezado ? '' : 'checked'} onchange="toggleEncabezado('${tipoKey}', this.checked)">
+        La primera fila del archivo es encabezado
+      </label>
+      <p class="text-[11px] text-gray-500 mb-2">${t.sinEncabezado
+        ? 'El archivo no trae encabezados: asigna cada campo mirando el preview de datos. La fila 1 se procesará como datos.'
+        : 'El sistema sugirió el mapeo por los nombres detectados. Se confirma en cada carga.'}</p>
+      <div class="border border-gray-100 rounded-lg overflow-hidden">
+        <table class="w-full text-xs">
+          <thead><tr class="text-left text-gray-500 bg-gray-50 border-b border-gray-100">
+            <th class="px-3 py-1.5 font-medium">Campo del sistema</th><th class="px-3 py-1.5 font-medium">Columna del archivo</th><th class="px-3 py-1.5 font-medium">Preview (3 filas)</th>
+          </tr></thead>
+          <tbody>${filasMapa}</tbody>
+        </table>
+      </div>
+    </div>
+
+    ${t.pideFecha ? `
+    <div class="mt-4 flex items-end gap-3">
+      <div>
+        <label class="block text-[11px] text-gray-500 uppercase tracking-wide mb-1">Día de las conversaciones <span class="text-red-500">*</span></label>
+        <input type="date" id="fecha-${tipoKey}" value="${t.fechaDia ?? ''}" onchange="TIPOS['${tipoKey}'].fechaDia = this.value; renderCard('${tipoKey}')"
+               class="border rounded-lg px-3 py-1.5 text-sm bg-white ${t.fechaDia ? 'border-gray-300' : 'border-red-400 ring-1 ring-red-200'}">
+      </div>
+      <p class="text-[11px] text-gray-400 pb-2 max-w-[220px]">El export de Infobip no trae fecha: indica de qué día son estas conversaciones.</p>
+    </div>` : ''}
+    <div class="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+      <p class="text-[11px] text-gray-400">Al iniciar: filas a la base + copia original a la nube.<br/>Los cálculos corren en segundo plano.</p>
+      <button ${faltantes > 0 ? 'disabled' : ''} onclick="iniciarProcesamiento('${tipoKey}')"
+        class="text-sm font-medium px-4 py-2 rounded-lg ${faltantes > 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-gray-700'}">
+        ${IC.play}Iniciar procesamiento
+      </button>
+    </div>`;
+  actualizarBadges();
+}
+
+function cargarOtro(tipoKey) {
+  const pendientes = agentes.filter(a => !a.asesor).length;
+  if (tipoKey === 'infobip' && pendientes > 0) {
+    document.getElementById('modal-confirmar').classList.remove('hidden');
+    return;
+  }
+  cards[tipoKey] = 'vacio';
+  renderCard(tipoKey);
+}
+
+function confirmarCargarOtro() {
+  document.getElementById('modal-confirmar').classList.add('hidden');
+  cards.infobip = 'vacio';
+  renderCard('infobip');
+  // El bloque se oculta durante el flujo de carga nueva. El pendiente sigue en BD:
+  // al procesar, el bloque vuelve con TODOS los sin-resolver vigentes (nuevo archivo
+  // + previos que sigan vivos, agrupados por agente)
+  agentes = [];
+  renderAgentes();
+}
+
+function cerrarConfirmar() {
+  document.getElementById('modal-confirmar').classList.add('hidden');
+  document.getElementById('card-agentes').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function irASubtab(t) {
+  ['ventas', 'infobip'].forEach(k => {
+    document.getElementById('subtab-' + k).classList.toggle('active', k === t);
+    document.getElementById('panel-' + k).classList.toggle('hidden', k !== t);
+  });
+}
+
+function actualizarBadges() {
+  ['ventas', 'infobip'].forEach(k => {
+    const etiqueta = k === 'ventas' ? 'Ventas' : 'Infobip';
+    const cargadoHoy = bitacora.some(c => c.tipo === etiqueta && (c.f.startsWith('hoy') || c.f === 'hace un momento'));
+    document.getElementById('badge-' + k).innerHTML = cargadoHoy
+      ? `<span class="ml-1.5 text-[10px] bg-green-100 text-green-700 rounded-full px-1.5 py-0.5">${IC.check}hoy</span>`
+      : `<span class="ml-1.5 text-[10px] bg-amber-100 text-amber-700 rounded-full px-1.5 py-0.5">falta hoy</span>`;
+  });
+}
+
+function simularSubida(tipoKey) {
+  cards[tipoKey] = 'mapeo';
+  TIPOS[tipoKey].campos.forEach(c => delete c.elegida);
+  renderCard(tipoKey);
+  toast('Archivo detectado. Confirma el mapeo de columnas.');
+}
+
+function toggleEncabezado(tipoKey, conEncabezado) {
+  TIPOS[tipoKey].sinEncabezado = !conEncabezado;
+  TIPOS[tipoKey].campos.forEach(c => delete c.elegida);
+  renderCard(tipoKey);
+  toast(conEncabezado ? 'Modo con encabezados: sugerencias automáticas activas.' : 'Modo sin encabezados: mapea cada campo con el preview.');
+}
+
+function mapear(tipoKey, idx, valor) {
+  TIPOS[tipoKey].campos[idx].elegida = valor || null;
+  if (valor) TIPOS[tipoKey].campos[idx].sugerida = valor;
+  renderCard(tipoKey);
+}
+
+function iniciarProcesamiento(tipoKey) {
+  cards[tipoKey] = 'encola';
+  const t = TIPOS[tipoKey];
+  bitacora.unshift({ f: 'hace un momento', u: 'Tú', tipo: tipoKey === 'ventas' ? 'Ventas' : 'Infobip',
+    tienda: document.getElementById('sel-tienda').value.replace('.CO', ''), archivo: t.archivoDemo,
+    rango: tipoKey === 'infobip' ? ((TIPOS.infobip.fechaDia ?? 'día declarado') + ' · 1 día') : 'detectando…', filas: t.pesoDemo.split('·')[1]?.trim().split(' ')[0] ?? '—', estado: 'encola', tipoDef: tipoKey });
+  renderCard(tipoKey);
+  renderBitacora();
+  if (tipoKey === 'infobip') {
+    agentes = AGENTES_DEMO();
+    renderAgentes();
+    document.getElementById('card-agentes').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    toast('Archivo en cola. El sistema resolvió 2 de 3 agentes — 1 requiere asignación manual.');
+  } else {
+    toast('Archivo en cola. Filas persistidas y copia original guardada.');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Bitácora
+// ─────────────────────────────────────────────────────────────
+const PILL = {
+  encola:     `<span class="text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">${IC.clock}En cola</span>`,
+  procesando: `<span class="text-[11px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">${IC.spinner}Procesando</span>`,
+  procesado:  `<span class="text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">${IC.check}Procesado</span>`,
+  error:      `<span class="text-[11px] px-2 py-0.5 rounded-full bg-red-100 text-red-700">${IC.x}Error</span>`,
+};
+
+function renderBitacora() {
+  const tbody = document.getElementById('tbody-bitacora');
+  document.getElementById('count-bitacora').textContent = bitacora.length;
+  document.getElementById('bitacora-vacia').classList.toggle('hidden', bitacora.length > 0);
+  tbody.innerHTML = bitacora.map((c, i) => `
+    <tr class="border-b border-gray-50 hover:bg-gray-50/60 ${c.estado === 'error' ? 'bg-red-50/40' : ''} fade-in">
+      <td class="px-4 py-2.5"><div class="font-medium text-[13px]">${c.f}</div><div class="text-[11px] text-gray-400">${c.u}</div></td>
+      <td class="px-4 py-2.5"><span class="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">${c.tipo}</span></td>
+      <td class="px-4 py-2.5 text-[12px]">${c.tienda}</td>
+      <td class="px-4 py-2.5 text-[12px]">${c.archivo}</td>
+      <td class="px-4 py-2.5 text-[12px] text-gray-500">${c.rango}</td>
+      <td class="px-4 py-2.5 text-right num">${c.filas}</td>
+      <td class="px-4 py-2.5 text-center">${PILL[c.estado]}</td>
+      <td class="px-4 py-2.5 text-right"><button class="text-gray-400 hover:text-gray-700" title="Ver detalle" onclick="abrirModal(${i})">${IC.eye}</button></td>
+    </tr>`).join('');
+}
+
+function abrirModal(i) {
+  const c = bitacora[i];
+  document.getElementById('modal-archivo').textContent = c.archivo;
+  document.getElementById('modal-meta').textContent = `Cargado ${c.f} por ${c.u} · ${c.tienda} · ${c.tipo} · ${c.filas} filas`;
+  const esError = c.estado === 'error';
+  document.getElementById('modal-error').classList.toggle('hidden', !esError);
+  document.getElementById('modal-filas-bloque').classList.toggle('hidden', esError);
+  if (esError) {
+    document.getElementById('modal-error').textContent = c.error ?? 'El procesamiento falló.';
+  } else {
+    const demo = TIPOS[c.tipoDef].filasDemo;
+    document.getElementById('modal-total-filas').textContent = c.filas;
+    document.getElementById('modal-filas-head').innerHTML = demo.head.map(h => `<th class="px-3 py-1.5 font-medium">${h}</th>`).join('');
+    document.getElementById('modal-filas-body').innerHTML = demo.filas.map(f => `<tr class="border-b border-gray-50">${f.map(v => `<td class="px-3 py-1.5 ${String(v).startsWith('$ -') ? 'text-red-600' : ''}">${v}</td>`).join('')}</tr>`).join('');
+  }
+  document.getElementById('modal-carga').classList.remove('hidden');
+}
+function cerrarModal() { document.getElementById('modal-carga').classList.add('hidden'); }
+
+// ─────────────────────────────────────────────────────────────
+// Mapeo de agentes Infobip (cascada: prefijo → nombre_infobip → manual)
+// ─────────────────────────────────────────────────────────────
+const ASESORES_SISTEMA = ['Carlos Yorge Córdoba Murallas', 'Ingrid Tatiana Contreras Zúñiga', 'Paola Andrea Soto Guarín', 'Fabián Andrés Prada Rueda', 'Luisa Fernanda Gil Torres'];
+
+const AGENTES_DEMO = () => ([
+  { raw: '8550600 - Paola Andrea Soto Guarin - QEC', cerradas: 12, match: 'prefijo', asesor: 'Paola Andrea Soto Guarín' },
+  { raw: 'Fabian Prada - QEC', cerradas: 9, match: 'nombre', asesor: 'Fabián Andrés Prada Rueda' },
+  { raw: 'Carlos C. - QEC', cerradas: 15, match: null, asesor: null },
+]);
+
+// Rehidratado de BD al entrar: el archivo de hoy 14:28 quedo procesado con
+// 1 agente sin resolver — el pendiente sobrevive a salir de la pantalla
+let agentes = AGENTES_DEMO();
+
+function renderAgentes() {
+  const cont = document.getElementById('card-agentes');
+  const pendientes = agentes.filter(a => !a.asesor).length;
+  // Regla: el bloque existe mientras haya agentes sin resolver; luego desaparece
+  if (pendientes === 0) { cont.classList.add('hidden'); return; }
+  cont.classList.remove('hidden');
+
+  const filas = agentes.map((a, i) => `
+    <tr class="border-b border-gray-50 ${!a.asesor ? 'bg-amber-50/60' : ''}">
+      <td class="px-4 py-2.5 text-[13px] font-medium">${a.raw}</td>
+      <td class="px-4 py-2.5 text-right num">${a.cerradas}</td>
+      <td class="px-4 py-2.5">${
+        a.match === 'prefijo' ? `<span class="text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">${IC.check}Por prefijo ${a.raw.split(' ')[0]}</span>`
+        : a.match === 'nombre' ? `<span class="text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">${IC.check}Por nombre_infobip</span>`
+        : a.match === 'manual' ? `<span class="text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">${IC.check}Manual</span>`
+        : `<span class="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">${IC.alert}Sin match</span>`
+      }</td>
+      <td class="px-4 py-2.5">${
+        a.asesor ? `<span class="text-[12px] text-gray-600">${a.asesor}</span>`
+        : `<select onchange="asignarAgente(${i}, this.value)" class="border border-amber-400 ring-1 ring-amber-200 rounded-lg px-2 py-1 text-xs w-56 bg-white">
+             <option value="">— seleccionar asesor —</option>
+             ${ASESORES_SISTEMA.map(n => `<option ${a._seleccion === n ? 'selected' : ''}>${n}</option>`).join('')}
+           </select>`
+      }</td>
+    </tr>`).join('');
+
+  cont.innerHTML = `
+    <div class="px-5 py-3.5 border-b border-gray-100 flex items-start justify-between gap-3 flex-wrap">
+      <div>
+        <h3 class="text-sm font-semibold">Mapeo de agentes <span class="text-gray-400 font-normal">· conversaciones_04jul.xlsx</span></h3>
+      </div>
+      <span class="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">${IC.alert}${pendientes} sin asesor</span>
+    </div>
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-xs text-gray-500 border-b border-gray-100">
+        <th class="px-4 py-2.5 font-medium">Información del agente (Infobip)</th>
+        <th class="px-4 py-2.5 font-medium text-right">Conv. cerradas</th>
+        <th class="px-4 py-2.5 font-medium">Match automático</th>
+        <th class="px-4 py-2.5 font-medium">Asesor del sistema</th>
+      </tr></thead>
+      <tbody>${filas}</tbody>
+    </table>
+    <div class="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+      <p class="text-[11px] text-gray-500">Al guardar queda persistido para próximas cargas</p>
+      <button ${pendientes && agentes.some(a => a._seleccion) ? '' : pendientes ? 'disabled' : 'disabled'}
+        class="text-sm font-medium px-4 py-2 rounded-lg ${agentes.some(a => a._seleccion) ? 'bg-gray-900 text-white hover:bg-gray-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}"
+        onclick="guardarMapeosAgentes()">Guardar mapeos</button>
+    </div>`;
+}
+
+function asignarAgente(i, nombre) {
+  agentes[i]._seleccion = nombre || null;
+  renderAgentes();
+  if (nombre) {
+    // re-render dejó el select; mantener la selección visible
+    agentes[i]._seleccion = nombre;
+  }
+}
+
+function guardarMapeosAgentes() {
+  agentes.forEach(a => {
+    if (a._seleccion) { a.asesor = a._seleccion; a.match = 'manual'; delete a._seleccion; }
+  });
+  renderAgentes();
+  toast('Mapeo guardado. El agente quedó vinculado y sus conversaciones ya suman al cálculo.');
+}
+
+// ─────────────────────────────────────────────────────────────
+// Calendario de estado de cargas
+// ─────────────────────────────────────────────────────────────
+const CALENDARIO = {
+  julio: { dias: 31, hoy: 5, estados: { 1: 'full', 2: 'full', 3: 'full', 4: 'partial', 5: 'partial' },
+    tips: { 4: '04 jul · ✓ Ventas (98 filas · $41M) · ⚠ Falta Infobip', 5: '05 jul · ✓ Ventas (1.310 filas · hoy 14:32 por ti) · ⚠ Falta Infobip' } },
+  junio: { dias: 30, hoy: null, estados: Object.fromEntries([...Array(30)].map((_, i) => {
+      const d = i + 1;
+      if ([6, 14, 29].includes(d)) return [d, 'partial'];
+      if ([15, 21, 22, 28, 30].includes(d)) return [d, 'empty'];
+      return [d, 'full'];
+    })),
+    tips: { 6: '06 jun · ✓ Ventas · ⚠ Falta Infobip', 14: '14 jun · ✓ Ventas · ⚠ Infobip incompleto (8 de 13 agentes)', 15: '15 jun · ✗ Sin cargas', 29: '29 jun · ✓ Ventas (1.309 filas · $517M) · ⚠ Falta Infobip' } },
+};
+
+function renderCalendario(mes) {
+  const c = CALENDARIO[mes];
+  document.getElementById('cal-mes-titulo').textContent = mes + ' 2026';
+  const grid = document.getElementById('cal-grid');
+  let completos = 0;
+  grid.innerHTML = [...Array(c.dias)].map((_, i) => {
+    const d = i + 1;
+    const estado = c.estados[d] ?? 'empty';
+    if (estado === 'full') completos++;
+    const tip = c.tips[d] ?? (estado === 'full' ? `${String(d).padStart(2, '0')} · ✓ Ventas + Infobip` : estado === 'empty' ? `${String(d).padStart(2, '0')} · Sin cargas` : '');
+    return `<span class="cal-day ${estado} ${c.hoy === d ? 'hoy' : ''}" title="${tip}">${d}</span>`;
+  }).join('');
+  document.getElementById('cal-contador').textContent = `${completos} / ${c.dias} días con cargas completas`;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Navegación y variantes
+// ─────────────────────────────────────────────────────────────
+function irATab(tab) {
+  tabActivo = tab;
+  document.querySelectorAll('.tab-pill').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('pantalla-cargar').classList.toggle('hidden', tab !== 'cargar');
+  document.getElementById('pantalla-bitacora').classList.toggle('hidden', tab !== 'bitacora');
+}
+
+function setVariante(v) {
+  document.getElementById('btn-var-datos').className = 'px-2 py-0.5 rounded ' + (v === 'datos' ? 'bg-blue-600 text-white' : 'bg-gray-700');
+  document.getElementById('btn-var-vacio').className = 'px-2 py-0.5 rounded ' + (v === 'vacio' ? 'bg-blue-600 text-white' : 'bg-gray-700');
+  bitacora = v === 'vacio' ? [] : bitacoraInicial();
+  cards = v === 'vacio' ? { ventas: 'vacio', infobip: 'vacio' } : { ventas: 'mapeo', infobip: 'encola' };
+  TIPOS.ventas.campos.forEach(c => delete c.elegida);
+  TIPOS.infobip.campos.forEach(c => delete c.elegida);
+  if (v === 'vacio') { CALENDARIO.julio.estados = {}; CALENDARIO.julio.tips = {}; }
+  agentes = v === 'vacio' ? [] : AGENTES_DEMO();
+  renderCard('ventas'); renderCard('infobip'); renderBitacora(); renderAgentes(); renderCalendario('julio');
+  irASubtab('ventas'); irATab('cargar');
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(window._t);
+  window._t = setTimeout(() => el.classList.add('hidden'), 3200);
+}
+
+document.getElementById('ic-tab-cargar').innerHTML = IC.upload;
+document.getElementById('ic-tab-bitacora').innerHTML = IC.clipboard;
+document.getElementById('ic-csv').innerHTML = IC.download;
+document.getElementById('ic-descarga').innerHTML = IC.download;
+renderCard('ventas'); renderCard('infobip'); renderBitacora(); renderAgentes(); renderCalendario('julio'); irASubtab('ventas'); irATab('cargar');
+</script>
+</body>
+</html>
