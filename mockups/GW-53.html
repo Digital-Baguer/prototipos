@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-53 · Detalle de venta asistida — rediagramación + Sucesos</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body { background:#f1f5f9; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .badge { display:inline-flex; align-items:center; gap:.35rem; font-weight:600; border-radius:.5rem; }
+  /* pill de estado (pasivo, sin borde de botón) */
+  .pill { display:inline-flex; align-items:center; gap:.3rem; font-size:12px; font-weight:600; }
+  /* botón de acción/consulta */
+  .act { display:inline-flex; align-items:center; gap:.4rem; font-size:13px; font-weight:600; border-radius:.55rem; border:1px solid #e2e8f0; background:#fff; padding:.5rem .75rem; color:#334155; transition:all .15s; }
+  .act:hover { background:#f8fafc; border-color:#cbd5e1; }
+  .count { font-size:10px; font-weight:700; width:1.15rem; height:1.15rem; display:flex; align-items:center; justify-content:center; border-radius:9999px; }
+  .sep { color:#cbd5e1; }
+  /* Sidebar sheet */
+  .sheet-overlay { position:fixed; inset:0; background:rgba(15,23,42,.45); opacity:0; pointer-events:none; transition:opacity .25s; z-index:40; }
+  .sheet-overlay.open { opacity:1; pointer-events:auto; }
+  .sheet { position:fixed; top:0; right:0; height:100%; width:440px; max-width:100%; background:#fff; box-shadow:-8px 0 30px rgba(0,0,0,.12); transform:translateX(100%); transition:transform .28s cubic-bezier(.4,0,.2,1); z-index:50; display:flex; flex-direction:column; }
+  .sheet.open { transform:translateX(0); }
+  .tl-line { position:absolute; left:15px; top:26px; bottom:-14px; width:2px; background:#e2e8f0; }
+  .tl-line.done { background:#0E9B5D40; }
+  /* menú ⋮ */
+  .menu { position:absolute; right:0; top:calc(100% + 6px); background:#fff; border:1px solid #e2e8f0; border-radius:.6rem; box-shadow:0 10px 30px rgba(0,0,0,.12); min-width:190px; padding:.3rem; opacity:0; pointer-events:none; transform:translateY(-4px); transition:.15s; z-index:20; }
+  .menu.open { opacity:1; pointer-events:auto; transform:translateY(0); }
+  .menu button { width:100%; text-align:left; display:flex; align-items:center; gap:.5rem; font-size:13px; color:#334155; padding:.5rem .6rem; border-radius:.4rem; }
+  .menu button:hover { background:#f1f5f9; }
+</style>
+</head>
+<body class="text-slate-800">
+
+<!-- ============ Toolbar de mockup ============ -->
+<div class="sticky top-0 z-30 bg-slate-900 text-white px-5 py-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm shadow">
+  <span class="font-semibold tracking-tight">GW-53 · Mockup v2</span>
+  <div class="flex items-center gap-2">
+    <span class="text-slate-400 text-xs">Venta:</span>
+    <button onclick="setEjemplo('A')" id="tabA" class="px-3 py-1 rounded-md text-xs font-medium bg-white text-slate-900">Convertido y pagado</button>
+    <button onclick="setEjemplo('B')" id="tabB" class="px-3 py-1 rounded-md text-xs font-medium bg-slate-700 text-slate-200">Confirmado + desbloqueo</button>
+  </div>
+  <div class="flex items-center gap-2">
+    <span class="text-slate-400 text-xs">Acciones secundarias:</span>
+    <button onclick="setVariante('menu')" id="varMenu" class="px-3 py-1 rounded-md text-xs font-medium bg-white text-slate-900">En menú ⋮</button>
+    <button onclick="setVariante('visible')" id="varVisible" class="px-3 py-1 rounded-md text-xs font-medium bg-slate-700 text-slate-200">Visibles</button>
+  </div>
+</div>
+
+<!-- Leyenda de cambios -->
+<div class="max-w-5xl mx-auto px-4 pt-4">
+  <div class="flex flex-wrap gap-2 text-[11px]">
+    <span class="badge bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-1"><i data-lucide="layout-panel-top" class="w-3.5 h-3.5"></i> Ribbon de estado (dato)</span>
+    <span class="badge bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-1"><i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5"></i> Acciones (botón)</span>
+    <span class="badge bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1"><i data-lucide="arrow-down" class="w-3.5 h-3.5"></i> Visitados baja al cliente</span>
+    <span class="badge bg-violet-50 text-violet-700 border border-violet-200 px-2.5 py-1"><i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Sucesos (sidebar)</span>
+    <span class="badge bg-rose-50 text-rose-600 border border-rose-200 px-2.5 py-1"><i data-lucide="minus-circle" class="w-3.5 h-3.5"></i> Timeline horizontal eliminado</span>
+  </div>
+</div>
+
+<!-- ============ Página ============ -->
+<div class="max-w-5xl mx-auto px-4 py-5">
+
+  <div class="flex items-center gap-2 text-xs text-slate-400 mb-4">
+    <i data-lucide="home" class="w-3.5 h-3.5"></i> <span>Dashboard</span>
+    <span>›</span> <span>Venta Asistida</span>
+    <span>›</span> <span class="text-slate-600">Carrito</span>
+  </div>
+
+  <!-- ===== HEADER DE LA VENTA (identidad + acciones de la venta) ===== -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-4 overflow-visible">
+    <!-- Franja 1: título + acciones -->
+    <div class="flex items-start justify-between gap-4 px-5 pt-4 pb-3">
+      <div>
+        <h1 id="tituloVenta" class="text-2xl font-bold tracking-tight text-slate-900">Venta #138468</h1>
+        <p id="subtituloVenta" class="text-[13px] text-slate-500 mt-0.5">Pedido #707265 · Venta asistida · Laura Gómez</p>
+      </div>
+      <div class="flex items-center gap-2 pt-0.5">
+        <!-- acción primaria de la venta -->
+        <button onclick="openSucesos()" class="act !bg-violet-600 !text-white !border-violet-600 hover:!bg-violet-700">
+          <i data-lucide="history" class="w-4 h-4"></i> Sucesos
+        </button>
+        <!-- acciones secundarias visibles (variante 'visible') -->
+        <div id="accionesVisibles" class="hidden items-center gap-2">
+          <button class="act"><i data-lucide="external-link" class="w-4 h-4 text-slate-400"></i> Ver en CMS</button>
+          <button class="act"><i data-lucide="copy" class="w-4 h-4 text-slate-400"></i> Clonar</button>
+        </div>
+        <!-- menú ⋮ (variante 'menu') -->
+        <div id="accionesMenu" class="relative">
+          <button onclick="toggleMenu(event)" class="act !px-2"><i data-lucide="more-vertical" class="w-4 h-4"></i></button>
+          <div id="menu" class="menu">
+            <button><i data-lucide="external-link" class="w-4 h-4 text-slate-400"></i> Ver en CMS</button>
+            <button><i data-lucide="copy" class="w-4 h-4 text-slate-400"></i> Clonar pedido</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Franja 2: ribbon de estado (pasivo) + Desbloquear -->
+    <div class="flex items-center gap-3 px-5 py-2.5 bg-slate-50/80 border-t border-slate-100 rounded-b-xl">
+      <div id="ribbon" class="flex items-center gap-3 flex-wrap text-slate-600"><!-- JS --></div>
+      <div class="ml-auto">
+        <button id="btnDesbloquear" class="badge bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300 px-3 py-1.5 text-[11px]">
+          <i data-lucide="unlock" class="w-3.5 h-3.5"></i> Desbloquear
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CARD CLIENTE (identidad + consultas del cliente) ===== -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-4">
+    <div class="px-5 py-3 border-b border-slate-100 flex items-center gap-2 text-slate-500 text-sm font-medium">
+      <i data-lucide="user" class="w-4 h-4"></i> CLIENTE
+    </div>
+    <div class="px-5 py-4">
+      <div class="flex items-center gap-3 mb-1">
+        <h2 id="clienteNombre" class="text-xl font-bold text-slate-900">Leidy Serrano</h2>
+        <span id="clienteBadge" class="badge bg-amber-100 text-amber-800 px-2.5 py-0.5 text-xs">Activos de Bajo Valor</span>
+      </div>
+      <p id="clienteContacto" class="text-sm text-slate-500 mb-3">CC 28078590 · 310 209 6505 · leidyserrano1556@gmail.com</p>
+
+      <!-- dato de crédito (informativo, no botón) -->
+      <div class="inline-flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 mb-4">
+        <i data-lucide="credit-card" class="w-4 h-4 text-slate-400"></i>
+        <span class="text-sm font-semibold text-slate-700">QUAC</span>
+        <span class="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-1.5 py-0.5 rounded">AL DÍA</span>
+        <span class="text-sm text-slate-600">$2.584.020</span>
+      </div>
+
+      <!-- fila de consultas del cliente (accionables) -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold mr-1">Consultar:</span>
+        <button class="act"><i data-lucide="clock" class="w-4 h-4 text-slate-400"></i> Historial</button>
+        <button class="act"><i data-lucide="clipboard-list" class="w-4 h-4 text-slate-400"></i> Carritos activos <span class="count bg-blue-600 text-white">1</span></button>
+        <button class="act"><i data-lucide="wallet" class="w-4 h-4 text-slate-400"></i> Pendientes de pago <span class="count bg-slate-200 text-slate-500">0</span></button>
+        <button class="act"><i data-lucide="eye" class="w-4 h-4 text-slate-400"></i> Visitados <span class="count bg-teal-100 text-teal-700">10</span></button>
+      </div>
+      <p class="text-[11px] text-slate-400 italic mt-3">Carritos activos, Pendientes de pago y Visitados buscan por correo o celular del cliente en los últimos 30 días.</p>
+    </div>
+  </div>
+
+  <!-- Productos + resumen (resumido) -->
+  <div class="grid md:grid-cols-3 gap-4">
+    <div class="md:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm">
+      <div class="px-5 py-3 border-b border-slate-100 flex items-center gap-2 text-slate-500 text-sm font-medium"><i data-lucide="shopping-bag" class="w-4 h-4"></i> PRODUCTOS</div>
+      <div class="px-5 py-4">
+        <div class="flex items-center gap-3 rounded-lg bg-slate-50 border border-slate-100 p-3">
+          <div class="w-14 h-14 rounded bg-slate-200 flex items-center justify-center"><i data-lucide="image" class="w-5 h-5 text-slate-400"></i></div>
+          <div class="flex-1">
+            <p class="font-semibold text-slate-800 text-sm">Tenis le coq racerone w</p>
+            <p class="text-xs text-slate-500">NEGRO · Talla 70 · Cant: 1 · SKU 134304</p>
+          </div>
+          <span class="font-bold text-slate-800">$ 395.950</span>
+        </div>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm">
+      <div class="px-5 py-3 border-b border-slate-100 flex items-center gap-2 text-slate-500 text-sm font-medium"><i data-lucide="receipt" class="w-4 h-4"></i> RESUMEN</div>
+      <div class="px-5 py-4 text-sm space-y-2">
+        <div class="flex justify-between text-slate-500"><span>Subtotal</span><span>$ 395.950</span></div>
+        <div class="flex justify-between text-slate-500"><span>Envío</span><span>$ 20.030</span></div>
+        <div class="flex justify-between font-bold text-slate-900 pt-2 border-t border-slate-100"><span>TOTAL</span><span>$ 415.980</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SIDEBAR SUCESOS ============ -->
+<div id="overlay" class="sheet-overlay" onclick="closeSucesos()"></div>
+<aside id="sheet" class="sheet">
+  <header class="shrink-0 border-b border-slate-100 bg-slate-50 px-5 py-4">
+    <div class="flex items-center gap-2">
+      <div class="h-9 w-9 rounded-lg bg-white flex items-center justify-center border border-slate-200">
+        <i data-lucide="history" class="w-4 h-4 text-violet-600"></i>
+      </div>
+      <div class="flex-1">
+        <h2 class="text-base font-semibold text-slate-900">Sucesos de la venta</h2>
+        <p id="sheetSub" class="text-[11px] text-slate-500">Venta #138468 · Leidy Serrano</p>
+      </div>
+      <button onclick="closeSucesos()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+  </header>
+  <div id="sheetBody" class="flex-1 overflow-y-auto p-5"></div>
+  <footer class="shrink-0 border-t border-slate-100 px-5 py-3 text-[10px] text-slate-400 italic">
+    Solo hitos de negocio de esta venta. Los eventos técnicos de sincronización viven en la ficha del pedido.
+  </footer>
+</aside>
+
+<script>
+const pill = (icon, cls, txt) => ({icon, cls, txt});
+const suceso = (icon, color, titulo, fecha, detalle, opts={}) => ({icon,color,titulo,fecha,detalle,...opts});
+
+const ejemplos = {
+  A: {
+    titulo:'Pedido #707265', subtitulo:'Carrito 138623 · Venta asistida · Laura Gómez',
+    cliente:{nombre:'Carlos Yorge', badge:'Prometedores', contacto:'CC 66683750 · 316 704 6995 · plazaortiz121@gmail.com'},
+    ribbon:[
+      pill('store','text-slate-800 font-bold','STIRPE'),
+      pill('check-circle-2','text-emerald-600','Pagado'),
+      pill('banknote','text-slate-500','Anticipado'),
+      pill('lock','text-slate-400','Solo lectura'),
+      pill('clock','text-slate-400','hace 5h 56min'),
+    ],
+    sheetSub:'Pedido #707265 · Carlos Yorge',
+    sucesos:[
+      suceso('circle-plus','slate','Carrito creado','6 jul · 2:10 pm','Asesor: Laura Gómez',{done:true}),
+      suceso('check','emerald','Confirmado por el cliente','6 jul · 2:45 pm','',{done:true}),
+      suceso('credit-card','emerald','Pago aprobado','6 jul · 2:50 pm','QUAC · $415.980 · Aprobada',{done:true}),
+      suceso('package-check','emerald','Convertido en Pedido #707265','7 jul · 12:15 am','',{done:true}),
+      suceso('clipboard-check','emerald','Verificado','7 jul · 6:30 am','',{done:true}),
+      suceso('file-text','emerald','Facturado','7 jul · 8:05 am','Factura FE-4521',{done:true}),
+      suceso('truck','emerald','Despachado','7 jul · 10:20 am','Coordinadora · guía 62360090250',{done:true}),
+      suceso('home','slate','Entregado','Pendiente','Estimado: 9 jul',{done:false}),
+    ]
+  },
+  B: {
+    titulo:'Venta #138468', subtitulo:'Carrito 138468 · Venta asistida · Andrés Ruiz',
+    cliente:{nombre:'Leidy Serrano', badge:'Activos de Bajo Valor', contacto:'CC 28078590 · 310 209 6505 · leidyserrano1556@gmail.com'},
+    ribbon:[
+      pill('store','text-slate-800 font-bold','STIRPE'),
+      pill('circle-dashed','text-amber-600','Confirmado · sin pago'),
+      pill('banknote','text-slate-500','Contraentrega'),
+      pill('lock','text-slate-400','Solo lectura'),
+      pill('clock','text-slate-400','hace 5h 56min'),
+    ],
+    sheetSub:'Venta #138468 · Leidy Serrano',
+    sucesos:[
+      suceso('circle-plus','slate','Carrito creado','7 jul · 3:40 pm','Asesor: Andrés Ruiz',{done:true}),
+      suceso('copy','slate','Duplicado desde carrito web','7 jul · 3:40 pm','Origen: carrito #138401',{done:true}),
+      suceso('check','emerald','Confirmado por el cliente','7 jul · 4:12 pm','',{done:true}),
+      suceso('unlock','amber','Desbloqueado por el asesor','7 jul · 4:55 pm','Andrés Ruiz · confirmación del 7 jul 4:12 pm revertida',{done:true, highlight:true}),
+      suceso('check','emerald','Confirmado por el cliente (2ª vez)','7 jul · 5:30 pm','',{done:true}),
+      suceso('credit-card','slate','Pago pendiente','Pendiente','Aún sin transacción registrada',{done:false}),
+    ]
+  }
+};
+
+const colorMap = {
+  slate:  {ring:'bg-slate-400',   text:'text-slate-700'},
+  emerald:{ring:'bg-emerald-500', text:'text-slate-800'},
+  amber:  {ring:'bg-amber-500',   text:'text-amber-900'},
+};
+
+let _variante = 'menu';
+
+function renderRibbon(key){
+  const e = ejemplos[key];
+  document.getElementById('ribbon').innerHTML = e.ribbon.map((p,i)=>`
+    ${i>0?'<span class="sep">·</span>':''}
+    <span class="pill ${p.cls}"><i data-lucide="${p.icon}" class="w-3.5 h-3.5"></i> ${p.txt}</span>
+  `).join('');
+}
+
+function renderSucesos(key){
+  const e = ejemplos[key];
+  document.getElementById('sheetBody').innerHTML = e.sucesos.map((s,i)=>{
+    const c = colorMap[s.color]||colorMap.slate;
+    const last = i===e.sucesos.length-1;
+    const ringCls = s.done ? c.ring : 'bg-white border-2 border-dashed border-slate-300';
+    const iconInner = `<i data-lucide="${s.icon}" class="w-3.5 h-3.5 ${s.done?'text-white':'text-slate-300'}"></i>`;
+    const card = s.highlight ? 'bg-amber-50 border border-amber-200' : 'bg-white border border-slate-100';
+    return `
+      <div class="relative pl-10 ${last?'':'pb-4'}">
+        ${last?'':`<div class="tl-line ${s.done?'done':''}"></div>`}
+        <div class="absolute left-[6px] top-1 w-[20px] h-[20px] rounded-full flex items-center justify-center ${ringCls} z-10">${iconInner}</div>
+        <div class="rounded-lg ${card} px-3 py-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-sm font-semibold ${s.done?c.text:'text-slate-400'}">${s.titulo}</p>
+            <span class="text-[10px] ${s.done?'text-slate-400':'text-slate-300'} whitespace-nowrap">${s.fecha}</span>
+          </div>
+          ${s.detalle?`<p class="text-xs ${s.done?'text-slate-500':'text-slate-400'} mt-0.5">${s.detalle}</p>`:''}
+          ${s.highlight?`<p class="text-[10px] text-amber-600 mt-1 flex items-center gap-1"><i data-lucide="database" class="w-3 h-3"></i> Registrado en store_carrito_sucesos (tabla nueva)</p>`:''}
+        </div>
+      </div>`;
+  }).join('');
+  lucide.createIcons();
+}
+
+function setEjemplo(key){
+  const e = ejemplos[key];
+  document.getElementById('tituloVenta').textContent = e.titulo;
+  document.getElementById('subtituloVenta').textContent = e.subtitulo;
+  document.getElementById('clienteNombre').textContent = e.cliente.nombre;
+  document.getElementById('clienteBadge').textContent = e.cliente.badge;
+  document.getElementById('clienteContacto').textContent = e.cliente.contacto;
+  document.getElementById('sheetSub').textContent = e.sheetSub;
+  document.getElementById('tabA').className = 'px-3 py-1 rounded-md text-xs font-medium '+(key==='A'?'bg-white text-slate-900':'bg-slate-700 text-slate-200');
+  document.getElementById('tabB').className = 'px-3 py-1 rounded-md text-xs font-medium '+(key==='B'?'bg-white text-slate-900':'bg-slate-700 text-slate-200');
+  renderRibbon(key); renderSucesos(key);
+  window._ejemplo = key; lucide.createIcons();
+}
+
+function setVariante(v){
+  _variante = v;
+  document.getElementById('accionesVisibles').className = (v==='visible'?'flex':'hidden')+' items-center gap-2';
+  document.getElementById('accionesMenu').style.display = (v==='menu'?'block':'none');
+  document.getElementById('varMenu').className = 'px-3 py-1 rounded-md text-xs font-medium '+(v==='menu'?'bg-white text-slate-900':'bg-slate-700 text-slate-200');
+  document.getElementById('varVisible').className = 'px-3 py-1 rounded-md text-xs font-medium '+(v==='visible'?'bg-white text-slate-900':'bg-slate-700 text-slate-200');
+}
+
+function toggleMenu(ev){ ev.stopPropagation(); document.getElementById('menu').classList.toggle('open'); }
+document.addEventListener('click',()=>document.getElementById('menu')?.classList.remove('open'));
+
+function openSucesos(){ document.getElementById('overlay').classList.add('open'); document.getElementById('sheet').classList.add('open'); }
+function closeSucesos(){ document.getElementById('overlay').classList.remove('open'); document.getElementById('sheet').classList.remove('open'); }
+
+setEjemplo('B'); setVariante('menu');
+lucide.createIcons();
+</script>
+</body>
+</html>
