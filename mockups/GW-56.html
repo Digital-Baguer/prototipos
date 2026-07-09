@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GW-56 · Maestro de configuración VA — presupuesto por archivo + métricas del mes</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --border: hsl(220 13% 91%);
+    --gray-50: hsl(210 20% 98%);
+    --blue-600: hsl(217 91% 60%);
+    --blue-700: hsl(217 91% 45%);
+    --emerald-500: hsl(160 84% 39%);
+    --emerald-600: hsl(160 84% 32%);
+    --emerald-700: hsl(160 84% 26%);
+    --amber-600: hsl(38 92% 45%);
+    --amber-700: hsl(38 92% 38%);
+    --red-600: hsl(0 72% 51%);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: hsl(222 47% 11%); background: white; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .card { background: white; border: 1px solid var(--border); border-radius: 12px; }
+  .btn-primary { background: hsl(222 47% 11%); color: white; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-primary:hover { background: hsl(222 47% 20%); }
+  .btn-ghost { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 7px 13px; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: hsl(222 30% 30%); }
+  .btn-ghost:hover { background: var(--gray-50); }
+  .input-like { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 7px 12px; background: white; font-size: 13px; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 3px 10px; font-size: 11.5px; font-weight: 500; }
+  .tab { padding: 9px 16px; font-size: 13.5px; font-weight: 500; cursor: pointer; border-radius: 8px; color: hsl(222 15% 45%); display: inline-flex; align-items: center; gap: 7px; }
+  .tab.active { background: white; color: hsl(222 47% 11%); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .subtab { padding: 6px 13px; font-size: 12.5px; font-weight: 500; cursor: pointer; border-radius: 7px; color: hsl(222 15% 45%); }
+  .subtab.active { background: hsl(222 47% 11%); color: white; }
+  table { border-collapse: collapse; width: 100%; }
+  .data-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: hsl(222 15% 50%); font-weight: 500; padding: 9px 12px; border-bottom: 1px solid var(--border); background: var(--gray-50); }
+  .data-table td { font-size: 12.5px; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  .cell-num { text-align: right; font-variant-numeric: tabular-nums; }
+  .drop { border: 2px dashed hsl(220 13% 80%); border-radius: 12px; padding: 40px; text-align: center; background: var(--gray-50); }
+  .grid-input { border: 1px solid var(--border); border-radius: 7px; padding: 6px 10px; font-size: 13px; width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
+  .grid-input:focus { outline: 2px solid var(--blue-600); border-color: transparent; }
+  .hidden { display: none !important; }
+  .seg { display: inline-flex; gap: 4px; background: hsl(220 14% 94%); padding: 4px; border-radius: 10px; }
+  .mock-note { background: hsl(48 96% 96%); border: 1px solid hsl(48 90% 80%); border-radius: 8px; padding: 8px 12px; font-size: 11.5px; color: hsl(40 60% 30%); }
+</style>
+</head>
+<body>
+
+<!-- ══ Top bar ══ -->
+<div style="border-bottom: 1px solid var(--border); padding: 12px 32px; display: flex; align-items: center; justify-content: space-between;">
+  <div class="input-like" style="width: 340px; color: hsl(222 15% 55%);">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    Filtrar menú...
+  </div>
+  <div style="display:flex; align-items:center; gap:10px;">
+    <div style="width:34px;height:34px;border-radius:999px;background:linear-gradient(135deg,#6366f1,#a855f7);"></div>
+    <div style="font-size:13px;"><div style="font-weight:600;">Francisco L.</div><div style="color:hsl(222 15% 55%);font-size:11.5px;">Administrador</div></div>
+  </div>
+</div>
+
+<!-- ══ Breadcrumb + título ══ -->
+<div style="padding: 20px 32px 0;">
+  <div style="display:flex; align-items:center; gap:8px; font-size:12.5px; color:hsl(222 15% 55%);">
+    <span>🏠</span><span>›</span><span>Dashboard</span><span>›</span><span>Venta Asistida</span><span>›</span><span style="color:hsl(222 47% 11%);font-weight:500;">Configuración de comisiones</span>
+  </div>
+  <h1 style="font-size:27px; font-weight:700; margin:14px 0 2px;">Configuración de Venta Asistida</h1>
+  <p style="font-size:13.5px; color:hsl(222 15% 45%); margin:0;">Métricas de cumplimiento, presupuesto del mes y metas por bodega</p>
+</div>
+
+<!-- ══ Contexto de tienda + pestañas maestro ══ -->
+<div style="padding: 18px 32px 0;">
+  <!-- Selector CONTEXTUAL: tienda en pestaña 1, mes/año en pestañas 2 y 3 -->
+  <div style="margin-bottom:16px;">
+    <!-- Contexto pestaña 1: tienda -->
+    <div data-ctx="cumplimiento">
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:hsl(222 15% 55%); margin:0 0 4px;">Tienda</p>
+      <div class="input-like" style="width:200px; justify-content:space-between;">
+        <span>STIRPE QEC</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.5"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+    </div>
+    <!-- Contexto pestañas 2 y 3: navegador mes/año (recarga al cambiar, sin botón Consultar) -->
+    <div data-ctx="presupuesto" class="hidden">
+      <p style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:hsl(222 15% 55%); margin:0 0 4px;">Mes</p>
+      <div style="display:flex; align-items:center; gap:8px; position:relative;">
+        <button class="btn-ghost" style="padding:8px 10px;" title="Mes anterior" onclick="stepMonth(-1)">◀</button>
+        <div class="input-like" style="width:180px; justify-content:space-between; cursor:pointer;" onclick="togglePicker(event)">
+          <span style="display:flex; align-items:center; gap:7px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+            <span id="lblMes">Julio 2026</span>
+          </span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.5"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+        <button class="btn-ghost" style="padding:8px 10px;" title="Mes siguiente" onclick="stepMonth(1)">▶</button>
+        <span id="badgeMes" class="pill" style="background:hsl(210 20% 94%); color:hsl(222 15% 45%); margin-left:6px;">mes actual</span>
+
+        <!-- Popover calendario mes/año -->
+        <div id="picker" class="card hidden" style="position:absolute; top:46px; left:44px; z-index:30; width:280px; padding:12px; box-shadow:0 10px 30px rgba(0,0,0,.12);">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <button class="btn-ghost" style="padding:5px 9px;" onclick="stepYear(-1)">◀</button>
+            <span id="pickerYear" style="font-size:14px; font-weight:600;">2026</span>
+            <button class="btn-ghost" style="padding:5px 9px;" onclick="stepYear(1)">▶</button>
+          </div>
+          <div id="pickerGrid" style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px;"></div>
+          <div style="display:flex; align-items:center; gap:14px; margin-top:11px; padding-top:9px; border-top:1px solid var(--border); font-size:10.5px; color:hsl(222 15% 55%);">
+            <span style="display:flex; align-items:center; gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:hsl(222 47% 11%);"></span> actual</span>
+            <span style="display:flex; align-items:center; gap:4px;"><span style="width:10px;height:10px;border-radius:3px;background:var(--gray-50);border:1px solid var(--border);"></span> histórico</span>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:11px; color:hsl(222 15% 55%); margin:7px 0 0;">Navega a cualquier mes (atrás para consultar, adelante para cargar el próximo). La vista recarga al cambiar de mes.</p>
+    </div>
+  </div>
+
+  <div class="seg" style="margin-bottom:0;">
+    <div class="tab active" data-tab="cumplimiento" onclick="setTab('cumplimiento')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+      Métricas de cumplimiento
+    </div>
+    <div class="tab" data-tab="presupuesto" onclick="setTab('presupuesto')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" x2="12" y1="18" y2="12"/><line x1="9" x2="15" y1="15" y2="15"/></svg>
+      Presupuesto de ventas
+      <span class="pill" style="background:hsl(160 60% 92%); color:var(--emerald-700); font-size:10px; padding:1px 7px;">nuevo</span>
+    </div>
+    <div class="tab" data-tab="metricas" onclick="setTab('metricas')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+      Métricas del mes
+      <span class="pill" style="background:hsl(160 60% 92%); color:var(--emerald-700); font-size:10px; padding:1px 7px;">nuevo</span>
+    </div>
+  </div>
+</div>
+
+<div style="background: var(--gray-50); padding: 22px 32px 60px; margin-top:16px; min-height:520px;">
+
+  <!-- ══════════════ PESTAÑA 1 · MÉTRICAS DE CUMPLIMIENTO (existente) ══════════════ -->
+  <section data-panel="cumplimiento">
+    <div class="mock-note" style="margin-bottom:14px;">Esta pestaña es lo que YA existe hoy (GW-47) — se muestra aquí solo para ubicar que ahora vive dentro del maestro. No cambia.</div>
+    <div style="display:flex; gap:6px; margin-bottom:16px;" class="seg" >
+      <div class="subtab active">Ventas <span style="opacity:.6">3 filas</span></div>
+      <div class="subtab">VPT <span style="opacity:.6">2 filas</span></div>
+      <div class="subtab">TCV <span style="opacity:.6">2 filas</span></div>
+      <div class="subtab">Bono diario</div>
+      <div class="subtab">Historial de cambios <span class="pill" style="background:hsl(217 91% 92%); color:var(--blue-700); padding:0 7px;">22</span></div>
+    </div>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+        <div>
+          <h3 style="font-size:15px; font-weight:600; margin:0;">Escala de comisión sobre ventas</h3>
+          <p style="font-size:11.5px; color:hsl(222 15% 50%); margin:4px 0 0;">Si cumplimiento de ventas ≥ X% → comisión Y% sobre venta neta · aplica la tasa más alta alcanzada</p>
+        </div>
+        <button class="btn-primary">+ Nueva fila</button>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Cumplimiento ≥</th><th class="cell-num">% Comisión</th><th class="cell-num">Acciones</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">90%</td><td class="cell-num mono">1,20%</td><td class="cell-num" style="color:hsl(222 15% 55%);">✏ 🗑</td></tr>
+          <tr><td class="mono">100%</td><td class="cell-num mono">1,30%</td><td class="cell-num" style="color:hsl(222 15% 55%);">✏ 🗑</td></tr>
+          <tr><td class="mono">110%</td><td class="cell-num mono">1,50%</td><td class="cell-num" style="color:hsl(222 15% 55%);">✏ 🗑</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══════════════ PESTAÑA 2 · PRESUPUESTO DE VENTAS (nuevo · carga por archivo) ══════════════ -->
+  <section data-panel="presupuesto" class="hidden">
+
+    <!-- Simulador de estados (mock-only) -->
+    <div class="mock-note" style="margin-bottom:16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <strong>Simulador de estados:</strong>
+      <button class="btn-ghost" onclick="setPre('vacio')">1 · Sin archivo</button>
+      <button class="btn-ghost" onclick="setPre('auto')">2 · Auto-detectado ✓</button>
+      <button class="btn-ghost" onclick="setPre('manual')">3 · Archivo raro → mapeo manual</button>
+      <button class="btn-ghost" onclick="setPre('ok')">4 · Cargado</button>
+    </div>
+
+    <!-- Estado 1: sin archivo -->
+    <div data-pre="vacio">
+      <div class="card" style="padding:22px;">
+        <div style="display:flex; align-items:start; justify-content:space-between; gap:16px; margin-bottom:18px; flex-wrap:wrap;">
+          <div>
+            <h3 style="font-size:16px; font-weight:600; margin:0;">Cargar presupuesto de ventas · Julio 2026</h3>
+            <p style="font-size:12.5px; color:hsl(222 15% 50%); margin:6px 0 0; max-width:560px;">Sube el archivo plano con el presupuesto de venta por bodega y día. El sistema reconoce las bodegas QEC (STIRPE 315, DEREK 316) por el encabezado y llena el global de cada día. El reparto entre asesores se hace después en <span class="mono">Asignar asesores</span>.</p>
+          </div>
+        </div>
+        <div class="drop">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="hsl(220 13% 60%)" stroke-width="1.6" style="margin-bottom:10px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+          <p style="font-size:14px; font-weight:500; margin:0 0 4px;">Arrastra el archivo aquí o <span style="color:var(--blue-700); text-decoration:underline; cursor:pointer;">selecciónalo</span></p>
+          <p style="font-size:12px; color:hsl(222 15% 55%); margin:0;">Excel (.xlsx / .xls) · una columna por bodega, una fila por día</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Estado 2: auto-detectado -->
+    <div data-pre="auto" class="hidden">
+      <div class="card" style="overflow:hidden;">
+        <!-- archivo subido -->
+        <div style="padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; background:hsl(160 60% 98%);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--emerald-600)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <div style="flex:1;">
+            <p style="font-size:13px; font-weight:500; margin:0;" class="mono">Presupuesto-julio-2026.xlsx</p>
+            <p style="font-size:11px; color:hsl(222 15% 55%); margin:2px 0 0;" class="mono">subido hoy 09:14 · 18 KB · 32 filas × 7 columnas</p>
+          </div>
+          <button class="btn-ghost">Cambiar</button>
+        </div>
+        <!-- preview auto-detección -->
+        <div style="padding:20px;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--emerald-600)" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>
+            <p style="font-size:14px; font-weight:600; margin:0;">Detecté las bodegas por el encabezado del archivo</p>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:6px;">
+            <div class="card" style="padding:14px; border-color:var(--emerald-500); background:hsl(160 60% 98%);">
+              <p style="font-size:11px; color:var(--emerald-700); margin:0; text-transform:uppercase; letter-spacing:.03em;">Columna <span class="mono">315</span></p>
+              <p style="font-size:15px; font-weight:600; margin:4px 0 0;">→ STIRPE QEC</p>
+              <p style="font-size:11px; color:hsl(222 15% 50%); margin:3px 0 0;">31 días con valor · total $1.157.200.000</p>
+            </div>
+            <div class="card" style="padding:14px; border-color:var(--emerald-500); background:hsl(160 60% 98%);">
+              <p style="font-size:11px; color:var(--emerald-700); margin:0; text-transform:uppercase; letter-spacing:.03em;">Columna <span class="mono">316</span></p>
+              <p style="font-size:15px; font-weight:600; margin:4px 0 0;">→ DEREK QEC</p>
+              <p style="font-size:11px; color:hsl(222 15% 50%); margin:3px 0 0;">31 días con valor · total $136.760.000</p>
+            </div>
+          </div>
+          <p style="font-size:11.5px; color:hsl(222 15% 55%); margin:10px 0 0;">Columnas ignoradas (no son QEC): <span class="mono">310, 311, 342, 343</span> — bodegas WEB / U82 / Typer.</p>
+          <!-- preview grilla -->
+          <div style="margin-top:18px;">
+            <p style="font-size:12px; font-weight:600; margin:0 0 8px;">Vista previa (primeros días)</p>
+            <div class="card" style="overflow:hidden;">
+              <table class="data-table">
+                <thead><tr><th>Día</th><th class="cell-num">STIRPE QEC (315)</th><th class="cell-num">DEREK QEC (316)</th></tr></thead>
+                <tbody>
+                  <tr><td class="mono">1 jul</td><td class="cell-num mono">$50.901.441</td><td class="cell-num mono">$6.184.287</td></tr>
+                  <tr><td class="mono">2 jul</td><td class="cell-num mono">$48.222.418</td><td class="cell-num mono">$5.858.798</td></tr>
+                  <tr><td class="mono">3 jul</td><td class="cell-num mono">$46.882.906</td><td class="cell-num mono">$5.696.054</td></tr>
+                  <tr><td class="mono" style="color:hsl(222 15% 55%);">… 28 días más</td><td class="cell-num mono" style="color:hsl(222 15% 55%);">—</td><td class="cell-num mono" style="color:hsl(222 15% 55%);">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:18px; flex-wrap:wrap;">
+            <p style="font-size:11.5px; color:var(--amber-700); margin:0;">⚠ Cargar reemplaza el presupuesto diario de julio de estas dos tiendas.</p>
+            <div style="display:flex; gap:10px;">
+              <button class="btn-ghost">Cancelar</button>
+              <button class="btn-primary">Confirmar y cargar presupuesto</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Estado 3: mapeo manual (archivo raro) -->
+    <div data-pre="manual" class="hidden">
+      <div class="card" style="overflow:hidden;">
+        <div style="padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; background:hsl(48 96% 97%);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--amber-600)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <div style="flex:1;">
+            <p style="font-size:13px; font-weight:500; margin:0;" class="mono">Presupuesto-julio-v2.xlsx</p>
+            <p style="font-size:11px; color:var(--amber-700); margin:2px 0 0;">No reconocí los códigos de bodega en el encabezado — indícame qué columna es cada tienda.</p>
+          </div>
+          <button class="btn-ghost">Cambiar</button>
+        </div>
+        <div style="padding:20px;">
+          <div class="mock-note" style="margin-bottom:16px;">Este estado aparece SOLO cuando el encabezado no trae los códigos 315/316 (ej: vino con nombres, otro orden o números desconocidos). Es la malla de seguridad tipo GW-48.</div>
+          <p style="font-size:13px; font-weight:600; margin:0 0 4px;">Mapea cada tienda con su columna del archivo</p>
+          <p style="font-size:11.5px; color:hsl(222 15% 55%); margin:0 0 14px;">Encabezados encontrados: <span class="mono">Col A (Día) · Col B (Stirpe) · Col C (Derek) · Col D · Col E</span></p>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="card" style="padding:14px;">
+              <p style="font-size:13px; font-weight:600; margin:0 0 8px;">STIRPE QEC</p>
+              <div class="input-like" style="width:100%; justify-content:space-between;"><span>Columna B · "Stirpe"</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.5"><path d="m6 9 6 6 6-6"/></svg></div>
+            </div>
+            <div class="card" style="padding:14px;">
+              <p style="font-size:13px; font-weight:600; margin:0 0 8px;">DEREK QEC</p>
+              <div class="input-like" style="width:100%; justify-content:space-between;"><span>Columna C · "Derek"</span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.5"><path d="m6 9 6 6 6-6"/></svg></div>
+            </div>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;">
+            <button class="btn-ghost">Cancelar</button>
+            <button class="btn-primary">Aplicar mapeo y previsualizar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Estado 4: cargado -->
+    <div data-pre="ok" class="hidden">
+      <div class="card" style="padding:18px 20px; display:flex; align-items:center; gap:14px; background:hsl(160 60% 98%); border-color:var(--emerald-500); margin-bottom:16px;">
+        <div style="width:40px;height:40px;border-radius:10px;background:hsl(160 60% 92%);display:flex;align-items:center;justify-content:center;color:var(--emerald-700);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+        <div style="flex:1;">
+          <p style="font-size:14px; font-weight:600; margin:0;">Presupuesto de julio cargado</p>
+          <p style="font-size:12px; color:hsl(222 15% 50%); margin:3px 0 0;">STIRPE QEC y DEREK QEC · 31 días cada una · cargado hoy 09:15 por Francisco L.</p>
+        </div>
+        <a href="#" style="font-size:12.5px; color:var(--blue-700); text-decoration:underline;">Ir a Asignar asesores →</a>
+      </div>
+      <div class="card" style="overflow:hidden;">
+        <div style="padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+          <h3 style="font-size:14px; font-weight:600; margin:0;">Presupuesto diario · Julio 2026</h3>
+          <button class="btn-ghost">Reemplazar archivo</button>
+        </div>
+        <table class="data-table">
+          <thead><tr><th>Día</th><th class="cell-num">STIRPE QEC</th><th class="cell-num">DEREK QEC</th><th>Reparto asesores</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">1 jul</td><td class="cell-num mono">$50.901.441</td><td class="cell-num mono">$6.184.287</td><td><span class="pill" style="background:hsl(48 96% 90%); color:var(--amber-700);">pendiente</span></td></tr>
+            <tr><td class="mono">2 jul</td><td class="cell-num mono">$48.222.418</td><td class="cell-num mono">$5.858.798</td><td><span class="pill" style="background:hsl(48 96% 90%); color:var(--amber-700);">pendiente</span></td></tr>
+            <tr><td class="mono">3 jul</td><td class="cell-num mono">$46.882.906</td><td class="cell-num mono">$5.696.054</td><td><span class="pill" style="background:hsl(160 60% 90%); color:var(--emerald-700);">repartido</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ PESTAÑA 3 · MÉTRICAS DEL MES (nuevo · grilla manual) ══════════════ -->
+  <section data-panel="metricas" class="hidden">
+    <div class="card" style="overflow:hidden;">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border);">
+        <h3 style="font-size:15px; font-weight:600; margin:0;">Métricas del mes por bodega QEC · Julio 2026</h3>
+        <p style="font-size:11.5px; color:hsl(222 15% 50%); margin:5px 0 0;">Metas mensuales que alimentan el cálculo de comisión. Fuente única — se editan solo aquí. Cada cambio queda en el historial.</p>
+      </div>
+      <table class="data-table">
+        <thead><tr>
+          <th>Bodega</th>
+          <th class="cell-num">UPT (unid./pedido)</th>
+          <th class="cell-num">VPT (venta/pedido)</th>
+          <th class="cell-num">TCV (tasa conv %)</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td style="font-weight:500;">STIRPE QEC</td>
+            <td class="cell-num"><input class="grid-input" value="2,00" /></td>
+            <td class="cell-num"><input class="grid-input" value="436.000" /></td>
+            <td class="cell-num"><input class="grid-input" value="16,00" /></td>
+          </tr>
+          <tr>
+            <td style="font-weight:500;">DEREK QEC</td>
+            <td class="cell-num"><input class="grid-input" value="2,20" /></td>
+            <td class="cell-num"><input class="grid-input" value="264.000" /></td>
+            <td class="cell-num"><input class="grid-input" value="16,00" /></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="padding:14px 20px; display:flex; justify-content:space-between; align-items:center; gap:12px; border-top:1px solid var(--border);">
+        <p style="font-size:11px; color:hsl(222 15% 55%); margin:0;">Última edición: 30 jun 2026 · Francisco L.</p>
+        <button class="btn-primary">Guardar cambios</button>
+      </div>
+    </div>
+
+    <!-- Historial -->
+    <div class="card" style="margin-top:16px; overflow:hidden;">
+      <div style="padding:13px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+        <h3 style="font-size:13.5px; font-weight:600; margin:0;">Historial de cambios</h3>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Fecha</th><th>Bodega</th><th>Métrica</th><th class="cell-num">Antes → Después</th><th>Usuario</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">30 jun 14:20</td><td>DEREK QEC</td><td>TCV</td><td class="cell-num mono">14,00 → 16,00</td><td>Francisco L.</td></tr>
+          <tr><td class="mono">30 jun 14:18</td><td>STIRPE QEC</td><td>VPT</td><td class="cell-num mono">$422.000 → $436.000</td><td>Francisco L.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  function setTab(t) {
+    document.querySelectorAll('.tab').forEach(el => el.classList.toggle('active', el.dataset.tab === t));
+    document.querySelectorAll('[data-panel]').forEach(el => el.classList.toggle('hidden', el.dataset.panel !== t));
+    // Selector contextual: tienda en cumplimiento, mes/año en presupuesto y métricas
+    const ctx = t === 'cumplimiento' ? 'cumplimiento' : 'presupuesto';
+    document.querySelectorAll('[data-ctx]').forEach(el => el.classList.toggle('hidden', el.dataset.ctx !== ctx));
+  }
+  function setPre(s) {
+    document.querySelectorAll('[data-pre]').forEach(el => el.classList.toggle('hidden', el.dataset.pre !== s));
+  }
+  setPre('vacio');
+
+  // ── Selector mes/año (calendario) ──
+  const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const MESES_LARGO = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const HOY = { y: 2026, m: 6 };            // "hoy" = julio 2026 (m es 0-based)
+  let sel = { y: 2026, m: 6 };              // mes seleccionado
+  let pickerYear = 2026;
+
+  function esPasado(y, m) { return y < HOY.y || (y === HOY.y && m < HOY.m); }
+
+  function togglePicker(e) { e.stopPropagation(); const p = document.getElementById('picker'); p.classList.toggle('hidden'); if (!p.classList.contains('hidden')) renderPicker(); }
+  document.addEventListener('click', () => document.getElementById('picker')?.classList.add('hidden'));
+
+  function stepYear(d) { pickerYear += d; renderPicker(); }
+  function stepMonth(d) {
+    let m = sel.m + d, y = sel.y;
+    if (m < 0) { m = 11; y--; } if (m > 11) { m = 0; y++; }
+    aplicarMes(y, m);
+  }
+
+  function renderPicker() {
+    document.getElementById('pickerYear').textContent = pickerYear;
+    const grid = document.getElementById('pickerGrid');
+    grid.innerHTML = MESES.map((nombre, i) => {
+      const pasado = esPasado(pickerYear, i);
+      const actual = pickerYear === HOY.y && i === HOY.m;
+      const elegido = pickerYear === sel.y && i === sel.m;
+      let bg = 'white', color = 'hsl(222 47% 11%)', border = '1px solid var(--border)', extra = '';
+      if (pasado) { color = 'hsl(222 15% 55%)'; bg = 'var(--gray-50)'; }
+      if (actual) { bg = 'hsl(222 47% 11%)'; color = 'white'; border = '1px solid hsl(222 47% 11%)'; }
+      if (elegido && !actual) { border = '2px solid var(--blue-600)'; }
+      return `<button onclick="aplicarMes(${pickerYear},${i})" style="padding:8px 4px; border-radius:7px; font-size:12.5px; cursor:pointer; background:${bg}; color:${color}; border:${border};">${nombre} <span style="font-size:9px;">${extra}</span></button>`;
+    }).join('');
+  }
+
+  function aplicarMes(y, m) {
+    sel = { y, m };
+    document.getElementById('lblMes').textContent = `${MESES_LARGO[m]} ${y}`;
+    document.getElementById('picker').classList.add('hidden');
+    const actual = y === HOY.y && m === HOY.m;
+    const badge = document.getElementById('badgeMes');
+    badge.textContent = actual ? 'mes actual' : (esPasado(y, m) ? 'histórico' : 'próximo');
+    badge.style.background = actual ? 'hsl(210 20% 94%)' : 'hsl(210 20% 94%)';
+    badge.style.color = 'hsl(222 15% 45%)';
+    // El bloqueo de períodos cerrados es un REQ aparte (GW-57): aquí no se aplica candado.
+  }
+</script>
+
+</body>
+</html>
