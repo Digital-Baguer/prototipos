@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup · Simulador de pago Quac (status-aware) · Venta Asistida</title>
+<style>
+  :root{
+    --lila:#6c4bb4; --lila-600:#7c3aed; --lila-suave:#f1ecfa; --lila-borde:#e4dbf7;
+    --verde:#1e8e5a; --verde-suave:#e7f6ee;
+    --ambar:#b07d18; --ambar-suave:#fdf6e3;
+    --rojo:#c43d3d; --rojo-suave:#fdeeee;
+    --tinta:#20202b; --gris:#6b6b78; --gris-2:#9a9aa6; --borde:#e6e6ec; --fondo:#eef0f4;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+  body{background:var(--fondo);color:var(--tinta);padding:24px 14px 60px;line-height:1.5;}
+
+  /* Barra de variantes (NO es parte de la UI real) */
+  .switcher{max-width:1040px;margin:0 auto 22px;background:#fff;border:1px solid var(--borde);
+    border-radius:14px;padding:14px 18px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .switcher h2{font-size:13px;text-transform:uppercase;letter-spacing:1.4px;color:var(--gris);margin-bottom:10px;}
+  .switcher .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .switcher button{border:1px solid var(--lila-borde);background:#fff;color:var(--lila);
+    padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;}
+  .switcher button:hover{background:var(--lila-suave);}
+  .switcher button.active{background:var(--lila);color:#fff;border-color:var(--lila);}
+  .switcher .nota{font-size:12px;color:var(--gris-2);margin-top:10px;}
+
+  /* Layout: mockup + flujo al lado */
+  .layout{max-width:1180px;margin:0 auto;display:flex;gap:20px;align-items:flex-start;}
+  .layout .stage{flex:0 0 470px;margin:0;}
+  .layout .flow{flex:1 1 380px;}
+  @media (max-width:980px){ .layout{flex-direction:column;} .layout .stage{flex:none;width:100%;} }
+
+  /* Panel de flujo de acciones */
+  .flow{background:#fff;border:1px solid var(--borde);border-radius:16px;padding:20px 22px;
+    box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  .flow h3{font-size:13px;text-transform:uppercase;letter-spacing:1.4px;color:var(--gris);margin-bottom:4px;}
+  .flow .sub{font-size:13px;color:var(--gris-2);margin-bottom:16px;}
+  .flow ol{list-style:none;position:relative;}
+  .flow ol::before{content:"";position:absolute;left:15px;top:6px;bottom:20px;width:2px;background:var(--lila-borde);}
+  .flow li{position:relative;padding:0 0 15px 44px;}
+  .flow li .n{position:absolute;left:0;top:0;width:32px;height:32px;border-radius:50%;
+    background:#fff;border:2px solid var(--lila);color:var(--lila);font-weight:800;font-size:13px;
+    display:flex;align-items:center;justify-content:center;z-index:1;}
+  .flow li .lane{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;
+    padding:2px 7px;border-radius:5px;margin-bottom:4px;}
+  .flow li .lane.web{background:#e8f1fb;color:#2563ab;}
+  .flow li .lane.api{background:var(--lila-suave);color:var(--lila);}
+  .flow li .lane.quac{background:var(--verde-suave);color:var(--verde);}
+  .flow li .lane.user{background:#f1f1f5;color:var(--gris);}
+  .flow li .txt{font-size:13.5px;line-height:1.5;}
+  .flow li .txt b{color:var(--tinta);}
+  .flow li code{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11.5px;background:#f2f2f6;
+    padding:1px 5px;border-radius:4px;color:#4a3a7a;}
+  .flow .branch{margin:2px 0 15px 44px;display:flex;gap:10px;}
+  .flow .branch .col{flex:1;border-radius:11px;padding:10px 12px;font-size:12px;line-height:1.45;}
+  .flow .branch .ok{background:var(--verde-suave);border:1px solid #bfe6cf;color:#155e3b;}
+  .flow .branch .deg{background:var(--ambar-suave);border:1px solid #f0e3b8;color:#7a5b12;}
+  .flow .branch .col b{display:block;margin-bottom:3px;}
+  .flow .fin{margin-left:44px;background:#f6f6f9;border-radius:11px;padding:11px 13px;
+    font-size:12.5px;color:var(--gris);}
+  .flow .fin b{color:var(--tinta);}
+
+  /* Contexto detrás del modal (simula la pantalla de VA) */
+  .stage{max-width:1040px;margin:0 auto;position:relative;min-height:760px;
+    background:linear-gradient(0deg,rgba(0,0,0,.02),rgba(0,0,0,.02)),
+    repeating-linear-gradient(180deg,#f7f7fa 0 40px,#f2f2f6 40px 80px);
+    border-radius:16px;overflow:hidden;border:1px solid var(--borde);
+    display:flex;align-items:flex-start;justify-content:center;padding:26px 14px;}
+  .overlay{position:absolute;inset:0;background:rgba(24,20,40,.45);backdrop-filter:blur(1px);}
+
+  /* Modal */
+  .modal{position:relative;z-index:2;width:420px;max-width:100%;background:#fff;border-radius:20px;
+    box-shadow:0 24px 60px rgba(20,15,45,.28);overflow:hidden;}
+  .modal .head{display:flex;align-items:center;gap:14px;padding:22px 22px 16px;position:relative;}
+  .modal .head .ic{width:46px;height:46px;border-radius:13px;background:var(--lila-suave);
+    display:flex;align-items:center;justify-content:center;}
+  .modal .head .ic svg{width:24px;height:24px;stroke:var(--lila);}
+  .modal .head h1{font-size:21px;font-weight:800;letter-spacing:-.2px;}
+  .modal .head p{font-size:13px;color:var(--gris);}
+  .modal .close{position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:9px;
+    border:1px solid var(--borde);background:#fff;color:var(--gris);cursor:pointer;font-size:17px;line-height:1;}
+
+  .body{padding:0 22px 20px;}
+
+  /* Bloque de status (NUEVO) */
+  .status{border:1px solid var(--lila-borde);background:linear-gradient(135deg,#faf7ff,#f3ecff);
+    border-radius:15px;padding:14px 16px;margin-bottom:14px;}
+  .status .top{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .status .badge{display:inline-flex;align-items:center;gap:6px;background:var(--lila);color:#fff;
+    font-size:12.5px;font-weight:800;padding:5px 11px;border-radius:20px;letter-spacing:.3px;}
+  .status .badge .dot{width:7px;height:7px;border-radius:50%;background:#c9f6dd;}
+  .status .cliente{font-size:12.5px;color:var(--gris);}
+  .status .cliente b{color:var(--tinta);}
+  .status .benes{display:flex;flex-wrap:wrap;gap:7px;}
+  .status .bene{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid var(--lila-borde);
+    color:var(--lila);font-size:12px;font-weight:600;padding:4px 10px;border-radius:8px;}
+  .status .bene svg{width:13px;height:13px;stroke:var(--verde);}
+
+  /* Hero monto */
+  .hero{background:var(--lila-suave);border-radius:15px;padding:16px 18px;margin-bottom:16px;}
+  .hero .row{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;}
+  .hero .lbl{font-size:13px;font-weight:700;color:var(--lila);margin-bottom:2px;}
+  .hero .big{font-size:30px;font-weight:800;letter-spacing:-.6px;color:var(--lila);}
+  .hero .cupo .lbl{text-align:right;}
+  .hero .cupo .big{font-size:22px;color:var(--verde);text-align:right;}
+  .hero .antes{margin-top:8px;display:flex;align-items:center;gap:10px;font-size:13px;}
+  .hero .antes .tach{color:var(--gris-2);text-decoration:line-through;}
+  .hero .antes .save{background:var(--verde-suave);color:var(--verde);font-weight:800;
+    padding:2px 9px;border-radius:7px;font-size:12.5px;}
+
+  /* Aviso degradado */
+  .aviso{display:none;align-items:flex-start;gap:9px;background:var(--ambar-suave);border:1px solid #f0e3b8;
+    border-radius:11px;padding:11px 13px;margin-bottom:14px;font-size:12.5px;color:#7a5b12;}
+  .aviso svg{width:16px;height:16px;stroke:var(--ambar);flex:none;margin-top:1px;}
+
+  .planes-lbl{font-size:15px;font-weight:800;margin:2px 0 11px;}
+  .plan{border:1.5px solid var(--borde);border-radius:15px;padding:14px 15px;margin-bottom:11px;transition:.15s;}
+  .plan.rec{border-color:var(--lila);background:#faf8ff;}
+  .plan .rec-tag{display:inline-block;background:var(--lila-600);color:#fff;font-size:10.5px;font-weight:800;
+    letter-spacing:1px;padding:3px 9px;border-radius:6px;margin-bottom:9px;}
+  .plan .grid{display:flex;align-items:center;gap:13px;}
+  .plan .num{width:52px;height:52px;border-radius:14px;background:#f1f1f5;color:var(--tinta);
+    display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:800;flex:none;}
+  .plan.rec .num{background:var(--lila);color:#fff;}
+  .plan .info{flex:1;}
+  .plan .info .t{font-size:17px;font-weight:800;}
+  .plan .info .s{font-size:12.5px;}
+  .plan .info .s.verde{color:var(--verde);font-weight:700;}
+  .plan .info .s.gris{color:var(--gris);}
+  .plan .val{text-align:right;}
+  .plan .val .v{font-size:21px;font-weight:800;letter-spacing:-.4px;}
+  .plan .val .u{font-size:12px;color:var(--gris);}
+  .plan .foot{display:flex;justify-content:space-between;align-items:center;margin-top:11px;
+    padding-top:10px;border-top:1px solid var(--borde);}
+  .plan .foot .fecha{font-size:12.5px;color:var(--gris);}
+  .plan .foot .det{font-size:13px;color:var(--lila);font-weight:700;cursor:pointer;}
+
+  .info-cli{display:flex;gap:10px;background:#f6f6f9;border-radius:12px;padding:12px 14px;margin:15px 0 14px;}
+  .info-cli svg{width:18px;height:18px;stroke:var(--gris);flex:none;margin-top:1px;}
+  .info-cli p{font-size:12.5px;color:var(--gris);}
+  .info-cli b{color:var(--tinta);}
+
+  .btn{width:100%;border:1px solid var(--borde);background:#fff;border-radius:13px;padding:14px;
+    font-size:15px;font-weight:700;cursor:pointer;}
+  .btn:hover{background:#fafafc;}
+
+  .cap{max-width:1040px;margin:16px auto 0;font-size:12px;color:var(--gris-2);text-align:center;}
+</style>
+</head>
+<body>
+
+<div class="switcher">
+  <h2>Variante del cliente (control de mockup — no es UI real)</h2>
+  <div class="chips">
+    <button data-v="black" class="active">Black · 10% + envío gratis</button>
+    <button data-v="silver">Silver · 5%</button>
+    <button data-v="nivel1">Nivel 1 · sin beneficios</button>
+    <button data-v="caido">CRM caído · degradado</button>
+  </div>
+  <p class="nota" id="nota"></p>
+</div>
+
+<div class="layout">
+<div class="stage">
+  <div class="overlay"></div>
+  <div class="modal">
+    <div class="head">
+      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+      <div><h1>Simulador de pago Quac</h1><p>Opciones de financiamiento</p></div>
+      <button class="close">✕</button>
+    </div>
+
+    <div class="body">
+
+      <!-- STATUS (nuevo) -->
+      <div class="status" id="status">
+        <div class="top">
+          <span class="badge"><span class="dot"></span><span id="nivelTxt">Cliente Quac Black</span></span>
+          <span class="cliente">Cliente: <b id="cliNombre">Francisco</b></span>
+        </div>
+        <div class="benes" id="benes"></div>
+      </div>
+
+      <!-- Aviso degradado -->
+      <div class="aviso" id="aviso">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+        <span>No pudimos consultar el status del cliente. Se muestra el precio sin beneficios; el descuento Quac se validará en el checkout.</span>
+      </div>
+
+      <!-- HERO -->
+      <div class="hero">
+        <div class="row">
+          <div><div class="lbl">Monto a financiar</div><div class="big" id="montoFin">$412.632</div></div>
+          <div class="cupo"><div class="lbl">Cupo disponible</div><div class="big" id="cupo">$1.364.033</div></div>
+        </div>
+        <div class="antes" id="ahorroRow">
+          <span class="tach" id="antes">antes $458.480</span>
+          <span class="save" id="ahorro">Ahorro $45.848</span>
+        </div>
+      </div>
+
+      <div class="planes-lbl">Elige un plan de pago:</div>
+
+      <div class="plan rec">
+        <span class="rec-tag">RECOMENDADO</span>
+        <div class="grid">
+          <div class="num">5</div>
+          <div class="info"><div class="t">5 cuotas</div><div class="s verde">0% interés</div></div>
+          <div class="val"><div class="v" id="p5">$82.526</div><div class="u">por cuota</div></div>
+        </div>
+        <div class="foot"><span class="fecha">Fecha de primera cuota: 02 de agosto, 2026</span><span class="det">Ver detalle ⌄</span></div>
+      </div>
+
+      <div class="plan">
+        <div class="grid">
+          <div class="num">9</div>
+          <div class="info"><div class="t">9 cuotas</div><div class="s gris">Paga en 60 días</div></div>
+          <div class="val"><div class="v" id="p9">$58.800</div><div class="u">por cuota</div></div>
+        </div>
+        <div class="foot"><span class="fecha">Fecha de primera cuota: 17 de septiembre, 2026</span><span class="det">Ver detalle ⌄</span></div>
+      </div>
+
+      <div class="plan">
+        <div class="grid">
+          <div class="num">15</div>
+          <div class="info"><div class="t">15 cuotas</div><div class="s gris">Financiación Estándar</div></div>
+          <div class="val"><div class="v" id="p15">$35.302</div><div class="u">por cuota</div></div>
+        </div>
+        <div class="foot"><span class="fecha">Fecha de primera cuota: 02 de agosto, 2026</span><span class="det">Ver detalle ⌄</span></div>
+      </div>
+
+      <div class="info-cli">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <p>El cliente <b id="cliNombre2">Francisco</b> puede pagar con Quac seleccionando esta opción en el checkout. La aprobación está sujeta a validación del cupo disponible.</p>
+      </div>
+
+      <button class="btn">Entendido</button>
+    </div>
+  </div>
+</div>
+
+<aside class="flow">
+  <h3>Flujo de acciones</h3>
+  <p class="sub">Qué ocurre al ejecutar el simulador · dry-run, no consume cupo</p>
+  <ol>
+    <li><span class="n">1</span><span class="lane user">Asesor</span>
+      <div class="txt">Click en <b>"Simular pago Quac"</b> con el carrito armado y el cliente identificado.</div></li>
+    <li><span class="n">2</span><span class="lane web">get-web · front</span>
+      <div class="txt">Abre el modal en estado cargando y llama <code>simularStatusQuac(carrito, metodoEnvio)</code>. El <b>cupo</b> ya se cargó antes → se reusa.</div></li>
+    <li><span class="n">3</span><span class="lane web">get-web · backend</span>
+      <div class="txt">Proxy con la <b>tienda real</b> del carrito (<code>getSlugTienda()</code>) → <code>POST /assisted-sale/cart/utils/quac-status-simulator/{token}</code></div></li>
+    <li><span class="n">4</span><span class="lane api">get-api · motor</span>
+      <div class="txt"><code>computeStatusQuac(cart)</code>: consulta CRM → <b>nivel + 5%/10% + envío gratis</b>, recalcula <code>total_final = total − descuento − envío</code>.</div></li>
+    <li><span class="n">5</span><span class="lane quac">api.quac.co</span>
+      <div class="txt"><code>getPlanPayment(payment_total = total_final)</code> → devuelve las <b>cuotas recalculadas</b> sobre el monto con descuento.</div></li>
+    <li><span class="n">6</span><span class="lane api">get-api · dry-run</span>
+      <div class="txt"><b>No persiste</b> en <code>store_quac_transacciones</code>. Devuelve <code>{status_quac, total_original, total_final, ahorro, strategies}</code>.</div></li>
+  </ol>
+  <div class="branch">
+    <div class="col ok"><b>✓ Con beneficios</b>Badge de nivel + chips, monto = total_final, línea de ahorro, cuotas recalculadas.</div>
+    <div class="col deg"><b>⚠ Sin beneficios / CRM caído</b>Sin badge (aviso ámbar si cae), total bruto, cuotas de hoy. Nunca se rompe.</div>
+  </div>
+  <div class="fin"><b>7 · Cierre.</b> El asesor revisa y cierra con "Entendido". Es <b>consultivo</b>: no crea transacción ni consume cupo — el pago real con Quac y su persistencia ocurren en el checkout.</div>
+</aside>
+
+</div>
+
+<p class="cap">Mockup · Simulador de pago Quac <b>status-aware</b> en Venta Asistida (get-web) · versión asesor (ligera) · dry-run · 2026-07-08</p>
+
+<script>
+  const fmt = n => '$' + n.toLocaleString('es-CO', {maximumFractionDigits:0}).replace(/,/g,'.');
+  const cupo = 1364033;
+
+  const variantes = {
+    black:{
+      nivel:'Cliente Quac Black', beneficios:[['Descuento 10%',true],['Envío gratis',true]],
+      original:458480, total:412632, ahorro:45848, degradado:false,
+      nota:'Con beneficios completos: descuento 10% + envío gratis. El monto a financiar y las 3 cuotas salen del total ya descontado.'
+    },
+    silver:{
+      nivel:'Cliente Quac Silver', beneficios:[['Descuento 5%',true]],
+      original:458480, total:435556, ahorro:22924, degradado:false,
+      nota:'Nivel con solo % de descuento (sin envío gratis). El ahorro y las cuotas se recalculan sobre el total con 5%.'
+    },
+    nivel1:{
+      nivel:'Cliente Quac', beneficios:[['Sin beneficios de descuento aún',false]],
+      original:458480, total:458480, ahorro:0, degradado:false,
+      nota:'Nivel 1 sin descuentos: se muestra el badge del nivel pero sin línea de ahorro. Monto = total bruto (comportamiento de hoy).'
+    },
+    caido:{
+      nivel:null, beneficios:[], original:458480, total:458480, ahorro:0, degradado:true,
+      nota:'CRM/Status QUAC no respondió → degrada al comportamiento de hoy: sin badge, total bruto, aviso ámbar. El simulador nunca se rompe.'
+    }
+  };
+
+  // Proporciones de cuota respecto al monto financiado (ilustrativas, tal como las devuelve el servicio de planes)
+  const factor = {p5:0.20, p9:0.1283, p15:0.0856};
+
+  function aplicar(v){
+    const d = variantes[v];
+    document.getElementById('nota').textContent = d.nota;
+
+    // status / degradado
+    const status = document.getElementById('status');
+    const aviso = document.getElementById('aviso');
+    if(d.degradado){ status.style.display='none'; aviso.style.display='flex'; }
+    else{
+      status.style.display='block'; aviso.style.display='none';
+      document.getElementById('nivelTxt').textContent = d.nivel;
+      const benes = document.getElementById('benes');
+      benes.innerHTML = d.beneficios.map(([txt,ok]) =>
+        `<span class="bene">${ok?'<svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>':'•'} ${txt}</span>`
+      ).join('');
+    }
+
+    // monto + ahorro
+    document.getElementById('montoFin').textContent = fmt(d.total);
+    document.getElementById('cupo').textContent = fmt(cupo);
+    const ahorroRow = document.getElementById('ahorroRow');
+    if(d.ahorro>0){
+      ahorroRow.style.display='flex';
+      document.getElementById('antes').textContent = 'antes ' + fmt(d.original);
+      document.getElementById('ahorro').textContent = 'Ahorro ' + fmt(d.ahorro);
+    } else { ahorroRow.style.display='none'; }
+
+    // cuotas recalculadas sobre el monto financiado
+    document.getElementById('p5').textContent = fmt(Math.round(d.total*factor.p5));
+    document.getElementById('p9').textContent = fmt(Math.round(d.total*factor.p9));
+    document.getElementById('p15').textContent = fmt(Math.round(d.total*factor.p15));
+  }
+
+  document.querySelectorAll('.switcher button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('.switcher button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      aplicar(b.dataset.v);
+    });
+  });
+  aplicar('black');
+</script>
+</body>
+</html>
