@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-67 · Presupuesto diario: tabla por canal + edición con log</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .mono { font-variant-numeric: tabular-nums; }
+  svg { display: inline-block; vertical-align: -2px; }
+</style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+
+<!-- ═══ Barra del mockup (no es parte de la UI real) ═══ -->
+<div class="bg-slate-800 text-slate-200 text-xs px-6 py-2 flex items-center gap-3 sticky top-0 z-50 flex-wrap">
+  <span class="font-semibold uppercase tracking-wide text-slate-400">Mockup GW-67 · v4 · aprobado 2026-07-11 (contrato de interfaz · variante tabs)</span>
+  <button onclick="setEstado('sincarga')" data-st="sincarga" class="st-btn px-3 py-1 rounded border border-slate-600 hover:bg-slate-700">1 · Mes sin carga</button>
+  <button onclick="setEstado('cargado')" data-st="cargado" class="st-btn px-3 py-1 rounded border border-slate-600 hover:bg-slate-700">2 · Cargado · tabla por canal</button>
+  <span class="text-slate-500">|</span>
+  <label class="flex items-center gap-1.5 cursor-pointer select-none">
+    <input type="checkbox" id="chkCierre" onchange="renderTodo()" class="accent-amber-400">
+    <span>Simular <b>Q1 cerrada</b> (GW-57)</span>
+  </label>
+  <span class="text-slate-500">|</span>
+  <span class="text-slate-400">Selector de tienda:</span>
+  <button onclick="setVariante('tabs')" data-vr="tabs" class="vr-btn px-2.5 py-1 rounded border border-slate-600 hover:bg-slate-700">A · Tabs</button>
+  <button onclick="setVariante('dropdown')" data-vr="dropdown" class="vr-btn px-2.5 py-1 rounded border border-slate-600 hover:bg-slate-700">B · Dropdown</button>
+</div>
+
+<div class="max-w-6xl mx-auto px-6 py-8">
+
+  <!-- Encabezado real del módulo -->
+  <h1 class="text-2xl font-bold text-slate-900">Configuración de comisiones</h1>
+  <p class="text-sm text-slate-500 mb-6">Tasas por tienda × métrica</p>
+
+  <!-- Pestañas del maestro (como en producción) -->
+  <div class="inline-flex bg-slate-200/60 rounded-lg p-1 text-sm mb-3">
+    <button class="px-4 py-1.5 rounded-md text-slate-500 flex items-center gap-2"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>Métricas de cumplimiento</button>
+    <button class="px-4 py-1.5 rounded-md bg-white shadow-sm font-medium text-slate-900 flex items-center gap-2"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>Presupuesto de ventas</button>
+    <button class="px-4 py-1.5 rounded-md text-slate-500 flex items-center gap-2"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/></svg>Métricas del mes</button>
+  </div>
+
+  <!-- Selector de mes (existente, GW-56) -->
+  <div class="flex items-center gap-2 mb-5 text-sm">
+    <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Mes</span>
+    <button class="w-8 h-8 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 flex items-center justify-center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+    <div class="px-4 h-8 rounded-lg border border-slate-300 bg-white flex items-center gap-2">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      <span class="font-medium">Julio 2026</span>
+      <span class="text-[10px] px-1.5 py-0.5 bg-slate-100 rounded text-slate-500">actual</span>
+    </div>
+    <button class="w-8 h-8 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 flex items-center justify-center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+  </div>
+
+  <!-- ══════════ ESTADO 1 · MES SIN CARGA (igual que hoy) ══════════ -->
+  <section data-panel="sincarga" class="hidden">
+    <div class="bg-white rounded-xl border border-slate-200 p-6">
+      <h2 class="text-lg font-semibold text-slate-900">Cargar presupuesto de ventas · Agosto 2026</h2>
+      <p class="text-sm text-slate-500 mt-1 mb-5 max-w-2xl">Sube el archivo plano con el presupuesto por bodega y día. El sistema reconoce las tiendas QEC por el encabezado y llena el global de cada día. El reparto entre asesores se hace luego en <b>Asignar asesores</b>.</p>
+      <div class="border-2 border-dashed border-slate-300 rounded-xl py-14 text-center text-slate-500 hover:border-slate-400 cursor-pointer">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="mx-auto mb-2 text-slate-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/></svg>
+        <p class="font-medium text-slate-700">Selecciona el archivo Excel</p>
+        <p class="text-xs mt-1">.xlsx / .xls · una columna por bodega, una fila por día</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ ESTADO 2 · MES CARGADO · TABLA POR CANAL ══════════ -->
+  <section data-panel="cargado">
+
+    <!-- Banner resumen (GW-56, se conserva) + Reemplazar archivo -->
+    <div class="bg-emerald-50 border border-emerald-300 rounded-xl px-5 py-4 mb-4 flex items-center gap-4">
+      <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+      </div>
+      <div class="flex-1">
+        <p class="text-sm font-semibold text-emerald-800">Ya hay presupuesto cargado para este mes</p>
+        <p class="text-xs text-slate-600 mt-0.5">
+          <b>STIRPE QEC:</b> 31 días · <span class="mono" id="bannerStirpe"></span>
+          <span class="mx-3 text-slate-300">|</span>
+          <b>DEREK QEC:</b> 31 días · <span class="mono" id="bannerDerek"></span>
+        </p>
+      </div>
+      <button onclick="toggleDrop()" class="text-xs px-3 py-1.5 rounded-lg border border-emerald-400 text-emerald-700 hover:bg-emerald-100 font-medium">Reemplazar archivo</button>
+    </div>
+
+    <!-- Drop-zone colapsada -->
+    <div id="dropzone" class="hidden border-2 border-dashed border-slate-300 rounded-xl py-8 text-center text-slate-500 mb-4 bg-white">
+      <p class="font-medium text-slate-700">Selecciona el archivo Excel</p>
+      <p class="text-xs mt-1">Subir un archivo nuevo <b>reemplaza el presupuesto del mes completo</b> (las ediciones manuales se pierden).</p>
+    </div>
+
+    <!-- Navegación por tienda · Variante A: tabs segmentados -->
+    <div id="varTabs" class="mb-4">
+      <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide block mb-1.5">Tienda</span>
+      <div class="inline-flex bg-slate-200/60 rounded-lg p-1 text-sm" id="tabsTienda"></div>
+    </div>
+
+    <!-- Navegación por tienda · Variante B: dropdown (como pestaña 1) -->
+    <div id="varDropdown" class="mb-4 hidden">
+      <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide block mb-1.5">Tienda</span>
+      <select id="selTienda" onchange="setTienda(this.value)" class="h-10 px-3 pr-8 rounded-lg border border-slate-300 bg-white text-sm font-medium min-w-[180px]"></select>
+    </div>
+
+    <!-- Tabla diaria del canal -->
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-slate-200">
+        <h3 class="text-sm font-semibold text-slate-900">Presupuesto diario · <span id="tituloTienda"></span> · Julio 2026</h3>
+        <p class="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          Archivo: <span class="font-medium text-slate-700">presupuesto_julio_2026.xlsx</span> (05 jul 2026)
+          <span class="text-slate-300 mx-1">·</span>
+          Cargado el <span class="font-medium text-slate-700">8 jul 2026, 09:15</span> por Francisco L.
+        </p>
+      </div>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-[11px] text-slate-500 uppercase tracking-wide border-b border-slate-200 bg-slate-50">
+            <th class="text-left px-5 py-2.5 font-semibold">Día</th>
+            <th class="text-right px-4 py-2.5 font-semibold">Presupuesto del día</th>
+            <th class="text-left px-8 py-2.5 font-semibold">Saldo pendiente de asignar a asesores</th>
+            <th class="text-right px-5 py-2.5 font-semibold">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+        <tfoot>
+          <tr class="border-t-2 border-slate-300 bg-slate-50 font-semibold">
+            <td class="px-5 py-3 text-slate-700">Total del mes</td>
+            <td class="px-4 py-3 text-right mono" id="totPresupuesto"></td>
+            <td class="px-8 py-3" id="totSaldo"></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- ══════════ MODAL · Corregir día + log del día ══════════ -->
+<div id="modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+  <div class="absolute inset-0 bg-slate-900/40" onclick="cerrarModal()"></div>
+  <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+    <div class="px-6 pt-5 pb-4 border-b border-slate-200 flex items-start justify-between">
+      <div>
+        <h3 class="text-base font-semibold text-slate-900" id="modalTitulo"></h3>
+        <p class="text-xs text-slate-500 mt-0.5" id="modalSubtitulo"></p>
+      </div>
+      <button onclick="cerrarModal()" class="text-slate-400 hover:text-slate-700 mt-0.5">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="px-6 py-5">
+      <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide block mb-1.5">Presupuesto del día</label>
+      <div class="flex items-center gap-2">
+        <div class="relative flex-1">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+          <input id="inpModal" type="text" class="w-full h-10 pl-7 pr-3 text-right border border-slate-300 rounded-lg text-sm mono focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400">
+        </div>
+        <button onclick="guardarModal()" class="h-10 px-4 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-700">Guardar</button>
+        <button onclick="cerrarModal()" class="h-10 px-4 rounded-lg border border-slate-300 text-sm hover:bg-slate-50">Cancelar</button>
+      </div>
+      <p id="modalSaldo" class="text-xs mt-2.5"></p>
+
+      <!-- Feedback del sistema tras guardar (el modal NO se cierra solo) -->
+      <div id="modalOk" class="hidden mt-3 flex items-center gap-2 bg-emerald-50 border border-emerald-300 rounded-lg px-3 py-2.5 text-xs text-emerald-800">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="shrink-0"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+        <span><b>Presupuesto del día actualizado.</b> El total de la quincena y del mes fue recalculado; el cambio quedó registrado abajo.</span>
+      </div>
+
+      <!-- Log de cambios de este día -->
+      <div class="mt-5">
+        <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></svg>
+          Cambios de este día
+        </p>
+        <div id="modalLog" class="space-y-0 max-h-48 overflow-y-auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-6 right-6 bg-slate-900 text-white text-sm px-4 py-3 rounded-lg shadow-lg max-w-md"></div>
+
+<script>
+// ── Tiendas QEC dinámicas (get.tiendas vía TiendasQecService — cero constantes) ──
+const TIENDAS = [
+  { id: 0, nombre: 'STIRPE QEC' },
+  { id: 1, nombre: 'DEREK QEC' },
+];
+
+// ── Datos de ejemplo: presupuesto global por día + suma ya repartida a asesores ──
+const ventas = {
+  0: [50901441,48222418,46882906,44120000,43500000,41800000,39900000,45210000,47100000,43800000,42500000,41200000,40800000,39600000,43100000,44900000,46200000,42800000,41500000,40200000,43700000,45100000,42300000,41900000,40600000,42100000,43800000,41200000,42700000,44300000,45673835],
+  1: [6184287,5858798,5696054,5360000,5290000,5080000,4850000,5490000,5720000,5320000,5160000,5010000,4960000,4810000,5240000,5460000,5610000,5200000,5040000,4880000,5310000,5480000,5140000,5090000,4930000,5120000,5320000,5010000,5190000,5380000,5556261],
+};
+// asignado = Σ presupuesto_va_asesor.venta del día · días 1-3 completos · día 4 sobre-asignado
+// (permitido, sin alerta) · días 5-6 asignados DE MENOS (badge rojo) · resto sin reparto (—)
+const datos = {};
+for (const t of TIENDAS) {
+  datos[t.id] = ventas[t.id].map((v, i) => {
+    const d = i + 1;
+    let asignado = 0;
+    if (d <= 3) asignado = v;
+    else if (d === 4) asignado = v + (t.id === 0 ? 2500000 : 300000);
+    else if (d === 5) asignado = v - (t.id === 0 ? 8000000 : 900000);
+    else if (d === 6) asignado = v - (t.id === 0 ? 3200000 : 450000);
+    return { dia: d, venta: v, asignado };
+  });
+}
+// Log por tienda+día (comision_va_log · elemento presupuesto_dia_YYYYMMDD_tienda) + un ejemplo
+const historial = { 0: [], 1: [] };
+historial[0].push({ dia: 5, fecha: '9 jul 2026 · 14:32', usuario: 'Diana Q.', antes: 51500000, despues: 43500000 });
+
+const fmt = v => '$' + Math.round(v).toLocaleString('es-CO');
+let tiendaActiva = 0;
+let diaModal = null;
+
+const ICONO_LAPIZ = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
+const ICONO_CANDADO = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+
+// Badge rojo SOLO cuando hay reparto parcial (asignó de menos). Sin reparto aún → "—".
+function saldoBadge(fila) {
+  if (fila.asignado === 0) return '<span class="text-slate-300">—</span>';
+  const saldo = fila.venta - fila.asignado;
+  if (saldo > 0) {
+    return `<span class="text-[11px] px-2 py-0.5 rounded-full font-medium mono" style="background:#FEF2F2;color:#B91C1B;">${fmt(saldo)}</span>`;
+  }
+  return '<span class="text-slate-300">—</span>';
+}
+
+function renderTodo() { renderSelectorTienda(); renderTabla(); renderBanner(); }
+
+function renderSelectorTienda() {
+  document.getElementById('tabsTienda').innerHTML = TIENDAS.map(t =>
+    `<button onclick="setTienda(${t.id})" class="px-4 py-1.5 rounded-md text-sm ${t.id === tiendaActiva ? 'bg-white shadow-sm font-medium text-slate-900' : 'text-slate-500 hover:text-slate-700'}">${t.nombre}</button>`
+  ).join('');
+  const sel = document.getElementById('selTienda');
+  sel.innerHTML = TIENDAS.map(t => `<option value="${t.id}" ${t.id === tiendaActiva ? 'selected' : ''}>${t.nombre}</option>`).join('');
+  document.getElementById('tituloTienda').textContent = TIENDAS.find(t => t.id === tiendaActiva).nombre;
+}
+
+function renderTabla() {
+  const cierre = document.getElementById('chkCierre').checked;
+  const filas = datos[tiendaActiva];
+  document.getElementById('tbody').innerHTML = filas.map(f => {
+    const cerrada = cierre && f.dia <= 15;
+    const sepQ = f.dia === 16 ? 'border-t-2 border-slate-300' : 'border-t border-slate-100';
+    const qBadge = f.dia === 1 ? `<span class="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 inline-flex items-center gap-1">Q1${cerrada ? ' · cerrada ' + ICONO_CANDADO : ''}</span>`
+                 : f.dia === 16 ? '<span class="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">Q2</span>' : '';
+    const editado = historial[tiendaActiva].some(h => h.dia === f.dia);
+    const accion = cerrada
+      ? `<span class="text-slate-300" title="Período cerrado — la quincena ya fue liquidada">${ICONO_CANDADO}</span>`
+      : `<button onclick="abrirModal(${f.dia})" title="Corregir este día" class="text-slate-400 hover:text-slate-900">${ICONO_LAPIZ}</button>`;
+    return `<tr class="${sepQ} hover:bg-slate-50/60">
+      <td class="px-5 py-2.5 text-slate-600 mono">${f.dia} jul${qBadge}${editado ? '<span class="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">editado</span>' : ''}</td>
+      <td class="px-4 py-2.5 text-right"><span class="mono ${cerrada ? 'text-slate-400' : ''}">${fmt(f.venta)}</span></td>
+      <td class="px-8 py-2.5">${saldoBadge(f)}</td>
+      <td class="px-5 py-2.5 text-right">${accion}</td>
+    </tr>`;
+  }).join('');
+  const totV = filas.reduce((s, f) => s + f.venta, 0);
+  const pendiente = filas.reduce((s, f) => s + (f.asignado > 0 ? Math.max(0, f.venta - f.asignado) : 0), 0);
+  document.getElementById('totPresupuesto').textContent = fmt(totV);
+  document.getElementById('totSaldo').innerHTML = pendiente > 0
+    ? `<span class="text-[11px] px-2 py-0.5 rounded-full font-medium mono" style="background:#FEF2F2;color:#B91C1B;">${fmt(pendiente)}</span>`
+    : '<span class="text-slate-300">—</span>';
+}
+
+function renderBanner() {
+  document.getElementById('bannerStirpe').textContent = fmt(datos[0].reduce((s, f) => s + f.venta, 0));
+  document.getElementById('bannerDerek').textContent = fmt(datos[1].reduce((s, f) => s + f.venta, 0));
+}
+
+function setTienda(id) { tiendaActiva = Number(id); renderTodo(); }
+
+// ── Modal ──
+let huboCambio = false; // si hubo al menos un guardado, la tabla se refresca al CERRAR
+
+function abrirModal(dia) {
+  diaModal = dia;
+  huboCambio = false;
+  document.getElementById('modalOk').classList.add('hidden');
+  const f = datos[tiendaActiva].find(x => x.dia === dia);
+  const nombre = TIENDAS.find(t => t.id === tiendaActiva).nombre;
+  document.getElementById('modalTitulo').textContent = `Corregir presupuesto · ${dia} jul 2026`;
+  document.getElementById('modalSubtitulo').textContent = nombre;
+  document.getElementById('inpModal').value = Math.round(f.venta).toLocaleString('es-CO');
+  document.getElementById('modalSaldo').innerHTML = f.asignado > 0 && f.venta - f.asignado > 0
+    ? `Saldo pendiente de asignar a asesores: <span class="font-medium mono" style="color:#B91C1B;">${fmt(f.venta - f.asignado)}</span>`
+    : '';
+  renderModalLog();
+  document.getElementById('modal').classList.remove('hidden');
+  setTimeout(() => { const i = document.getElementById('inpModal'); i.focus(); i.select(); }, 0);
+}
+
+function renderModalLog() {
+  const cambios = historial[tiendaActiva].filter(h => h.dia === diaModal);
+  const filasLog = cambios.map(h => `
+    <div class="flex items-center justify-between py-2 border-b border-slate-100 text-xs">
+      <div>
+        <p class="text-slate-700">${h.usuario}</p>
+        <p class="text-slate-400 text-[11px]">${h.fecha}</p>
+      </div>
+      <p class="mono"><span class="text-slate-400 line-through">${fmt(h.antes)}</span> <span class="text-slate-400 mx-1">→</span> <span class="font-semibold text-slate-900">${fmt(h.despues)}</span></p>
+    </div>`).join('');
+  const cargaInicial = `
+    <div class="flex items-center justify-between py-2 text-xs">
+      <div>
+        <p class="text-slate-700">Francisco L.</p>
+        <p class="text-slate-400 text-[11px]">8 jul 2026 · 09:15</p>
+      </div>
+      <p class="text-slate-500 italic">Carga por archivo</p>
+    </div>`;
+  document.getElementById('modalLog').innerHTML = (filasLog || '') + cargaInicial;
+}
+
+function guardarModal() {
+  const nuevo = parseFloat(String(document.getElementById('inpModal').value).replace(/[^\d]/g, ''));
+  if (isNaN(nuevo) || nuevo < 0) { alertToast('Valor inválido'); return; }
+  const f = datos[tiendaActiva].find(x => x.dia === diaModal);
+  const antes = f.venta;
+  if (nuevo === antes) return; // sin cambio, sin log, sin feedback
+  f.venta = nuevo;
+  historial[tiendaActiva].unshift({
+    dia: diaModal,
+    fecha: 'hoy · ' + new Intl.DateTimeFormat('es-CO', { hour: '2-digit', minute: '2-digit' }).format(new Date()),
+    usuario: 'Francisco L.', antes, despues: nuevo,
+  });
+  huboCambio = true;
+  // El modal NO se cierra: feedback del sistema + log refrescado en el acto
+  document.getElementById('inpModal').value = Math.round(nuevo).toLocaleString('es-CO');
+  document.getElementById('modalOk').classList.remove('hidden');
+  const saldo = f.asignado > 0 ? f.venta - f.asignado : 0;
+  document.getElementById('modalSaldo').innerHTML = saldo > 0
+    ? `Saldo pendiente de asignar a asesores: <span class="font-medium mono" style="color:#B91C1B;">${fmt(saldo)}</span>`
+    : '';
+  renderModalLog();
+}
+
+// El usuario cierra la ventana: si hubo cambio se refresca la tabla; si no, permanece igual
+function cerrarModal() {
+  document.getElementById('modal').classList.add('hidden');
+  if (huboCambio) renderTodo();
+  diaModal = null;
+  huboCambio = false;
+}
+
+function alertToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), 3500);
+}
+
+function toggleDrop() { document.getElementById('dropzone').classList.toggle('hidden'); }
+
+function setEstado(st) {
+  document.querySelectorAll('[data-panel]').forEach(p => p.classList.toggle('hidden', p.dataset.panel !== st));
+  document.querySelectorAll('.st-btn').forEach(b => b.classList.toggle('bg-slate-600', b.dataset.st === st));
+}
+
+function setVariante(vr) {
+  document.getElementById('varTabs').classList.toggle('hidden', vr !== 'tabs');
+  document.getElementById('varDropdown').classList.toggle('hidden', vr !== 'dropdown');
+  document.querySelectorAll('.vr-btn').forEach(b => b.classList.toggle('bg-slate-600', b.dataset.vr === vr));
+}
+
+setEstado('cargado');
+setVariante('tabs');
+renderTodo();
+</script>
+</body>
+</html>

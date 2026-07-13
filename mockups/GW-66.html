@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mockup GW-66 · Gestión de Ventas del coordinador</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background:#f3f4f6; }
+  .bar-track { background:#e5e7eb; border-radius:9999px; overflow:hidden; position:relative; }
+  .potencial-stripe { background-image: repeating-linear-gradient(45deg, rgba(16,185,129,.28) 0, rgba(16,185,129,.28) 6px, rgba(16,185,129,.12) 6px, rgba(16,185,129,.12) 12px); }
+  .meta-mark { position:absolute; top:-3px; bottom:-3px; right:0; width:2px; background:#111827; }
+  .seg-on { background:#111827; color:#fff; }
+  .seg-off { background:#fff; color:#374151; }
+  .amb-on { background:#111827; color:#fff; }
+  .amb-off { background:#fff; color:#374151; }
+  .tab-on { background:#fff; color:#111827; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  .tab-off { color:#6b7280; }
+  .ptab-on { border-bottom:2px solid #111827; color:#111827; font-weight:600; }
+  .ptab-off { border-bottom:2px solid transparent; color:#6b7280; }
+  .nav-btn { width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #e5e7eb;border-radius:8px;background:#fff;color:#374151; }
+  .avatar { width:34px;height:34px;border-radius:9999px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex:none; }
+  .refrescar { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;color:#6b7280;font-size:14px;cursor:pointer;flex:none; }
+  .refrescar:hover { background:#f9fafb;color:#111827; }
+  .refrescar.spin { animation:girar .6s linear; }
+  @keyframes girar { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body class="text-gray-800">
+<div class="mx-auto max-w-6xl p-4 md:p-6">
+
+  <!-- Encabezado -->
+  <div class="flex flex-wrap items-start justify-between gap-3 mb-3">
+    <div>
+      <h1 class="text-xl font-bold text-gray-900">Gestión de Ventas</h1>
+      <p class="text-sm text-gray-500">Coordinadora: Ana Torres · venta asistida</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-[11px] uppercase tracking-wide text-gray-400">Demo cumplimiento:</span>
+      <div class="inline-flex overflow-hidden rounded-lg border border-gray-200 text-xs font-medium">
+        <button data-esc="riesgo" class="esc seg-on px-2.5 py-1.5">Bajo meta</button>
+        <button data-esc="aldia"  class="esc seg-off px-2.5 py-1.5 border-l border-gray-200">En proceso</button>
+        <button data-esc="holgado" class="esc seg-off px-2.5 py-1.5 border-l border-gray-200">En meta</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Selector de ámbito (tienda) — analítico: solo Dashboard e Histórico. Se oculta en Consulta (Opción A) -->
+  <div id="tienda-selector" class="flex flex-wrap items-center gap-2 mb-4">
+    <span class="text-[11px] uppercase tracking-wide text-gray-400">Tienda</span>
+    <div class="inline-flex overflow-hidden rounded-lg border border-gray-200 text-sm font-medium">
+      <button data-amb="stirpe" class="amb amb-on px-4 py-1.5">STIRPE QEC</button>
+      <button data-amb="derek"  class="amb amb-off px-4 py-1.5 border-l border-gray-200">DEREK QEC</button>
+      <button data-amb="comparar"  class="amb amb-off px-4 py-1.5 border-l border-gray-200">Comparar tiendas</button>
+    </div>
+    <span class="text-[11px] text-gray-400">· una coordinadora de tienda entra fijada en la suya; la coordinadora general compara ambas</span>
+  </div>
+
+  <!-- Pestañas principales -->
+  <div class="flex gap-5 border-b mb-4 text-sm">
+    <button data-ptab="dashboard" class="ptab ptab-on px-1 pb-2">Dashboard</button>
+    <button data-ptab="consulta"  class="ptab ptab-off px-1 pb-2">Consulta de ventas</button>
+    <button data-ptab="historico" class="ptab ptab-off px-1 pb-2">Histórico</button>
+  </div>
+
+  <!-- ================= DASHBOARD ================= -->
+  <div id="view-dashboard">
+
+    <!-- Cockpit de una sola tienda -->
+    <div id="cockpit-single">
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-5 mb-4">
+      <!-- Quincena -->
+      <div class="lg:col-span-3 rounded-2xl border bg-white p-5 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <h2 id="q-titulo" class="text-sm font-semibold text-gray-700"></h2>
+          <div class="flex items-center gap-1.5">
+            <div class="inline-flex overflow-hidden rounded-lg border border-gray-200 text-[11px] font-medium">
+              <button data-gran="quincena" class="gran seg-on px-2 py-1">Quincena</button>
+              <button data-gran="mes" class="gran seg-off px-2 py-1 border-l border-gray-200">Mes</button>
+              <button data-gran="anio" class="gran seg-off px-2 py-1 border-l border-gray-200">Año</button>
+            </div>
+            <button id="q-prev" class="nav-btn">◀</button>
+            <span id="q-periodo" class="min-w-[80px] text-center text-xs font-medium text-gray-700"></span>
+            <button id="q-next" class="nav-btn">▶</button>
+            <button class="refrescar" data-blk="cockpit-q" title="Actualizar este bloque (sin recargar la página)">↻</button>
+          </div>
+        </div>
+        <div class="flex items-end gap-3 mb-3">
+          <span id="q-pct" class="text-4xl font-bold leading-none"></span>
+          <span id="q-sub" class="mb-1 text-sm text-gray-500"></span>
+        </div>
+        <div class="bar-track h-5 mb-2"><div class="flex h-full"><div id="q-bar-real" class="h-full bg-emerald-500"></div><div id="q-bar-pot" class="h-full potencial-stripe"></div></div><div class="meta-mark"></div></div>
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-gray-500 mb-4">
+          <span><span class="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500 align-middle"></span> Realizado (pagado + facturado)</span>
+          <span><span class="inline-block h-2.5 w-2.5 rounded-sm potencial-stripe align-middle"></span> Por cerrar (carritos sin pagar)</span>
+          <span class="ml-auto">Meta ▏ <span id="q-meta" class="font-medium text-gray-700"></span></span>
+        </div>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div class="rounded-xl bg-gray-50 p-3"><p class="text-[11px] uppercase tracking-wide text-gray-400">Realizado</p><p id="q-real" class="text-lg font-semibold text-emerald-700"></p></div>
+          <div class="rounded-xl bg-gray-50 p-3"><p class="text-[11px] uppercase tracking-wide text-gray-400">Falta</p><p id="q-falta" class="text-lg font-semibold text-gray-900"></p></div>
+          <div class="rounded-xl bg-gray-50 p-3"><p class="text-[11px] uppercase tracking-wide text-gray-400">Venta por cerrar</p><p id="q-pot" class="text-lg font-semibold text-gray-700"></p></div>
+          <div id="q-ritmo-box" class="rounded-xl p-3"><p class="text-[11px] uppercase tracking-wide text-gray-500">Venta diaria necesaria</p><p id="q-ritmo" class="text-lg font-semibold"></p><p id="q-ritmo-sub" class="text-[10px] text-gray-500"></p></div>
+        </div>
+      </div>
+      <!-- Hoy -->
+      <div class="lg:col-span-2 rounded-2xl border bg-white p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+          <h2 id="d-titulo" class="text-sm font-semibold text-gray-700">Cumplimiento de hoy</h2>
+          <div class="flex items-center gap-1.5">
+            <button data-dia="ayer" class="dia seg-off rounded-lg border border-gray-200 px-2 py-1 text-[11px]">Ayer</button>
+            <button data-dia="hoy" class="dia seg-on rounded-lg border border-gray-200 px-2 py-1 text-[11px]">Hoy</button>
+            <input type="date" value="2026-07-10" class="rounded-lg border border-gray-200 px-2 py-1 text-[11px] text-gray-600" />
+            <button class="refrescar" data-blk="cockpit-d" title="Actualizar este bloque (sin recargar la página)">↻</button>
+          </div>
+        </div>
+        <div class="flex items-end gap-2 mb-3"><span id="d-pct" class="text-3xl font-bold leading-none"></span><span id="d-chip" class="mb-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"></span></div>
+        <div class="bar-track h-4 mb-2"><div class="flex h-full"><div id="d-bar-real" class="h-full bg-emerald-500"></div><div id="d-bar-pot" class="h-full potencial-stripe"></div></div><div class="meta-mark"></div></div>
+        <div class="space-y-1.5 text-sm mt-4">
+          <div class="flex justify-between"><span class="text-gray-500">Meta del día</span><span id="d-meta" class="font-medium"></span></div>
+          <div class="flex justify-between"><span class="text-gray-500">Realizado</span><span id="d-real" class="font-medium text-emerald-700"></span></div>
+          <div class="flex justify-between"><span class="text-gray-500">Falta</span><span id="d-falta" class="font-medium"></span></div>
+          <div class="flex justify-between"><span class="text-gray-500">Por cerrar hoy</span><span id="d-pot" class="font-medium text-gray-600"></span></div>
+        </div>
+      </div>
+    </div>
+
+    </div><!-- /cockpit-single -->
+
+    <!-- Cockpit comparativo: las dos tiendas a la vez -->
+    <div id="cockpit-comparar" class="hidden rounded-2xl border bg-white p-5 shadow-sm mb-4">
+      <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-gray-700">Cumplimiento por tienda · Quincena 1 de julio</h2>
+        <div class="flex items-center gap-2"><span class="text-xs text-gray-400">las dos tiendas por separado, a la vez</span><button class="refrescar" data-blk="comparar" title="Actualizar este bloque">↻</button></div>
+      </div>
+      <div id="comparar-rows" class="space-y-5"></div>
+      <div class="mt-4 flex gap-4 text-[11px] text-gray-500">
+        <span><span class="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500 align-middle"></span> Realizado</span>
+        <span><span class="inline-block h-2.5 w-2.5 rounded-sm potencial-stripe align-middle"></span> Por cerrar</span>
+        <span class="ml-auto">▏ = meta de la tienda</span>
+      </div>
+    </div>
+
+    <!-- Métricas secundarias (arriba de "Cómo van mis asesores") -->
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-4">
+      <div class="rounded-xl border bg-white p-3"><p class="text-[11px] text-gray-400">Ticket promedio</p><p class="text-base font-semibold text-gray-800">$ 214.500</p></div>
+      <div class="rounded-xl border bg-white p-3"><p class="text-[11px] text-gray-400">Unidad promedio (UPT)</p><p class="text-base font-semibold text-gray-800">2,3</p></div>
+      <div class="rounded-xl border bg-white p-3"><p class="text-[11px] text-gray-400">VPT equipo</p><p class="text-base font-semibold text-gray-800">$ 198.000 <span class="text-[11px] font-normal text-emerald-600">· 101%</span></p></div>
+      <div class="rounded-xl border bg-white p-3"><p class="text-[11px] text-gray-400">Pedidos hoy</p><p class="text-base font-semibold text-gray-800">37 <span class="text-[11px] font-normal text-gray-400">/ meta 40</span></p></div>
+    </div>
+
+    <!-- Cómo van mis asesores (se oculta en modo "Comparar tiendas") -->
+    <div id="ase-panel" class="rounded-2xl border bg-white shadow-sm mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+        <h2 class="text-sm font-semibold text-gray-700">Cómo van mis asesores · <span id="ase-tienda" class="font-normal text-gray-500"></span></h2>
+        <div class="flex items-center gap-2">
+          <button class="refrescar" data-blk="ase" title="Actualizar este bloque (sin recargar la página)">↻</button>
+          <button id="ase-editar" onclick="abrirAsignar()" class="hidden rounded-lg border px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50">Editar presupuesto del día</button>
+          <span class="text-[10px] uppercase tracking-wide text-gray-400">Demo:</span>
+          <div class="inline-flex overflow-hidden rounded-lg border border-gray-200 text-[11px] font-medium">
+            <button data-ase="sin" class="asest seg-on px-2 py-1">Sin asignar</button>
+            <button data-ase="con" class="asest seg-off px-2 py-1 border-l border-gray-200">Asignado</button>
+          </div>
+        </div>
+      </div>
+      <div id="ase-alerta" class="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5">
+        <p class="text-xs text-amber-800">⚠️ No has asignado el presupuesto de hoy a tus asesores — se muestra solo la venta realizada, sin medir el cumplimiento por asesor.</p>
+        <button onclick="abrirAsignar()" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700">Asignar presupuesto de hoy</button>
+      </div>
+      <div id="ase-rows" class="divide-y"></div>
+    </div>
+
+    <!-- Top asesores del canal (solo en "Comparar tiendas") -->
+    <div id="top-asesores" class="hidden rounded-2xl border bg-white shadow-sm mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
+        <h2 class="text-sm font-semibold text-gray-700">Top asesores del canal · <span class="font-normal text-gray-500">ranking por promedio de venta diaria</span></h2>
+        <div class="flex items-center gap-2">
+          <div class="inline-flex overflow-hidden rounded-lg border border-gray-200 text-[11px] font-medium">
+            <button data-top="15d" class="topseg seg-on px-2.5 py-1">Últimos 15 días</button>
+            <button data-top="quincena" class="topseg seg-off px-2.5 py-1 border-l border-gray-200">Quincena activa</button>
+          </div>
+          <button class="refrescar" data-blk="top" title="Actualizar">↻</button>
+        </div>
+      </div>
+      <div id="top-rows" class="grid grid-cols-1 gap-4 p-4 md:grid-cols-2"></div>
+      <p class="border-t px-4 py-2 text-[11px] text-gray-400">Ranking independiente por tienda (no se compara DEREK contra STIRPE). Conversión = carritos/pedidos confirmados ÷ conversaciones cerradas (dato de Infobip · Comisiones GW-48/49).</p>
+    </div>
+
+    <!-- Entregas mensajería interna: resumen + carrusel ventana −30 / +60 min -->
+    <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4 mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <p class="text-sm text-sky-900"><span class="font-semibold">Mensajería interna:</span> 8 pedidos por entregar hoy · <span class="font-semibold text-red-600">3 atrasados</span></p>
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] uppercase tracking-wide text-sky-700/70">Demo:</span>
+          <div class="inline-flex overflow-hidden rounded-lg border border-sky-200 text-[10px] font-medium">
+            <button data-msj="horario" class="msjseg seg-on px-2 py-1">En horario</button>
+            <button data-msj="fuera" class="msjseg seg-off px-2 py-1 border-l border-sky-200">Fuera de horario (7pm)</button>
+          </div>
+          <button class="refrescar" data-blk="msj" title="Actualizar entregas (sin recargar la página)">↻</button>
+          <a href="#" class="rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-100">Ver en Gestión de Entregas →</a>
+        </div>
+      </div>
+      <p id="msj-ventana" class="mb-2 text-[11px] uppercase tracking-wide text-sky-700"></p>
+      <div id="msj-carrusel" class="flex gap-2 overflow-x-auto pb-1"></div>
+    </div>
+
+  </div>
+
+  <!-- ================= CONSULTA DE VENTAS ================= -->
+  <div id="view-consulta" class="hidden">
+    <div class="rounded-2xl border bg-white p-3 shadow-sm mb-3 space-y-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-[11px] uppercase tracking-wide text-gray-400 mr-1">Período</span>
+        <div class="inline-flex overflow-hidden rounded-lg border border-gray-200 text-xs font-medium">
+          <button data-atajo="q-actual" class="atajo seg-on px-3 py-1.5">Quincena actual</button>
+          <button data-atajo="q-ant" class="atajo seg-off px-3 py-1.5 border-l border-gray-200">Quincena anterior</button>
+          <button data-atajo="hoy" class="atajo seg-off px-3 py-1.5 border-l border-gray-200">Hoy</button>
+          <button data-atajo="custom" class="atajo seg-off px-3 py-1.5 border-l border-gray-200">Personalizado</button>
+        </div>
+        <div id="rango-custom" class="hidden items-center gap-1 text-sm">
+          <input type="date" value="2026-07-01" class="rounded-lg border px-2 py-1.5 text-xs" /><span class="text-gray-400">→</span><input type="date" value="2026-07-15" class="rounded-lg border px-2 py-1.5 text-xs" />
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <select class="rounded-lg border bg-white px-3 py-1.5 text-sm"><option>Todas las tiendas</option><option>STIRPE QEC</option><option>DEREK QEC</option></select>
+        <select class="rounded-lg border bg-white px-3 py-1.5 text-sm"><option>Todos los asesores</option><option>⚠ Bajo meta</option><option>Ana Gómez</option><option>Carlos Ruiz</option></select>
+        <select class="rounded-lg border bg-white px-3 py-1.5 text-sm"><option>Mensajería: todas</option><option>Servientrega</option><option>Coordinadora</option><option>Mensajería interna</option></select>
+        <select class="rounded-lg border bg-white px-3 py-1.5 text-sm"><option>Logística: todas</option><option>Pendientes de entrega</option><option>En ruta</option><option>Entregadas</option><option>Agendadas para hoy</option></select>
+        <input placeholder="Buscar cliente, #carrito, documento…" class="flex-1 min-w-[180px] rounded-lg border bg-white px-3 py-1.5 text-sm" />
+        <button class="rounded-lg bg-gray-900 px-4 py-1.5 text-sm font-medium text-white">Buscar</button>
+      </div>
+    </div>
+    <div class="rounded-2xl border bg-white shadow-sm">
+      <div class="flex flex-wrap items-center gap-1 border-b p-2">
+        <span class="ml-1 mr-1 text-[11px] uppercase tracking-wide text-gray-400">Estado de pago</span>
+        <div class="flex gap-1 rounded-lg bg-gray-100 p-1">
+          <button data-tab="todos" class="tab tab-on rounded-md px-3 py-1.5 text-sm font-medium">Todos (128)</button>
+          <button data-tab="potencial" class="tab tab-off rounded-md px-3 py-1.5 text-sm font-medium">Pendientes de pago (74)</button>
+          <button data-tab="pagado" class="tab tab-off rounded-md px-3 py-1.5 text-sm font-medium">Pagadas (39)</button>
+          <button data-tab="facturado" class="tab tab-off rounded-md px-3 py-1.5 text-sm font-medium">Facturadas (15)</button>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-400"><tr>
+            <th class="px-4 py-2 text-left">Carrito</th><th class="px-4 py-2 text-left">Cliente</th><th class="px-4 py-2 text-left">Asesor</th>
+            <th class="px-4 py-2 text-center">Estado de pago</th><th class="px-4 py-2 text-center">Mensajería</th><th class="px-4 py-2 text-center">Entrega</th><th class="px-4 py-2 text-right">Total (neto)</th><th class="px-4 py-2 text-right">Acción</th>
+          </tr></thead>
+          <tbody id="filas" class="divide-y"></tbody>
+        </table>
+      </div>
+    </div>
+    <p class="mt-2 text-[11px] text-gray-400">"Ver" abre el detalle del carrito.</p>
+  </div>
+
+  <!-- ================= HISTÓRICO ================= -->
+  <div id="view-historico" class="hidden">
+    <!-- Toolbar: título con tienda (del selector global) + navegador de mes + vista + refrescar -->
+    <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h2 class="text-base font-semibold text-gray-800">Histórico · <span id="hist-tienda"></span></h2>
+        <p class="text-xs text-gray-400">El ámbito de tienda viene del selector de arriba (STIRPE / DEREK / Comparar).</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="flex items-center gap-1"><button class="nav-btn">◀</button><span class="min-w-[92px] text-center text-sm font-semibold text-gray-800">Julio 2026</span><button class="nav-btn">▶</button></div>
+        <div class="inline-flex overflow-hidden rounded-lg border border-gray-200 text-xs font-medium">
+          <button data-hsub="dias" class="hsub seg-on px-3 py-1.5">Día a día</button>
+          <button data-hsub="asesor" class="hsub seg-off px-3 py-1.5 border-l border-gray-200">Por asesor</button>
+        </div>
+        <button class="refrescar" data-blk="hist" title="Actualizar (sin recargar la página)">↻</button>
+      </div>
+    </div>
+    <!-- Resumen del mes -->
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-4">
+      <div class="rounded-xl border bg-white p-3"><p class="text-[11px] text-gray-400">Meta del mes</p><p id="hist-meta" class="text-base font-semibold"></p></div>
+      <div class="rounded-xl border bg-white p-3"><p class="text-[11px] text-gray-400">Realizado</p><p id="hist-real" class="text-base font-semibold text-emerald-700"></p></div>
+      <div class="rounded-xl border bg-white p-3"><p class="text-[11px] text-gray-400">Cumplimiento</p><p id="hist-cumpl" class="text-base font-semibold"></p></div>
+      <div class="rounded-xl border bg-white p-3"><p class="text-[11px] text-gray-400">Mejor día</p><p class="text-base font-semibold">12 jul · 128%</p></div>
+    </div>
+    <!-- Día a día -->
+    <div id="hist-dias" class="rounded-2xl border bg-white p-5 shadow-sm">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h3 class="text-sm font-semibold text-gray-700">Cumplimiento día a día · % de la meta diaria</h3>
+        <div class="flex gap-3 text-[11px] text-gray-500"><span><span class="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500 align-middle"></span> En meta</span><span><span class="inline-block h-2.5 w-2.5 rounded-sm bg-amber-400 align-middle"></span> En proceso</span><span><span class="inline-block h-2.5 w-2.5 rounded-sm bg-red-400 align-middle"></span> Bajo meta</span></div>
+      </div>
+      <div class="relative" style="height:160px">
+        <div class="absolute inset-x-0 border-t border-dashed border-gray-300" style="bottom:100px"><span class="absolute right-0 -top-4 bg-white pl-1 text-[10px] text-gray-400">meta 100%</span></div>
+        <div id="chart" class="flex h-full items-end gap-[3px]"></div>
+      </div>
+      <div class="mt-1 flex text-[10px] font-medium text-gray-400"><span class="flex-1 border-r border-gray-100 text-center">Q1 · días 1–15</span><span class="flex-1 text-center">Q2 · días 16–31</span></div>
+    </div>
+    <!-- Por asesor -->
+    <div id="hist-asesor" class="hidden rounded-2xl border bg-white shadow-sm">
+      <div class="grid grid-cols-12 gap-2 border-b px-4 py-2 text-[11px] uppercase tracking-wide text-gray-400"><div class="col-span-3">Asesor</div><div class="col-span-2 text-right">Meta mes</div><div class="col-span-2 text-right">Realizado</div><div class="col-span-4">Cumplimiento</div><div class="col-span-1 text-right">Falta</div></div>
+      <div id="hist-asesor-rows" class="divide-y"></div>
+    </div>
+  </div>
+
+  <p class="mt-4 text-[11px] text-gray-400">Mockup GW-66 · datos ficticios. El % por asesor es realizado ÷ meta a hoy (meta acumulada hasta la fecha). El histórico consolida la pantalla dedicada <code>/venta-asistida/cumplimiento</code>.</p>
+</div>
+
+<div id="toast" class="fixed bottom-4 left-1/2 z-50 hidden -translate-x-1/2 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white shadow-lg"></div>
+
+<!-- MODAL: asignar presupuesto del día (Opción B) -->
+<div id="modal-asignar" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="background:rgba(17,24,39,.45)">
+  <div class="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+    <div class="border-b px-5 py-4"><h3 class="text-base font-semibold text-gray-900">Asignar presupuesto del día</h3><p id="ma-sub" class="text-xs text-gray-500"></p></div>
+    <div class="grid grid-cols-3 gap-2 px-5 py-3 text-center">
+      <div class="rounded-lg bg-gray-50 p-2"><p class="text-[10px] uppercase tracking-wide text-gray-400">Meta del día</p><p id="ma-meta" class="text-sm font-semibold"></p></div>
+      <div class="rounded-lg bg-gray-50 p-2"><p class="text-[10px] uppercase tracking-wide text-gray-400">Asignado</p><p id="ma-asignado" class="text-sm font-semibold text-emerald-700">$ 0</p></div>
+      <div id="ma-saldo-box" class="rounded-lg p-2"><p class="text-[10px] uppercase tracking-wide text-gray-500">Saldo por asignar</p><p id="ma-saldo" class="text-sm font-semibold"></p></div>
+    </div>
+    <div class="max-h-72 overflow-auto px-5"><div id="ma-rows" class="divide-y"></div></div>
+    <div class="flex items-center justify-between gap-3 border-t px-5 py-4">
+      <button onclick="repartirEq()" class="text-xs font-medium text-blue-600 hover:underline">Repartir equitativo</button>
+      <div class="flex gap-2"><button onclick="cerrarAsignar()" class="rounded-lg border px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button><button onclick="guardarAsignar()" class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white">Guardar reparto</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MC = v => '$ ' + Math.round(v).toLocaleString('es-CO');
+const M = n => Math.round(n*1_000_000);
+const $ = id => document.getElementById(id);
+
+const RATIO = { riesgo:{r:.656,p:.233}, aldia:{r:.822,p:.167}, holgado:{r:.95,p:.21} };
+const TIENDA = { stirpe:{lbl:'STIRPE QEC', metaQ:180}, derek:{lbl:'DEREK QEC', metaQ:90}, comparar:{lbl:'ambas tiendas', metaQ:270} };
+const COMPARAR = [ {lbl:'STIRPE QEC', meta:180, real:118, pot:42}, {lbl:'DEREK QEC', meta:90, real:74, pot:15} ];
+const GRAN = { quincena:{mult:1,dias:5,lbl:'quincena'}, mes:{mult:2,dias:21,lbl:'mes'}, anio:{mult:14,dias:175,lbl:'año'} };
+const AV = {
+  Ana:['AG','#6366f1'], Maria:['ML','#ec4899'], Carlos:['CR','#0ea5e9'], Jorge:['JD','#f59e0b'],
+  Paula:['PM','#10b981'], Diego:['DR','#8b5cf6'], Sofia:['SC','#ef4444'],
+};
+const ASES_T = {
+  stirpe:[{n:'Ana Gómez',k:'Ana',realizado:34,metaQ:45},{n:'María López',k:'Maria',realizado:41,metaQ:50},{n:'Carlos Ruiz',k:'Carlos',realizado:22,metaQ:40},{n:'Jorge Díaz',k:'Jorge',realizado:21,metaQ:45}],
+  derek:[{n:'Paula Mesa',k:'Paula',realizado:28,metaQ:35},{n:'Diego Ríos',k:'Diego',realizado:19,metaQ:30},{n:'Sofía Cano',k:'Sofia',realizado:12,metaQ:25}],
+};
+ASES_T.todas = [...ASES_T.stirpe, ...ASES_T.derek];
+
+let amb='stirpe', esc='riesgo', gran='quincena', periodo='actual', dia='hoy', aseEstado='sin';
+const DIA_META = a => TIENDA[a].metaQ/15;                 // meta diaria de la tienda (millones)
+const asesores = () => amb==='comparar' ? ASES_T.todas : ASES_T[amb];
+const avatarHTML = k => `<span class="avatar" style="background:${AV[k][1]}">${AV[k][0]}</span>`;
+
+function semaforo(pct,cubre){ if(pct>=95)return{chip:'En meta',cls:'bg-emerald-100 text-emerald-700',p:'text-emerald-600'}; if(pct>=80||cubre)return{chip:'En proceso',cls:'bg-amber-100 text-amber-700',p:'text-amber-600'}; return{chip:'Bajo meta',cls:'bg-red-100 text-red-700',p:'text-red-600'}; }
+
+function renderQuincena(){
+  const g=GRAN[gran], titulo='Cumplimiento '+(gran==='anio'?'del año':gran==='mes'?'del mes':'de la quincena')+' · '+TIENDA[amb].lbl;
+  $('q-titulo').textContent=titulo;
+  $('q-periodo').textContent = periodo==='pasado' ? (gran==='anio'?'2025':gran==='mes'?'jun 2026':'Q2 jun') : (gran==='anio'?'2026':gran==='mes'?'jul 2026':'Q1 jul');
+  const base=TIENDA[amb].metaQ*g.mult;
+  if(periodo==='pasado'){
+    const meta=M(base), real=M(base*0.92), falta=Math.max(0,meta-real), pct=Math.round(real/meta*1000)/10;
+    $('q-pct').textContent=pct.toString().replace('.',',')+'%'; $('q-pct').className='text-4xl font-bold leading-none text-gray-500';
+    $('q-sub').innerHTML='<span class="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-semibold text-gray-600">Período cerrado</span> resultado final';
+    $('q-meta').textContent=MC(meta); $('q-real').textContent=MC(real); $('q-falta').textContent=MC(falta); $('q-pot').textContent='—';
+    $('q-bar-real').style.width=Math.min(100,real/meta*100)+'%'; $('q-bar-pot').style.width='0%';
+    $('q-ritmo-box').className='rounded-xl p-3 bg-gray-50'; $('q-ritmo').textContent=pct>=100?'Cumplió':'No cumplió'; $('q-ritmo').className='text-lg font-semibold '+(pct>=100?'text-emerald-700':'text-red-700');
+    document.querySelector('#q-ritmo-box p').textContent='Resultado'; $('q-ritmo-sub').textContent='vs meta del período'; return;
+  }
+  const meta=M(base), real=M(base*RATIO[esc].r), pot=M(base*RATIO[esc].p);
+  const falta=Math.max(0,meta-real), pct=Math.round(real/meta*1000)/10, techo=Math.round((real+pot)/meta*1000)/10, cubre=pot>=falta, ritmo=Math.ceil(falta/g.dias), s=semaforo(pct,cubre);
+  $('q-pct').textContent=pct.toString().replace('.',',')+'%'; $('q-pct').className='text-4xl font-bold leading-none '+s.p;
+  $('q-sub').innerHTML='cumplido · llegaría a <span class="font-medium text-gray-700">'+techo.toString().replace('.',',')+'%</span> si se cierra todo lo abierto';
+  $('q-meta').textContent=MC(meta); $('q-real').textContent=MC(real); $('q-falta').textContent=MC(falta); $('q-pot').textContent=MC(pot);
+  $('q-bar-real').style.width=Math.min(100,real/meta*100)+'%'; $('q-bar-pot').style.width=Math.min(100-Math.min(100,real/meta*100),pot/meta*100)+'%';
+  document.querySelector('#q-ritmo-box p').textContent='Venta diaria necesaria'; $('q-ritmo').textContent=MC(ritmo); $('q-ritmo').className='text-lg font-semibold '+(cubre?'text-amber-700':'text-red-700');
+  $('q-ritmo-sub').textContent='para llegar · '+g.dias+' días restantes del '+g.lbl; $('q-ritmo-box').className='rounded-xl p-3 '+(cubre?'bg-amber-50':'bg-red-50');
+}
+function renderDia(){
+  $('d-titulo').textContent='Cumplimiento de '+(dia==='ayer'?'ayer':'hoy');
+  let m,r,p; const dm=DIA_META(amb);
+  if(dia==='ayer'){ m=M(dm); r=M(dm*0.95); p=0; } else { m=M(dm); r=M(dm*RATIO[esc].r); p=M(dm*RATIO[esc].p); }
+  const falta=Math.max(0,m-r), pct=Math.round(r/m*1000)/10, s=semaforo(pct,p>=falta);
+  $('d-pct').textContent=pct.toString().replace('.',',')+'%'; $('d-pct').className='text-3xl font-bold leading-none '+s.p;
+  $('d-chip').textContent=s.chip; $('d-chip').className='mb-1 rounded-full px-2 py-0.5 text-[11px] font-semibold '+s.cls;
+  $('d-meta').textContent=MC(m); $('d-real').textContent=MC(r); $('d-falta').textContent=MC(falta); $('d-pot').textContent=p?MC(p):'—';
+  $('d-bar-real').style.width=Math.min(100,r/m*100)+'%'; $('d-bar-pot').style.width=Math.min(100-Math.min(100,r/m*100),p/m*100)+'%';
+}
+function renderAsesores(){
+  const comparar = amb==='comparar';
+  const lbl = comparar ? 'ambas tiendas' : TIENDA[amb].lbl;
+  const soloVenta = !comparar && aseEstado==='sin';
+  $('ase-tienda').textContent = lbl + (soloVenta ? ' · presupuesto sin asignar' : ' · % de cumplimiento de la meta');
+  $('ase-alerta').style.display = soloVenta ? 'flex' : 'none';
+  $('ase-editar').classList.toggle('hidden', comparar || aseEstado==='sin');
+  let filas;
+  if(soloVenta){
+    filas=[...asesores()].sort((a,b)=>b.realizado-a.realizado).map(a=>`<div class="flex items-center gap-3 px-4 py-3">${avatarHTML(a.k)}
+      <div class="flex-1"><p class="text-sm font-medium text-gray-800">${a.n}</p><p class="text-[11px] text-gray-400">sin meta asignada</p></div>
+      <div class="text-right"><p class="text-sm font-semibold text-gray-900">${MC(M(a.realizado))}</p><p class="text-[11px] text-gray-400">vendido</p></div></div>`).join('');
+  } else {
+    filas=asesores().map(a=>{const metaHoy=a.metaQ*10/15, pct=Math.round(a.realizado/metaHoy*1000)/10; return{...a,metaHoy,pct};})
+      .sort((x,y)=>x.pct-y.pct).map(a=>{const col=a.pct>=100?'bg-emerald-500':a.pct>=80?'bg-amber-500':'bg-red-500'; const chip=a.pct>=100?['En meta','bg-emerald-100 text-emerald-700']:a.pct>=80?['En proceso','bg-amber-100 text-amber-700']:['Bajo meta','bg-red-100 text-red-700'];
+      return `<div class="flex items-center gap-3 px-4 py-3">${avatarHTML(a.k)}
+        <div class="w-40 min-w-0"><p class="truncate text-sm font-medium text-gray-800">${a.n}</p><span class="rounded-full px-2 py-0.5 text-[10px] font-semibold ${chip[1]}">${chip[0]}</span></div>
+        <div class="flex-1"><div class="bar-track h-2.5"><div class="h-full ${col}" style="width:${Math.min(100,a.pct)}%"></div></div><p class="mt-1 text-[10px] text-gray-400">realizado ${MC(M(a.realizado))} · meta a hoy ${MC(M(a.metaHoy))}</p></div>
+        <div class="w-20 text-right"><p class="text-sm font-semibold text-gray-900">${a.pct.toString().replace('.',',')}%</p><p class="text-[10px] text-gray-400">de la meta</p></div></div>`;}).join('');
+  }
+  $('ase-rows').innerHTML=filas;
+}
+
+function renderComparar(){
+  $('comparar-rows').innerHTML = COMPARAR.map(t=>{
+    const meta=M(t.meta),real=M(t.real),pot=M(t.pot),falta=Math.max(0,meta-real),pct=Math.round(real/meta*1000)/10, s=semaforo(pct,pot>=falta);
+    return `<div>
+      <div class="mb-1 flex items-center justify-between">
+        <span class="text-sm font-semibold text-gray-800">${t.lbl}</span>
+        <span class="text-sm font-bold ${s.p}">${pct.toString().replace('.',',')}% <span class="ml-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${s.cls}">${s.chip}</span></span>
+      </div>
+      <div class="bar-track h-5"><div class="flex h-full"><div class="h-full bg-emerald-500" style="width:${Math.min(100,real/meta*100)}%"></div><div class="h-full potencial-stripe" style="width:${Math.min(100-Math.min(100,real/meta*100),pot/meta*100)}%"></div></div><div class="meta-mark"></div></div>
+      <div class="mt-1 flex justify-between text-[11px] text-gray-500"><span>Realizado ${MC(real)} · por cerrar ${MC(pot)}</span><span>Falta ${MC(falta)} · meta ${MC(meta)}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderCockpit(){
+  const comparar = amb==='comparar';
+  $('cockpit-single').classList.toggle('hidden', comparar);
+  $('cockpit-comparar').classList.toggle('hidden', !comparar);
+  // en modo canal: se oculta el panel por-tienda y aparece el top del canal
+  $('ase-panel').classList.toggle('hidden', comparar);
+  $('top-asesores').classList.toggle('hidden', !comparar);
+  if(comparar){ renderComparar(); renderTop(); } else { renderQuincena(); renderDia(); }
+}
+
+// v15 / vq = PROMEDIO de venta diaria del período (últimos 15 días / quincena activa), en millones
+const TOP=[
+  {n:'María López',k:'Maria',t:'STIRPE',v15:2.9,vq:2.73,at:52,cv:24},
+  {n:'Ana Gómez',k:'Ana',t:'STIRPE',v15:2.3,vq:2.27,at:48,cv:19},
+  {n:'Carlos Ruiz',k:'Carlos',t:'STIRPE',v15:1.5,vq:1.47,at:40,cv:12},
+  {n:'Jorge Díaz',k:'Jorge',t:'STIRPE',v15:1.4,vq:1.40,at:38,cv:11},
+  {n:'Paula Mesa',k:'Paula',t:'DEREK',v15:1.9,vq:1.87,at:35,cv:18},
+  {n:'Diego Ríos',k:'Diego',t:'DEREK',v15:1.3,vq:1.27,at:30,cv:10},
+  {n:'Sofía Cano',k:'Sofia',t:'DEREK',v15:0.85,vq:0.80,at:22,cv:8},
+];
+let topPeriodo='15d';
+function renderTop(){
+  const col = (tienda, lbl) => {
+    const rows=TOP.filter(a=>a.t===tienda).map(a=>({...a, venta: topPeriodo==='15d'?a.v15:a.vq, conv:Math.round(a.cv/a.at*100)})).sort((x,y)=>y.venta-x.venta);
+    return `<div>
+      <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">${lbl}</p>
+      <div class="divide-y rounded-xl border">${rows.map((a,i)=>`
+        <div class="flex items-center gap-2.5 px-3 py-2">
+          <span class="w-4 text-center text-sm font-bold ${i===0?'text-gray-800':'text-gray-300'}">${i+1}</span>
+          ${avatarHTML(a.k)}
+          <div class="min-w-0 flex-1"><p class="truncate text-sm font-medium text-gray-800">${a.n}</p><p class="text-[10px] ${a.conv>=45?'text-emerald-600':a.conv>=35?'text-amber-600':'text-gray-400'}">${a.conv}% conversión · ${a.cv}/${a.at}</p></div>
+          <div class="text-right"><p class="text-sm font-semibold text-gray-900">${MC(M(a.venta))}</p><p class="text-[10px] text-gray-400">promedio/día</p></div>
+        </div>`).join('')}</div>
+    </div>`;
+  };
+  $('top-rows').innerHTML = col('STIRPE','STIRPE QEC') + col('DEREK','DEREK QEC');
+}
+
+// modal asignar
+let aseAsig={};
+function abrirAsignar(){
+  $('ma-sub').textContent='10 de julio · '+TIENDA[amb].lbl+' · reparte la meta del día entre tus asesores · sin salir de Gestión de Ventas';
+  $('ma-meta').textContent=MC(M(DIA_META(amb)));
+  $('modal-asignar').style.display='flex';
+  $('ma-rows').innerHTML=asesores().map((a,i)=>`<div class="flex items-center gap-3 py-2.5">${avatarHTML(a.k)}<span class="flex-1 text-sm text-gray-800">${a.n}</span><div class="flex items-center gap-1"><span class="text-gray-400">$</span><input data-i="${i}" type="text" inputmode="numeric" placeholder="0" oninput="recalcAsignar()" class="w-32 rounded-lg border px-2 py-1.5 text-right text-sm" /></div></div>`).join('');
+  recalcAsignar();
+}
+function cerrarAsignar(){ $('modal-asignar').style.display='none'; }
+function leerAsig(){ const o=[]; document.querySelectorAll('#ma-rows input').forEach(inp=>o.push(parseInt((inp.value||'0').replace(/\D/g,''))||0)); return o; }
+function recalcAsignar(){ const asignado=leerAsig().reduce((s,x)=>s+x,0), saldo=M(DIA_META(amb))-asignado, ok=saldo===0, neg=saldo<0;
+  $('ma-asignado').textContent=MC(asignado); $('ma-saldo').textContent=MC(saldo);
+  $('ma-saldo-box').className='rounded-lg p-2 '+(ok?'bg-emerald-50':neg?'bg-red-50':'bg-amber-50'); $('ma-saldo').className='text-sm font-semibold '+(ok?'text-emerald-700':neg?'text-red-700':'text-amber-700'); }
+function repartirEq(){ const n=asesores().length, tot=M(DIA_META(amb)), c=Math.floor(tot/n); document.querySelectorAll('#ma-rows input').forEach((inp,idx)=>inp.value=(idx===n-1?tot-c*(n-1):c).toLocaleString('es-CO')); recalcAsignar(); }
+function guardarAsignar(){ cerrarAsignar(); aseEstado='con'; document.querySelectorAll('.asest').forEach(x=>{const on=x.dataset.ase==='con';x.classList.toggle('seg-on',on);x.classList.toggle('seg-off',!on);}); renderAsesores(); }
+
+// tabla carritos
+const FILAS=[
+  {id:8841,cli:'Laura Restrepo',ase:'Ana Gómez',seg:'potencial',men:'Servientrega',log:'ruta',tot:284000},
+  {id:8839,cli:'Andrés Molina',ase:'María López',seg:'pagado',men:'Coordinadora',log:'entregada',tot:156000},
+  {id:8836,cli:'Diana Cárdenas',ase:'Carlos Ruiz',seg:'potencial',men:'Mensajería interna',log:'hoy',tot:89000},
+  {id:8833,cli:'Felipe Nieto',ase:'María López',seg:'facturado',men:'Servientrega',log:'entregada',tot:512000},
+  {id:8830,cli:'Sandra Villa',ase:'Jorge Díaz',seg:'pagado',men:'Mensajería interna',log:'pendiente',tot:198000},
+];
+const SEG={potencial:['Pendiente de pago','bg-slate-100 text-slate-600'],pagado:['Pagada','bg-blue-100 text-blue-700'],facturado:['Facturada','bg-emerald-100 text-emerald-700']};
+const LOG={pendiente:['Pendiente','bg-slate-100 text-slate-600'],ruta:['En ruta','bg-blue-100 text-blue-700'],entregada:['Entregada','bg-emerald-100 text-emerald-700'],hoy:['Agendada hoy','bg-amber-100 text-amber-700']};
+function pintarFilas(tab){ $('filas').innerHTML=FILAS.filter(f=>tab==='todos'||f.seg===tab).map(f=>`<tr class="hover:bg-gray-50"><td class="px-4 py-2.5"><a class="font-semibold text-blue-600">#${f.id}</a></td><td class="px-4 py-2.5">${f.cli}</td><td class="px-4 py-2.5 text-gray-600">${f.ase}</td><td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-medium ${SEG[f.seg][1]}">${SEG[f.seg][0]}</span></td><td class="px-4 py-2.5 text-center text-xs text-gray-600">${f.men}</td><td class="px-4 py-2.5 text-center"><span class="rounded-full px-2 py-0.5 text-[11px] font-medium ${LOG[f.log][1]}">${LOG[f.log][0]}</span></td><td class="px-4 py-2.5 text-right font-semibold">${MC(f.tot)}</td><td class="px-4 py-2.5 text-right"><button class="rounded-md border px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">Ver</button></td></tr>`).join(''); }
+
+// carrusel de mensajería interna — datos con sabor real (área metropolitana de Bucaramanga)
+const EST_MSJ={entregada:['Entregado','bg-emerald-100 text-emerald-700'],en_ruta:['En ruta','bg-blue-100 text-blue-700'],atrasado:['Atrasado','bg-red-100 text-red-700'],recogida:['Por salir','bg-amber-100 text-amber-700'],asignada:['Programado','bg-gray-100 text-gray-600']};
+const MSJ_HORARIO=[
+  {hora:'5:50 PM',est:'entregada',pre:'PED',id:'708685',cli:'Tatiana R.',dir:'Diagonal 4B #1C Norte 18',bar:'La Argentina',mun:'Piedecuesta',men:'Wilson Gómez',ase:'Ana M. Serna'},
+  {hora:'6:05 PM',est:'en_ruta',pre:'VEN',id:'30452',cli:'Lizeth F.',dir:'Calle 34 #27-54 Apto 202',bar:'Aurora',mun:'Bucaramanga',men:'Édgar Ramírez',ase:'Fabián Prada'},
+  {hora:'6:00 PM',est:'atrasado',pre:'PED',id:'708693',cli:'Yesid M.',dir:'Cra 27 #45-12',bar:'San Jorge',mun:'Girón',men:'Freddy Torres',ase:'Nicol Pinzón'},
+  {hora:'6:20 PM',est:'recogida',pre:'VEN',id:'30461',cli:'Divier A.',dir:'Carrera 13A #103-34',bar:'Jardines',mun:'Bucaramanga',men:'Wilson Gómez',ase:'Manuel Parra'},
+  {hora:'6:35 PM',est:'asignada',pre:'PED',id:'708557',cli:'Diego F.',dir:'Circunvalar 35 #92-170',bar:'El Tejar',mun:'Floridablanca',men:'Óscar Jaimes',ase:'Marlon Gelves'},
+  {hora:'6:55 PM',est:'asignada',pre:'PED',id:'708709',cli:'Luis A.',dir:'Cra 29 #34-54 Apto 2102',bar:'Mejoras Públicas',mun:'Bucaramanga',men:'Édgar Ramírez',ase:'Fabián Prada'},
+];
+const MSJ_MANANA=[
+  {hora:'8:00 AM',est:'asignada',pre:'VEN',id:'30470',cli:'Carolina P.',dir:'Calle 56 #14-22',bar:'Cañaveral',mun:'Floridablanca',men:'Wilson Gómez',ase:'Ana M. Serna'},
+  {hora:'8:20 AM',est:'asignada',pre:'PED',id:'708720',cli:'Jorge E.',dir:'Cra 33 #48-19',bar:'Sotomayor',mun:'Bucaramanga',men:'Freddy Torres',ase:'Fabián Prada'},
+  {hora:'8:45 AM',est:'asignada',pre:'VEN',id:'30481',cli:'Marcela V.',dir:'Diagonal 15 #102-40',bar:'Provenza',mun:'Bucaramanga',men:'Óscar Jaimes',ase:'Manuel Parra'},
+];
+let msjModo='horario';
+// line-icons Lucide (stroke currentColor, sin color) — mismos que usa la app
+const svg = p => `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block shrink-0" style="vertical-align:-2px">${p}</svg>`;
+const IC={
+  clock: svg('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
+  bike: svg('<circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>'),
+  headset: svg('<path d="M3 11h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H4a1 1 0 0 1-1-1v-6a9 9 0 0 1 18 0v6a1 1 0 0 1-1 1h-2a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/><path d="M21 16v2a4 4 0 0 1-4 4h-5"/>'),
+};
+const cardMsj = m => `<div class="min-w-[230px] flex-none rounded-xl border border-sky-200 bg-white p-3">
+  <div class="mb-1 flex items-center justify-between"><span class="flex items-center gap-1 text-[11px] font-semibold text-gray-600">${IC.clock} ${m.hora}</span><span class="rounded-full px-2 py-0.5 text-[10px] font-semibold ${EST_MSJ[m.est][1]}">${EST_MSJ[m.est][0]}</span></div>
+  <p class="text-sm font-semibold text-gray-800">#${m.pre}-${m.id}</p>
+  <p class="text-xs font-medium text-gray-700">${m.cli}</p>
+  <p class="text-[11px] leading-tight text-gray-500">${m.dir}</p>
+  <p class="text-[11px] text-gray-500">${m.bar} · <span class="font-medium text-gray-600">${m.mun}</span></p>
+  <div class="mt-2 space-y-1 border-t border-gray-100 pt-1.5">
+    <p class="flex items-center gap-1.5 text-[11px] text-gray-600" title="Mensajero">${IC.bike}<span class="font-medium">${m.men}</span></p>
+    <p class="flex items-center gap-1.5 text-[11px] text-gray-600" title="Asesor">${IC.headset}<span class="font-medium">${m.ase}</span></p>
+  </div>
+</div>`;
+function renderMsj(){
+  if(msjModo==='horario'){
+    $('msj-ventana').textContent='Ventana de entrega · últimos 30 min y próxima hora';
+    $('msj-carrusel').innerHTML=MSJ_HORARIO.map(cardMsj).join('');
+  } else {
+    $('msj-ventana').textContent='Sin entregas en curso (7:00 PM) · próximas entregas programadas para mañana';
+    $('msj-carrusel').innerHTML='<div class="flex-none self-center px-2 text-center text-xs font-medium text-sky-700">Mañana<br>8:00 AM →</div>'+MSJ_MANANA.map(cardMsj).join('');
+  }
+}
+renderMsj();
+
+// histórico (respeta el ámbito de tienda del selector global)
+const HIST_DIAS = {
+  stirpe:[92,105,78,88,115,64,98,120,84,72,109,128,95,81,70,101,88,76,94,112,60,99,118,83,79,107,124,91,86,74],
+  derek: [110,95,102,88,120,99,105,112,90,101,96,130,108,94,88,99,103,91,107,115,85,98,122,90,93,100,119,96,89,92],
+};
+const HIST_MES = { stirpe:{meta:360, real:288.4}, derek:{meta:180, real:150.2}, comparar:{meta:540, real:438.6} };
+function renderHistorico(){
+  const comparar = amb==='comparar';
+  $('hist-tienda').textContent = comparar ? 'ambas tiendas' : TIENDA[amb].lbl;
+  const h = HIST_MES[amb], cumpl = Math.round(h.real/h.meta*1000)/10;
+  $('hist-meta').textContent = MC(M(h.meta)); $('hist-real').textContent = MC(M(h.real));
+  $('hist-cumpl').textContent = cumpl.toString().replace('.',',')+'%';
+  $('hist-cumpl').className = 'text-base font-semibold '+(cumpl>=95?'text-emerald-600':cumpl>=80?'text-amber-600':'text-red-600');
+  const dias = comparar ? HIST_DIAS.stirpe : HIST_DIAS[amb];
+  $('chart').innerHTML = dias.map((v,i)=>{const c=v>=100?'bg-emerald-500':v>=80?'bg-amber-400':'bg-red-400'; return `<div class="flex flex-1 flex-col justify-end" style="height:100%" title="Día ${i+1}: ${v}%"><div class="w-full rounded-t ${c}" style="height:${Math.min(v,150)}px"></div></div>`;}).join('');
+  const list = comparar ? ASES_T.todas : ASES_T[amb];
+  $('hist-asesor-rows').innerHTML = list.map(a=>{const meta=M(a.metaQ*2),real=M(a.realizado*2),pct=Math.round(real/meta*1000)/10,falta=Math.max(0,meta-real),col=pct>=100?'bg-emerald-500':pct>=80?'bg-amber-500':'bg-red-500',chip=pct>=100?['En meta','bg-emerald-100 text-emerald-700']:pct>=80?['En proceso','bg-amber-100 text-amber-700']:['Bajo meta','bg-red-100 text-red-700'];return `<div class="grid grid-cols-12 items-center gap-2 px-4 py-2.5"><div class="col-span-3 flex items-center gap-2">${avatarHTML(a.k)}<span class="text-sm font-medium">${a.n}</span></div><div class="col-span-2 text-right text-sm text-gray-600">${MC(meta)}</div><div class="col-span-2 text-right text-sm font-medium text-emerald-700">${MC(real)}</div><div class="col-span-4 flex items-center gap-2"><div class="bar-track h-2.5 flex-1"><div class="h-full ${col}" style="width:${Math.min(100,pct)}%"></div></div><span class="w-10 text-right text-xs font-semibold">${pct.toString().replace('.',',')}%</span><span class="rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${chip[1]}">${chip[0]}</span></div><div class="col-span-1 text-right text-xs text-gray-500">${MC(falta)}</div></div>`;}).join('');
+}
+
+// eventos
+function swap(sel,on,onCls,offCls){ document.querySelectorAll(sel).forEach(x=>{x.classList.remove(onCls);x.classList.add(offCls);}); on.classList.add(onCls); on.classList.remove(offCls); }
+document.querySelectorAll('.amb').forEach(b=>b.onclick=()=>{ swap('.amb',b,'amb-on','amb-off'); amb=b.dataset.amb; renderCockpit(); renderAsesores(); renderHistorico(); });
+document.querySelectorAll('.topseg').forEach(b=>b.onclick=()=>{ swap('.topseg',b,'seg-on','seg-off'); topPeriodo=b.dataset.top; renderTop(); });
+document.querySelectorAll('.msjseg').forEach(b=>b.onclick=()=>{ swap('.msjseg',b,'seg-on','seg-off'); msjModo=b.dataset.msj; renderMsj(); });
+document.querySelectorAll('.esc').forEach(b=>b.onclick=()=>{ swap('.esc',b,'seg-on','seg-off'); esc=b.dataset.esc; periodo='actual'; renderQuincena(); renderDia(); });
+document.querySelectorAll('.gran').forEach(b=>b.onclick=()=>{ swap('.gran',b,'seg-on','seg-off'); gran=b.dataset.gran; periodo='actual'; renderQuincena(); });
+document.querySelectorAll('.dia').forEach(b=>b.onclick=()=>{ swap('.dia',b,'seg-on','seg-off'); dia=b.dataset.dia; renderDia(); });
+$('q-prev').onclick=()=>{ periodo='pasado'; renderQuincena(); }; $('q-next').onclick=()=>{ periodo='actual'; renderQuincena(); };
+document.querySelectorAll('.asest').forEach(b=>b.onclick=()=>{ swap('.asest',b,'seg-on','seg-off'); aseEstado=b.dataset.ase; renderAsesores(); });
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{ document.querySelectorAll('.tab').forEach(x=>{x.classList.remove('tab-on');x.classList.add('tab-off');}); t.classList.add('tab-on');t.classList.remove('tab-off'); pintarFilas(t.dataset.tab); });
+document.querySelectorAll('.atajo').forEach(b=>b.onclick=()=>{ swap('.atajo',b,'seg-on','seg-off'); const c=b.dataset.atajo==='custom'; $('rango-custom').classList.toggle('hidden',!c); $('rango-custom').classList.toggle('flex',c); });
+document.querySelectorAll('.hsub').forEach(b=>b.onclick=()=>{ swap('.hsub',b,'seg-on','seg-off'); const a=b.dataset.hsub==='asesor'; $('hist-asesor').classList.toggle('hidden',!a); $('hist-dias').classList.toggle('hidden',a); });
+document.querySelectorAll('.ptab').forEach(t=>t.onclick=()=>{ document.querySelectorAll('.ptab').forEach(x=>{x.classList.remove('ptab-on');x.classList.add('ptab-off');}); t.classList.add('ptab-on');t.classList.remove('ptab-off'); const v=t.dataset.ptab; $('view-dashboard').classList.toggle('hidden',v!=='dashboard'); $('view-consulta').classList.toggle('hidden',v!=='consulta'); $('view-historico').classList.toggle('hidden',v!=='historico'); $('tienda-selector').classList.toggle('hidden', v==='consulta'); });
+
+// refrescar por bloque (sin recargar la página — con Inertia es un partial reload de esa prop)
+let toastT;
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.style.display='block'; clearTimeout(toastT); toastT=setTimeout(()=>t.style.display='none',1400); }
+document.querySelectorAll('.refrescar').forEach(btn=>btn.onclick=()=>{
+  btn.classList.add('spin'); setTimeout(()=>btn.classList.remove('spin'),600);
+  const b=btn.dataset.blk;
+  if(b==='cockpit-q'){ renderQuincena(); toast('Cumplimiento de la quincena actualizado'); }
+  else if(b==='cockpit-d'){ renderDia(); toast('Cumplimiento de hoy actualizado'); }
+  else if(b==='ase'){ renderAsesores(); toast('Asesores actualizados'); }
+  else if(b==='comparar'){ renderComparar(); toast('Comparación de tiendas actualizada'); }
+  else if(b==='msj'){ renderMsj(); toast('Entregas actualizadas'); }
+  else if(b==='hist'){ renderHistorico(); toast('Histórico actualizado'); }
+  else if(b==='top'){ renderTop(); toast('Top de asesores actualizado'); }
+});
+
+// init
+renderCockpit(); renderAsesores(); renderHistorico(); pintarFilas('todos');
+</script>
+</body>
+</html>
