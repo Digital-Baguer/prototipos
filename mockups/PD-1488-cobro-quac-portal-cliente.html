@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PD-1488 · Portal cliente · Cobro Quac — abono a reserva Quinta del Mar</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800;900&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Pantallas 2 y 3: replican el diseño ACTUAL DE PRODUCCIÓN del
+   portal Quac (capturas "tu status.png" y "cuotas.png").
+   Pantallas 1 y 4: propias del flujo PD-1488.
+   ============================================================ */
+:root {
+  --primary: #2e1380;
+  --primary-light: #5f36b2;
+  --accent: #7633ff;
+  --soft-bg: #f0f0ff;
+  --card-bg: #f8f9fa;
+  --ink: #0e0d1a;
+  --ink-soft: #5a5969;
+  --ink-mute: #8a8a96;
+  --rule: #ececf2;
+  --green-ok: #1a9d49;
+  --green-soft: #d7fde5;
+
+  /* Gradientes del card de beneficios por nivel */
+  --lvl-1: linear-gradient(135deg, #8a4bff 0%, #7633ff 50%, #5e26c9 100%);
+  --lvl-2: linear-gradient(135deg, #8b2849 0%, #5a1e6d 50%, #2c0d6e 100%);
+  --lvl-3: linear-gradient(135deg, #f8f8fb 0%, #c8ccd2 50%, #8e9299 100%);
+  --lvl-4: linear-gradient(135deg, #fff1c2 0%, #ecc66a 50%, #b08a2e 100%);
+  --lvl-5: linear-gradient(135deg, #2c2c2c 0%, #0a0a0a 100%);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Nunito Sans', system-ui, sans-serif;
+  color: var(--ink);
+  background: radial-gradient(circle at 50% 0%, #ede9ff 0%, transparent 60%), #f5f4fa;
+  min-height: 100vh;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 70px;
+}
+h1, h2, h3 { font-family: 'Poppins', sans-serif; }
+
+/* ===== Banner mockup ===== */
+.mock-banner {
+  background: #2e1380; color: #e6ddff; text-align: center;
+  font-size: 11.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 8px 16px;
+}
+.mock-banner b { color: #fff; }
+
+/* ===== Topbar de controles del mockup ===== */
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  padding: 12px 20px;
+  display: flex; align-items: center; gap: 22px; flex-wrap: wrap; justify-content: center;
+}
+.tb-group { display: flex; align-items: center; gap: 10px; }
+.tb-label { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-mute); }
+.switcher { display: flex; background: rgba(15,14,21,0.05); border-radius: 100px; padding: 3px; gap: 2px; }
+.sw-btn {
+  border: none; background: transparent; padding: 7px 13px; border-radius: 100px;
+  font-family: inherit; font-size: 12.5px; font-weight: 700; color: var(--ink-soft); cursor: pointer;
+  transition: all 0.18s; white-space: nowrap;
+}
+.sw-btn:hover { color: var(--ink); }
+.sw-btn.active { background: var(--primary-light); color: white; box-shadow: 0 3px 10px -3px rgba(95,54,178,0.6); }
+
+/* ===== Frame de móvil ===== */
+.stage { display: flex; justify-content: center; padding: 30px 16px 0; }
+.device {
+  width: 402px; max-width: 100%;
+  background: #101018; border-radius: 46px; padding: 12px;
+  box-shadow: 0 6px 20px rgba(15,14,21,0.18), 0 40px 90px -20px rgba(46,19,128,0.4);
+}
+.device-screen {
+  background: white; border-radius: 36px; overflow: hidden; position: relative;
+  min-height: 740px; display: flex; flex-direction: column;
+}
+.statusbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 26px 4px; font-size: 12px; font-weight: 800; color: var(--ink);
+}
+.notch { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 110px; height: 26px; background: #101018; border-radius: 100px; z-index: 30; }
+.screen-body { flex: 1; padding: 22px 22px 26px; overflow-y: auto; }
+
+/* Marca Quac */
+.brand { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 14px; }
+.brand svg { width: 26px; height: 26px; color: var(--accent); }
+.brand b { font-family: 'Poppins'; font-size: 19px; color: var(--accent); }
+
+/* Progreso del flujo */
+.steps { display: flex; justify-content: center; gap: 6px; margin-bottom: 16px; }
+.step-dot { width: 26px; height: 4px; border-radius: 100px; background: var(--rule); transition: background 0.3s; }
+.step-dot.on { background: var(--accent); }
+
+/* Titulares de pantalla */
+.scr-eyebrow { text-align: center; font-size: 10px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 3px; }
+.scr-title { text-align: center; font-size: 22px; font-weight: 700; color: var(--primary); margin-bottom: 2px; }
+.scr-sub { text-align: center; font-size: 13px; color: var(--ink-mute); margin-bottom: 18px; }
+
+/* X de cierre del modal (diseño de producción, pantallas 2-3) */
+.modal-x {
+  position: absolute; top: -4px; right: -6px; z-index: 5;
+  width: 34px; height: 34px; border: none; background: transparent;
+  color: #b6b4c2; font-size: 24px; line-height: 1; font-weight: 400;
+  cursor: pointer; border-radius: 50%; transition: color 0.15s, background 0.15s;
+}
+.modal-x:hover { color: var(--ink-soft); background: rgba(0,0,0,0.04); }
+
+/* Card de contexto del cobro (reserva) — pantalla 1 */
+.reserva-card {
+  background: white; border: 1px solid var(--rule); border-radius: 16px;
+  padding: 14px 16px; margin-bottom: 16px; display: flex; gap: 12px; align-items: flex-start;
+  box-shadow: 0 1px 2px rgba(15,14,21,0.03);
+}
+.reserva-ico {
+  width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px;
+  background: linear-gradient(135deg, #e0f4ff, #c7e8f7); color: #0b6e94;
+  display: grid; place-items: center;
+}
+.reserva-ico svg { width: 22px; height: 22px; }
+.rc-title { font-size: 13.5px; font-weight: 800; color: var(--ink); line-height: 1.3; }
+.rc-line { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+.rc-line b { color: var(--ink); }
+.rc-badge { display: inline-block; margin-top: 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; background: var(--soft-bg); color: var(--accent); padding: 3px 9px; border-radius: 100px; }
+
+/* Card de contexto discreto (pantalla 2, aporte de quinta) */
+.reserva-mini {
+  display: flex; gap: 10px; align-items: center;
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 14px;
+  padding: 10px 14px; margin-bottom: 16px;
+}
+.reserva-mini svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--ink-mute); }
+.reserva-mini b { display: block; font-size: 12.5px; font-weight: 800; color: var(--ink); line-height: 1.3; }
+.reserva-mini span { display: block; font-size: 11.5px; color: var(--ink-soft); margin-top: 1px; }
+
+/* Filas de detalle (pantallas 1 y 4) */
+.detail-card { background: var(--card-bg); border-radius: 14px; padding: 4px 16px; margin-bottom: 16px; }
+.d-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 0; border-top: 1px solid var(--rule); font-size: 13px; }
+.d-row:first-child { border-top: none; }
+.d-row .dl { color: var(--ink-soft); }
+.d-row .dv { font-weight: 700; color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+.d-row.total .dl { font-weight: 800; color: var(--ink); }
+.d-row.total .dv { font-family: 'Poppins'; font-size: 18px; font-weight: 800; color: var(--primary); }
+
+/* Términos */
+.terms-box {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 14px;
+  padding: 14px 16px; max-height: 150px; overflow-y: auto; font-size: 12px; color: var(--ink-soft);
+  margin-bottom: 14px; line-height: 1.55;
+}
+.terms-box h4 { font-size: 12px; font-weight: 800; color: var(--ink); margin-bottom: 6px; font-family: 'Nunito Sans'; }
+.terms-box p { margin-bottom: 8px; }
+.check-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 16px; cursor: pointer; }
+.check-row input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+.check-row span { font-size: 12.5px; color: var(--ink-soft); }
+.check-row a { color: var(--accent); font-weight: 700; text-decoration: none; }
+
+/* ===== Card lila "Pagas hoy" / "Valor del abono" (diseño producción) ===== */
+.pay-card {
+  background: linear-gradient(165deg, #f7f3fd 0%, #ece5fa 100%);
+  border-radius: 18px; padding: 20px 16px 18px; margin-bottom: 16px; text-align: center;
+}
+.pay-label { font-size: 13px; color: var(--ink-soft); margin-bottom: 1px; }
+.pay-value {
+  font-family: 'Poppins'; font-size: 32px; font-weight: 800; color: var(--primary);
+  letter-spacing: -0.02em; line-height: 1.15; font-variant-numeric: tabular-nums;
+}
+.pay-balance {
+  display: inline-flex; margin-top: 10px; background: #e5dcf9; color: var(--primary-light);
+  padding: 4px 13px; border-radius: 100px; font-size: 12.5px; font-weight: 700;
+}
+.pay-balance b { font-weight: 800; margin-left: 5px; color: var(--accent); }
+
+/* ===== "DETALLE DEL ABONO" (diseño producción) ===== */
+.detail-label {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-mute); margin-bottom: 7px;
+}
+.detail-list {
+  background: white; border: 1px solid var(--rule); border-radius: 14px;
+  padding: 2px 16px; margin-bottom: 16px;
+}
+.dt-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 0; border-top: 1px solid var(--rule); font-size: 13.5px; }
+.dt-row:first-child { border-top: none; }
+.dt-row .l { color: var(--ink-soft); }
+.dt-row .v { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dt-row.green .l, .dt-row.green .v { color: var(--green-ok); font-weight: 800; }
+.dt-row.tot .l, .dt-row.tot .v { font-weight: 900; color: var(--ink); font-size: 14.5px; }
+
+/* ===== Card de beneficios por nivel (diseño producción) ===== */
+.compact { border-radius: 16px; overflow: hidden; border: 1px solid var(--rule); margin-bottom: 18px; background: white; }
+.c-head { padding: 12px 18px; color: white; display: flex; align-items: center; justify-content: space-between; gap: 14px; position: relative; overflow: hidden; }
+.c-head::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 92% 8%, rgba(255,255,255,0.25), transparent 55%); pointer-events: none; }
+.c-head > * { position: relative; z-index: 1; }
+.c-head .ce { font-size: 9.5px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; opacity: 0.85; }
+.c-head .cn { font-family: 'Poppins'; font-size: 19px; font-weight: 800; line-height: 1.1; }
+.c-points { text-align: right; }
+.c-points b { display: block; font-family: 'Poppins'; font-size: 19px; font-weight: 800; line-height: 1; }
+.c-points span { font-size: 9px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.75; }
+.c-body { padding: 6px 18px 12px; }
+.c-row { display: flex; align-items: center; gap: 9px; font-size: 13px; padding: 9px 0; border-top: 1px solid var(--rule); color: var(--ink); }
+.c-row:first-child { border-top: none; }
+.c-row .ok { color: var(--green-ok); font-weight: 900; }
+.c-row .num { color: var(--ink); font-weight: 900; font-size: 15px; }
+.c-next { padding: 9px 18px; background: var(--soft-bg); font-size: 11.5px; font-weight: 800; color: var(--accent); text-align: center; }
+
+/* CTA */
+.cta {
+  width: 100%; border: none; cursor: pointer; font-family: inherit;
+  background: var(--primary-light); color: white; font-weight: 700; font-size: 14.5px;
+  padding: 13px 24px; border-radius: 9999px; transition: background 0.15s, opacity 0.15s;
+}
+.cta:hover { background: var(--primary); }
+.cta:disabled { opacity: 0.45; cursor: not-allowed; }
+/* Variante "FINALIZAR ABONO" (producción: lila claro deshabilitado) */
+.cta-pay { text-transform: uppercase; letter-spacing: 0.05em; font-size: 13.5px; font-weight: 800; }
+.cta-pay:disabled { background: #b3a0dd; opacity: 1; cursor: not-allowed; }
+.cta-pay:disabled:hover { background: #b3a0dd; }
+
+/* ===== Radio-cards de plan de pago (diseño producción) ===== */
+.plan-section-label { font-size: 14.5px; font-weight: 800; color: var(--ink); margin: 2px 0 10px; }
+.plans { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.plan {
+  display: flex; align-items: flex-start; gap: 11px; background: white;
+  border: 1.5px solid #e3e2ec; border-radius: 14px; padding: 13px 15px; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.plan:hover { border-color: #cfc2f5; }
+.plan.selected { border: 2px solid var(--primary); background: #f7f6fb; padding: 12.5px 14.5px; }
+.plan input[type="radio"] { margin-top: 3px; width: 16px; height: 16px; flex-shrink: 0; cursor: pointer; }
+.plan-name { font-size: 14px; font-weight: 800; color: var(--ink); line-height: 1.3; }
+.plan-name .tag-rec {
+  display: inline-block; font-size: 9.5px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase;
+  background: var(--green-soft); color: var(--green-ok); padding: 2.5px 8px; border-radius: 100px;
+  margin-left: 7px; vertical-align: 2px; white-space: nowrap;
+}
+.plan-desc { font-size: 12.5px; color: var(--ink-soft); margin-top: 1px; }
+
+/* ===== Select de cuotas (diseño producción: select nativo) ===== */
+.cuotas-select {
+  width: 100%; appearance: auto; -webkit-appearance: menulist;
+  border: 1.5px solid #d9d8e3; border-radius: 12px; padding: 12px 14px;
+  font-family: inherit; font-size: 14px; font-weight: 600; color: var(--ink);
+  background: white; outline: none; margin-bottom: 10px; cursor: pointer;
+}
+.cuotas-select:focus { border-color: var(--accent); }
+.cuota-note {
+  text-align: center; font-size: 13px; font-weight: 800; color: var(--accent);
+  background: var(--soft-bg); border-radius: 100px; padding: 6px 14px; margin-bottom: 14px;
+}
+.cuota-note[hidden] { display: none; }
+
+/* Pantalla final */
+.success-ico {
+  width: 84px; height: 84px; margin: 8px auto 14px; border-radius: 50%;
+  background: var(--green-soft); display: grid; place-items: center;
+  animation: pop 0.5s cubic-bezier(0.34,1.56,0.64,1);
+}
+.success-ico svg { width: 42px; height: 42px; color: var(--green-ok); }
+@keyframes pop { 0% { transform: scale(0.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.final-note {
+  background: var(--soft-bg); border-radius: 14px; padding: 14px 16px;
+  font-size: 13px; color: var(--primary); font-weight: 600; text-align: center; margin-bottom: 16px; line-height: 1.55;
+}
+.sms-pill { display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--ink-soft); margin-bottom: 16px; }
+.sms-pill svg { width: 15px; height: 15px; color: var(--accent); }
+
+/* Visibilidad de pantallas */
+.screen { display: none; position: relative; }
+.screen.on { display: block; animation: fadeIn 0.25s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.footnote { text-align: center; font-size: 11.5px; color: var(--ink-mute); margin-top: 26px; padding: 0 16px; }
+.footnote code { background: rgba(0,0,0,0.05); padding: 1px 5px; border-radius: 4px; font-size: 10.5px; }
+</style>
+</head>
+<body data-level="4">
+
+<div class="mock-banner"><b>MOCKUP PD-1488</b> · Portal cliente — Prototipo de validación</div>
+
+<!-- Controles del mockup (no existen en el portal real) -->
+<header class="topbar">
+  <div class="tb-group">
+    <span class="tb-label">Nivel</span>
+    <nav class="switcher" id="swLevel">
+      <button class="sw-btn" data-level="1">Quac</button>
+      <button class="sw-btn" data-level="2">Plus</button>
+      <button class="sw-btn" data-level="3">Silver</button>
+      <button class="sw-btn active" data-level="4">Gold</button>
+      <button class="sw-btn" data-level="5">Black</button>
+    </nav>
+  </div>
+  <div class="tb-group">
+    <span class="tb-label">Pantalla</span>
+    <nav class="switcher" id="swScreen">
+      <button class="sw-btn active" data-screen="1">1 · Términos</button>
+      <button class="sw-btn" data-screen="2">2 · Tu Status</button>
+      <button class="sw-btn" data-screen="3">3 · Cuotas</button>
+      <button class="sw-btn" data-screen="4">4 · Aprobada</button>
+    </nav>
+  </div>
+</header>
+
+<main class="stage">
+  <div class="device">
+    <div class="device-screen">
+      <div class="notch"></div>
+      <div class="statusbar"><span>9:41</span><span>▲▲ ⏻ ▮</span></div>
+      <div class="screen-body">
+
+        <div class="brand">
+          <svg viewBox="0 0 46.962 42" xmlns="http://www.w3.org/2000/svg"><path d="M70.915,59a2.061,2.061,0,0,0-3.784-.431,13.6,13.6,0,0,1-8.168,6.5,2.061,2.061,0,0,0,1.062,3.982l.048-.013.024-.006.216-.062v0a17.713,17.713,0,0,0,10.422-8.4A2.048,2.048,0,0,0,70.915,59" transform="translate(-28.063 -27.613)" fill="currentColor"/><path d="M19.537,35.247A17.616,17.616,0,0,1,8.607,27.4l-.025-.039A18.032,18.032,0,0,1,6.09,15.053c0-.028,0-.061,0-.086a.832.832,0,0,0-.826-.836H2.205A2.228,2.228,0,0,1,1.89,9.7,17.245,17.245,0,0,0,6.851,8.113l-2.292-.8A2.233,2.233,0,0,1,3.186,4.487a2.193,2.193,0,0,1,2.5-1.469,17.4,17.4,0,0,0,10.08-1.213q.37-.179.779-.354A17.111,17.111,0,0,1,23.491,0,17.582,17.582,0,0,1,39.174,9.726a.818.818,0,0,0,.726.458.556.556,0,0,0,.221-.046,12.957,12.957,0,0,0,3.019-1.97,2.272,2.272,0,0,1,2.005-.7,2.233,2.233,0,0,1,1.24,3.693l-4.392,4.462a3.258,3.258,0,0,0,0,4.47l4.392,4.463a2.232,2.232,0,0,1-1.24,3.691,2.27,2.27,0,0,1-2.007-.7,12.957,12.957,0,0,0-3.019-1.97.567.567,0,0,0-.221-.045.818.818,0,0,0-.726.458v-.008A17.907,17.907,0,0,1,35.715,30.7a.052.052,0,0,1-.008.021v-.008a17.421,17.421,0,0,1-16.169,4.538ZM23.491,29a10.876,10.876,0,0,0,3.2-.48l.017-.005.019-.006A11.222,11.222,0,0,0,29.929,8.8L29.9,8.781l-.01-.007A10.989,10.989,0,0,0,24.387,6.73q-.443-.037-.9-.036-.5,0-.984.044H22.5l-.029,0A11.087,11.087,0,0,0,12.632,16v.011A11.274,11.274,0,0,0,14,23.5l.007.011.007.012a11.1,11.1,0,0,0,5.007,4.521l.013.006.027.012q.414.184.848.335.358.125.722.225a10.881,10.881,0,0,0,2.86.38" fill="currentColor"/><path d="M50.186,29.467a2.759,2.759,0,0,0,2.071-.8,2.917,2.917,0,0,0,.768-2.114,2.974,2.974,0,0,0-.768-2.129,2.81,2.81,0,0,0-2.071-.781,2.751,2.751,0,0,0-2.056.782,2.924,2.924,0,0,0-.782,2.129,2.866,2.866,0,0,0,.782,2.114,2.7,2.7,0,0,0,2.056.8" transform="translate(-23.119 -11.383)" fill="currentColor"/></svg>
+          <b>Quac</b>
+        </div>
+
+        <div class="steps">
+          <span class="step-dot on" data-dot="1"></span>
+          <span class="step-dot" data-dot="2"></span>
+          <span class="step-dot" data-dot="3"></span>
+          <span class="step-dot" data-dot="4"></span>
+        </div>
+
+        <!-- ============ PANTALLA 1 · Términos y condiciones ============ -->
+        <section class="screen on" id="screen1">
+          <div class="scr-eyebrow">QUAC · SOLICITUD DE PAGO</div>
+          <h2 class="scr-title">Aprueba tu abono</h2>
+          <p class="scr-sub">Quinta del Mar te envió una solicitud de pago con tu cupo Quac</p>
+
+          <div class="reserva-card">
+            <div class="reserva-ico">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg>
+            </div>
+            <div>
+              <div class="rc-title">Abono a tu reserva en Quinta del Mar</div>
+              <div class="rc-line">Reserva <b>#1751377</b></div>
+              <div class="rc-line">Abono 50% reserva Villa Coral ago/2026</div>
+              <span class="rc-badge">Sede Quinta del Mar</span>
+            </div>
+          </div>
+
+          <div class="detail-card">
+            <div class="d-row"><span class="dl">Titular</span><span class="dv">María Fernanda Rojas</span></div>
+            <div class="d-row"><span class="dl">Documento</span><span class="dv">CC 1.098.765.432</span></div>
+            <div class="d-row"><span class="dl">Fecha de la solicitud</span><span class="dv">13 jul 2026, 10:45 a.m.</span></div>
+            <div class="d-row total"><span class="dl">Valor del abono</span><span class="dv">$500.000</span></div>
+          </div>
+
+          <div class="terms-box">
+            <h4>Términos y condiciones del pago con crédito Quac</h4>
+            <p>Al continuar autorizas a Quac a consultar tu información crediticia y a registrar esta operación contra tu cupo disponible. El valor aprobado se abonará a la reserva indicada por el comercio Quinta del Mar.</p>
+            <p>El plan de cuotas que elijas se regirá por las condiciones de tu crédito Quac vigente. Los descuentos del programa Status Quac aplican únicamente sobre el valor que pagas con tu cupo.</p>
+            <p>Esta autorización se confirma con la clave dinámica enviada a tu celular registrado. Si no reconoces esta solicitud, no la apruebes y comunícate con nuestras líneas de atención.</p>
+          </div>
+
+          <label class="check-row">
+            <input type="checkbox" id="chkTerms">
+            <span>Acepto los <a href="#" onclick="return false">términos y condiciones</a> y la <a href="#" onclick="return false">política de tratamiento de datos</a>.</span>
+          </label>
+
+          <button class="cta" id="btnToStatus" disabled>Continuar →</button>
+        </section>
+
+        <!-- ============ PANTALLA 2 · "Cliente Quac {Nivel}" (diseño actual de producción) ============ -->
+        <section class="screen" id="screen2">
+          <button class="modal-x" aria-label="Cerrar" onclick="return false">✕</button>
+          <h2 class="scr-title" id="s2Title">Cliente Quac Gold</h2>
+          <p class="scr-sub">Estos son los beneficios que aplican a tu abono</p>
+
+          <!-- Card lila "Pagas hoy" -->
+          <div class="pay-card">
+            <div class="pay-label">Pagas hoy</div>
+            <div class="pay-value" id="s2Pay">$475.000</div>
+            <div><span class="pay-balance">Saldo disponible: <b>$2.450.000</b></span></div>
+          </div>
+
+          <!-- Contexto del cobro (aporte quinta, discreto) -->
+          <div class="reserva-mini">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg>
+            <div>
+              <b>Abono a tu reserva en Quinta del Mar</b>
+              <span>Reserva #1751377 · Abono 50% reserva Villa Coral ago/2026</span>
+            </div>
+          </div>
+
+          <!-- Detalle del abono -->
+          <div class="detail-label">Detalle del abono</div>
+          <div class="detail-list" id="s2Detail"></div>
+
+          <!-- Card de beneficios por nivel -->
+          <div class="compact">
+            <div class="c-head" id="cHead">
+              <div>
+                <div class="ce">Tus beneficios</div>
+                <div class="cn" id="cName">Quac Gold</div>
+              </div>
+              <div class="c-points">
+                <b id="cPoints">52.300</b>
+                <span>Quacs</span>
+              </div>
+            </div>
+            <div class="c-body" id="cBody"></div>
+            <div class="c-next" id="cNext">★ Te faltan 47.700 Quacs para ser Quac Black</div>
+          </div>
+
+          <button class="cta" id="btnToCuotas">Continuar a planes de pago →</button>
+        </section>
+
+        <!-- ============ PANTALLA 3 · "Confirma tu abono" (diseño actual de producción) ============ -->
+        <section class="screen" id="screen3">
+          <button class="modal-x" aria-label="Cerrar" onclick="return false">✕</button>
+          <h2 class="scr-title" style="margin-bottom:16px;">Confirma tu abono</h2>
+
+          <!-- Card lila "Valor del abono" -->
+          <div class="pay-card">
+            <div class="pay-label">Valor del abono</div>
+            <div class="pay-value" id="s3Pay">$475.000</div>
+            <div><span class="pay-balance">Saldo disponible: <b>$2.450.000</b></span></div>
+          </div>
+
+          <div class="plan-section-label">Elige tu plan de pago</div>
+          <div class="plans" id="plansList"></div>
+
+          <div class="plan-section-label">Selecciona número de cuotas</div>
+          <select class="cuotas-select" id="cuotasSelect">
+            <option value="">Selecciona una opción</option>
+          </select>
+          <div class="cuota-note" id="cuotaNote" hidden></div>
+
+          <button class="cta cta-pay" id="btnConfirm" disabled>Finalizar abono</button>
+        </section>
+
+        <!-- ============ PANTALLA 4 · Solicitud aprobada ============ -->
+        <section class="screen" id="screen4">
+          <div class="success-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h2 class="scr-title">¡Solicitud aprobada!</h2>
+          <p class="scr-sub" id="s4Sub">Aprobaste el abono con tu cupo Quac Gold</p>
+
+          <div class="detail-card">
+            <div class="d-row"><span class="dl">Comercio</span><span class="dv">Quinta del Mar</span></div>
+            <div class="d-row"><span class="dl">Reserva</span><span class="dv">#1751377</span></div>
+            <div class="d-row"><span class="dl">Concepto</span><span class="dv" style="max-width:190px;">Abono 50% reserva Villa Coral ago/2026</span></div>
+            <div class="d-row"><span class="dl">Abono a la reserva</span><span class="dv">$500.000</span></div>
+            <div class="d-row" id="s4DiscRow"><span class="dl" id="s4DiscLabel" style="color:var(--green-ok);font-weight:800;">Descuento Quac Gold</span><span class="dv" id="s4DiscValue" style="color:var(--green-ok);">−$25.000</span></div>
+            <div class="d-row total"><span class="dl">Pagaste con Quac</span><span class="dv" id="s4Pay">$475.000</span></div>
+            <div class="d-row"><span class="dl">Plan elegido</span><span class="dv" id="s4Plan" style="max-width:200px;">0% interés · 5 cuotas de $95.000</span></div>
+            <div class="d-row"><span class="dl">Primera cuota</span><span class="dv" id="s4FirstDate">12 de agosto de 2026</span></div>
+          </div>
+
+          <div class="final-note">
+            Tu abono quedó registrado y se aplicará a tu reserva en Quinta del Mar.
+          </div>
+
+          <div class="sms-pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Recibirás un SMS de confirmación.
+          </div>
+
+          <button class="cta" id="btnClose">Entendido</button>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</main>
+
+<p class="footnote">
+  Mockup de validación · <code>PD-1488</code> · 2026-07-13 · Pantallas 2 y 3 replican el diseño actual de producción del portal Quac (capturas <code>tu status.png</code> y <code>cuotas.png</code>) · Flujo: términos → Status Quac → plan de pago + cuotas → aprobación · El abono se aplica a la reserva; la facturación ocurre solo al pagarse la reserva completa (OPS-1488-1, fuera de este flujo).
+</p>
+
+<script>
+/* ============================================================
+   Datos del caso: María Fernanda Rojas · CC 1098765432
+   Cobro: $500.000 · Reserva #1751377 · Quinta del Mar
+   Saldo disponible: $2.450.000
+   Umbrales del programa ajustados al caso (Gold con 52.300
+   Quacs → faltan 47.700 para Black ⇒ umbral Black = 100.000).
+   ============================================================ */
+const VALOR_ABONO = 500000
+const SALDO = 2450000
+const NIVELES = {
+  1: { codigo: 'quac',   nombre: 'Quac',   puntos: 2400,   pct: 0,  cuotas: 10, plazo60: false, umbral: 0 },
+  2: { codigo: 'plus',   nombre: 'Plus',   puntos: 14800,  pct: 0,  cuotas: 10, plazo60: true,  umbral: 10000 },
+  3: { codigo: 'silver', nombre: 'Silver', puntos: 31500,  pct: 5,  cuotas: 12, plazo60: true,  umbral: 25000 },
+  4: { codigo: 'gold',   nombre: 'Gold',   puntos: 52300,  pct: 5,  cuotas: 15, plazo60: true,  umbral: 50000 },
+  5: { codigo: 'black',  nombre: 'Black',  puntos: 118200, pct: 10, cuotas: 18, plazo60: true,  umbral: 100000 },
+}
+
+const fmt = (n) => '$' + Math.round(n).toLocaleString('es-CO')
+const fmtN = (n) => n.toLocaleString('es-CO')
+const displayNombre = (cfg) => (cfg.codigo === 'quac' ? 'Quac' : 'Quac ' + cfg.nombre)
+
+let curLevel = 4
+let curScreen = 1
+let selectedPlanId = 'cero'   // igual a producción: "0% interés" arranca seleccionado
+let selectedCuotas = null
+
+const $ = (id) => document.getElementById(id)
+
+function pagoNivel(lvl) {
+  const cfg = NIVELES[lvl]
+  const desc = Math.round(VALOR_ABONO * cfg.pct / 100)
+  return { cfg, desc, pago: VALOR_ABONO - desc }
+}
+
+/* Planes de pago (diseño producción). "Paga en 60 días" solo
+   para niveles con beneficio Plazo 60. */
+function planesNivel(cfg) {
+  const planes = [
+    { id: 'cero', nombre: '0% interés', rec: true, max: Math.min(5, cfg.cuotas), desc: 'Paga hasta en 5 cuotas sin ningún interés.' },
+  ]
+  if (cfg.plazo60) planes.push({ id: 'plazo60', nombre: 'Paga en 60 días', max: Math.min(9, cfg.cuotas), desc: 'Paga tu primera cuota en Sep. Hasta 9 cuotas.' })
+  planes.push({ id: 'estandar', nombre: 'Financiación Estándar', max: cfg.cuotas, desc: `Paga cómodamente hasta en ${cfg.cuotas} cuotas` })
+  return planes
+}
+
+/* ---------- Pantalla 2 · Tu Status (diseño producción) ---------- */
+function renderStatus() {
+  const { cfg, desc, pago } = pagoNivel(curLevel)
+  document.body.dataset.level = curLevel
+
+  $('s2Title').textContent = 'Cliente ' + displayNombre(cfg)
+  $('s2Pay').textContent = fmt(pago)
+
+  // Detalle del abono (sin línea de envío: no aplica a reservas)
+  const dRows = [`<div class="dt-row"><span class="l">Valor de tu abono</span><span class="v">${fmt(VALOR_ABONO)}</span></div>`]
+  if (desc > 0) dRows.push(`<div class="dt-row green"><span class="l">✓ ${cfg.pct}% descuento ${displayNombre(cfg)}</span><span class="v">−${fmt(desc)}</span></div>`)
+  dRows.push(`<div class="dt-row tot"><span class="l">Total</span><span class="v">${fmt(pago)}</span></div>`)
+  $('s2Detail').innerHTML = dRows.join('')
+
+  // Card de beneficios por nivel
+  const head = $('cHead')
+  const rootStyle = getComputedStyle(document.documentElement)
+  head.style.background = rootStyle.getPropertyValue('--lvl-' + curLevel)
+  head.style.color = (curLevel === 3) ? '#2a2a30' : (curLevel === 4) ? '#3a2a05' : (curLevel === 5) ? '#d8dce0' : '#fff'
+  $('cName').textContent = displayNombre(cfg)
+  $('cPoints').textContent = fmtN(cfg.puntos)
+  const bRows = []
+  if (cfg.pct > 0) bRows.push(`<div class="c-row"><span class="ok">✓</span> ${cfg.pct}% de descuento siempre al pagar con Quac</div>`)
+  if (cfg.plazo60) bRows.push(`<div class="c-row"><span class="ok">✓</span> Plazo 60: primera cuota hasta en 60 días</div>`)
+  bRows.push(`<div class="c-row"><span class="num">${cfg.cuotas}</span> cuotas máximas</div>`)
+  $('cBody').innerHTML = bRows.join('')
+  const next = NIVELES[curLevel + 1]
+  $('cNext').textContent = next
+    ? `★ Te faltan ${fmtN(next.umbral - cfg.puntos)} Quacs para ser ${displayNombre(next)}`
+    : '★ Estás en el nivel máximo del programa'
+}
+
+/* ---------- Pantalla 3 · Confirma tu abono (diseño producción) ---------- */
+function renderCuotas() {
+  const { cfg, pago } = pagoNivel(curLevel)
+
+  $('s3Pay').textContent = fmt(pago)
+
+  const planes = planesNivel(cfg)
+  if (!planes.some((p) => p.id === selectedPlanId)) selectedPlanId = 'cero'
+
+  $('plansList').innerHTML = planes.map((p) => `
+    <label class="plan ${selectedPlanId === p.id ? 'selected' : ''}" data-plan="${p.id}">
+      <input type="radio" name="planType" value="${p.id}" ${selectedPlanId === p.id ? 'checked' : ''}>
+      <div>
+        <div class="plan-name">${p.nombre}${p.rec ? '<span class="tag-rec">★ Recomendado</span>' : ''}</div>
+        <div class="plan-desc">${p.desc}</div>
+      </div>
+    </label>`).join('')
+
+  document.querySelectorAll('#plansList input[name="planType"]').forEach((r) =>
+    r.addEventListener('change', () => {
+      selectedPlanId = r.value
+      selectedCuotas = null
+      document.querySelectorAll('#plansList .plan').forEach((x) => x.classList.toggle('selected', x.dataset.plan === selectedPlanId))
+      fillCuotasSelect()
+    })
+  )
+
+  fillCuotasSelect()
+}
+
+function fillCuotasSelect() {
+  const { cfg } = pagoNivel(curLevel)
+  const plan = planesNivel(cfg).find((p) => p.id === selectedPlanId)
+  const sel = $('cuotasSelect')
+  let html = '<option value="">Selecciona una opción</option>'
+  for (let n = 1; n <= plan.max; n++) html += `<option value="${n}">${n} cuota${n > 1 ? 's' : ''}</option>`
+  sel.innerHTML = html
+  sel.value = selectedCuotas || ''
+  updateCuotaNote()
+}
+
+function updateCuotaNote() {
+  const { pago } = pagoNivel(curLevel)
+  const note = $('cuotaNote')
+  if (selectedCuotas) {
+    const cuota = Math.round(pago / selectedCuotas)
+    note.textContent = selectedCuotas === 1 ? `1 cuota de ${fmt(cuota)}` : `${selectedCuotas} cuotas de ${fmt(cuota)}`
+    note.hidden = false
+  } else {
+    note.hidden = true
+  }
+  $('btnConfirm').disabled = !selectedCuotas
+}
+
+/* ---------- Pantalla 4 · aprobada ---------- */
+function renderFinal() {
+  const { cfg, desc, pago } = pagoNivel(curLevel)
+  const planes = planesNivel(cfg)
+  const plan = planes.find((p) => p.id === selectedPlanId) || planes[0]
+  const n = Math.min(selectedCuotas || plan.max, plan.max)
+  const cuota = Math.round(pago / n)
+
+  $('s4Sub').textContent = 'Aprobaste el abono con tu cupo ' + displayNombre(cfg)
+  $('s4DiscRow').style.display = desc > 0 ? 'flex' : 'none'
+  $('s4DiscLabel').textContent = 'Descuento ' + displayNombre(cfg)
+  $('s4DiscValue').textContent = '−' + fmt(desc)
+  $('s4Pay').textContent = fmt(pago)
+  $('s4Plan').textContent = plan.nombre + ' · ' + (n === 1 ? '1 cuota de ' + fmt(cuota) : n + ' cuotas de ' + fmt(cuota))
+  $('s4FirstDate').textContent = plan.id === 'plazo60' ? '11 de septiembre de 2026' : '12 de agosto de 2026'
+}
+
+/* ---------- Navegación entre pantallas ---------- */
+function goScreen(n) {
+  curScreen = n
+  for (let i = 1; i <= 4; i++) {
+    $('screen' + i).classList.toggle('on', i === n)
+    document.querySelector(`[data-dot="${i}"]`).classList.toggle('on', i <= n)
+  }
+  document.querySelectorAll('#swScreen .sw-btn').forEach((b) => b.classList.toggle('active', Number(b.dataset.screen) === n))
+  if (n === 2) renderStatus()
+  if (n === 3) renderCuotas()
+  if (n === 4) renderFinal()
+  document.querySelector('.screen-body').scrollTop = 0
+}
+
+/* ---------- Wiring ---------- */
+$('chkTerms').addEventListener('change', (e) => { $('btnToStatus').disabled = !e.target.checked })
+$('btnToStatus').addEventListener('click', () => goScreen(2))
+$('btnToCuotas').addEventListener('click', () => goScreen(3))
+$('cuotasSelect').addEventListener('change', (e) => {
+  selectedCuotas = e.target.value ? Number(e.target.value) : null
+  updateCuotaNote()
+})
+$('btnConfirm').addEventListener('click', () => goScreen(4))
+$('btnClose').addEventListener('click', () => {
+  // Reinicia el flujo (en el portal real cerraría la ventana)
+  $('chkTerms').checked = false
+  $('btnToStatus').disabled = true
+  selectedPlanId = 'cero'
+  selectedCuotas = null
+  goScreen(1)
+})
+
+// Switcher de nivel (control del mockup)
+document.querySelectorAll('#swLevel .sw-btn').forEach((b) =>
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#swLevel .sw-btn').forEach((x) => x.classList.remove('active'))
+    b.classList.add('active')
+    curLevel = Number(b.dataset.level)
+    selectedCuotas = null
+    if (curScreen === 2) renderStatus()
+    if (curScreen === 3) renderCuotas()
+    if (curScreen === 4) renderFinal()
+  })
+)
+// Salto directo de pantalla (control del mockup)
+document.querySelectorAll('#swScreen .sw-btn').forEach((b) =>
+  b.addEventListener('click', () => goScreen(Number(b.dataset.screen)))
+)
+
+renderStatus()
+goScreen(1)
+</script>
+</body>
+</html>

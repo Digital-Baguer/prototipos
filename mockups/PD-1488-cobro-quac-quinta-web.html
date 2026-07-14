@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOCKUP PD-1488 · Cobro con Quac · quinta-web (panel del operador)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+
+  /* Badges de nivel Status Quac (gradientes de marca del programa) */
+  .badge-nivel{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:12.5px;
+    letter-spacing:.4px;padding:5px 13px;border-radius:20px;white-space:nowrap;}
+  .badge-quac  {background:linear-gradient(135deg,#9ca3af,#6b7280);color:#fff;}
+  .badge-plus  {background:linear-gradient(135deg,#60a5fa,#2563eb);color:#fff;}
+  .badge-silver{background:linear-gradient(135deg,#e5e7eb,#9ca3af 60%,#d1d5db);color:#374151;
+    border:1px solid #9ca3af;}
+  .badge-gold  {background:linear-gradient(135deg,#fde68a,#f59e0b 55%,#d97706);color:#78350f;
+    border:1px solid #d97706;}
+  .badge-black {background:linear-gradient(135deg,#111827,#1f2937 60%,#374151);color:#fbbf24;
+    border:1px solid #b45309;}
+
+  .chip-mock{transition:.15s;}
+  .chip-mock.active{background:#1e293b;color:#fff;border-color:#1e293b;}
+
+  .screen{display:none;}
+  .screen.active{display:block;}
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800 pb-16">
+
+<!-- ══════════ BANNER MOCKUP (fijo) ══════════ -->
+<div class="fixed top-0 inset-x-0 z-50 bg-amber-400 text-amber-950 text-center text-[13px] font-bold py-1.5 shadow">
+  MOCKUP PD-1488 · Prototipo de validación — no es código de producción
+</div>
+<div class="h-9"></div>
+
+<!-- ══════════ SWITCHER DE PANTALLAS (control del mockup, NO es UI real) ══════════ -->
+<div class="max-w-6xl mx-auto mt-4 px-4">
+  <div class="bg-slate-800 rounded-xl px-5 py-4 shadow">
+    <p class="text-[11px] uppercase tracking-widest text-slate-400 font-bold mb-2">Control del mockup — pantallas / estados (no es parte de la UI real)</p>
+    <div class="flex flex-wrap gap-2" id="switcher">
+      <button data-screen="inicial"   class="chip-mock active text-[13px] font-semibold border border-slate-500 text-slate-200 rounded-full px-3.5 py-1.5">1 · Consulta del cliente</button>
+      <button data-screen="ok"        class="chip-mock text-[13px] font-semibold border border-slate-500 text-slate-200 rounded-full px-3.5 py-1.5">2 · Resultado OK (cupo + status)</button>
+      <button data-screen="err-credito" class="chip-mock text-[13px] font-semibold border border-slate-500 text-slate-200 rounded-full px-3.5 py-1.5">3a · Sin crédito activo</button>
+      <button data-screen="err-mora"  class="chip-mock text-[13px] font-semibold border border-slate-500 text-slate-200 rounded-full px-3.5 py-1.5">3b · En mora / bloqueado</button>
+      <button data-screen="form"      class="chip-mock text-[13px] font-semibold border border-slate-500 text-slate-200 rounded-full px-3.5 py-1.5">4 · Formulario de cobro</button>
+      <button data-screen="form-cupo" class="chip-mock text-[13px] font-semibold border border-slate-500 text-slate-200 rounded-full px-3.5 py-1.5">4b · Monto &gt; cupo</button>
+      <button data-screen="exito"     class="chip-mock text-[13px] font-semibold border border-slate-500 text-slate-200 rounded-full px-3.5 py-1.5">5 · Cobro generado</button>
+      <button data-screen="tabla"     class="chip-mock text-[13px] font-semibold border border-slate-500 text-slate-200 rounded-full px-3.5 py-1.5">6 · Solicitudes de la reserva</button>
+    </div>
+    <div class="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-700">
+      <span class="text-[11px] uppercase tracking-widest text-slate-400 font-bold mr-1">Variante de nivel del cliente:</span>
+      <div id="nivelSwitcher" class="flex flex-wrap gap-2">
+        <button data-nivel="quac"   class="chip-mock text-[12px] font-semibold border border-slate-500 text-slate-200 rounded-full px-3 py-1">Quac · 0%</button>
+        <button data-nivel="plus"   class="chip-mock text-[12px] font-semibold border border-slate-500 text-slate-200 rounded-full px-3 py-1">Plus · 0%</button>
+        <button data-nivel="silver" class="chip-mock text-[12px] font-semibold border border-slate-500 text-slate-200 rounded-full px-3 py-1">Silver · 5%</button>
+        <button data-nivel="gold"   class="chip-mock active text-[12px] font-semibold border border-slate-500 text-slate-200 rounded-full px-3 py-1">Gold · 5%</button>
+        <button data-nivel="black"  class="chip-mock text-[12px] font-semibold border border-slate-500 text-slate-200 rounded-full px-3 py-1">Black · 10%</button>
+      </div>
+    </div>
+    <p id="notaMock" class="text-[12px] text-slate-400 mt-2.5"></p>
+  </div>
+</div>
+
+<!-- ══════════ CONTEXTO PERSISTENTE: EDICIÓN DE LA RESERVA ══════════ -->
+<div class="max-w-6xl mx-auto mt-4 px-4">
+
+  <!-- Barra superior del admin quinta-web -->
+  <div class="bg-white rounded-t-xl border border-slate-200 px-5 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-slate-700 text-white flex items-center justify-center font-black text-sm">QM</div>
+      <div>
+        <p class="font-bold text-[15px] leading-tight">Quinta del Mar · Administración</p>
+        <p class="text-[12px] text-slate-500 leading-tight">Reservas → Editar reserva → Cobro con Quac</p>
+      </div>
+    </div>
+    <div class="text-right hidden sm:block">
+      <p class="text-[12px] text-slate-500">Operador: <b class="text-slate-700">Carolina Duarte</b></p>
+      <p class="text-[11px] text-slate-400 font-mono">?ruta=reservas&amp;accion=edit&amp;submodulo=cobroquac&amp;idr=1751377</p>
+    </div>
+  </div>
+
+  <!-- Header de la reserva -->
+  <div class="bg-slate-700 text-white border-x border-slate-200 px-5 py-4">
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-1.5">
+      <div>
+        <span class="text-[11px] uppercase tracking-wider text-slate-300 block">Reserva</span>
+        <span class="font-black text-[17px]">#1751377</span>
+      </div>
+      <div>
+        <span class="text-[11px] uppercase tracking-wider text-slate-300 block">Cabaña</span>
+        <span class="font-semibold text-[14px]">Villa Coral (8 personas)</span>
+      </div>
+      <div>
+        <span class="text-[11px] uppercase tracking-wider text-slate-300 block">Estadía</span>
+        <span class="font-semibold text-[14px]">15/08/2026 → 18/08/2026</span>
+      </div>
+      <div>
+        <span class="text-[11px] uppercase tracking-wider text-slate-300 block">Titular</span>
+        <span class="font-semibold text-[14px]">María Fernanda Rojas</span>
+      </div>
+      <div>
+        <span class="text-[11px] uppercase tracking-wider text-slate-300 block">Valor reserva</span>
+        <span class="font-semibold text-[14px]">$3.200.000</span>
+      </div>
+      <div>
+        <span class="text-[11px] uppercase tracking-wider text-slate-300 block">Saldo pendiente</span>
+        <span class="font-black text-[15px] text-amber-300">$1.700.000</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cuerpo: menú lateral de submódulos + contenido -->
+  <div class="bg-white rounded-b-xl border border-t-0 border-slate-200 flex flex-col md:flex-row">
+
+    <!-- Menú lateral (submódulos existentes de la reserva) -->
+    <nav class="md:w-52 flex-none border-b md:border-b-0 md:border-r border-slate-200 py-3 px-2 flex md:flex-col flex-wrap gap-1">
+      <a class="block text-[13px] px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer">Datos contacto</a>
+      <a class="block text-[13px] px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer">Hospedaje</a>
+      <a class="block text-[13px] px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer">Menú</a>
+      <a class="block text-[13px] px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer">Consumos</a>
+      <a class="block text-[13px] px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer">Links de cobro</a>
+      <a class="block text-[13px] px-3 py-2 rounded-lg bg-blue-600 text-white font-bold cursor-pointer">Cobro con Quac
+        <span class="ml-1 text-[10px] bg-white/20 rounded px-1.5 py-0.5 align-middle">NUEVO</span></a>
+      <a class="block text-[13px] px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer">Pagos</a>
+      <a class="block text-[13px] px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer">Soportes</a>
+      <a class="block text-[13px] px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-50 cursor-pointer">Facturación</a>
+    </nav>
+
+    <!-- Contenido del submódulo -->
+    <main class="flex-1 p-5 md:p-6 min-h-[560px]">
+
+      <!-- ───────── PANTALLA 1 · Consulta del cliente ───────── -->
+      <section class="screen active" id="scr-inicial">
+        <h2 class="text-[12px] uppercase tracking-widest text-blue-700 font-bold mb-1">Paso 1 · Consulta del cliente</h2>
+        <h1 class="text-xl font-black mb-4">Cobro con crédito Quac</h1>
+
+        <div class="max-w-lg">
+          <label class="block text-[13px] font-bold text-slate-700 mb-1.5">Documento del titular</label>
+          <div class="flex gap-2">
+            <input id="docInput" type="text" inputmode="numeric" placeholder="Ej: 1098765432" value="1098765432"
+              class="flex-1 border border-slate-300 rounded-lg px-3.5 py-2.5 text-[15px] focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button onclick="show('ok')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[14px] px-5 py-2.5 rounded-lg">Consultar</button>
+          </div>
+          <div class="mt-4 flex gap-2.5 bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <svg class="w-5 h-5 stroke-slate-400 flex-none mt-0.5" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <p class="text-[13px] text-slate-500 leading-relaxed">
+              Consulta el crédito Quac del titular antes de generar el cobro. Verás su <b class="text-slate-700">cupo disponible</b> y su
+              <b class="text-slate-700">nivel Status Quac</b>. El descuento del nivel se aplica automáticamente al valor que paga el cliente;
+              la reserva se abona por el monto completo digitado.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────── PANTALLA 2 · Resultado consulta OK ───────── -->
+      <section class="screen" id="scr-ok">
+        <h2 class="text-[12px] uppercase tracking-widest text-blue-700 font-bold mb-1">Paso 1 · Consulta del cliente — resultado</h2>
+        <h1 class="text-xl font-black mb-4">Cliente con crédito Quac activo</h1>
+
+        <div class="max-w-lg">
+          <div class="flex gap-2 mb-4">
+            <input type="text" value="1098765432" disabled class="flex-1 border border-slate-200 bg-slate-50 rounded-lg px-3.5 py-2.5 text-[15px] text-slate-500">
+            <button onclick="show('inicial')" class="border border-slate-300 text-slate-600 font-bold text-[14px] px-4 py-2.5 rounded-lg hover:bg-slate-50">Cambiar</button>
+          </div>
+
+          <!-- Card cliente Quac -->
+          <div class="border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+            <div class="bg-slate-50 px-5 py-4 flex items-start justify-between gap-3 border-b border-slate-200">
+              <div>
+                <p class="font-black text-[16px]">María Fernanda Rojas</p>
+                <p class="text-[13px] text-slate-500">CC 1.098.765.432</p>
+              </div>
+              <span class="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 text-[12px] font-bold px-2.5 py-1 rounded-full">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Crédito activo
+              </span>
+            </div>
+            <div class="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p class="text-[12px] uppercase tracking-wide text-slate-400 font-bold">Cupo disponible</p>
+                <p class="text-2xl font-black text-emerald-700 tracking-tight">$2.450.000</p>
+              </div>
+              <div>
+                <p class="text-[12px] uppercase tracking-wide text-slate-400 font-bold mb-1">Nivel Status Quac</p>
+                <span class="badge-nivel js-badge-nivel badge-gold">★ Quac Gold</span>
+                <p class="text-[12.5px] text-slate-500 mt-1.5"><b class="text-slate-700 js-quacs">52.300 Quacs</b> · <span class="js-beneficio">5% de descuento permanente</span></p>
+              </div>
+            </div>
+          </div>
+
+          <button onclick="show('form')" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-[15px] py-3 rounded-xl">
+            Continuar al cobro →
+          </button>
+        </div>
+      </section>
+
+      <!-- ───────── PANTALLA 3a · Error: sin crédito activo ───────── -->
+      <section class="screen" id="scr-err-credito">
+        <h2 class="text-[12px] uppercase tracking-widest text-blue-700 font-bold mb-1">Paso 1 · Consulta del cliente — error</h2>
+        <h1 class="text-xl font-black mb-4">Cliente sin crédito Quac</h1>
+
+        <div class="max-w-lg">
+          <div class="flex gap-2 mb-4">
+            <input type="text" value="79456123" disabled class="flex-1 border border-slate-200 bg-slate-50 rounded-lg px-3.5 py-2.5 text-[15px] text-slate-500">
+            <button onclick="show('inicial')" class="border border-slate-300 text-slate-600 font-bold text-[14px] px-4 py-2.5 rounded-lg hover:bg-slate-50">Cambiar</button>
+          </div>
+          <div class="border border-amber-200 bg-amber-50 rounded-2xl p-5 flex gap-3">
+            <svg class="w-6 h-6 stroke-amber-600 flex-none" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+            <div>
+              <p class="font-bold text-amber-900 text-[15px]">El documento 79.456.123 no tiene un crédito Quac activo</p>
+              <p class="text-[13.5px] text-amber-800 mt-1">No es posible generar cobros Quac. El cliente puede solicitar su crédito en quac.co o usar otro medio de pago desde <b>Links de cobro</b>.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────── PANTALLA 3b · Error: mora / bloqueado ───────── -->
+      <section class="screen" id="scr-err-mora">
+        <h2 class="text-[12px] uppercase tracking-widest text-blue-700 font-bold mb-1">Paso 1 · Consulta del cliente — error</h2>
+        <h1 class="text-xl font-black mb-4">Crédito bloqueado</h1>
+
+        <div class="max-w-lg">
+          <div class="flex gap-2 mb-4">
+            <input type="text" value="1032987456" disabled class="flex-1 border border-slate-200 bg-slate-50 rounded-lg px-3.5 py-2.5 text-[15px] text-slate-500">
+            <button onclick="show('inicial')" class="border border-slate-300 text-slate-600 font-bold text-[14px] px-4 py-2.5 rounded-lg hover:bg-slate-50">Cambiar</button>
+          </div>
+          <div class="border border-red-200 bg-red-50 rounded-2xl p-5 flex gap-3">
+            <svg class="w-6 h-6 stroke-red-600 flex-none" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M4.9 4.9l14.2 14.2"/></svg>
+            <div>
+              <p class="font-bold text-red-900 text-[15px]">No es posible generar cobros Quac para este cliente</p>
+              <p class="text-[13.5px] text-red-800 mt-1">El crédito del documento 1.032.987.456 se encuentra <b>bloqueado por mora en cartera</b>. El cliente debe ponerse al día en pagos.quac.co antes de poder usar su cupo.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────── PANTALLA 4 · Formulario de cobro ───────── -->
+      <section class="screen" id="scr-form">
+        <h2 class="text-[12px] uppercase tracking-widest text-blue-700 font-bold mb-1">Paso 2 · Generar el cobro</h2>
+        <h1 class="text-xl font-black mb-4">Datos del cobro Quac</h1>
+
+        <div class="grid lg:grid-cols-2 gap-5 max-w-4xl">
+          <!-- Columna izquierda: cliente + formulario -->
+          <div>
+            <!-- Resumen cliente compacto -->
+            <div class="border border-slate-200 rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-3 bg-slate-50">
+              <div>
+                <p class="font-bold text-[14px]">María Fernanda Rojas · CC 1.098.765.432</p>
+                <p class="text-[12.5px] text-slate-500">Cupo disponible: <b class="text-emerald-700">$2.450.000</b></p>
+              </div>
+              <span class="badge-nivel js-badge-nivel badge-gold">★ Quac Gold</span>
+            </div>
+
+            <label class="block text-[13px] font-bold text-slate-700 mb-1.5">Monto a cobrar (se abona completo a la reserva)</label>
+            <div class="relative mb-1">
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+              <input id="montoInput" type="text" inputmode="numeric" value="500.000"
+                class="w-full border border-slate-300 rounded-lg pl-8 pr-3.5 py-2.5 text-[16px] font-bold focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <p id="montoError" class="hidden text-[13px] font-bold text-red-600 mb-2 flex items-center gap-1.5">
+              <svg class="w-4 h-4 stroke-red-600" viewBox="0 0 24 24" fill="none" stroke-width="2.5"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+              El monto supera el cupo disponible del cliente ($2.450.000)
+            </p>
+
+            <label class="block text-[13px] font-bold text-slate-700 mb-1.5 mt-3">Descripción de la deuda</label>
+            <input id="descInput" type="text" value="Abono 50% reserva Villa Coral ago/2026"
+              class="w-full border border-slate-300 rounded-lg px-3.5 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3">
+
+            <div class="flex items-center gap-2.5 bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2.5 mb-4">
+              <svg class="w-4.5 h-4.5 w-5 h-5 stroke-slate-400 flex-none" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>
+              <p class="text-[12.5px] text-slate-500">Sede: <b class="text-slate-700">Quinta del Mar Principal</b> · Bodega <b class="text-slate-700">502</b> <span class="text-slate-400">(automático según la sede de la reserva)</span></p>
+            </div>
+
+            <button id="btnGenerar" onclick="show('exito')"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-[15px] py-3 rounded-xl disabled:bg-slate-300 disabled:cursor-not-allowed">
+              Generar cobro y notificar al cliente
+            </button>
+          </div>
+
+          <!-- Columna derecha: preview del desglose -->
+          <div>
+            <div class="border border-slate-200 rounded-2xl p-5 bg-white shadow-sm">
+              <p class="text-[12px] uppercase tracking-widest text-slate-400 font-bold mb-3">Desglose para el cliente</p>
+              <div class="space-y-2.5 text-[14px]">
+                <div class="flex justify-between"><span class="text-slate-500">Monto del abono</span><b id="pvMonto">$500.000</b></div>
+                <div class="flex justify-between"><span class="text-slate-500" id="pvDescLbl">Descuento Quac Gold (5%)</span><b class="text-emerald-700" id="pvDesc">−$25.000</b></div>
+                <div class="border-t border-slate-200 pt-2.5 flex justify-between items-center">
+                  <span class="font-bold text-[15px]">El cliente paga</span>
+                  <span class="font-black text-[22px] tracking-tight text-blue-700" id="pvPaga">$475.000</span>
+                </div>
+              </div>
+              <div class="mt-4 flex gap-2 bg-blue-50 border border-blue-100 rounded-lg p-3">
+                <svg class="w-4 h-4 stroke-blue-500 flex-none mt-0.5" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                <p class="text-[12.5px] text-blue-900 leading-relaxed">El abono acreditado a la reserva es <b id="pvNotaMonto">$500.000</b>; el descuento es beneficio del programa <b>Status Quac</b>.</p>
+              </div>
+            </div>
+            <p class="text-[12.5px] text-slate-400 mt-3 leading-relaxed">Al generar el cobro, el cliente recibe una notificación en su celular con el link del portal Quac, donde aprueba el número de cuotas (máximo 15).</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────── PANTALLA 5 · Cobro generado (éxito) ───────── -->
+      <section class="screen" id="scr-exito">
+        <h2 class="text-[12px] uppercase tracking-widest text-blue-700 font-bold mb-1">Paso 3 · Cobro generado</h2>
+        <h1 class="text-xl font-black mb-4">Cobro Quac creado y enviado</h1>
+
+        <div class="max-w-lg">
+          <div class="border border-emerald-200 rounded-2xl overflow-hidden shadow-sm">
+            <div class="bg-emerald-50 px-5 py-4 flex items-center gap-3 border-b border-emerald-200">
+              <div class="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center flex-none">
+                <svg class="w-5 h-5 stroke-white" viewBox="0 0 24 24" fill="none" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+              </div>
+              <div>
+                <p class="font-black text-emerald-900 text-[15px]">Notificación enviada al celular del cliente ✓</p>
+                <p class="text-[13px] text-emerald-800">+57 300 ••• 4521 · María Fernanda Rojas</p>
+              </div>
+            </div>
+            <div class="px-5 py-4 space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p class="text-[12px] uppercase tracking-wide text-slate-400 font-bold">Referencia</p>
+                  <p class="font-mono font-bold text-[14px]">QDM-1751377-000123</p>
+                </div>
+                <span class="inline-flex items-center gap-1.5 bg-amber-100 text-amber-800 text-[12.5px] font-bold px-3 py-1 rounded-full">🟡 Pendiente de aprobación</span>
+              </div>
+              <div class="text-[13.5px] text-slate-600 flex flex-wrap gap-x-5 gap-y-1">
+                <span>Abono a la reserva: <b>$500.000</b></span>
+                <span>Paga el cliente: <b id="exPaga">$475.000</b> <span class="text-slate-400" id="exNivelTag">(desc. Gold 5%)</span></span>
+              </div>
+
+              <div>
+                <p class="text-[12px] uppercase tracking-wide text-slate-400 font-bold mb-1.5">Link del portal para el cliente</p>
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <input id="linkPortal" readonly value="https://compras.quac.co/abono/QDM-1751377-000123"
+                    class="flex-1 border border-slate-200 bg-slate-50 rounded-lg px-3 py-2 text-[12.5px] font-mono text-slate-600">
+                  <div class="flex gap-2">
+                    <button id="btnCopiar" onclick="copiarLink()" class="flex-1 sm:flex-none border border-blue-600 text-blue-700 hover:bg-blue-50 font-bold text-[13px] px-3.5 py-2 rounded-lg whitespace-nowrap">Copiar link</button>
+                    <a href="https://wa.me/573004561234?text=Hola%20Mar%C3%ADa%2C%20aprueba%20tu%20abono%20Quac%20de%20la%20reserva%20en%20Quinta%20del%20Mar%3A%20https%3A%2F%2Fcompras.quac.co%2Fabono%2FQDM-1751377-000123" target="_blank"
+                      class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[13px] px-3.5 py-2 rounded-lg whitespace-nowrap">
+                      <svg class="w-4 h-4 fill-white" viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5.1-1.3A10 10 0 1 0 12 2zm5.4 14.1c-.2.7-1.3 1.3-1.8 1.3-.5.1-1 .2-3.4-.7-2.9-1.1-4.7-4-4.9-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.4.2.5.7 1.8.8 1.9.1.1.1.3 0 .5l-.4.6c-.1.2-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1.2-.2.7-.8.9-1.1.2-.3.4-.2.6-.1l1.9.9c.2.1.4.2.4.3.1.1.1.6-.1 1.2z"/></svg>
+                      WhatsApp
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex gap-2 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <svg class="w-4 h-4 stroke-slate-400 flex-none mt-0.5" viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                <p class="text-[12.5px] text-slate-500 leading-relaxed">El cobro quedará <b class="text-slate-700">Aprobado</b> cuando el cliente abra el link, vea su Status Quac y seleccione el número de cuotas. En ese momento el abono se registra automáticamente en el módulo de <b class="text-slate-700">Pagos</b>.</p>
+              </div>
+            </div>
+          </div>
+
+          <button onclick="show('tabla')" class="mt-4 w-full border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold text-[14px] py-2.5 rounded-xl">
+            Ver solicitudes de cobro de esta reserva ↓
+          </button>
+        </div>
+      </section>
+
+      <!-- ───────── PANTALLA 6 · Foco en la tabla ───────── -->
+      <section class="screen" id="scr-tabla">
+        <h2 class="text-[12px] uppercase tracking-widest text-blue-700 font-bold mb-1">Seguimiento · Solicitudes de cobro Quac</h2>
+        <h1 class="text-xl font-black mb-2">Historial de la reserva #1751377</h1>
+        <p class="text-[13.5px] text-slate-500 max-w-2xl">La tabla vive siempre al final del submódulo (visible en todas las pantallas de este mockup). Cuando una solicitud pasa a <b class="text-slate-700">Aprobada</b>, el sistema registra el abono en el módulo de Pagos por el monto completo con método "Crédito Quac" y actualiza el saldo de la reserva.</p>
+        <div class="mt-3 flex flex-wrap gap-2 text-[12.5px]">
+          <span class="inline-flex items-center gap-1.5 bg-amber-100 text-amber-800 font-bold px-3 py-1 rounded-full">🟡 Pendiente — esperando aprobación del cliente</span>
+          <span class="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-800 font-bold px-3 py-1 rounded-full">🟢 Aprobada — el cliente ya eligió cuotas</span>
+          <span class="inline-flex items-center gap-1.5 bg-slate-200 text-slate-600 font-bold px-3 py-1 rounded-full">⚪ Anulada — cancelada por el operador</span>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ══════════ TABLA DE SOLICITUDES (persistente, al pie del submódulo) ══════════ -->
+  <div class="bg-white rounded-xl border border-slate-200 mt-4 overflow-hidden" id="tablaSolicitudes">
+    <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
+      <h3 class="font-black text-[15px]">Solicitudes de cobro Quac de la reserva</h3>
+      <span class="text-[12px] text-slate-400">Actualizado hoy 13/07/2026 · 09:16 a. m.</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-[13px]">
+        <thead>
+          <tr class="bg-slate-50 text-slate-500 text-left uppercase tracking-wide text-[11px]">
+            <th class="px-4 py-2.5 font-bold">Fecha</th>
+            <th class="px-4 py-2.5 font-bold">Referencia</th>
+            <th class="px-4 py-2.5 font-bold">Descripción</th>
+            <th class="px-4 py-2.5 font-bold text-right">Monto abono</th>
+            <th class="px-4 py-2.5 font-bold text-right">Paga cliente</th>
+            <th class="px-4 py-2.5 font-bold">Estado</th>
+            <th class="px-4 py-2.5 font-bold">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <!-- Pendiente -->
+          <tr>
+            <td class="px-4 py-3 text-slate-500 whitespace-nowrap">13/07/2026 09:15</td>
+            <td class="px-4 py-3 font-mono font-semibold whitespace-nowrap">QDM-1751377-000123</td>
+            <td class="px-4 py-3">Abono 50% reserva Villa Coral ago/2026</td>
+            <td class="px-4 py-3 text-right font-bold whitespace-nowrap">$500.000</td>
+            <td class="px-4 py-3 text-right whitespace-nowrap">$475.000</td>
+            <td class="px-4 py-3">
+              <span class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-full text-[12px] whitespace-nowrap">🟡 Pendiente</span>
+              <p class="text-[11.5px] text-slate-400 mt-1">Esperando aprobación del cliente</p>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap">
+              <button onclick="copiarLinkFila(this)" class="text-blue-700 font-bold hover:underline mr-3">Copiar link</button>
+              <button class="text-red-600 font-bold hover:underline">Anular</button>
+            </td>
+          </tr>
+          <!-- Aprobada -->
+          <tr class="bg-emerald-50/40">
+            <td class="px-4 py-3 text-slate-500 whitespace-nowrap">10/07/2026 16:30</td>
+            <td class="px-4 py-3 font-mono font-semibold whitespace-nowrap">QDM-1751377-000118</td>
+            <td class="px-4 py-3">Anticipo reserva Villa Coral</td>
+            <td class="px-4 py-3 text-right font-bold whitespace-nowrap">$500.000</td>
+            <td class="px-4 py-3 text-right whitespace-nowrap">$475.000</td>
+            <td class="px-4 py-3">
+              <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full text-[12px] whitespace-nowrap">🟢 Aprobada — 6 cuotas de $79.167</span>
+              <p class="text-[11.5px] text-emerald-700 font-semibold mt-1">Abono registrado en pagos ✓ · Módulo Pagos: $500.000 · Método: Crédito Quac</p>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap">
+              <button class="text-blue-700 font-bold hover:underline">Ver en Pagos</button>
+            </td>
+          </tr>
+          <!-- Anulada -->
+          <tr class="text-slate-400">
+            <td class="px-4 py-3 whitespace-nowrap">05/07/2026 11:05</td>
+            <td class="px-4 py-3 font-mono whitespace-nowrap">QDM-1751377-000112</td>
+            <td class="px-4 py-3">Abono inicial reserva Villa Coral</td>
+            <td class="px-4 py-3 text-right whitespace-nowrap line-through">$200.000</td>
+            <td class="px-4 py-3 text-right whitespace-nowrap line-through">$190.000</td>
+            <td class="px-4 py-3">
+              <span class="inline-flex items-center gap-1 bg-slate-200 text-slate-600 font-bold px-2.5 py-1 rounded-full text-[12px] whitespace-nowrap">⚪ Anulada</span>
+              <p class="text-[11.5px] text-slate-400 mt-1">Anulada por el operador · 05/07/2026</p>
+            </td>
+            <td class="px-4 py-3">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 text-[12px] text-slate-500">
+      Los abonos aprobados con Quac acreditan a la reserva el <b class="text-slate-700">monto completo digitado</b>; la diferencia por descuento de nivel es beneficio del programa Status Quac asumido por el programa (no descuadra el saldo de la reserva).
+    </div>
+  </div>
+
+  <p class="text-center text-[12px] text-slate-400 mt-5">
+    Mockup PD-1488 · Submódulo "Cobro con Quac" en la edición de reserva de quinta-web · hereda lenguaje visual de badges de GW-58 · 2026-07-13
+  </p>
+</div>
+
+<script>
+  // ── Formato moneda ──────────────────────────────────────────
+  const fmt = n => '$' + n.toLocaleString('es-CO', {maximumFractionDigits:0}).replace(/,/g,'.');
+  const CUPO = 2450000;
+
+  // ── Niveles Status Quac ─────────────────────────────────────
+  const NIVELES = {
+    quac:  {nombre:'Quac',   clase:'badge-quac',   pct:0,  quacs:'8.150 Quacs',  beneficio:'Sin descuento aún (nivel de entrada)'},
+    plus:  {nombre:'Plus',   clase:'badge-plus',   pct:0,  quacs:'18.400 Quacs', beneficio:'Sin descuento aún'},
+    silver:{nombre:'Silver', clase:'badge-silver', pct:5,  quacs:'31.200 Quacs', beneficio:'5% de descuento permanente'},
+    gold:  {nombre:'Gold',   clase:'badge-gold',   pct:5,  quacs:'52.300 Quacs', beneficio:'5% de descuento permanente'},
+    black: {nombre:'Black',  clase:'badge-black',  pct:10, quacs:'97.800 Quacs', beneficio:'10% de descuento permanente'}
+  };
+  let nivelActual = 'gold';
+
+  // ── Notas de contexto por pantalla (para el dev) ────────────
+  const NOTAS = {
+    'inicial':    'Estado inicial del submódulo: solo el input de documento. quinta-web consulta cupo + Status Quac vía el endpoint nuevo de api-compras-quac.',
+    'ok':         'Consulta exitosa: card con estado del crédito, cupo disponible y nivel Status Quac (badge heredado de GW-58). Usa la variante de nivel para ver los 5 badges.',
+    'err-credito':'El documento no tiene crédito Quac activo: aviso ámbar, no se permite continuar. Se sugiere el flujo alterno de Links de cobro.',
+    'err-mora':   'Cliente en mora / crédito bloqueado (validación de cartera del CRM): aviso rojo, cobros Quac deshabilitados.',
+    'form':       'Formulario de cobro: monto editable con preview en vivo del desglose según el nivel. La bodega/sede es informativa, sale automática de la sede de la reserva.',
+    'form-cupo':  'Variante de validación: el monto digitado ($2.600.000) supera el cupo ($2.450.000) → error visible y botón deshabilitado.',
+    'exito':      'Cobro creado: notificación automática enviada, link del portal con Copiar/WhatsApp, referencia y estado Pendiente. La fila nueva aparece en la tabla de abajo.',
+    'tabla':      'Seguimiento: la tabla es persistente al pie del submódulo. La fila Aprobada muestra las cuotas elegidas y la integración con el módulo de Pagos.'
+  };
+
+  // ── Navegación entre pantallas ──────────────────────────────
+  function show(screen){
+    const real = screen === 'form-cupo' ? 'form' : screen;
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('scr-' + real).classList.add('active');
+    document.querySelectorAll('#switcher button').forEach(b =>
+      b.classList.toggle('active', b.dataset.screen === screen));
+    document.getElementById('notaMock').textContent = NOTAS[screen] || '';
+
+    if(screen === 'form')      { setMonto(500000); }
+    if(screen === 'form-cupo') { setMonto(2600000); }
+    if(screen === 'tabla')     { document.getElementById('tablaSolicitudes').scrollIntoView({behavior:'smooth', block:'center'}); }
+  }
+  document.querySelectorAll('#switcher button').forEach(b =>
+    b.addEventListener('click', () => show(b.dataset.screen)));
+
+  // ── Variante de nivel Status Quac ───────────────────────────
+  function aplicarNivel(key){
+    nivelActual = key;
+    const n = NIVELES[key];
+    document.querySelectorAll('#nivelSwitcher button').forEach(b =>
+      b.classList.toggle('active', b.dataset.nivel === key));
+    document.querySelectorAll('.js-badge-nivel').forEach(el => {
+      el.className = 'badge-nivel js-badge-nivel ' + n.clase;
+      el.textContent = '★ Quac ' + n.nombre;
+    });
+    document.querySelectorAll('.js-quacs').forEach(el => el.textContent = n.quacs);
+    document.querySelectorAll('.js-beneficio').forEach(el => el.textContent = n.beneficio);
+    recalcular();
+  }
+  document.querySelectorAll('#nivelSwitcher button').forEach(b =>
+    b.addEventListener('click', () => aplicarNivel(b.dataset.nivel)));
+
+  // ── Formulario: monto + preview del desglose ────────────────
+  const montoInput = document.getElementById('montoInput');
+
+  function parseMonto(){ return parseInt((montoInput.value || '0').replace(/\D/g,'') || '0', 10); }
+  function setMonto(v){ montoInput.value = v.toLocaleString('es-CO').replace(/,/g,'.'); recalcular(); }
+
+  function recalcular(){
+    const monto = parseMonto();
+    const n = NIVELES[nivelActual];
+    const desc = Math.round(monto * n.pct / 100);
+    const paga = monto - desc;
+
+    document.getElementById('pvMonto').textContent = fmt(monto);
+    document.getElementById('pvDescLbl').textContent =
+      n.pct > 0 ? `Descuento Quac ${n.nombre} (${n.pct}%)` : `Descuento Quac ${n.nombre} (0%) — este nivel no tiene descuento`;
+    document.getElementById('pvDesc').textContent = desc > 0 ? '−' + fmt(desc) : '$0';
+    document.getElementById('pvPaga').textContent = fmt(paga);
+    document.getElementById('pvNotaMonto').textContent = fmt(monto);
+
+    // Pantalla de éxito coherente con el nivel elegido
+    document.getElementById('exPaga').textContent = fmt(500000 - Math.round(500000 * n.pct / 100));
+    document.getElementById('exNivelTag').textContent = n.pct > 0 ? `(desc. ${n.nombre} ${n.pct}%)` : '(sin descuento de nivel)';
+
+    // Validación de cupo
+    const excede = monto > CUPO;
+    document.getElementById('montoError').classList.toggle('hidden', !excede);
+    montoInput.classList.toggle('border-red-500', excede);
+    montoInput.classList.toggle('ring-2', excede);
+    montoInput.classList.toggle('ring-red-200', excede);
+    document.getElementById('btnGenerar').disabled = excede || monto <= 0;
+  }
+
+  montoInput.addEventListener('input', () => {
+    const v = parseMonto();
+    montoInput.value = v ? v.toLocaleString('es-CO').replace(/,/g,'.') : '';
+    recalcular();
+  });
+
+  // ── Copiar link del portal ──────────────────────────────────
+  function copiar(texto, btn, original){
+    const done = () => { btn.textContent = '¡Copiado! ✓'; setTimeout(() => btn.textContent = original, 1800); };
+    if(navigator.clipboard){ navigator.clipboard.writeText(texto).then(done).catch(done); } else { done(); }
+  }
+  function copiarLink(){
+    copiar(document.getElementById('linkPortal').value, document.getElementById('btnCopiar'), 'Copiar link');
+  }
+  function copiarLinkFila(btn){
+    copiar('https://compras.quac.co/abono/QDM-1751377-000123', btn, 'Copiar link');
+  }
+
+  // ── Estado inicial ──────────────────────────────────────────
+  aplicarNivel('gold');
+  show('inicial');
+</script>
+</body>
+</html>
