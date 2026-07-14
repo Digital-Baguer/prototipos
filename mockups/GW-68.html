@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-68 · Filtros de Gestión de Entregas — fiel a TablaEntregas.vue (GW-52)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    table.frozen-cols { min-width: 1500px; }
+    table.frozen-cols th:first-child, table.frozen-cols td:first-child {
+        position: sticky; left: 0; z-index: 2; background: #fff; box-shadow: inset -1px 0 0 #e5e7eb;
+    }
+    table.frozen-cols thead th:first-child { background: #f9fafb; z-index: 3; }
+    table.frozen-cols th:last-child, table.frozen-cols td:last-child {
+        position: sticky; right: 0; z-index: 2; background: #fff; box-shadow: inset 1px 0 0 #e5e7eb;
+    }
+    table.frozen-cols thead th:last-child { background: #f9fafb; z-index: 3; }
+</style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div class="bg-gray-900 text-white px-6 py-3 sticky top-0 z-50 shadow-lg">
+    <div class="flex flex-wrap items-center gap-4 max-w-7xl mx-auto">
+        <span class="text-xs font-mono bg-blue-600 rounded px-2 py-0.5">GW-68</span>
+        <span class="text-sm font-semibold">Gestión de Entregas · fiel a la interfaz actual (GW-52) + filtros nuevos</span>
+        <div class="flex items-center gap-1 ml-auto">
+            <span class="text-xs text-gray-400 mr-2">Buscar por referencia:</span>
+            <button onclick="setBusqueda(false)" id="btn-off" class="text-xs px-3 py-1.5 rounded-md font-medium bg-gray-700 hover:bg-gray-600">OFF · listado normal</button>
+            <button onclick="setBusqueda(true)" id="btn-on" class="text-xs px-3 py-1.5 rounded-md font-medium bg-gray-700 hover:bg-gray-600">ON · filtrado por SKU 833863</button>
+        </div>
+    </div>
+</div>
+
+<div class="max-w-7xl mx-auto px-6 pt-4">
+    <div id="descripcion" class="text-sm rounded-lg border px-4 py-3 bg-white text-gray-600"></div>
+</div>
+
+<div class="max-w-7xl mx-auto p-6">
+    <div class="mb-4">
+        <h1 class="text-xl font-bold text-gray-900">Gestión de Entregas</h1>
+        <p class="text-sm text-gray-500">Administra y agenda las entregas de venta asistida</p>
+    </div>
+
+    <!-- Barra de filtros: 🆕 marca lo nuevo de GW-68 -->
+    <div class="bg-white rounded-lg border p-4 mb-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+            <div class="space-y-1.5"><label class="text-sm font-medium text-gray-700">Fecha desde</label>
+                <input type="date" value="2026-06-13" class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"></div>
+            <div class="space-y-1.5"><label class="text-sm font-medium text-gray-700">Fecha hasta</label>
+                <input type="date" value="2026-07-13" class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"></div>
+            <div class="space-y-1.5"><label class="text-sm font-medium text-gray-700">Tipo de cobro <span class="text-blue-600 text-xs">🆕</span></label>
+                <select class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm bg-white"><option>Todos</option><option>Pago anticipado</option><option>Contra entrega</option></select></div>
+            <div class="space-y-1.5"><label class="text-sm font-medium text-gray-700">Mensajero</label>
+                <select class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm bg-white"><option>Todos</option><option>Carlos</option><option>Andrés</option></select></div>
+            <div class="space-y-1.5 lg:col-span-2"><label class="text-sm font-medium text-gray-700">Buscar cliente</label>
+                <input type="text" placeholder="Doc, nombre o #VA" class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"></div>
+            <div class="space-y-1.5"><label class="text-sm font-medium text-gray-700">Buscar por referencia <span class="text-blue-600 text-xs">🆕</span></label>
+                <input type="text" id="input-ref" placeholder="SKU del producto" class="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"></div>
+            <div class="flex gap-2 items-end"><button class="flex-1 bg-gray-900 text-white rounded-md px-4 py-1.5 text-sm font-medium hover:bg-gray-800">Buscar</button></div>
+        </div>
+    </div>
+
+    <!-- Tabs de estado (ya existen desde GW-52; sin cambios) -->
+    <div class="flex flex-wrap gap-1 rounded-lg bg-gray-100 p-1 mb-4 border" id="tabs"></div>
+
+    <!-- Banner solo cuando hay búsqueda por referencia -->
+    <div id="banner" class="hidden mb-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800"></div>
+
+    <!-- Tabla REAL: 9 columnas, scroll horizontal, CARRITO y ACCIONES congeladas -->
+    <div class="bg-white rounded-xl border overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+            <table class="w-full frozen-cols text-sm">
+                <thead>
+                    <tr class="border-b">
+                        <th class="bg-gray-50 text-gray-500 uppercase text-xs px-4 py-3 text-left">Carrito</th>
+                        <th class="bg-gray-50 text-gray-500 uppercase text-xs px-4 py-3 text-center">Tienda</th>
+                        <th class="bg-gray-50 text-gray-500 uppercase text-xs px-4 py-3 text-left">Cliente</th>
+                        <th class="bg-gray-50 text-gray-500 uppercase text-xs px-4 py-3 text-left">Zona</th>
+                        <th class="bg-gray-50 text-gray-500 uppercase text-xs px-4 py-3 text-left">Total</th>
+                        <th class="bg-gray-50 text-gray-500 uppercase text-xs px-4 py-3 text-left">Pedido / Factura</th>
+                        <th class="bg-gray-50 text-gray-500 uppercase text-xs px-4 py-3 text-left">Estado / Programación</th>
+                        <th class="bg-gray-50 text-gray-500 uppercase text-xs px-4 py-3 text-left">Tiempo entrega</th>
+                        <th class="bg-gray-50 text-gray-500 uppercase text-xs px-4 py-3 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody" class="divide-y divide-gray-200"></tbody>
+            </table>
+        </div>
+        <div class="flex items-center justify-between border-t px-4 py-3">
+            <p class="text-sm text-gray-500" id="pag">Mostrando 1 - 5 de 28</p>
+            <div class="flex gap-1">
+                <button class="rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-400" disabled>‹</button>
+                <button class="rounded-md border border-gray-300 bg-gray-100 px-3 py-1 text-sm font-medium">1</button>
+                <button class="rounded-md border border-gray-300 px-2 py-1 text-sm">›</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4 grid md:grid-cols-2 gap-4">
+        <div class="bg-white rounded-lg border p-4">
+            <p class="text-xs font-semibold text-green-700 uppercase tracking-wider mb-2">✅ Qué cambia (GW-68)</p>
+            <ul class="text-sm text-gray-600 space-y-1 list-disc pl-4">
+                <li>Filtro <strong>Tipo de cobro</strong> (Todos / Anticipado / Contra entrega)</li>
+                <li>Campo <strong>Buscar por referencia</strong> (SKU), separado del buscador de cliente</li>
+                <li>La referencia excluye prendas devueltas y se combina con estado/tipo/fecha</li>
+            </ul>
+        </div>
+        <div class="bg-white rounded-lg border p-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">⛔ Qué NO cambia</p>
+            <ul class="text-sm text-gray-600 space-y-1 list-disc pl-4">
+                <li>Las 9 columnas y la columna <strong>Acciones</strong> (Ver + Asignar/Reasignar)</li>
+                <li>Qué carritos muestra el listado (contra entrega confirmados + anticipados pagados)</li>
+                <li>Los tabs de estado, el scroll con columnas congeladas, la paginación</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+// Datos de ejemplo con TODAS las columnas reales
+const filas = [
+    { id:140912, tienda:'Stirpe', cliente:'María F. Ortiz', doc:'63.512.884', barrio:'Cabecera', ciudad:'Bucaramanga', total:'$189.900', cobro:'contra_entrega', pedido:null, estado:'sin_asignar', prog:'Hoy 2-4 pm', mensajero:null, tiempo:'—', tieneSku:true, sku:'833863 · Buzo Hombre (Negro·L)' },
+    { id:140880, tienda:'Derek', cliente:'Juan S. Rueda', doc:'91.284.501', barrio:'Provenza', ciudad:'Bucaramanga', total:'$324.500', cobro:'contra_entrega', pedido:null, estado:'asignada', prog:'Hoy 2-4 pm', mensajero:'Carlos', tiempo:'—', tieneSku:true, sku:'833863 · Buzo Hombre (Azul·M)' },
+    { id:140854, tienda:'Typer', cliente:'Laura Jiménez', doc:'1.098.774.230', barrio:'Lagos II', ciudad:'Floridablanca', total:'$95.000', cobro:'contra_entrega', pedido:null, estado:'recogida', prog:'Hoy 4-6 pm', mensajero:'Andrés', tiempo:'—', tieneSku:false },
+    { id:140812, tienda:'U82', cliente:'Andrés Meza', doc:'13.744.092', barrio:'Centro', ciudad:'Girón', total:'$278.000', cobro:'contra_entrega', pedido:707204, factura:null, estado:'en_ruta', prog:'vence 6 pm', mensajero:'Carlos', tiempo:'hace 25 min', tieneSku:false },
+    { id:140770, tienda:'Stirpe', cliente:'Paola Castro', doc:'37.518.660', barrio:'San Alonso', ciudad:'Bucaramanga', total:'$156.700', cobro:'anticipado', pedido:707150, factura:'89045', estado:'entregada', prog:'Entregada', mensajero:'Julián', tiempo:'38 min · A tiempo', tieneSku:false },
+];
+
+const estadoCfg = {
+    sin_asignar:{ label:'Sin asignar', cls:'bg-amber-100 text-amber-600' },
+    asignada:{ label:'Asignada', cls:'bg-blue-100 text-blue-700' },
+    recogida:{ label:'Recogida', cls:'bg-blue-100 text-blue-700' },
+    en_ruta:{ label:'En ruta', cls:'bg-blue-100 text-blue-700' },
+    entregada:{ label:'Entregada', cls:'bg-green-100 text-green-700' },
+};
+const cobroCfg = {
+    anticipado:{ label:'Anticipado', cls:'bg-blue-100 text-blue-800' },
+    contra_entrega:{ label:'Contra entrega', cls:'bg-amber-100 text-amber-800' },
+};
+
+let busqueda = false;
+
+const iconEye = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7"/><circle cx="12" cy="12" r="3"/></svg>';
+const iconUserPlus = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 21a8 8 0 0 1 13.3-6"/><circle cx="10" cy="8" r="5"/><path d="M19 16v6"/><path d="M22 19h-6"/></svg>';
+const iconReasignar = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 1 2.6 6.4"/><path d="M3 22v-6h6"/></svg>';
+
+function acciones(f) {
+    const ver = `<button class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600" title="Ver detalle">${iconEye}</button>`;
+    let asignar = '';
+    if (f.estado === 'sin_asignar')
+        asignar = `<button class="inline-flex h-8 items-center gap-1.5 rounded-md bg-gray-900 px-3 text-xs font-medium text-white hover:bg-gray-800">${iconUserPlus}Asignar</button>`;
+    else if (f.estado === 'asignada' || f.estado === 'recogida')
+        asignar = `<button class="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-300 px-3 text-xs font-medium text-gray-700 hover:bg-gray-100">${iconReasignar}Reasignar</button>`;
+    return `<div class="flex items-center justify-end gap-1.5">${ver}${asignar}</div>`;
+}
+
+function celdaPedido(f) {
+    if (!f.pedido) return '<span class="text-gray-400">— Sin pedido</span>';
+    const fact = f.factura ? `<div class="text-xs font-medium text-gray-700">Fact. #${f.factura}</div>` : '<div class="text-xs text-gray-400">Sin facturar</div>';
+    return `<div class="flex flex-col gap-1"><span class="font-medium text-gray-900">#PED-${f.pedido}</span>
+        <span class="inline-flex w-fit rounded-full px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700">Pagado</span>${fact}</div>`;
+}
+
+function render() {
+    document.getElementById('btn-off').className = 'text-xs px-3 py-1.5 rounded-md font-medium ' + (!busqueda ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600');
+    document.getElementById('btn-on').className = 'text-xs px-3 py-1.5 rounded-md font-medium ' + (busqueda ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600');
+    document.getElementById('input-ref').value = busqueda ? '833863' : '';
+    document.getElementById('descripcion').innerHTML = busqueda
+        ? '<strong>Con búsqueda por referencia (SKU 833863):</strong> el listado se filtra a los carritos que llevan esa prenda. Mismas columnas y acciones; el banner azul indica la referencia buscada. La prenda que hizo match se muestra bajo el cliente (a validar) — sin agregar columnas.'
+        : '<strong>Sin búsqueda por referencia (listado normal):</strong> así se ve hoy tras GW-52 — 9 columnas, badges de estado, y la columna <strong>Acciones</strong> con Ver + Asignar/Reasignar según el estado. GW-68 solo agrega el filtro Tipo de cobro y el campo Buscar por referencia; el resto queda igual.';
+
+    // Tabs
+    document.getElementById('tabs').innerHTML =
+        [['Todas',28,false],['Sin asignar',24,busqueda],['Asignadas',2,false],['Recogida',1,false],['En ruta',1,false],['Entregadas',0,false]]
+        .map(([l,n,act]) => `<button class="rounded-md px-3 py-1.5 text-sm font-medium ${act?'bg-white text-gray-900 shadow-sm':'text-gray-600'}">${l} (${n})</button>`).join('');
+
+    // Banner
+    const banner = document.getElementById('banner');
+    if (busqueda) { banner.classList.remove('hidden'); banner.innerHTML = 'Buscando referencia <strong>833863</strong> (Buzo Hombre Unicolor) · combinada con el estado/tipo activos · <strong>2 carritos en armado</strong> llevan esta prenda'; }
+    else banner.classList.add('hidden');
+
+    const rows = busqueda ? filas.filter(f => f.tieneSku) : filas;
+    document.getElementById('pag').textContent = busqueda ? `Mostrando 1 - ${rows.length} de ${rows.length}` : 'Mostrando 1 - 5 de 28';
+
+    document.getElementById('tbody').innerHTML = rows.map(f => `
+        <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 align-top"><div class="flex flex-col gap-1"><span class="font-semibold text-blue-600">#${f.id}</span><span class="text-xs text-gray-500">13 jul</span></div></td>
+            <td class="px-4 py-3 align-top text-center">${f.tienda}</td>
+            <td class="px-4 py-3 align-top">
+                <div class="font-medium text-gray-900">${f.cliente}</div>
+                <div class="text-xs text-gray-500">${f.doc}</div>
+                ${busqueda && f.tieneSku ? `<div class="mt-1 text-xs text-blue-700 bg-blue-50 rounded px-1.5 py-0.5 inline-block">🔎 ${f.sku}</div>` : ''}
+            </td>
+            <td class="px-4 py-3 align-top"><div class="text-gray-700">${f.barrio}</div><div class="text-xs text-gray-500">${f.ciudad}</div></td>
+            <td class="px-4 py-3 align-top"><div class="font-semibold text-gray-900">${f.total}</div>
+                <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium mt-1 ${cobroCfg[f.cobro].cls}">${cobroCfg[f.cobro].label}</span></td>
+            <td class="px-4 py-3 align-top">${celdaPedido(f)}</td>
+            <td class="px-4 py-3 align-top">
+                <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${estadoCfg[f.estado].cls}">${estadoCfg[f.estado].label}</span>
+                <div class="text-xs text-gray-500 mt-1">${f.prog}</div>
+                ${f.mensajero ? `<div class="text-xs text-gray-400">Mensajero: ${f.mensajero}</div>` : ''}
+            </td>
+            <td class="px-4 py-3 align-top text-gray-600">${f.tiempo}</td>
+            <td class="px-4 py-3 align-top text-right">${acciones(f)}</td>
+        </tr>`).join('');
+}
+
+function setBusqueda(v){ busqueda = v; render(); }
+render();
+</script>
+</body>
+</html>
