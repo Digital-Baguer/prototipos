@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bug gift card + cupo Quac · carrito 147101 — dónde está el error</title>
+<style>
+  :root{
+    --tinta:#1a2332; --papel:#f7f5f0; --carta:#fff; --borde:#e3ded4;
+    --rojo:#c0392b; --rojo-suave:#fdf0ee; --verde:#1e7d4f; --verde-suave:#edf7f1;
+    --ambar:#a05a00; --ambar-suave:#fdf6ea; --azul:#1f4e79; --azul-suave:#eef3f9;
+    --gris:#6b7280; --mono:"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,serif;background:var(--papel);color:var(--tinta);line-height:1.55;padding:36px 14px}
+  .doc{max-width:1000px;margin:0 auto}
+  header{border-bottom:3px solid var(--tinta);padding-bottom:16px;margin-bottom:26px}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--azul);margin-bottom:6px}
+  h1{font-size:24px;line-height:1.25}
+  h2{font-size:18px;margin-bottom:12px}
+  section{background:var(--carta);border:1px solid var(--borde);border-radius:10px;padding:22px 24px;margin-bottom:20px}
+  .num{display:inline-block;font-family:var(--mono);font-size:13px;background:var(--tinta);color:#fff;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;margin-right:8px;vertical-align:2px}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}
+  th{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;text-align:left;color:var(--gris);border-bottom:2px solid var(--tinta);padding:6px 10px}
+  td{padding:6px 10px;border-bottom:1px solid var(--borde)}
+  td.r,th.r{text-align:right;font-family:var(--mono);font-size:13px}
+  .badge{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px}
+  .b-rojo{background:var(--rojo-suave);color:var(--rojo)}
+  .b-verde{background:var(--verde-suave);color:var(--verde)}
+  .callout{border-left:4px solid var(--azul);background:var(--azul-suave);padding:11px 15px;border-radius:0 8px 8px 0;margin:12px 0;font-size:14px}
+  .callout.rojo{border-color:var(--rojo);background:var(--rojo-suave)}
+  .callout.verde{border-color:var(--verde);background:var(--verde-suave)}
+  .flujo{display:flex;flex-direction:column;gap:0;margin:14px 0}
+  .nodo{border:2px solid var(--borde);border-radius:10px;padding:12px 16px;background:#fafaf8}
+  .nodo h4{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;color:var(--azul)}
+  .nodo.error{border-color:var(--rojo);background:var(--rojo-suave)}
+  .nodo.error h4{color:var(--rojo)}
+  .flecha{ text-align:center;font-size:20px;color:var(--gris);padding:2px 0}
+  .dos{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.dos{grid-template-columns:1fr}}
+  .panel{border:2px solid var(--borde);border-radius:10px;padding:14px 16px}
+  .panel.malo{border-color:var(--rojo)}
+  .panel.bueno{border-color:var(--verde)}
+  .panel h3{font-family:var(--mono);font-size:13px;text-transform:uppercase;margin-bottom:10px}
+  .panel.malo h3{color:var(--rojo)} .panel.bueno h3{color:var(--verde)}
+  .modal{background:#fff;border:1px solid var(--borde);border-radius:12px;padding:14px;font-size:13.5px}
+  .modal .banner{background:#fdf3d7;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:12.5px}
+  .modal .banner.ok{background:var(--verde-suave)}
+  .modal .pagas{font-size:11px;color:var(--gris);text-align:center}
+  .modal .monto{font-size:26px;font-weight:700;color:#5b21b6;text-align:center;margin:2px 0 10px}
+  .modal .linea{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed var(--borde)}
+  .modal .linea.total{font-weight:700;border-bottom:none;border-top:2px solid var(--tinta);margin-top:4px;padding-top:6px}
+  .modal .nota{font-size:11px;color:var(--gris);text-align:center;margin-top:6px}
+  .tachado{text-decoration:line-through;color:var(--rojo)}
+  code,.mono{font-family:var(--mono);font-size:12.5px}
+  code{background:#f1efe9;padding:1px 6px;border-radius:4px}
+  .diff{font-family:var(--mono);font-size:13px;background:#1e293b;color:#e2e8f0;border-radius:8px;padding:12px 16px;margin:10px 0;overflow-x:auto;white-space:pre}
+  .diff .del{color:#f87171}.diff .add{color:#4ade80}
+  footer{color:var(--gris);font-size:12px;font-family:var(--mono);text-align:center;padding:8px 0 24px}
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header>
+  <div class="kicker">Hallazgo QA · carrito 147101 · corregido en feature/PD-1490</div>
+  <h1>Gift card + cupo Quac: por qué la pantalla mostraba "Pago mixto · Faltan $100.000" que no faltaban</h1>
+</header>
+
+<!-- 1. EL CASO -->
+<section>
+  <h2><span class="num">1</span>El caso que probaste</h2>
+  <table>
+    <tr><th>Concepto</th><th class="r">Valor</th></tr>
+    <tr><td>Jean Chevignon</td><td class="r">$409.900</td></tr>
+    <tr><td>Envío (que Gold libera)</td><td class="r">$8.961</td></tr>
+    <tr><td>Total de la compra</td><td class="r">$418.861</td></tr>
+    <tr><td>GiftCard aplicada</td><td class="r">−$100.000</td></tr>
+    <tr><td><b>VALOR A PAGAR (saldo pendiente)</b></td><td class="r"><b>$318.861</b></td></tr>
+    <tr><td>Cupo disponible (Gold 5%)</td><td class="r">$1.555.392 — sobra de sobra</td></tr>
+  </table>
+  <div class="callout">Con el cupo cubriendo todo el saldo, esto es un <b>pago total</b> de $318.861 con beneficios Gold. No hay ningún "mixto" ni falta nada: la gift ya está puesta.</div>
+</section>
+
+<!-- 2. DONDE ESTA EL ERROR -->
+<section>
+  <h2><span class="num">2</span>Dónde está el error — el viaje del dato</h2>
+  <div class="flujo">
+    <div class="nodo">
+      <h4>🛒 Carrito (BD)</h4>
+      Tiene DOS números: <code>carrito_total = $418.861</code> (el bruto) y <code>carrito_saldo_pendiente = $318.861</code> (el valor a pagar, ya con la gift descontada). Ambos correctos.
+    </div>
+    <div class="flecha">↓</div>
+    <div class="nodo error">
+      <h4>⚠️ get-api · al pedir el cálculo del descuento — AQUÍ NACE EL BUG</h4>
+      Envía al motor de descuentos <b>el número equivocado</b>: <code>carritoTotal = $418.861</code> (el BRUTO) en vez del valor a pagar. El escenario de pedido ya enviaba el valor a pagar — el de carrito no. Una línea.
+    </div>
+    <div class="flecha">↓</div>
+    <div class="nodo">
+      <h4>🧮 Motor de descuentos (api-compras-quac)</h4>
+      Recibe "la compra vale $418.861" y "con cupo se pagarán $318.861" → concluye: <b>"es PAGO MIXTO, faltan $100.000 por otro medio"</b> — sin saber que esos $100.000 son la gift YA aplicada. Y calcula el 5% sobre $318.861 (que trae el envío adentro) = $15.943 en vez de sobre $309.900 = $15.495 <span class="badge b-rojo">error 2</span>
+    </div>
+    <div class="flecha">↓</div>
+    <div class="nodo error">
+      <h4>📱 Pantalla (modal del nivel)</h4>
+      Pinta fielmente lo que el motor le dijo: banner de mixto con faltante falso, "Pagas hoy" inflado y un desglose con un "otro método" de $75.096 que no existe. <b>El front no inventó nada — le llegaron números malos.</b>
+    </div>
+  </div>
+</section>
+
+<!-- 3. COMO SALIO VS COMO DEBIO -->
+<section>
+  <h2><span class="num">3</span>Cómo salió vs cómo debió salir</h2>
+  <div class="dos">
+    <div class="panel malo">
+      <h3>❌ Cómo salió (tu pantallazo)</h3>
+      <div class="modal">
+        <div class="banner">⚠ <b>Pago mixto</b><br>Tu cupo cubre $318.861 · <span class="tachado">Faltan $100.000</span></div>
+        <div class="pagas">Pagas hoy</div>
+        <div class="monto tachado">$393.957</div>
+        <div class="linea"><span>Valor de tu compra</span><span>$418.861</span></div>
+        <div class="linea"><span>✓ Envío gratis Quac Gold</span><span>−$8.961</span></div>
+        <div class="linea"><span>✓ 5% sobre porción Quac</span><span class="tachado">−$15.943,05</span></div>
+        <div class="linea total"><span>Total</span><span>$393.957</span></div>
+        <div class="nota tachado">= $318.861 con cupo Quac + $75.096 con otro método</div>
+      </div>
+      <p style="font-size:12.5px;margin-top:8px">Los $100.000 "que faltan" son la gift ya aplicada. Los $75.096 "con otro método" no existen. El 5% grava $8.961 de envío que se libera.</p>
+    </div>
+    <div class="panel bueno">
+      <h3>✅ Cómo debió salir (y saldrá con el fix)</h3>
+      <div class="modal">
+        <div class="banner ok">✓ <b>Pago total con tu cupo</b><br>GiftCard aplicada: −$100.000</div>
+        <div class="pagas">Pagas hoy con tu cupo</div>
+        <div class="monto" style="color:#1e7d4f">$294.405</div>
+        <div class="linea"><span>Saldo a pagar (tras GiftCard)</span><span>$318.861</span></div>
+        <div class="linea"><span>✓ Envío gratis Quac Gold</span><span>−$8.961</span></div>
+        <div class="linea"><span>✓ 5% sobre productos</span><span>−$15.495</span></div>
+        <div class="linea total"><span>Total al cupo</span><span>$294.405</span></div>
+        <div class="nota">GiftCard $100.000 + cupo $294.405 = compra completa</div>
+      </div>
+      <p style="font-size:12.5px;margin-top:8px">Sin banner de mixto. El 5% solo sobre los productos pendientes ($309.900). El cliente ve exactamente lo que va a salir de su cupo.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 4. LOS NUMEROS -->
+<section>
+  <h2><span class="num">4</span>La aritmética, lado a lado</h2>
+  <table>
+    <tr><th>Paso</th><th class="r">❌ Con el bruto ($418.861)</th><th class="r">✅ Con el valor a pagar ($318.861)</th></tr>
+    <tr><td>¿Mixto? (porción cupo vs "total")</td><td class="r">318.861 &lt; 418.861 → "MIXTO, faltan 100.000"</td><td class="r">318.861 = 318.861 → <b>PAGO TOTAL</b></td></tr>
+    <tr><td>Base del 5%</td><td class="r">318.861 (porción, CON envío adentro)</td><td class="r">318.861 − 8.961 = <b>309.900</b> (solo productos)</td></tr>
+    <tr><td>Descuento Gold 5%</td><td class="r">15.943,05</td><td class="r"><b>15.495,00</b></td></tr>
+    <tr><td>"Pagas hoy"</td><td class="r">418.861 − 8.961 − 15.943 = 393.957 ❌</td><td class="r">318.861 − 8.961 − 15.495 = <b>294.405</b> ✓</td></tr>
+    <tr><td>Cobro real al cupo</td><td class="r">confuso (desglose fantasma de 75.096)</td><td class="r"><b>294.405</b> — coincide con lo que ve</td></tr>
+  </table>
+</section>
+
+<!-- 5. EL FIX -->
+<section>
+  <h2><span class="num">5</span>El fix (ya en <code>feature/PD-1490</code>)</h2>
+  <div class="diff">// get-api · QuacStatusService::calculateForCart · commit f0744
+<span class="del">-    carritoTotal: $carritoTotalFloat,      // enviaba el BRUTO $418.861</span>
+<span class="add">+    carritoTotal: $saldoPendiente,          // envía el VALOR A PAGAR $318.861</span>
+
+// + commit f3f03 (get-api) y a533a (api-compras-quac): techo de base
+//   para que el 5% jamás grave el envío embebido en la porción</div>
+  <div class="callout verde"><b>Por qué es la causa raíz:</b> el motor de descuentos y la pantalla hacen bien su trabajo — les llegaba el dato equivocado. Corregido el dato en el origen, la clasificación (pago total), el descuento ($15.495) y todos los números de la pantalla ($294.405) salen bien sin tocar nada más. El matiz restante es cosmético y del front: mostrar el bruto ($418.861) con la GiftCard como renglón −$100.000.</div>
+  <div class="callout ambar"><b>Para verlo en testsite7:</b> el sitio corre la rama de PD-1491, que no incluye estos commits. Hay que desplegar la rama actualizada (o la de integración 1490+1491) antes de re-probar.</div>
+</section>
+
+<footer>PD-1490 · Hallazgo QA gift card · carrito 147101 · 2026-07-15 · datos reales de baguer_pro</footer>
+</div>
+</body>
+</html>
