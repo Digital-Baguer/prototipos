@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Descuentos · Diagnóstico y Rediseño</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'Inter, system-ui, sans-serif',
+      fontSize: '13px',
+      primaryColor: '#e3f2ef',
+      primaryBorderColor: '#0d7d72',
+      primaryTextColor: '#16181d',
+      lineColor: '#0b5f57',
+      attributeBackgroundColorOdd: '#fffdf9',
+      attributeBackgroundColorEven: '#f3efe6'
+    }
+  });
+</script>
+<style>
+  :root{
+    --paper:#f6f4ef; --card:#fffdf9; --ink:#16181d; --muted:#5c5f6b;
+    --teal:#0d7d72; --teal-dk:#0b5f57; --teal-bg:#e3f2ef;
+    --warn:#c2410c; --warn-bg:#fae9dd;
+    --danger:#b91c1c; --danger-bg:#f7e0dd;
+    --line:#e3ddd1; --line-soft:#ece7dc;
+    --code:#1b1e26; --code-ink:#e7e2d6; --code-teal:#5ecdbf; --code-amber:#e0a86b; --code-mut:#8b8f9e;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    font-size:16px; line-height:1.65; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:0 32px; display:grid; grid-template-columns:230px 1fr; gap:56px;}
+  @media(max-width:1000px){.wrap{grid-template-columns:1fr; gap:0} nav.toc{display:none}}
+
+  /* ---- HERO ---- */
+  header.hero{
+    background:linear-gradient(160deg,#12352f 0%,#0b241f 60%,#101418 100%);
+    color:#f2efe6; padding:72px 0 60px; border-bottom:3px solid var(--teal);
+  }
+  header.hero .inner{max-width:1180px; margin:0 auto; padding:0 32px;}
+  .eyebrow{font:600 12.5px/1 'Inter'; letter-spacing:.22em; text-transform:uppercase; color:#77c9bd; margin-bottom:18px;}
+  header.hero h1{
+    font-family:'Fraunces',serif; font-weight:500; font-size:clamp(34px,5vw,54px);
+    line-height:1.05; margin:0 0 20px; letter-spacing:-.01em; max-width:16ch;
+  }
+  header.hero p.lead{font-size:18px; color:#cdd6d2; max-width:62ch; margin:0;}
+  .hero-meta{display:flex; flex-wrap:wrap; gap:28px; margin-top:34px; font-size:13.5px; color:#9db3ad;}
+  .hero-meta b{color:#e8efec; font-weight:600;}
+
+  /* ---- TOC ---- */
+  nav.toc{position:sticky; top:24px; align-self:start; padding-top:48px; font-size:13.5px;}
+  nav.toc .toc-h{font:600 11px/1 'Inter'; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin:0 0 14px;}
+  nav.toc a{display:block; color:var(--muted); text-decoration:none; padding:5px 0 5px 14px; border-left:2px solid var(--line); transition:.15s;}
+  nav.toc a:hover{color:var(--teal-dk); border-color:var(--teal);}
+  nav.toc a.part{color:var(--ink); font-weight:600; border-color:var(--ink); margin-top:14px;}
+
+  main{padding-top:48px; padding-bottom:100px; min-width:0;}
+
+  /* ---- SECTIONS ---- */
+  .part-tag{display:inline-block; font:600 12px/1 'Inter'; letter-spacing:.14em; text-transform:uppercase; padding:7px 14px; border-radius:100px; margin:0 0 8px;}
+  .part-tag.hoy{background:var(--warn-bg); color:var(--warn);}
+  .part-tag.prop{background:var(--teal-bg); color:var(--teal-dk);}
+  h2{font-family:'Fraunces',serif; font-weight:500; font-size:30px; line-height:1.15; letter-spacing:-.01em; margin:14px 0 6px;}
+  h3{font-size:19px; font-weight:650; margin:38px 0 10px; letter-spacing:-.005em;}
+  h4{font-size:15px; font-weight:650; margin:24px 0 8px; color:var(--teal-dk);}
+  section{scroll-margin-top:24px; padding:36px 0; border-top:1px solid var(--line);}
+  section:first-of-type{border-top:none;}
+  .sec-num{font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--teal); font-weight:500;}
+  p{margin:12px 0;}
+  strong{font-weight:650;}
+  a.inline{color:var(--teal-dk); text-decoration:underline; text-decoration-color:var(--line);}
+  ul,ol{margin:12px 0; padding-left:22px;} li{margin:6px 0;}
+
+  /* ---- DATA CALLOUTS ---- */
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin:24px 0;}
+  .stat{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 18px 16px;}
+  .stat .n{font-family:'Fraunces',serif; font-size:32px; font-weight:600; line-height:1; color:var(--teal-dk);}
+  .stat .n.warn{color:var(--warn);} .stat .n.danger{color:var(--danger);}
+  .stat .l{font-size:12.5px; color:var(--muted); margin-top:8px; line-height:1.4;}
+
+  /* ---- TABLES ---- */
+  .tbl{overflow-x:auto; margin:20px 0; border:1px solid var(--line); border-radius:12px;}
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  th{background:#efece3; text-align:left; font-weight:650; padding:11px 14px; border-bottom:1px solid var(--line); white-space:nowrap; font-size:12.5px; letter-spacing:.01em;}
+  td{padding:10px 14px; border-bottom:1px solid var(--line-soft); vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  tbody tr:hover, tr:hover{background:#faf8f2;}
+  code, .mono{font-family:'JetBrains Mono',monospace; font-size:.9em; background:#efece3; padding:1.5px 5px; border-radius:5px; color:#33453f;}
+  td code, th code{background:#e8e3d6;}
+
+  /* ---- CODE BLOCK ---- */
+  pre{background:var(--code); color:var(--code-ink); border-radius:12px; padding:20px 22px; overflow-x:auto; font-family:'JetBrains Mono',monospace; font-size:12.8px; line-height:1.7; margin:20px 0;}
+  pre .k{color:var(--code-teal);} pre .c{color:var(--code-mut); font-style:italic;} pre .a{color:var(--code-amber);}
+
+  /* ---- CALLOUT BOXES ---- */
+  .box{border-radius:12px; padding:18px 20px; margin:22px 0; font-size:14.5px;}
+  .box .bh{font-weight:650; font-size:13px; letter-spacing:.02em; text-transform:uppercase; margin-bottom:6px; display:flex; align-items:center; gap:8px;}
+  .box.warn{background:var(--warn-bg); border:1px solid #ecc9ac;} .box.warn .bh{color:var(--warn);}
+  .box.prop{background:var(--teal-bg); border:1px solid #b9ded6;} .box.prop .bh{color:var(--teal-dk);}
+  .box.danger{background:var(--danger-bg); border:1px solid #e6b3ac;} .box.danger .bh{color:var(--danger);}
+  .box.note{background:#f0ede4; border:1px solid var(--line);} .box.note .bh{color:var(--muted);}
+
+  .badge{display:inline-block; font:600 10.5px/1 'JetBrains Mono'; padding:4px 8px; border-radius:6px; vertical-align:middle; letter-spacing:.02em;}
+  .badge.hoy{background:var(--warn-bg); color:var(--warn);}
+  .badge.new{background:var(--teal-bg); color:var(--teal-dk);}
+  .badge.dead{background:#e9e5db; color:#8a8577; text-decoration:line-through;}
+
+  /* ---- DIAGRAM ---- */
+  .diagram{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:26px; margin:24px 0;}
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:0; font-size:13px;}
+  .node{flex:1; min-width:130px; background:#fff; border:1.5px solid var(--line); border-radius:10px; padding:14px; text-align:center; position:relative;}
+  .node.teal{border-color:var(--teal); background:var(--teal-bg);}
+  .node.warn{border-color:#e0a06a; background:var(--warn-bg);}
+  .node .nt{font-weight:650; font-size:13px; margin-bottom:3px;}
+  .node .nd{font-size:11.5px; color:var(--muted); line-height:1.35;}
+  .arrow{display:flex; align-items:center; justify-content:center; padding:0 6px; color:var(--teal); font-size:20px; font-weight:700;}
+  @media(max-width:600px){.flow{flex-direction:column} .arrow{transform:rotate(90deg); padding:6px 0}}
+
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin:20px 0;}
+  @media(max-width:700px){.two-col{grid-template-columns:1fr}}
+  .col-card{border-radius:12px; padding:18px 20px; font-size:14px;}
+  .col-card.hoy{background:var(--warn-bg); border:1px solid #ecc9ac;}
+  .col-card.prop{background:var(--teal-bg); border:1px solid #b9ded6;}
+  .col-card h5{margin:0 0 10px; font-size:14px; font-weight:700;}
+  .col-card.hoy h5{color:var(--warn);} .col-card.prop h5{color:var(--teal-dk);}
+  .col-card ul{padding-left:18px; margin:0;} .col-card li{margin:7px 0; font-size:13.5px;}
+
+  /* ---- CONECTORES ---- */
+  .connectors{display:flex; flex-wrap:wrap; gap:16px;}
+  .conn-item{flex:1; min-width:200px; display:flex; align-items:center; gap:14px; background:#fff; border:1px solid var(--line); border-radius:11px; padding:14px 16px;}
+  .conn-op{flex:none; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font:800 17px 'JetBrains Mono';}
+  .conn-op.or{background:var(--teal-bg); color:var(--teal-dk);}
+  .conn-op.and{background:var(--warn-bg); color:var(--warn);}
+  .conn-item .ct{font-size:13.5px; line-height:1.4;} .conn-item .ct b{font-weight:650;}
+  .conn-item .cs{font-size:12px; color:var(--muted);}
+
+  /* ---- TARJETAS DE REGLA (grupos) ---- */
+  .rules{display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:20px 0 8px;}
+  .rule-card{background:#fff; border:1.5px solid var(--teal); border-radius:13px; padding:15px 17px; min-width:215px; box-shadow:0 1px 0 rgba(13,125,114,.06);}
+  .rule-card .rh{font:700 10.5px/1 'JetBrains Mono'; letter-spacing:.1em; text-transform:uppercase; color:var(--teal-dk); margin-bottom:12px;}
+  .dim-block{margin:8px 0;}
+  .dim-label{font-size:11px; color:var(--muted); font-weight:650; margin-bottom:5px; text-transform:uppercase; letter-spacing:.03em;}
+  .chips{display:flex; flex-wrap:wrap; gap:5px; align-items:center;}
+  .chip{display:inline-block; border-radius:100px; padding:4px 12px; font-size:12.5px; font-weight:600;}
+  .chip.mc{background:var(--teal-bg); color:var(--teal-dk);}
+  .chip.tp{background:#ece4f4; color:#5f4d80;}
+  .chip.gn{background:#f3e6dd; color:#9a5a2e;}
+  .oror{font-size:11px; color:var(--muted); font-style:italic; padding:0 1px;}
+  .and-conn{text-align:center; font:700 10.5px 'JetBrains Mono'; color:var(--warn); margin:8px 0; letter-spacing:.14em;}
+  .or-between{font:800 16px 'JetBrains Mono'; color:var(--teal); padding:0 2px; align-self:center;}
+
+  /* ---- MATRIZ DE COMBINACIONES ---- */
+  .matrixwrap{margin:14px 0 4px; overflow-x:auto;}
+  .matrix{border-collapse:separate; border-spacing:6px;}
+  .matrix th{background:transparent; border:none; padding:5px 8px; color:var(--muted); font-weight:650; text-align:center; white-space:nowrap; font-size:12.5px;}
+  .matrix th.rowh{text-align:right; padding-right:12px;}
+  .matrix td{padding:0; border:none;}
+  .matrix .cell{width:96px; height:42px; border-radius:9px; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:600; font-size:12.5px;}
+  .matrix .cell.yes{background:var(--teal-bg); color:var(--teal-dk); border:1.5px solid #a8d8d0;}
+  .matrix .cell.no{background:#f1eee7; color:#bdb6a6; border:1.5px solid var(--line);}
+  .matrix .mk{font-size:15px; font-weight:800;}
+  .caption{font-size:12.5px; color:var(--muted); font-style:italic; margin:4px 0 0;}
+
+  footer{border-top:1px solid var(--line); padding:34px 0; font-size:13px; color:var(--muted);}
+  .kicker{font-size:13px; color:var(--muted); font-style:italic; margin-top:-2px;}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="inner">
+    <div class="eyebrow">Baguer · get-web / get-api · Documento de arquitectura</div>
+    <h1>Sistema de descuentos: diagnóstico actual y propuesta de rediseño</h1>
+    <p class="lead">De la configuración de la condición al descuento ejecutado en el carrito. Qué tenemos hoy, por qué duele, y cómo quedaría con un modelo de datos y de código unificado.</p>
+    <div class="hero-meta">
+      <div><b>Alcance</b> · Cupones + Estrategias + Motor de checkout</div>
+      <div><b>Fecha</b> · 15 jul 2026</div>
+      <div><b>Datos</b> · verificados contra <code style="color:#a7e8dd">baguer_pro</code></div>
+      <div><b>REQ</b> · GW-17 (raíz) → cupones → 1468 bonos POS</div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="toc">
+    <div class="toc-h">Contenido</div>
+    <a href="#resumen" class="part">Resumen</a>
+    <a href="#p1" class="part">Parte 1 · Hoy</a>
+    <a href="#taxonomia">1. Taxonomía de descuentos</a>
+    <a href="#datos">2. Modelo de datos actual</a>
+    <a href="#flujo">3. Config → checkout</a>
+    <a href="#diagnostico">4. Diagnóstico</a>
+    <a href="#p2" class="part">Parte 2 · Propuesta</a>
+    <a href="#insight">5. El insight unificador</a>
+    <a href="#modelo">6. Modelo de datos nuevo</a>
+    <a href="#codigo">7. Estructura de código</a>
+    <a href="#migracion">8. Ruta de migración</a>
+    <a href="#beneficios">9. Qué ganamos</a>
+  </nav>
+
+  <main>
+
+  <!-- ===== RESUMEN ===== -->
+  <section id="resumen">
+    <span class="part-tag prop">Resumen ejecutivo</span>
+    <h2>Dos sistemas que hacen lo mismo, sin saberlo</h2>
+    <p>Hoy Baguer gestiona descuentos con <strong>dos módulos independientes</strong> —«cupones» y «estrategias de venta»— que resuelven el mismo problema de negocio (aplicar un beneficio a un carrito que cumple ciertas condiciones) con <strong>tablas separadas, formularios separados y lógica de motor separada</strong>. Comparten cerca del 80&nbsp;% de sus reglas (compra mínima, marcas, tipos de prenda, medios de pago, vigencia, presencia en promoción) pero no comparten una sola línea de código.</p>
+    <div class="stats">
+      <div class="stat"><div class="n">2</div><div class="l">sistemas paralelos que resuelven el mismo problema</div></div>
+      <div class="stat"><div class="n">14</div><div class="l">tablas entre config y runtime de los dos módulos</div></div>
+      <div class="stat"><div class="n warn">~80%</div><div class="l">de la lógica de condiciones está duplicada</div></div>
+      <div class="stat"><div class="n danger">1.1 M</div><div class="l">filas en <code>shop_cupones</code> · 23 M en códigos</div></div>
+    </div>
+    <p>La consecuencia práctica ya la vivimos: el <strong>bug de la estrategia 633</strong> («compra $400.000 y lleva gorra por $49.900») tomó tres intentos y dos semanas de resolver porque el motor de estrategias es un método de más de 1.000 líneas con estado que sobrevive entre recálculos. Un modelo unificado y bien estructurado convierte ese tipo de bug en algo que no puede existir.</p>
+    <div class="box prop">
+      <div class="bh">◆ La tesis del documento</div>
+      Un cupón y una estrategia son la <strong>misma entidad</strong>: una promoción basada en condiciones. Cambia únicamente <em>cómo se activa</em> (un código vs. automáticamente) y <em>qué entrega</em> (un descuento vs. un producto de regalo). Modelarlas como una sola cosa —con un motor único que evalúa condiciones y aplica beneficios— elimina la duplicación, cierra la clase entera de bugs del bug 633, y deja lista la base para el módulo de bonos POS (REQ&nbsp;1468).
+    </div>
+  </section>
+
+  <!-- ===================== PARTE 1 ===================== -->
+  <section id="p1">
+    <span class="part-tag hoy">Parte 1 — Cómo funciona hoy</span>
+    <h2>El sistema actual, de punta a punta</h2>
+    <p class="kicker">Todos los datos de esta sección están verificados contra la base de datos de producción <code>baguer_pro</code> el 15 de julio de 2026.</p>
+  </section>
+
+  <!-- 1. TAXONOMIA -->
+  <section id="taxonomia">
+    <div class="sec-num">01</div>
+    <h2>Taxonomía completa de descuentos</h2>
+    <p>Estos son <strong>todos</strong> los tipos de descuento que el sistema genera y ejecuta hoy. Es la referencia obligatoria del rediseño: cualquier modelo nuevo debe cubrir el 100&nbsp;% de esta tabla.</p>
+
+    <h3>A · Estrategias de venta <span class="badge hoy">automáticas</span></h3>
+    <p>Se disparan solas cuando el carrito cumple las condiciones. <strong>616 estrategias</strong> creadas históricamente; <strong>solo 19 vigentes</strong> hoy (3&nbsp;%).</p>
+    <div class="tbl"><table>
+      <tr><th>Tipo</th><th>Qué hace</th><th># en BD</th><th>Ejemplo real</th></tr>
+      <tr><td><b>1 · Porcentaje</b></td><td>% de descuento sobre los ítems elegibles</td><td>342</td><td>«20% DCTO adicional en promoción»</td></tr>
+      <tr><td><b>2 · Monto fijo</b></td><td>Valor absoluto de descuento</td><td>13</td><td>«$10.000 de descuento»</td></tr>
+      <tr><td><b>3 · Compra X, Obtén Y</b></td><td>El cliente compra $X o N ítems y recibe M ítems con precio especial</td><td>249</td><td>«Compra $400.000 y lleva gorra Goorin por $49.900» (la 633)</td></tr>
+      <tr><td><b>4 · Envío gratis</b></td><td>Elimina el flete (con tope opcional)</td><td>12</td><td>«Envío gratis en compras > $250.000»</td></tr>
+    </table></div>
+
+    <h4>Sub-reglas del tipo 3 (cómo se calcula el precio del regalo)</h4>
+    <div class="tbl"><table>
+      <tr><th>regla_recibe</th><th>Significado</th><th>Precio del regalo</th><th># en BD</th></tr>
+      <tr><td><b>1</b></td><td>Porcentaje</td><td><code>precio − precio×%/100</code></td><td>41</td></tr>
+      <tr><td><b>2</b></td><td>Gratis</td><td><code>$0</code> — el regalo vive solo como placeholder</td><td>116</td></tr>
+      <tr><td><b>3</b></td><td>Descuento nominal</td><td><code>precio − nominal</code></td><td><span class="badge dead">0 — jamás usada</span></td></tr>
+      <tr><td><b>4</b></td><td>Valor fijo</td><td><code>valor_fijo</code></td><td>92</td></tr>
+    </table></div>
+    <div class="box warn">
+      <div class="bh">⚠ Hallazgo</div>
+      La <strong>regla nominal (3)</strong> está implementada en el código del motor y en el formulario, pero <strong>ninguna de las 249 estrategias tipo 3 la usa</strong>. Es superficie de código y de UI que se mantiene, se prueba y puede fallar, sin aportar valor. El rediseño debería retirarla (o confirmar con negocio que se necesita).
+    </div>
+    <p class="kicker">Además existen <b>4 «estrategias hardcodeadas»</b> en el motor (combos especiales como «paga jean + camisa + zapato») cableadas en el código con lógica propia — deuda que un modelo declarativo elimina.</p>
+
+    <h3>B · Cupones <span class="badge hoy">por código</span></h3>
+    <p>Se redimen escribiendo un código en el checkout. <strong>1.119.086 cupones</strong> en la tabla (la enorme mayoría generados automáticamente por campañas de newsletter/CRM).</p>
+    <div class="tbl"><table>
+      <tr><th>Tipo</th><th>Qué hace</th><th># en BD</th></tr>
+      <tr><td><b>1 · Porcentaje</b></td><td>% sobre el total elegible</td><td>1.116.035 <span style="color:var(--muted)">(99,7%)</span></td></tr>
+      <tr><td><b>2 · Monto fijo</b></td><td>Valor absoluto</td><td>2.158</td></tr>
+      <tr><td><b>3 · Envío gratis</b></td><td>Elimina el flete (con tope opcional)</td><td>889</td></tr>
+    </table></div>
+    <h4>Dos modos de uso</h4>
+    <div class="tbl"><table>
+      <tr><th>Modo</th><th>Código</th><th>Límite</th><th># en BD</th></tr>
+      <tr><td><b>Masivo</b></td><td>UN código público (ej. <code>SALE20</code>)</td><td>N usos por cliente (por correo)</td><td>1.183</td></tr>
+      <tr><td><b>Códigos únicos</b></td><td>N códigos individuales de un solo uso</td><td>1 por código</td><td>1.117.903 <span style="color:var(--muted)">(99,9%)</span></td></tr>
+    </table></div>
+    <div class="box note">
+      <div class="bh">◇ Nota de escala</div>
+      <code>shop_cupon_codigos</code> tiene <strong>23 millones de filas</strong>. Los cupones no salen solo del CRUD manual: la mayoría los generan procesos automáticos (newsletter, CRM, «estrategia de reventa» que envía un 15% por SMS al abonar cupo). Cualquier módulo nuevo <em>convive</em> con esos generadores, no los reemplaza.
+    </div>
+
+    <h3>C · Descuento QUAC <span class="badge hoy">por medio de pago</span></h3>
+    <p>Un descuento adicional que se activa solo cuando el método de pago es crédito QUAC (<code>cupo</code>). Vive en una tabla aparte (<code>discount_strategy</code>, conexión <code>quac</code>) y lo evalúa un flujo separado del motor. Un cuarto mecanismo, con su propia tabla y su propio código.</p>
+  </section>
+
+  <!-- 2. MODELO DE DATOS ACTUAL -->
+  <section id="datos">
+    <div class="sec-num">02</div>
+    <h2>Modelo de datos actual</h2>
+    <p>Catorce tablas de configuración y runtime, más una decena de columnas dispersas en el carrito. Dos familias que no se hablan entre sí.</p>
+
+    <h3>Familia «Estrategias»</h3>
+    <div class="tbl"><table>
+      <tr><th>Tabla</th><th>Rol</th><th>Filas</th></tr>
+      <tr><td><code>shop_estrategias_ventas</code></td><td>Cabecera — ~35 columnas, cada tipo usa un subconjunto</td><td>616</td></tr>
+      <tr><td><code>…_aplica</code></td><td>Pivote: sobre qué aplica (tipos 1/2/4)</td><td>110</td></tr>
+      <tr><td><code>…_requerimiento</code></td><td>Pivote: qué debe comprar (tipo 3)</td><td>481</td></tr>
+      <tr><td><code>…_obtiene</code></td><td>Pivote: qué recibe (tipo 3) — <b>codificación invertida</b></td><td>396</td></tr>
+      <tr><td><code>…_mostrar</code></td><td>Ubicaciones de visualización</td><td>138</td></tr>
+      <tr><td><code>…_medios_pago</code></td><td>Restricción por medio de pago</td><td>503</td></tr>
+      <tr><td><code>shop_estrategia_venta_productos</code></td><td><b>Runtime</b>: placeholders del regalo por carrito</td><td>76.974</td></tr>
+      <tr><td><code>store_carrito_estrategias_ventas</code></td><td><b>Runtime</b>: vínculo carrito ↔ estrategia</td><td>45.482</td></tr>
+    </table></div>
+
+    <h3>Familia «Cupones»</h3>
+    <div class="tbl"><table>
+      <tr><th>Tabla</th><th>Rol</th><th>Filas</th></tr>
+      <tr><td><code>shop_cupones</code></td><td>Cabecera</td><td>1.098.005</td></tr>
+      <tr><td><code>shop_cupon_codigos</code></td><td>Códigos individuales</td><td>23.075.947</td></tr>
+      <tr><td><code>shop_cupones_estrategias</code></td><td>Catálogo de «motivo» (Newsletter, CRM…) — no confundir con estrategias de venta</td><td>15</td></tr>
+      <tr><td><code>shop_cupones_marcas</code></td><td>Restricción por marca</td><td>2.032</td></tr>
+      <tr><td><code>shop_cupones_tipoprenda</code></td><td>Restricción por tipo de prenda</td><td>2.660</td></tr>
+      <tr><td><code>shop_cupones_medios_pago</code></td><td>Restricción por medio de pago</td><td>228</td></tr>
+      <tr><td><code>shop_cupones_logs</code></td><td>Auditoría de canjes</td><td>170.561</td></tr>
+    </table></div>
+    <div class="box warn">
+      <div class="bh">⚠ Dos cosas idénticas, modeladas distinto</div>
+      «Restringir por marca» existe como <code>shop_cupones_marcas</code> (con columna <code>marca_id</code>) y también como filas de <code>shop_estrategias_ventas_aplica</code> (con un <code>tipo_item=3</code> mágico). Misma condición, dos estructuras. Y algo más grave: en los pivotes de estrategias el código de «producto» es <code>2</code> en <code>_aplica</code> pero <code>1</code> en <code>_obtiene</code> — <strong>la codificación está invertida entre tablas hermanas</strong>. El propio motor mantiene dos mapeos de decodificación para no equivocarse.
+    </div>
+
+    <div class="box danger">
+      <div class="bh">✕ La deuda estructural, condensada</div>
+      <ul style="margin:6px 0 0">
+        <li><b>NULL ambiguo:</b> en <code>shop_estrategias_ventas</code> un NULL significa según la columna «no aplica a este tipo», «no configurado» o «multiplicativo». Esa triple lectura fue la <b>raíz del bug 633</b>.</li>
+        <li><b>Runtime mezclado con configuración:</b> los placeholders del regalo (<code>shop_estrategia_venta_productos</code>) conviven como tabla hermana de la config. De ahí nace el «placeholder huérfano», el único P0 aún abierto del motor.</li>
+        <li><b>Dos convenciones de porcentaje</b> en la misma tabla: tipo 1 guarda <code>0.20</code>, la regla del tipo 3 guarda <code>20</code>.</li>
+        <li><b>Auditoría asimétrica:</b> los cupones tienen log (170K filas); las estrategias no tienen ninguno — solo un <code>usuario_id_update</code>.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 3. FLUJO -->
+  <section id="flujo">
+    <div class="sec-num">03</div>
+    <h2>De la configuración al descuento en el carrito</h2>
+    <p>El recorrido completo de un descuento, hoy, atraviesa dos repositorios y dos caminos de código que nunca se cruzan.</p>
+
+    <div class="diagram">
+      <div class="flow">
+        <div class="node warn"><div class="nt">Operador</div><div class="nd">configura en cms-stirpe: <code>/estrategias_ventas</code> o <code>/cupones</code></div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="nt">Tablas <code>shop_*</code></div><div class="nd">14 tablas en baguer_pro, dos familias</div></div>
+        <div class="arrow">→</div>
+        <div class="node"><div class="nt">Cliente</div><div class="nd">arma su carrito en la tienda online</div></div>
+        <div class="arrow">→</div>
+        <div class="node teal"><div class="nt">Motor (get-api)</div><div class="nd">evalúa y ejecuta en cada cambio del carrito</div></div>
+      </div>
+    </div>
+
+    <h3>El motor de checkout (get-api)</h3>
+    <p>Vive en <code>CartPricingService</code> y corre en <strong>cada operación del carrito</strong> (agregar ítem, ver, cupón, checkout). Son <strong>dos métodos separados</strong> que evalúan condiciones parecidas con código distinto:</p>
+    <div class="tbl"><table>
+      <tr><th>Método</th><th>Qué evalúa</th><th>Tamaño</th></tr>
+      <tr><td><code>checkCouponCart()</code></td><td>El cupón ingresado: vigencia, compra mínima, marcas, medios de pago, límite por usuario…</td><td>~180 líneas</td></tr>
+      <tr><td><code>checkCartSalesStrategies()</code></td><td>Todas las estrategias automáticas: mismas condiciones + la mecánica «compra X obtén Y»</td><td><b>+1.000 líneas</b></td></tr>
+      <tr><td><code>validateStrategyDiscountQuac()</code></td><td>El descuento QUAC por medio de pago</td><td>flujo aparte</td></tr>
+    </table></div>
+    <p>La validación de «¿el ítem cumple marca/prenda/promoción?» está escrita <strong>tres veces</strong>, una por método, con variaciones sutiles. Cuando cambia una regla de elegibilidad, hay que tocar tres lugares y rezar que queden iguales.</p>
+
+    <div class="box warn">
+      <div class="bh">⚠ La cicatriz del bug 633</div>
+      El método <code>checkCartSalesStrategies()</code> corre completo en cada request y <strong>deja estado en las tablas que no se limpia entre corridas</strong> (<code>estrategiapromo</code>, <code>producto_aplica_estrategia</code>). El fix del bug 633 tomó tres intentos porque el primer diseño asumía que cada recálculo arrancaba «en limpio». No lo hace. El rediseño separa configuración inmutable de estado de ejecución reconciliable — y esa clase de bug desaparece.
+    </div>
+  </section>
+
+  <!-- 4. DIAGNOSTICO -->
+  <section id="diagnostico">
+    <div class="sec-num">04</div>
+    <h2>Diagnóstico: por qué duele</h2>
+    <p>Cinco problemas estructurales, en orden de impacto:</p>
+    <ol>
+      <li><strong>Duplicación conceptual.</strong> Cupones y estrategias son la misma idea implementada dos veces. Todo cambio de regla de negocio se paga doble.</li>
+      <li><strong>El motor es frágil por diseño.</strong> Más de 1.000 líneas en un método, con estado que sobrevive entre recálculos y cuatro combos cableados a mano. El bug 633 no fue mala suerte: fue el diseño cobrando su factura.</li>
+      <li><strong>El modelo de datos miente.</strong> NULL con tres significados, codificación invertida entre pivotes, dos convenciones de porcentaje, y <strong>solo el 3% de las estrategias están vigentes</strong> — el resto son «publicadas y vencidas» porque no existe el estado «archivada».</li>
+      <li><strong>Validación en la UI, no en el backend.</strong> El backend acepta configuraciones inválidas (porcentajes negativos, tipo 3 sin regalo, fechas invertidas); funciona solo porque los operadores conocen las reglas. Abrir el módulo a más gente multiplica el riesgo.</li>
+      <li><strong>Superficie muerta.</strong> La regla nominal nunca usada, el bloque «bolsa carrito» inalcanzable, rutas <code>show</code>/<code>destroy</code> sin método, inyección SQL en ambos buscadores de productos. Código que se mantiene sin dar valor.</li>
+    </ol>
+  </section>
+
+  <!-- ===================== PARTE 2 ===================== -->
+  <section id="p2">
+    <span class="part-tag prop">Parte 2 — Cómo quedaría mejor</span>
+    <h2>Un solo concepto, un solo motor</h2>
+  </section>
+
+  <!-- 5. INSIGHT -->
+  <section id="insight">
+    <div class="sec-num">05</div>
+    <h2>El insight unificador</h2>
+    <p>Si se mira sin las etiquetas heredadas, un cupón y una estrategia son la misma cosa descompuesta en cuatro piezas:</p>
+
+    <div class="diagram">
+      <div class="flow">
+        <div class="node teal"><div class="nt">① Activación</div><div class="nd">¿cómo se dispara?<br>automática · código · segmento</div></div>
+        <div class="arrow">+</div>
+        <div class="node teal"><div class="nt">② Condiciones</div><div class="nd">¿cuándo aplica?<br>mínimos · marcas · vigencia · medios de pago</div></div>
+        <div class="arrow">+</div>
+        <div class="node teal"><div class="nt">③ Beneficio</div><div class="nd">¿qué entrega?<br>% · monto · envío · regalo</div></div>
+        <div class="arrow">+</div>
+        <div class="node teal"><div class="nt">④ Combinación</div><div class="nd">¿se acumula?<br>acumulable · multiplicativo</div></div>
+      </div>
+    </div>
+
+    <p>Con ese lente, toda la taxonomía de la Parte 1 cabe en <strong>una sola entidad</strong>: una <em>promoción</em>. Lo que hoy son «cupón» y «estrategia» pasan a ser dos valores del campo <em>activación</em>. Lo que hoy son cuatro tipos de estrategia y tres de cupón pasan a ser valores del campo <em>beneficio</em>.</p>
+
+    <div class="tbl"><table>
+      <tr><th>Concepto de hoy</th><th>En el modelo unificado</th></tr>
+      <tr><td>Estrategia tipo 1/2</td><td>Promoción · activación <code>AUTOMÁTICA</code> · beneficio <code>DESCUENTO</code></td></tr>
+      <tr><td>Estrategia tipo 4</td><td>Promoción · activación <code>AUTOMÁTICA</code> · beneficio <code>ENVÍO_GRATIS</code></td></tr>
+      <tr><td>Estrategia tipo 3 (compra X obtén Y)</td><td>Promoción · activación <code>AUTOMÁTICA</code> · beneficio <code>REGALO</code></td></tr>
+      <tr><td>Cupón masivo (%, monto, envío)</td><td>Promoción · activación <code>CÓDIGO</code> · beneficio <code>DESCUENTO</code>/<code>ENVÍO_GRATIS</code></td></tr>
+      <tr><td>Cupón de códigos únicos</td><td>Promoción · activación <code>CÓDIGO_ÚNICO</code></td></tr>
+      <tr><td>Descuento QUAC</td><td>Promoción · condición «medio de pago = QUAC»</td></tr>
+      <tr><td>Bono POS (REQ 1468)</td><td>Promoción · activación <code>SEGMENTO</code> · canal <code>POS</code></td></tr>
+    </table></div>
+    <div class="box prop">
+      <div class="bh">◆ Por qué importa</div>
+      Un solo modelo cubre cupones, estrategias, descuento QUAC <em>y</em> los bonos POS del REQ 1468 — sin inventar un cuarto sistema. El bono POS deja de ser «un módulo nuevo» y pasa a ser «una promoción con activación por segmento y canal POS».
+    </div>
+  </section>
+
+  <!-- 6. MODELO NUEVO -->
+  <section id="modelo">
+    <div class="sec-num">06</div>
+    <h2>Modelo de datos nuevo</h2>
+    <p>Una <strong>sola familia de tablas</strong> reemplaza las dos que hoy se duplican (14 tablas entre cupones y estrategias). No se trata de tener menos tablas, sino de tener <strong>un solo modelo</strong> que sirve a cupones, estrategias, descuento QUAC y bonos POS a la vez — con cada columna significando una sola cosa y cada NULL legítimo.</p>
+
+    <h3>Diagrama entidad-relación</h3>
+    <p>El mapa completo antes del detalle. <code>promocion</code> es la cabecera; a su alrededor giran las condiciones (agrupadas), el beneficio (una tabla por familia), la activación (código / segmento / medios de pago), la presentación y la auditoría. El <strong>runtime</strong> (lo que el motor escribe al aplicar la promo en un carrito) vive separado, abajo a la derecha.</p>
+    <div style="background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px; margin:18px 0; overflow-x:auto; box-shadow:0 1px 2px rgba(0,0,0,.04)">
+      <pre class="mermaid" style="background:none; padding:0; margin:0; border:0">
+erDiagram
+  promocion ||--o{ promocion_condicion_grupo : "tiene grupos"
+  promocion_condicion_grupo ||--|{ promocion_condicion : "agrupa"
+  promocion ||--o| beneficio_descuento : "% / monto"
+  promocion ||--o| beneficio_envio_gratis : "envio"
+  promocion ||--o| beneficio_regalo : "regalo"
+  promocion ||--o| promocion_codigo : "si activacion=CODIGO"
+  promocion ||--o{ promocion_segmento : "NITs / segmento (POS)"
+  promocion ||--o{ promocion_medio_pago : "restringe pago"
+  promocion ||--o| promocion_visualizacion : "banners / mensaje"
+  promocion ||--o{ promocion_evento : "auditoria"
+  promocion ||--o{ carrito_promocion_aplicada : "runtime"
+  carrito_promocion_aplicada ||--o{ carrito_promocion_regalo : "regalos dados"
+
+  promocion {
+    bigint id PK
+    varchar nombre
+    enum canal "ONLINE|POS|AMBOS"
+    enum activacion "AUTOMATICA|CODIGO|CODIGO_UNICO|SEGMENTO"
+    enum beneficio_tipo "PORCENTAJE|MONTO|ENVIO|REGALO"
+    enum estado "borrador|programada|activa|vencida|archivada"
+    datetime fecha_inicio
+    datetime fecha_fin
+    decimal compra_minima
+    int minimo_articulos
+    enum presencia_en_promocion "TODAS|SOLO_SIN|SOLO_CON"
+    bool acumulable
+  }
+  promocion_condicion_grupo {
+    bigint id PK
+    bigint promocion_id FK
+    enum rol "REQUISITO|OBTIENE|APLICA"
+  }
+  promocion_condicion {
+    bigint id PK
+    bigint grupo_id FK
+    enum dimension "MARCA|TIPO_PRENDA|PRODUCTO|CATEGORIA|GENERO"
+    varchar valor "id maestro (conserva ceros)"
+  }
+  beneficio_descuento {
+    bigint promocion_id FK
+    bool es_porcentaje
+    decimal valor
+    decimal tope_maximo "nullable"
+    enum aplica_sobre "CARRITO|CALIFICAN"
+  }
+  beneficio_envio_gratis {
+    bigint promocion_id FK
+    decimal tope_valor "nullable"
+  }
+  beneficio_regalo {
+    bigint promocion_id FK
+    int cantidad
+    decimal valor
+    int limite_por_pedido "NULL=multiplicativo"
+  }
+  promocion_codigo {
+    bigint id PK
+    bigint promocion_id FK
+    varchar codigo
+    int usos_max_cliente
+  }
+  promocion_segmento {
+    bigint id PK
+    bigint promocion_id FK
+    varchar documento "NIT"
+    enum origen "CSV|ANALYTICS|MANUAL"
+  }
+  promocion_medio_pago {
+    bigint promocion_id FK
+    bigint medio_pago_id FK
+  }
+  promocion_visualizacion {
+    bigint promocion_id FK
+    varchar banner_movil
+    varchar banner_full
+    varchar mensaje
+  }
+  promocion_evento {
+    bigint id PK
+    bigint promocion_id FK
+    enum tipo "CREO|PUBLICO|EDITO|ARCHIVO"
+    bigint usuario_id
+    datetime creado_en
+  }
+  carrito_promocion_aplicada {
+    bigint id PK
+    bigint promocion_id FK
+    bigint store_carrito_id FK
+    decimal descuento
+  }
+  carrito_promocion_regalo {
+    bigint id PK
+    bigint carrito_promocion_id FK
+    bigint producto_id
+    decimal precio_regalo
+  }
+      </pre>
+    </div>
+    <div class="box note">
+      <div class="bh">◇ Cómo leer las cardinalidades</div>
+      <code>||—o{</code> = «uno a cero-o-muchos» (una <code>promocion</code> tiene N grupos de condiciones). <code>||—o|</code> = «uno a cero-o-uno» (la promo tiene <em>a lo sumo una</em> de las tres tablas de beneficio, según <code>beneficio_tipo</code>). Los maestros (<code>marca</code>, <code>tipo_prenda</code>, <code>genero</code>, <code>producto</code>, <code>categoria</code>) no se dibujan como tablas porque <code>promocion_condicion</code> los referencia de forma <strong>polimórfica</strong>: la columna <code>dimension</code> dice a cuál maestro apunta <code>valor</code>. Ese es el mecanismo que colapsa los 5 pivotes y los 3 discriminadores mágicos de hoy en dos tablas.
+    </div>
+
+    <h3><code>promocion</code> — la cabecera única</h3>
+    <div class="tbl"><table>
+      <tr><th>Columna</th><th>Tipo</th><th>Reemplaza</th></tr>
+      <tr><td><code>id</code></td><td>PK</td><td>estrategia_id / cupon_id</td></tr>
+      <tr><td><code>nombre</code>, <code>descripcion</code></td><td>varchar / text</td><td>igual</td></tr>
+      <tr><td><code>canal</code></td><td>enum <code>ONLINE · POS · AMBOS</code></td><td><span class="badge new">nuevo</span> — habilita bonos POS</td></tr>
+      <tr><td><code>activacion</code></td><td>enum <code>AUTOMATICA · CODIGO · CODIGO_UNICO · SEGMENTO</code></td><td>unifica cupón vs. estrategia</td></tr>
+      <tr><td><code>beneficio_tipo</code></td><td>enum <code>PORCENTAJE · MONTO · ENVIO_GRATIS · REGALO</code></td><td><code>tipo_estrategia</code> / <code>tipo_cupon</code></td></tr>
+      <tr><td><code>estado</code></td><td>enum <code>borrador · programada · activa · vencida · archivada</code></td><td>el booleano <code>publicado</code> (que deja 97% de zombies)</td></tr>
+      <tr><td><code>fecha_inicio · fecha_fin · hora_inicio · hora_fin</code></td><td>datetime</td><td>vigencia + horarios (los horarios ya los pide el JSON POS)</td></tr>
+      <tr><td><code>compra_minima · minimo_articulos</code></td><td>decimal / int</td><td>umbral compartido</td></tr>
+      <tr><td><code>presencia_en_promocion</code></td><td>enum <code>TODAS · SOLO_SIN_DESCUENTO · SOLO_CON_DESCUENTO</code></td><td>los 2 booleanos confusos, fundidos</td></tr>
+      <tr><td><code>acumulable</code></td><td>bool</td><td>igual</td></tr>
+      <tr><td><code>created_by · updated_by · timestamps</code></td><td></td><td>auditoría real</td></tr>
+    </table></div>
+
+    <h3><code>promocion_condicion</code> — reemplaza los pivotes con codificación invertida, <em>y agrupa</em></h3>
+    <p>Las condiciones se organizan en <strong>grupos</strong> (cada grupo es una regla de elegibilidad). Dos tablas, legibles para <em>todas</em> las condiciones de <em>cualquier</em> promoción:</p>
+    <pre><span class="k">promocion_condicion_grupo</span> (
+  id            PK
+  promocion_id  FK
+  rol           <span class="a">enum</span>( REQUISITO, OBTIENE, APLICA )   <span class="c">-- qué papel juega el grupo</span>
+)
+<span class="k">promocion_condicion</span> (
+  id            PK
+  grupo_id      FK → promocion_condicion_grupo
+  dimension     <span class="a">enum</span>( MARCA, TIPO_PRENDA, PRODUCTO, CATEGORIA, GENERO )
+  valor         varchar   <span class="c">-- id del maestro, conserva ceros: '011', '127'</span>
+)
+
+<span class="c">-- Regla de evaluación para un rol:</span>
+<span class="c">--   el ítem califica si coincide con AL MENOS UN grupo   (OR entre grupos)</span>
+<span class="c">--   coincide con un grupo si, por cada dimensión presente,</span>
+<span class="c">--   su valor está en la lista            (AND entre dimensiones · OR dentro de una)</span></pre>
+    <p>Estas tablas absorben <code>_aplica</code>, <code>_requerimiento</code>, <code>_obtiene</code>, <code>shop_cupones_marcas</code>, <code>shop_cupones_tipoprenda</code> <em>y</em> los tres discriminadores mágicos (<code>se_aplica_a</code>, <code>tipo_item_cliente_compra</code>, <code>tipo_item_cliente_recibe</code>). Sin números invertidos: un dev nuevo las lee sin manual.</p>
+
+    <h4 style="margin-top:30px">Cómo se arman las condiciones — los 3 conectores</h4>
+    <p>Todo el modelo de condiciones sale de <strong>tres reglas de combinación</strong>. Entenderlas es entenderlo todo:</p>
+    <div class="diagram">
+      <div class="connectors">
+        <div class="conn-item"><span class="conn-op or">O</span><div class="ct"><b>Dentro de una dimensión</b><div class="cs">cualquiera de las marcas: Adidas <b>o</b> Unser <b>o</b> Derek</div></div></div>
+        <div class="conn-item"><span class="conn-op and">Y</span><div class="ct"><b>Entre dimensiones</b><div class="cs">la marca <b>y</b> el tipo de prenda, a la vez</div></div></div>
+        <div class="conn-item"><span class="conn-op or">O</span><div class="ct"><b>Entre grupos (reglas)</b><div class="cs">cumple la regla 1 <b>o</b> la regla 2</div></div></div>
+      </div>
+    </div>
+    <p class="kicker">Un «grupo» es simplemente <b>una regla de elegibilidad</b>. Una promoción puede tener una o varias. Veamos los tres niveles de precisión, de menor a mayor.</p>
+
+    <h4 style="margin-top:26px">① Una sola dimensión — «solo marcas Adidas o Unser»</h4>
+    <p>El caso más simple: una regla, una dimensión. Los valores se combinan con <span class="chip mc" style="padding:1px 8px">O</span>.</p>
+    <div class="rules">
+      <div class="rule-card">
+        <div class="rh">Regla 1 · aplica a</div>
+        <div class="dim-block">
+          <div class="dim-label">Marca</div>
+          <div class="chips"><span class="chip mc">Adidas</span><span class="oror">o</span><span class="chip mc">Unser</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">→ Aplica a <b>cualquier</b> producto de Adidas o Unser, sin importar el tipo de prenda.</p>
+
+    <h4 style="margin-top:26px">② Producto cruzado — «camisetas y zapatos de Adidas, Unser y Derek»</h4>
+    <p>Dos dimensiones en <strong>una sola regla</strong>. Dentro de cada dimensión los valores van con O; las dos dimensiones se unen con <span class="chip gn" style="padding:1px 8px">Y</span>. Esto produce <strong>todas las combinaciones</strong> — no hay que enumerarlas.</p>
+    <div class="rules">
+      <div class="rule-card">
+        <div class="rh">Regla 1 · aplica a</div>
+        <div class="dim-block">
+          <div class="dim-label">Tipo de prenda</div>
+          <div class="chips"><span class="chip tp">Camiseta</span><span class="oror">o</span><span class="chip tp">Zapato</span></div>
+        </div>
+        <div class="and-conn">— Y —</div>
+        <div class="dim-block">
+          <div class="dim-label">Marca</div>
+          <div class="chips"><span class="chip mc">Adidas</span><span class="oror">o</span><span class="chip mc">Unser</span><span class="oror">o</span><span class="chip mc">Derek</span></div>
+        </div>
+      </div>
+    </div>
+    <p style="margin:14px 0 4px; font-size:13.5px; font-weight:600; color:var(--muted)">Qué productos califican (las 6 combinaciones):</p>
+    <div class="matrixwrap"><table class="matrix">
+      <tr><th></th><th>Adidas</th><th>Unser</th><th>Derek</th></tr>
+      <tr><th class="rowh">Camiseta</th><td><div class="cell yes"><span class="mk">✓</span></div></td><td><div class="cell yes"><span class="mk">✓</span></div></td><td><div class="cell yes"><span class="mk">✓</span></div></td></tr>
+      <tr><th class="rowh">Zapato</th><td><div class="cell yes"><span class="mk">✓</span></div></td><td><div class="cell yes"><span class="mk">✓</span></div></td><td><div class="cell yes"><span class="mk">✓</span></div></td></tr>
+    </table></div>
+    <div class="box note">
+      <div class="bh">◇ Clave</div>
+      Una regla con «Camiseta·Zapato» + «Adidas·Unser·Derek» = las 6 combinaciones, con <strong>5 chips</strong>, no 6 reglas. <strong>Esto es idéntico al formulario de hoy</strong> — el operador no ve nada nuevo. Solo estás listando lo que aceptás; el modelo cruza por vos.
+    </div>
+
+    <h4 style="margin-top:26px">③ Combinaciones precisas — «camisetas Unser <em>o</em> zapatos Adidas»</h4>
+    <p>Aquí sí querés excluir combinaciones del cruce. Se usan <strong>dos reglas</strong> (grupos), unidas con <span class="chip mc" style="padding:1px 8px">O</span>. <strong>Esto hoy es imposible</strong> — habría que crear dos promociones separadas.</p>
+    <div class="rules">
+      <div class="rule-card">
+        <div class="rh">Regla 1</div>
+        <div class="dim-block"><div class="dim-label">Tipo de prenda</div><div class="chips"><span class="chip tp">Camiseta</span></div></div>
+        <div class="and-conn">— Y —</div>
+        <div class="dim-block"><div class="dim-label">Marca</div><div class="chips"><span class="chip mc">Unser</span></div></div>
+      </div>
+      <span class="or-between">O</span>
+      <div class="rule-card">
+        <div class="rh">Regla 2</div>
+        <div class="dim-block"><div class="dim-label">Tipo de prenda</div><div class="chips"><span class="chip tp">Zapato</span></div></div>
+        <div class="and-conn">— Y —</div>
+        <div class="dim-block"><div class="dim-label">Marca</div><div class="chips"><span class="chip mc">Adidas</span></div></div>
+      </div>
+    </div>
+    <p style="margin:14px 0 4px; font-size:13.5px; font-weight:600; color:var(--muted)">Qué productos califican (solo 2 de las 6):</p>
+    <div class="matrixwrap"><table class="matrix">
+      <tr><th></th><th>Adidas</th><th>Unser</th><th>Derek</th></tr>
+      <tr><th class="rowh">Camiseta</th><td><div class="cell no"><span class="mk">✕</span></div></td><td><div class="cell yes"><span class="mk">✓</span> R1</div></td><td><div class="cell no"><span class="mk">✕</span></div></td></tr>
+      <tr><th class="rowh">Zapato</th><td><div class="cell yes"><span class="mk">✓</span> R2</div></td><td><div class="cell no"><span class="mk">✕</span></div></td><td><div class="cell no"><span class="mk">✕</span></div></td></tr>
+    </table></div>
+    <p class="caption">→ Solo camiseta Unser (Regla 1) y zapato Adidas (Regla 2). Un zapato Unser o una camiseta Adidas <b>quedan fuera</b> — que es justo lo que hoy no se puede lograr.</p>
+
+    <div class="box prop">
+      <div class="bh">◆ La regla mental para el operador</div>
+      <b>¿Aceptás todas las combinaciones de lo que seleccionás?</b> → una sola regla (= el formulario de hoy).<br>
+      <b>¿Querés restringir a combinaciones específicas?</b> → «➕ Agregar regla» por cada combinación.<br>
+      El caso común nunca se complica; el caso fino se vuelve posible. Y todo esto —niveles ①②③— aplica igual a estrategias, cupones y bonos POS, porque son la misma entidad.
+    </div>
+
+    <p style="margin-top:24px">En la base de datos, la Regla&nbsp;③ se guarda así (cada regla = una fila en <code>promocion_condicion_grupo</code>, con sus dimensiones en <code>promocion_condicion</code>):</p>
+    <pre><span class="k">promocion_condicion_grupo</span>            <span class="k">promocion_condicion</span> (dimensión · valor)
+  #10  promo=633  rol=APLICA   ──▶   (grupo 10) TIPO_PRENDA · camiseta
+                                     (grupo 10) MARCA       · Unser
+  #11  promo=633  rol=APLICA   ──▶   (grupo 11) TIPO_PRENDA · zapato
+                                     (grupo 11) MARCA       · Adidas
+<span class="c">-- El motor: un ítem aplica si cumple el grupo 10 O el grupo 11.</span></pre>
+
+    <h3>Beneficio — una tabla por familia (NULL nunca miente)</h3>
+    <div class="tbl"><table>
+      <tr><th>Tabla</th><th>Columnas</th><th>Cubre</th></tr>
+      <tr><td><code>beneficio_descuento</code></td><td><code>es_porcentaje</code>, <code>valor</code></td><td>estrategias 1/2 · cupones %/monto</td></tr>
+      <tr><td><code>beneficio_envio_gratis</code></td><td><code>tope_valor</code> nullable</td><td>estrategia 4 · cupón envío</td></tr>
+      <tr><td><code>beneficio_regalo</code></td><td><code>cantidad</code>, <code>regla</code>, <code>valor</code>, <code>limite_por_pedido</code></td><td>estrategia tipo 3</td></tr>
+    </table></div>
+    <div class="box prop">
+      <div class="bh">◆ El campo que evita el próximo bug 633</div>
+      <code>beneficio_regalo.limite_por_pedido</code> lleva su semántica en el <code>COMMENT</code> de la columna: <strong>NULL = multiplicativo</strong> (por cada compra mínima, un regalo); <strong>N = tope</strong>. La ambigüedad de ese campo —agravada por una etiqueta poco clara en el formulario viejo— fue exactamente lo que confundió durante el episodio 633.
+    </div>
+
+    <h3><code>promocion_activacion</code> + auxiliares</h3>
+    <div class="tbl"><table>
+      <tr><th>Tabla</th><th>Rol</th></tr>
+      <tr><td><code>promocion_codigo</code></td><td>Códigos (masivo = 1 fila · únicos = N) · reemplaza <code>shop_cupon_codigos</code></td></tr>
+      <tr><td><code>promocion_segmento</code></td><td>Referencia al segmento / URL del CSV de NITs (canal POS)</td></tr>
+      <tr><td><code>promocion_medio_pago</code></td><td>Restricción por medio de pago (incluye el caso QUAC)</td></tr>
+      <tr><td><code>promocion_visualizacion</code></td><td>Ubicaciones + banners + colores + tooltips</td></tr>
+      <tr><td><code>promocion_evento</code></td><td>Auditoría unificada: quién creó/publicó/editó/archivó y cuándo</td></tr>
+    </table></div>
+
+    <h3>Runtime separado de la configuración</h3>
+    <p>El estado de ejecución del motor deja de convivir con la config y pasa a su propio espacio, con ciclo de vida reconciliable:</p>
+    <div class="tbl"><table>
+      <tr><th>Tabla runtime</th><th>Reemplaza</th></tr>
+      <tr><td><code>carrito_promocion_aplicada</code></td><td><code>store_carrito_estrategias_ventas</code> + las columnas de cupón del carrito</td></tr>
+      <tr><td><code>carrito_promocion_regalo</code></td><td><code>shop_estrategia_venta_productos</code> — con reconciliación explícita (cierra el «placeholder huérfano»)</td></tr>
+    </table></div>
+
+    <h4>La estrategia 633 en el modelo nuevo</h4>
+    <pre><span class="k">promocion</span>:            activacion=AUTOMATICA · beneficio_tipo=REGALO · canal=ONLINE
+                      estado=activa · compra_minima=400000
+                      presencia_en_promocion=SOLO_CON_DESCUENTO
+<span class="k">beneficio_regalo</span>:     cantidad=1 · regla=FIJO · valor=49900 · limite_por_pedido=NULL
+<span class="k">grupo</span> (OBTIENE):       (TIPO_PRENDA, '011') · (MARCA, '127')   <span class="c">← "gorra Goorin"</span>
+                      <span class="c">-- un solo grupo, dos dimensiones = AND: gorra Y Goorin</span>
+                      <span class="c">-- sin grupos REQUISITO = "compra cualquier cosa hasta $400k"</span></pre>
+    <p class="kicker">Compárese con hoy: 8 columnas dispersas en una tabla ancha + 2 pivotes con codificación invertida. Aquí cualquiera lo lee de un vistazo.</p>
+  </section>
+
+  <!-- 7. CODIGO -->
+  <section id="codigo">
+    <div class="sec-num">07</div>
+    <h2>Estructura de código</h2>
+    <p>El rediseño no es solo de datos: el motor de 1.000 líneas se reemplaza por piezas pequeñas, cada una con una responsabilidad y sus propias pruebas.</p>
+
+    <div class="two-col">
+      <div class="col-card hoy">
+        <h5>Hoy</h5>
+        <ul>
+          <li><code>checkCartSalesStrategies()</code> — <b>+1.000 líneas</b>, un <code>switch</code> gigante con 4 combos cableados</li>
+          <li><code>checkCouponCart()</code> — repite la validación de condiciones</li>
+          <li>Validar «¿ítem elegible?» escrito <b>3 veces</b></li>
+          <li>Estado de runtime mezclado con la config</li>
+          <li>Sin transacciones; sin capa de dominio; números mágicos</li>
+        </ul>
+      </div>
+      <div class="col-card prop">
+        <h5>Propuesta</h5>
+        <ul>
+          <li><code>PromocionEngine</code> — orquestador delgado: carga, filtra, aplica, persiste</li>
+          <li><code>EvaluadorCondiciones</code> — <b>una</b> pieza compartida por todas las promociones</li>
+          <li><code>Beneficio</code> polimórfico: <code>Porcentaje</code>, <code>Monto</code>, <code>EnvioGratis</code>, <code>Regalo</code> — cada uno con <code>aplicar()</code></li>
+          <li><code>ResolvedorRegalo</code> — la lógica «compra X obtén Y» aislada y testeable</li>
+          <li>Escritura transaccional; eventos de dominio para auditoría</li>
+        </ul>
+      </div>
+    </div>
+
+    <pre><span class="c">// El motor unificado — una sola pasada por el carrito</span>
+<span class="k">class</span> PromocionEngine {
+  <span class="k">function</span> evaluar(Carrito $c): void {
+    $promos = $this->repo->aplicables($c);        <span class="c">// automáticas + el código ingresado</span>
+    <span class="k">foreach</span> ($promos <span class="k">as</span> $p) {
+      <span class="k">if</span> (! $this->condiciones->cumple($p, $c)) <span class="k">continue</span>;   <span class="c">// ← lógica ÚNICA</span>
+      $beneficio = Beneficio::para($p->beneficio_tipo);        <span class="c">// polimorfismo</span>
+      $beneficio->aplicar($p, $c);                             <span class="c">// %/monto/envío/regalo</span>
+    }
+    $this->combinar($c);                          <span class="c">// acumulables, multiplicativo</span>
+    $this->persistir($c);                         <span class="c">// transaccional, runtime aparte</span>
+  }
+}</pre>
+    <p>El mismo <code>EvaluadorCondiciones</code> sirve a un cupón, a una estrategia y a un bono POS. Cambiar una regla de elegibilidad se hace <strong>en un solo lugar</strong>.</p>
+
+    <h4>Configuración: validación en el backend</h4>
+    <p>Un <code>FormRequest</code> por combinación de activación + beneficio impone las <strong>reglas de integridad</strong> que hoy viven en la cabeza de los operadores (tipo regalo exige criterios de OBTIENE + regla + cantidad; multiplicativo exige límite vacío explícito; fechas coherentes; porcentajes en rango). <strong>Ninguna configuración inválida puede persistir.</strong></p>
+  </section>
+
+  <!-- 8. MIGRACION -->
+  <section id="migracion">
+    <div class="sec-num">08</div>
+    <h2>Ruta de migración sin romper producción</h2>
+    <p>El motor actual lee las tablas viejas y hay 1,1&nbsp;M de cupones y 45K carritos con estado en vuelo. No se puede «apagar y prender». La ruta es incremental:</p>
+    <ol>
+      <li><strong>GW-17 — Estrategias primero.</strong> Se construye el módulo de gestión en get-web escribiendo al modelo nuevo, con el <em>concepto</em> limpio en el código. Un proyector mantiene sincronizadas las tablas viejas que el motor aún consume (patrón <em>strangler</em>). Cero cambios en el checkout.</li>
+      <li><strong>Cupones.</strong> El segundo módulo reutiliza los mismos componentes (condiciones, vigencia, mínimos, beneficio) — porque ya son la misma entidad.</li>
+      <li><strong>Bonos POS (REQ 1468).</strong> Cae solo: es una promoción con activación por segmento y canal POS. Reutiliza todo.</li>
+      <li><strong>Motor unificado.</strong> Con las tres fuentes ya escribiendo al modelo nuevo, se reemplaza <code>checkCouponCart</code> + <code>checkCartSalesStrategies</code> por <code>PromocionEngine</code>, y se retira el proyector.</li>
+    </ol>
+    <div class="box note">
+      <div class="bh">◇ Principio</div>
+      El modelo limpio se gana <strong>primero en el código</strong> (Services y FormRequests con el concepto correcto), <strong>después en las tablas</strong>. Así cada REQ entrega valor sin esperar al «gran rediseño», y el gran rediseño llega solo cuando las tres fuentes ya hablan el mismo idioma.
+    </div>
+  </section>
+
+  <!-- 9. BENEFICIOS -->
+  <section id="beneficios">
+    <div class="sec-num">09</div>
+    <h2>Qué ganamos</h2>
+    <div class="stats">
+      <div class="stat"><div class="n">2 → 1</div><div class="l">familias de tablas (hoy cupones y estrategias duplicadas)</div></div>
+      <div class="stat"><div class="n">3 → 1</div><div class="l">implementaciones de «¿ítem elegible?»</div></div>
+      <div class="stat"><div class="n">2 → 1</div><div class="l">motores de checkout</div></div>
+      <div class="stat"><div class="n">4 → 1</div><div class="l">módulos futuros (cupón, estrategia, QUAC, bono POS) sobre una base</div></div>
+    </div>
+    <ul>
+      <li><strong>La clase de bug del 633 desaparece</strong> — configuración inmutable, runtime reconciliable, y un límite con semántica explícita.</li>
+      <li><strong>Cada regla de negocio se toca una vez</strong>, no dos o tres.</li>
+      <li><strong>El backend garantiza la integridad</strong>: el módulo se puede abrir a más operadores sin miedo a configuraciones rotas en producción.</li>
+      <li><strong>El bono POS (1468) deja de ser un proyecto aparte</strong> y se vuelve una variante de la promoción.</li>
+      <li><strong>Estados reales y auditoría</strong> — se acaba el 97% de estrategias «vigentes» que en realidad están muertas.</li>
+    </ul>
+    <div class="box prop">
+      <div class="bh">◆ Siguiente paso</div>
+      Este documento es el <em>norte compartido</em>. Su detalle técnico (mapeo campo por campo, 8 reglas de integridad, análisis del CRUD y del motor) vive en <code>analisis-optimizacion.md</code> del REQ GW-17. Lo pendiente para avanzar: cerrar las decisiones de diseño (wizard vs. formulario, alcance v1, camino de persistencia) y pasar al mockup del módulo de gestión.
+    </div>
+  </section>
+
+  <footer>
+    <p><b>Sistema de descuentos · Diagnóstico y rediseño</b> — Baguer / get-web · get-api. Datos verificados contra <code>baguer_pro</code> el 15 de julio de 2026.<br>
+    Documentos de referencia: <code>docs/contexto/CMS-STIRPE-ESTRATEGIAS-VENTAS.md</code> · <code>CMS-STIRPE-CUPONES.md</code> · <code>GET-API-CARRITO-PEDIDO-DESCUENTOS.md</code> · <code>docs/requirements/GW-17-…/analisis-optimizacion.md</code> · <code>docs/requirements/PD-1481/auditoria-fix-dev.md</code>.</p>
+  </footer>
+
+  </main>
+</div>
+</body>
+</html>
