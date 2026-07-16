@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-75 · Simulador compras — mockup v4</title>
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700&family=nunito:400,600,700,800" rel="stylesheet" />
+<style>
+  /* ===== tokens reales de get-web (resources/css/app.css @ origin/master) ===== */
+  :root{
+    --background:hsl(0 0% 100%);--foreground:hsl(0 0% 3.9%);
+    --card:hsl(0 0% 100%);--muted:hsl(0 0% 96.1%);--muted-fg:hsl(0 0% 45.1%);
+    --primary:hsl(0 0% 9%);--primary-fg:hsl(0 0% 98%);
+    --secondary:hsl(161.38 93.55% 30.39%);--border:hsl(0 0% 92.8%);--input:hsl(0 0% 89.8%);
+    --destructive:hsl(0 84.2% 60.2%);--radius:0.5rem;
+    --sidebar:hsl(0 0% 98%);--sidebar-fg:hsl(240 5.3% 26.1%);--sidebar-border:hsl(0 0% 91%);--sidebar-accent:hsl(0 0% 94%);
+    --ambar:#b45309;--ambar-bg:#fffbeb;--oro:#b8860b;
+    --sombra:0 1px 3px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.03);
+    /* tokens del checkout Quac (stirpe-web) */
+    --q-morado:#7c3aed;--q-morado-oscuro:#2e1065;--q-lila:#f5f3ff;--q-lila-2:#ede9fe;--q-verde:#16a34a;--q-verde-bg:#dcfce7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Instrument Sans',ui-sans-serif,system-ui,sans-serif;background:hsl(0 0% 97%);color:var(--foreground);font-size:14px;-webkit-font-smoothing:antialiased}
+  .switcher{position:sticky;top:0;z-index:50;background:var(--primary);color:#fff;padding:8px 16px;display:flex;gap:8px;align-items:center;font-size:12px;flex-wrap:wrap}
+  .switcher b{margin-right:8px}
+  .switcher button{padding:4px 12px;border-radius:14px;border:1px solid hsl(0 0% 35%);background:transparent;color:hsl(0 0% 80%);cursor:pointer;font-size:12px;font-family:inherit}
+  .switcher button.on{background:var(--secondary);border-color:var(--secondary);color:#fff}
+  .layout{display:flex;min-height:100vh}
+  .sidebar{width:220px;background:var(--sidebar);color:var(--sidebar-fg);padding:14px 0;flex-shrink:0;border-right:1px solid var(--sidebar-border)}
+  .sidebar .logo{font-weight:600;padding:0 16px 14px;font-size:15px;color:var(--foreground)}
+  .sidebar .item{padding:7px 16px;font-size:13px;border-radius:6px;margin:1px 8px}
+  .sidebar .grupo{padding:12px 16px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-fg)}
+  .sidebar .item.activo{background:var(--sidebar-accent);color:var(--foreground);font-weight:600}
+  .main{flex:1;padding:26px 30px;max-width:1180px}
+  h1{font-size:20px;font-weight:700;letter-spacing:-.01em;margin-bottom:3px}
+  .sub{color:var(--muted-fg);font-size:13px;margin-bottom:20px;max-width:720px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:var(--sombra)}
+  .form{display:grid;grid-template-columns:1.1fr .7fr 1fr 1fr auto;gap:14px;align-items:end}
+  @media(max-width:1000px){.form{grid-template-columns:1fr 1fr}}
+  label{display:block;font-size:12px;color:var(--muted-fg);margin-bottom:5px;font-weight:500}
+  input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--input);border-radius:var(--radius);font-size:15px;font-weight:500;font-family:inherit;background:#fff}
+  input[type=text]:focus{outline:2px solid var(--primary);outline-offset:-1px}
+  .btn{background:var(--primary);color:var(--primary-fg);border:none;border-radius:var(--radius);padding:11px 26px;font-weight:600;cursor:pointer;font-size:14px;white-space:nowrap;font-family:inherit}
+  .btn.sec{background:#fff;color:var(--foreground);border:1px solid var(--input);padding:8px 16px;font-size:13px}
+  .toggle-envio{display:flex;align-items:center;gap:8px;padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border)}
+  .toggle-envio label{margin:0;font-weight:600;font-size:13px;color:var(--foreground)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+  .bloque{padding:0;overflow:hidden}
+  .bloque .head{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--border);background:hsl(0 0% 98.5%)}
+  .bloque .head h3{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);font-weight:600}
+  .bloque .cuerpo{padding:8px 20px 14px}
+  .fila{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid hsl(0 0% 95.5%);font-size:13.5px;gap:10px}
+  .fila:last-child{border-bottom:none}
+  .fila span{color:hsl(0 0% 28%)}
+  .fila b{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
+  .verde{color:var(--secondary)}
+  .fila-total{display:flex;justify-content:space-between;align-items:center;margin:6px 20px 16px;padding:12px 16px;background:var(--muted);border-radius:var(--radius)}
+  .fila-total span{font-weight:600;font-size:13.5px}
+  .fila-total b{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .cliente-nombre{padding:14px 20px 2px}
+  .cliente-nombre .n{font-size:16px;font-weight:700;letter-spacing:-.01em}
+  .cliente-nombre .d{font-size:12px;color:var(--muted-fg);margin-top:2px}
+  .nivel-strip{display:flex;justify-content:space-between;align-items:center;margin:14px 20px 2px;padding:12px 16px;border-radius:var(--radius)}
+  .nivel-strip .t1{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;opacity:.7}
+  .nivel-strip .t2{font-size:17px;font-weight:700;letter-spacing:-.01em}
+  .nivel-strip .q{text-align:right}
+  .nivel-strip .q .n{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+  .nivel-strip .q .l{font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
+  .nivel-gold{background:linear-gradient(120deg,#f7ecd0,#eed79c);color:#5b4708}
+  .nivel-silver{background:linear-gradient(120deg,#eef1f4,#d9dee4);color:#3f4750}
+  .nivel-plus{background:linear-gradient(120deg,#ede9fe,#ddd3fb);color:#4c1d95}
+  .nivel-black{background:linear-gradient(120deg,#26262b,#3a3a42);color:#f0e8d0}
+  .badge{display:inline-block;font-size:11px;font-weight:600;padding:3px 11px;border-radius:12px}
+  .b-verde{background:hsl(161 60% 95%);color:var(--secondary)} .b-rojo{background:#fef2f2;color:var(--destructive)}
+  .b-ambar{background:var(--ambar-bg);color:var(--ambar)} .b-oro{background:linear-gradient(120deg,#fdf3d7,#f7e7b4);color:#7a5c07}
+  .aviso{border-radius:var(--radius);padding:11px 15px;font-size:13px;margin-bottom:14px}
+  .aviso.ambar{background:var(--ambar-bg);border:1px solid #fcd34d;color:var(--ambar)}
+  .aviso.rojo{background:#fef2f2;border:1px solid #fca5a5;color:var(--destructive)}
+  .estrategias{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:16px 20px 20px}
+  @media(max-width:1000px){.estrategias{grid-template-columns:1fr}}
+  .plan{border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;background:#fff}
+  .plan.recomendado{border:1.5px solid var(--secondary);box-shadow:0 0 0 3px hsl(161 60% 95%)}
+  .plan .cab{padding:16px 16px 13px;position:relative}
+  .plan.recomendado .cab{background:linear-gradient(180deg,hsl(161 60% 97%),#fff)}
+  .plan .rec{position:absolute;top:12px;right:12px;background:var(--secondary);color:#fff;font-size:10px;font-weight:700;letter-spacing:.04em;padding:3px 10px;border-radius:10px}
+  .plan h4{font-size:17px;font-weight:700;letter-spacing:-.01em}
+  .plan .fecha1{font-size:12px;color:var(--muted-fg);font-weight:400;margin-top:3px}
+  .plan .fecha1 b{color:hsl(0 0% 25%);font-weight:500}
+  .cuotas-lista{border-top:1px solid var(--border);flex:1}
+  .cuotas-head{display:flex;justify-content:space-between;padding:7px 16px;background:hsl(0 0% 98%);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-fg)}
+  .cuotas-scroll{max-height:196px;overflow-y:auto}
+  .plan .cuota{display:flex;justify-content:space-between;font-size:13px;padding:6px 16px;border-bottom:1px solid hsl(0 0% 96.5%);font-variant-numeric:tabular-nums}
+  .plan .cuota span{color:var(--muted-fg);font-size:12.5px}
+  .plan .cuota b{font-weight:600}
+  .plan .meta{font-size:11px;color:var(--muted-fg);padding:8px 16px;border-top:1px solid var(--border);background:hsl(0 0% 98.5%);font-family:ui-monospace,Menlo,monospace}
+  details{padding:0 20px 16px}
+  details summary{cursor:pointer;font-size:12px;color:var(--secondary);font-weight:600}
+  .raw{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted-fg);margin-top:10px;word-break:break-all}
+  .estado{display:none} .estado.visible{display:block}
+  /* loader */
+  .btn:disabled{opacity:.85;cursor:default}
+  .spinner{width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:girar .7s linear infinite;display:inline-block;vertical-align:-3px;margin-right:8px}
+  @keyframes girar{to{transform:rotate(360deg)}}
+  @keyframes shimmer{0%{background-position:-500px 0}100%{background-position:500px 0}}
+  .skel{background:linear-gradient(90deg,hsl(0 0% 94.5%) 25%,hsl(0 0% 90.5%) 37%,hsl(0 0% 94.5%) 63%);background-size:1000px 100%;animation:shimmer 1.4s infinite linear;border-radius:6px}
+  .cargando-msg{display:flex;align-items:center;gap:10px;color:var(--muted-fg);font-size:13px;margin-bottom:14px}
+  .cargando-msg .spinner{border-color:hsl(0 0% 80%);border-top-color:var(--foreground);margin:0}
+
+  /* ============ MODAL VISTA CLIENTE — réplica de PD-1456 (stirpe-web) ============ */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto}
+  .overlay.visible{display:flex}
+  .qm{font-family:'Nunito',sans-serif;background:#fff;border-radius:24px;width:420px;padding:26px 28px;position:relative;color:#1f2937}
+  .qm .cerrar{position:absolute;top:18px;right:20px;font-size:20px;color:#9ca3af;cursor:pointer;background:none;border:none;font-weight:700}
+  .qm .logo{display:flex;justify-content:center;align-items:center;gap:6px;margin-bottom:10px}
+  .qm .logo .palabra{font-weight:800;font-size:20px;color:var(--q-morado)}
+  .qm h2{text-align:center;font-size:24px;font-weight:800;color:var(--q-morado-oscuro);margin-bottom:4px}
+  .qm .sub{text-align:center;font-size:14px;color:#6b7280;margin-bottom:16px}
+  .qm .paga-card{background:linear-gradient(180deg,#faf9ff,var(--q-lila));border:1px solid var(--q-lila-2);border-radius:16px;padding:16px;text-align:center;margin-bottom:16px}
+  .qm .paga-card .l{font-size:13px;color:#6b7280}
+  .qm .paga-card .v{font-size:34px;font-weight:800;color:var(--q-morado-oscuro);margin:2px 0 8px}
+  .qm .saldo-pill{display:inline-block;background:var(--q-lila-2);border-radius:14px;padding:3px 14px;font-size:13px;color:#6b7280}
+  .qm .saldo-pill b{color:var(--q-morado)}
+  .qm .seccion-label{font-size:12px;font-weight:700;color:#9ca3af;letter-spacing:.08em;text-transform:uppercase;margin:14px 0 6px}
+  .qm .detalle{background:#fafafa;border:1px solid #f0f0f0;border-radius:12px;padding:10px 14px;margin-bottom:14px}
+  .qm .dfila{display:flex;justify-content:space-between;padding:5px 0;font-size:15px}
+  .qm .dfila.verde{color:var(--q-verde);font-weight:600}
+  .qm .dfila.total{border-top:1.5px solid #d1d5db;font-weight:800;color:var(--q-morado-oscuro)}
+  .qm .gold{border-radius:14px;overflow:hidden;border:1px solid #eee;margin-bottom:14px}
+  .qm .gold .head{background:linear-gradient(120deg,#e8c877,#c9a24a 60%,#e2be6c);padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+  .qm .gold .head .t1{font-size:10px;font-weight:800;letter-spacing:.1em;color:#5b4708}
+  .qm .gold .head .t2{font-size:19px;font-weight:800;color:#3d2f04}
+  .qm .gold .head .q{text-align:right;color:#3d2f04}
+  .qm .gold .head .q .n{font-size:19px;font-weight:800}
+  .qm .gold .head .q .l{font-size:9px;font-weight:700;letter-spacing:.1em}
+  .qm .gold .beneficio{display:flex;gap:8px;padding:10px 16px;border-bottom:1px solid #f3f4f6;font-size:14.5px;font-weight:600}
+  .qm .gold .beneficio .check{color:var(--q-verde);font-weight:800}
+  .qm .gold .faltan{background:var(--q-lila);padding:10px 16px;text-align:center;font-size:13.5px;font-weight:700;color:var(--q-morado)}
+  .qm .btn-q{width:100%;background:var(--q-morado);color:#fff;border:none;border-radius:26px;padding:14px;font-weight:800;font-size:15.5px;cursor:pointer;font-family:inherit;margin-top:4px}
+  .qm .btn-q.suave{background:#c4b5fd}
+  .qm .plan-radio{border:1.5px solid #e5e7eb;border-radius:14px;padding:13px 15px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+  .qm .plan-radio.sel{border-color:var(--q-morado-oscuro);background:#fafafa}
+  .qm .plan-radio .dot{width:18px;height:18px;border-radius:50%;border:2px solid #d1d5db;flex-shrink:0;margin-top:2px}
+  .qm .plan-radio.sel .dot{border:5px solid #2563eb}
+  .qm .plan-radio .tit{font-weight:800;font-size:15.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .qm .plan-radio .rec-pill{background:var(--q-verde-bg);color:var(--q-verde);font-size:11px;font-weight:800;border-radius:10px;padding:2px 10px}
+  .qm .plan-radio .d{font-size:14px;color:#4b5563;margin-top:2px}
+  .qm .sel-label{font-weight:800;font-size:16px;color:#1f2937;margin:16px 0 8px}
+  .qm select{width:100%;padding:12px 14px;border:1.5px solid #d1d5db;border-radius:12px;font-size:15px;font-family:inherit;background:#fff;color:#374151}
+  .qm .paso{display:none} .qm .paso.visible{display:block}
+  .qm .nota-mock{text-align:center;font-size:10.5px;color:#9ca3af;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="switcher">
+  <b>MOCKUP v5 · estados:</b>
+  <button class="on" onclick="ver('a', this)">A · Cliente con nivel + envío</button>
+  <button onclick="ver('l', this)">L · Cargando</button>
+  <button onclick="ver('b', this)">B · Sin crédito Quac</button>
+  <button onclick="ver('c', this)">C · CRM caído</button>
+  <span style="margin-left:auto;color:hsl(0 0% 65%)">v5: identidad + franja de nivel · estados B/C = solo alert</span>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="logo">GET</div>
+    <div class="item">Dashboard</div>
+    <div class="grupo">QUAC</div>
+    <div class="item">Pagos</div>
+    <div class="item">Consulta PVAL</div>
+    <div class="item">Consulta de Planes</div>
+    <div class="item activo">Simulador compras</div>
+    <div class="grupo">Venta Asistida</div>
+    <div class="item">Gestión de ventas</div>
+  </div>
+
+  <div class="main">
+    <h1>Simulador compras Quac</h1>
+    <div class="sub">Verifica lo que el cliente vería al pagar con crédito Quac: nivel, descuentos y estrategias de cuotas para una bodega y valor dados. Consulta en vivo — no crea transacciones ni compromete cupo.</div>
+
+    <div class="card">
+      <div class="toggle-envio">
+        <input type="checkbox" id="chkEnvio" checked onchange="document.getElementById('campoEnvio').style.opacity = this.checked ? 1 : .35">
+        <label for="chkEnvio">¿La compra incluye envío?</label>
+      </div>
+      <div class="form">
+        <div><label>Número de documento</label><input type="text" value="1007259160"></div>
+        <div><label>Número de bodega</label><input type="text" value="315"></div>
+        <div><label>Valor de compra (productos)</label><input type="text" value="$ 281.741"></div>
+        <div id="campoEnvio"><label>Valor de envío</label><input type="text" value="$ 12.000"></div>
+        <div><button class="btn" id="btnSimular">Simular</button></div>
+      </div>
+    </div>
+
+    <!-- ============ ESTADO A ============ -->
+    <div class="estado visible" id="estado-a">
+      <div class="grid2">
+        <div class="card bloque">
+          <div class="head"><h3>Cliente en Quac</h3><span class="badge b-verde">Al día</span></div>
+          <div class="cliente-nombre">
+            <div class="n">María Camila Rodríguez Pérez</div>
+            <div class="d">CC 1.007.259.160</div>
+          </div>
+          <div class="cuerpo">
+            <div class="fila"><span>Cupo disponible</span><b>$1.555.392</b></div>
+            <div class="fila"><span>Cupo aprobado</span><b>$2.000.000</b></div>
+            <div class="fila"><span>¿Cubre esta compra?</span><span class="badge b-verde">Sí</span></div>
+          </div>
+        </div>
+        <div class="card bloque">
+          <div class="head"><h3>Beneficios del nivel</h3></div>
+          <div class="nivel-strip nivel-gold">
+            <div><div class="t1">Nivel del cliente</div><div class="t2">Quac Gold</div></div>
+            <div class="q"><div class="n">13.723</div><div class="l">Quacs acumulados</div></div>
+          </div>
+          <div class="cuerpo">
+            <div class="fila"><span>Compra (productos)</span><b>$281.741</b></div>
+            <div class="fila"><span>Envío digitado</span><b>+$12.000</b></div>
+            <div class="fila"><span>Envío gratis desde $199.900 (Gold) → <b style="font-weight:600">APLICA</b></span><b class="verde">−$12.000</b></div>
+            <div class="fila"><span>Descuento del nivel (5% sobre productos)</span><b class="verde">−$14.087</b></div>
+          </div>
+          <div class="fila-total"><span>Valor a financiar</span><b>$267.654</b></div>
+        </div>
+      </div>
+
+      <div class="card bloque">
+        <div class="head"><h3>Estrategias devueltas por el servicio (3)</h3>
+          <button class="btn sec" onclick="abrirCliente()">Ver como cliente</button>
+        </div>
+        <div class="estrategias">
+          <div class="plan recomendado">
+            <div class="cab">
+              <div class="rec">RECOMENDADO</div>
+              <h4>0% interés</h4>
+              <div class="fecha1">Primera cuota · <b>02 agosto 2026</b></div>
+            </div>
+            <div class="cuotas-lista">
+              <div class="cuotas-head"><span>Cuotas</span><span>5 opciones</span></div>
+              <div class="cuotas-scroll">
+                <div class="cuota"><span>Cuota 1</span><b>$267.654</b></div>
+                <div class="cuota"><span>Cuota 2</span><b>$133.827</b></div>
+                <div class="cuota"><span>Cuota 3</span><b>$89.218</b></div>
+                <div class="cuota"><span>Cuota 4</span><b>$66.914</b></div>
+                <div class="cuota"><span>Cuota 5</span><b>$53.531</b></div>
+              </div>
+            </div>
+            <div class="meta">id: sin_interes · R1..R5</div>
+          </div>
+          <div class="plan">
+            <div class="cab">
+              <h4>Paga en 60 días</h4>
+              <div class="fecha1">Primera cuota · <b>15 septiembre 2026</b></div>
+            </div>
+            <div class="cuotas-lista">
+              <div class="cuotas-head"><span>Cuotas</span><span>9 opciones</span></div>
+              <div class="cuotas-scroll">
+                <div class="cuota"><span>Cuota 1</span><b>$283.712</b></div>
+                <div class="cuota"><span>Cuota 2</span><b>$144.161</b></div>
+                <div class="cuota"><span>Cuota 3</span><b>$97.644</b></div>
+                <div class="cuota"><span>Cuota 4</span><b>$74.386</b></div>
+                <div class="cuota"><span>Cuota 5</span><b>$60.431</b></div>
+                <div class="cuota"><span>Cuota 6</span><b>$51.128</b></div>
+                <div class="cuota"><span>Cuota 7</span><b>$44.483</b></div>
+                <div class="cuota"><span>Cuota 8</span><b>$39.499</b></div>
+                <div class="cuota"><span>Cuota 9</span><b>$35.622</b></div>
+              </div>
+            </div>
+            <div class="meta">id: aplica_plazo</div>
+          </div>
+          <div class="plan">
+            <div class="cab">
+              <h4>Financiación Estándar</h4>
+              <div class="fecha1">Primera cuota · <b>02 agosto 2026</b></div>
+            </div>
+            <div class="cuotas-lista">
+              <div class="cuotas-head"><span>Cuotas</span><span>15 opciones</span></div>
+              <div class="cuotas-scroll">
+                <div class="cuota"><span>Cuota 1</span><b>$275.684</b></div>
+                <div class="cuota"><span>Cuota 2</span><b>$140.098</b></div>
+                <div class="cuota"><span>Cuota 3</span><b>$94.903</b></div>
+                <div class="cuota"><span>Cuota 4</span><b>$72.310</b></div>
+                <div class="cuota"><span>Cuota 5</span><b>$58.759</b></div>
+                <div class="cuota"><span>Cuota 6</span><b>$49.727</b></div>
+                <div class="cuota"><span>Cuota 7</span><b>$43.278</b></div>
+                <div class="cuota"><span>Cuota 8</span><b>$38.442</b></div>
+                <div class="cuota"><span>Cuota 9</span><b>$34.682</b></div>
+                <div class="cuota"><span>Cuota 10</span><b>$31.675</b></div>
+                <div class="cuota"><span>Cuota 11</span><b>$29.216</b></div>
+                <div class="cuota"><span>Cuota 12</span><b>$27.168</b></div>
+                <div class="cuota"><span>Cuota 13</span><b>$25.436</b></div>
+                <div class="cuota"><span>Cuota 14</span><b>$23.953</b></div>
+                <div class="cuota"><span>Cuota 15</span><b>$22.668</b></div>
+              </div>
+            </div>
+            <div class="meta">id: ninguno</div>
+          </div>
+        </div>
+        <details><summary>Ver respuesta cruda del servicio (verificación)</summary>
+          <div class="raw">{"config_plan_payment":{"count_installments":15,"strategies":[{"id":"sin_interes","recomended":true,...}]},"credit_available":1555392}</div>
+        </details>
+      </div>
+    </div>
+
+    <!-- ============ ESTADO L: cargando (skeleton) ============ -->
+    <div class="estado" id="estado-l">
+      <div class="cargando-msg"><span class="spinner"></span> Consultando nivel y planes de pago en Quac…</div>
+      <div class="grid2">
+        <div class="card bloque">
+          <div class="head"><h3>Cliente en Quac</h3><div class="skel" style="width:70px;height:20px;border-radius:12px"></div></div>
+          <div class="cliente-nombre">
+            <div class="skel" style="width:220px;height:18px"></div>
+            <div class="skel" style="width:120px;height:12px;margin-top:7px"></div>
+          </div>
+          <div class="cuerpo">
+            <div class="fila"><span>Cupo disponible</span><div class="skel" style="width:90px;height:14px"></div></div>
+            <div class="fila"><span>Cupo aprobado</span><div class="skel" style="width:90px;height:14px"></div></div>
+            <div class="fila"><span>¿Cubre esta compra?</span><div class="skel" style="width:44px;height:20px;border-radius:12px"></div></div>
+          </div>
+        </div>
+        <div class="card bloque">
+          <div class="head"><h3>Beneficios del nivel</h3></div>
+          <div class="skel" style="height:56px;margin:14px 20px 2px;border-radius:8px"></div>
+          <div class="cuerpo">
+            <div class="fila"><div class="skel" style="width:150px;height:14px"></div><div class="skel" style="width:80px;height:14px"></div></div>
+            <div class="fila"><div class="skel" style="width:190px;height:14px"></div><div class="skel" style="width:80px;height:14px"></div></div>
+          </div>
+          <div class="fila-total"><span>Valor a financiar</span><div class="skel" style="width:110px;height:22px"></div></div>
+        </div>
+      </div>
+      <div class="card bloque">
+        <div class="head"><h3>Estrategias devueltas por el servicio</h3></div>
+        <div class="estrategias">
+          <div class="plan">
+            <div class="cab"><div class="skel" style="width:110px;height:19px"></div><div class="skel" style="width:170px;height:12px;margin-top:8px"></div></div>
+            <div class="cuotas-lista"><div class="cuotas-head"><span>Cuotas</span></div>
+              <div class="cuotas-scroll">
+                <div class="cuota"><div class="skel" style="width:60px;height:12px"></div><div class="skel" style="width:70px;height:12px"></div></div>
+                <div class="cuota"><div class="skel" style="width:60px;height:12px"></div><div class="skel" style="width:70px;height:12px"></div></div>
+                <div class="cuota"><div class="skel" style="width:60px;height:12px"></div><div class="skel" style="width:70px;height:12px"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="plan">
+            <div class="cab"><div class="skel" style="width:140px;height:19px"></div><div class="skel" style="width:170px;height:12px;margin-top:8px"></div></div>
+            <div class="cuotas-lista"><div class="cuotas-head"><span>Cuotas</span></div>
+              <div class="cuotas-scroll">
+                <div class="cuota"><div class="skel" style="width:60px;height:12px"></div><div class="skel" style="width:70px;height:12px"></div></div>
+                <div class="cuota"><div class="skel" style="width:60px;height:12px"></div><div class="skel" style="width:70px;height:12px"></div></div>
+                <div class="cuota"><div class="skel" style="width:60px;height:12px"></div><div class="skel" style="width:70px;height:12px"></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="plan">
+            <div class="cab"><div class="skel" style="width:170px;height:19px"></div><div class="skel" style="width:170px;height:12px;margin-top:8px"></div></div>
+            <div class="cuotas-lista"><div class="cuotas-head"><span>Cuotas</span></div>
+              <div class="cuotas-scroll">
+                <div class="cuota"><div class="skel" style="width:60px;height:12px"></div><div class="skel" style="width:70px;height:12px"></div></div>
+                <div class="cuota"><div class="skel" style="width:60px;height:12px"></div><div class="skel" style="width:70px;height:12px"></div></div>
+                <div class="cuota"><div class="skel" style="width:60px;height:12px"></div><div class="skel" style="width:70px;height:12px"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ESTADO B: solo alert ============ -->
+    <div class="estado" id="estado-b">
+      <div class="aviso ambar"><b>⚠ Cliente sin crédito Quac.</b> El documento <b>900.123.456</b> no está registrado en Quac. Verifica el número digitado o simula con otro documento.</div>
+    </div>
+
+    <!-- ============ ESTADO C: solo alert ============ -->
+    <div class="estado" id="estado-c">
+      <div class="aviso rojo"><b>✕ No fue posible completar la simulación.</b> El servicio de Quac no respondió al consultar el nivel y los planes del cliente. Intenta de nuevo en unos minutos.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL VISTA CLIENTE — réplica PD-1456, 2 pasos ============ -->
+<div class="overlay" id="modalCliente" onclick="if(event.target===this)cerrarCliente()">
+  <div class="qm">
+    <button class="cerrar" onclick="cerrarCliente()">✕</button>
+    <div class="logo">
+      <svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="14" r="10" fill="none" stroke="#7c3aed" stroke-width="4"/><circle cx="17" cy="12" r="2.6" fill="#2e1065"/><path d="M24 20 q3 3 -1 6" stroke="#7c3aed" stroke-width="4" fill="none" stroke-linecap="round"/></svg>
+      <span class="palabra">Quac</span>
+    </div>
+
+    <!-- PASO 1: beneficios (pantalla "Cliente Quac Gold" de PD-1456) -->
+    <div class="paso visible" id="qm-paso1">
+      <h2>Cliente Quac Gold</h2>
+      <div class="sub">Estos son los beneficios que aplican a tu compra</div>
+      <div class="paga-card">
+        <div class="l">Pagas hoy</div>
+        <div class="v">$267.654</div>
+        <span class="saldo-pill">Saldo disponible: <b>$1.555.392</b></span>
+      </div>
+      <div class="seccion-label">Detalle de compra</div>
+      <div class="detalle">
+        <div class="dfila"><span>Valor de tu compra</span><b>$293.741</b></div>
+        <div class="dfila verde"><span>✓ Envío gratis Quac Gold</span><b>−$12.000</b></div>
+        <div class="dfila verde"><span>✓ 5% descuento Quac Gold</span><b>−$14.087</b></div>
+        <div class="dfila total"><span>Total</span><b>$267.654</b></div>
+      </div>
+      <div class="gold">
+        <div class="head">
+          <div><div class="t1">TUS BENEFICIOS</div><div class="t2">Quac Gold</div></div>
+          <div class="q"><div class="n">13.723</div><div class="l">QUACS</div></div>
+        </div>
+        <div class="beneficio"><span class="check">✓</span> 5% de descuento siempre al pagar con Quac</div>
+        <div class="beneficio"><span class="check">✓</span> Envío gratis en compras desde $199.900</div>
+        <div class="beneficio"><span class="check">✓</span> Plazo 60: primera cuota hasta en 60 días</div>
+        <div class="beneficio"><b style="color:var(--q-verde);margin-right:2px">15</b> cuotas máximas</div>
+        <div class="faltan">★ Te faltan 6.277 Quacs para ser Quac Black</div>
+      </div>
+      <button class="btn-q" onclick="qmPaso(2)">Continuar a planes de pago →</button>
+      <div class="nota-mock">Vista de referencia (réplica del checkout) — el simulador no crea transacciones</div>
+    </div>
+
+    <!-- PASO 2: planes (pantalla "Confirma tu compra" de PD-1456) -->
+    <div class="paso" id="qm-paso2">
+      <h2>Confirma tu compra</h2>
+      <div class="paga-card" style="margin-top:12px">
+        <div class="l">Valor de la compra</div>
+        <div class="v">$267.654</div>
+        <span class="saldo-pill">Saldo disponible: <b>$1.555.392</b></span>
+      </div>
+      <div class="sel-label" style="margin-top:4px">Elige tu plan de pago</div>
+      <div class="plan-radio sel">
+        <div class="dot"></div>
+        <div><div class="tit">0% interés <span class="rec-pill">★ RECOMENDADO</span></div>
+        <div class="d">Paga hasta en 5 cuotas sin ningún interés.</div></div>
+      </div>
+      <div class="plan-radio">
+        <div class="dot"></div>
+        <div><div class="tit">Paga en 60 días</div>
+        <div class="d">Paga tu primera cuota en Sep. Hasta 9 cuotas.</div></div>
+      </div>
+      <div class="plan-radio">
+        <div class="dot"></div>
+        <div><div class="tit">Financiación Estándar</div>
+        <div class="d">Paga cómodamente hasta en 15 cuotas</div></div>
+      </div>
+      <div class="sel-label">Selecciona número de cuotas</div>
+      <select>
+        <option>Selecciona una opción</option>
+        <option>1 cuota quincenal de $267.654</option>
+        <option>2 cuotas quincenales de $133.827</option>
+        <option selected>3 cuotas quincenales de $89.218</option>
+        <option>4 cuotas quincenales de $66.914</option>
+        <option>5 cuotas quincenales de $53.531</option>
+      </select>
+      <button class="btn-q suave" style="text-transform:uppercase">Finalizar compra</button>
+      <div class="nota-mock">Vista de referencia (réplica del checkout) — botón inactivo, el simulador no crea transacciones</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function ver(id, btn){
+  document.querySelectorAll('.estado').forEach(e => e.classList.remove('visible'));
+  document.getElementById('estado-' + id).classList.add('visible');
+  document.querySelectorAll('.switcher button').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  var sim = document.getElementById('btnSimular');
+  if(id === 'l'){ sim.disabled = true; sim.innerHTML = '<span class="spinner"></span>Simulando…'; }
+  else { sim.disabled = false; sim.innerHTML = 'Simular'; }
+}
+function abrirCliente(){ qmPaso(1); document.getElementById('modalCliente').classList.add('visible'); }
+function cerrarCliente(){ document.getElementById('modalCliente').classList.remove('visible'); }
+function qmPaso(n){
+  document.getElementById('qm-paso1').classList.toggle('visible', n === 1);
+  document.getElementById('qm-paso2').classList.toggle('visible', n === 2);
+}
+</script>
+</body>
+</html>
