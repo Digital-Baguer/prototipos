@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Handoff técnico — Nómina Electrónica: Validación y envío (rediseño)</title>
+<style>
+  :root{--navy:#2b3648; --blue:#3f8ac9; --red:#e8556d; --green:#1fae83; --orange:#f5a02e; --muted:#6b7a8d; --border:#e4e9ef; --purple:#7a5ec4;}
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif; background:#fff; color:#1a1a1a; line-height:1.65; font-size:15px;}
+  .container{max-width:900px; margin:0 auto; padding:36px 24px 80px;}
+  .doc-head{border-bottom:3px solid var(--navy); padding-bottom:20px; margin-bottom:8px;}
+  .doc-head h1{font-size:23px; color:var(--navy); line-height:1.3;}
+  .doc-head .sub{color:var(--muted); font-size:13.5px; margin-top:6px;}
+  .bdg{display:inline-block; font-size:11px; font-weight:700; padding:3px 11px; border-radius:11px; margin-right:6px; margin-top:10px;}
+  .bdg.id{background:#e9eef5; color:var(--navy);} .bdg.pri{background:#fbe5ea; color:var(--red);} .bdg.ok{background:#e2f4ee; color:var(--green);}
+  h2{font-size:18.5px; color:var(--navy); margin:36px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--border);}
+  h2 .n{display:inline-flex; width:26px; height:26px; border-radius:50%; background:var(--navy); color:#fff; font-size:13px; align-items:center; justify-content:center; margin-right:9px; vertical-align:-4px;}
+  h3{font-size:15px; color:var(--navy); margin:20px 0 8px;}
+  p{margin:9px 0;} ul,ol{margin:9px 0 9px 26px;} li{margin:5px 0;}
+  code{background:#f1f4f8; border-radius:4px; padding:1.5px 6px; font-family:'SF Mono',Menlo,Consolas,monospace; font-size:12.5px;}
+  pre{background:#1d2634; color:#c7d2e0; border-radius:8px; padding:16px 18px; overflow-x:auto; font-family:'SF Mono',Menlo,Consolas,monospace; font-size:12px; line-height:1.55; margin:13px 0;}
+  pre .c{color:#5c6e84;} pre .k{color:#c9a6f5;} pre .s{color:#7fe0b8;}
+  table{width:100%; border-collapse:collapse; margin:13px 0; font-size:13px;}
+  th{background:var(--navy); color:#fff; text-align:left; padding:8px 12px; font-size:11.5px; letter-spacing:.4px;}
+  td{border:1px solid var(--border); padding:8px 12px; vertical-align:top;}
+  tr:nth-child(even) td{background:#f8fafc;}
+  blockquote{border-left:4px solid var(--blue); background:#f6f9fc; padding:10px 16px; border-radius:0 8px 8px 0; margin:13px 0; font-size:13.5px; color:#41505f;}
+  .call{border-radius:10px; padding:13px 17px; margin:14px 0; font-size:13.5px; display:flex; gap:11px;}
+  .call.pri{background:#fdf0f2; border:1.5px solid #f0b6c2;}
+  .call.gold{background:#fdf6e7; border:1px solid #f4dfae;}
+  .call.info{background:#eef5fc; border:1px solid #cfe2f4;}
+  .chk li{list-style:none; position:relative; padding-left:28px; margin:8px 0;}
+  .chk li::before{content:''; position:absolute; left:0; top:3px; width:16px; height:16px; border:2px solid var(--green); border-radius:4px;}
+  .chk{margin-left:0;}
+  .files td:first-child{font-family:'SF Mono',Menlo,monospace; font-size:11.5px; white-space:nowrap;}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="doc-head">
+    <h1>Handoff técnico al developer<br><span style="font-size:15px; font-weight:400; color:var(--muted);">Nómina Electrónica — Rediseño de Validación y envío · multiproveedor + procesamiento en segundo plano</span></h1>
+    <div class="sub">De: PM/Arquitectura · Para: dev implementador · Carpeta del REQ: <code>docs/requirements/ERP-NE-VALIDACION-ENVIO/</code></div>
+    <div>
+      <span class="bdg id">ERP-NE-VALIDACION-ENVIO</span>
+      <span class="bdg ok">SPEC + MOCKUP APROBADOS · PLAN LISTO</span>
+      <span class="bdg pri">PRIORIDAD: INTEGRACIÓN DISPAPELES</span>
+    </div>
+  </div>
+
+  <h2><span class="n">1</span>Lo esencial en 60 segundos</h2>
+  <p><b>Qué construimos:</b> el flujo de nómina electrónica deja de perder el resultado de las transmisiones. Cada procesamiento queda registrado en una tabla con su ciclo de vida (<code>ENVIANDO → EN_PROCESO → COMPLETADO/CON_NOVEDADES/RECHAZADO/FALLIDO</code>), el operador elige proveedor (Dataico o Dispapeles), el envío corre <b>en segundo plano</b>, la pestaña "Estado Proceso" pasa de mock a historial real, y los rechazados se corrigen y retransmiten individualmente como reemplazo.</p>
+  <p><b>La decisión de arquitectura central:</b> ninguna pantalla calcula nada — todo el estado vive en BD (tablas <code>BERP_NominaElectronicaProceso</code> + <code>Detalle</code>) y las pantallas solo la leen por polling. Quien escribe el estado depende del proveedor: Dataico procesa en sus servidores (nosotros reconciliamos con su <code>job-status</code>/<code>batch-result</code>, que ya existen en <code>DataicoHelper.cs</code> y nunca se han usado); <b>Dispapeles se envía documento a documento, así que el bucle corre como worker en segundo plano dentro del ERP</b> — el tema técnico central de este handoff.</p>
+  <div class="call pri"><span>🎯</span><div>
+    <b>Tu prioridad y lo primero que necesitamos de ti:</b> la integración Dispapeles. Ya existe evidencia de tu trabajo (tabla <code>BERP_NominaElectronica_LogEnvio_Dispapeles</code> con envíos reales del período 2026-05), pero <b>ese código no está en ninguna rama del repositorio</b> (lo verificamos con git en las 6 ramas remotas). Antes de discutir implementación: sección 5.
+  </div></div>
+
+  <h2><span class="n">2</span>El problema (verifícalo tú mismo en el código)</h2>
+  <ol>
+    <li><b>El jobid se pierde:</b> <code>ConsultarNominaElectronica</code> (<code>NominaElectronicaController.cs:270-339</code>) envía a Dataico en la misma petición del navegador y el <code>jobid</code> de la respuesta solo se pinta en el HTML (<code>nominaelectronica.js:~1288</code>) — no se persiste. Nadie puede saber desde el ERP si una nómina transmitida fue aceptada.</li>
+    <li><b>Los endpoints de seguimiento existen y nadie los llama:</b> <code>EstadoProceso()</code> y <code>ResultadoProceso()</code> en <code>DataicoHelper.cs:59-67</code>.</li>
+    <li><b>"Estado Proceso" es un mock:</b> <code>ConsultarEstadoProceso_1805</code> (<code>nominaelectronica.js:1493-1525</code>) pinta datos quemados de 2021 y porcentajes con <code>Math.random()</code>. Se elimina completo.</li>
+  </ol>
+
+  <h2><span class="n">3</span>La solución técnica del worker (léela antes de objetar 🙂)</h2>
+
+  <h3>Por qué un worker y no otra cosa</h3>
+  <table>
+    <tr><th>Alternativa</th><th>Por qué se descartó</th></tr>
+    <tr><td>Todo en una petición</td><td>~1.012 llamadas a Dispapeles ≈ 25 min → <code>executionTimeout</code> de ASP.NET (~110 s) la aborta; además secuestra hilos de IIS.</td></tr>
+    <tr><td>Bucle de promesas/tandas desde el navegador</td><td>Resuelve el timeout pero el motor queda en la pestaña: cerrarla mata el envío. Requisito de negocio: <b>el envío continúa sin operador</b>.</td></tr>
+    <tr><td><code>Task.Run</code> / hilo suelto</td><td>Invisible para ASP.NET: un recycle del app pool lo mata sin aviso, a mitad de un documento.</td></tr>
+    <tr><td>Hangfire / servicio Windows</td><td>Válidos pero sobredimensionados: dependencia o infraestructura nueva para un caso que nuestra tabla de procesos ya persiste. Si tienes argumentos fuertes a favor, conversemos — no es dogma.</td></tr>
+    <tr><td><b>✔ <code>QueueBackgroundWorkItem</code> (elegida)</b></td><td>API oficial de ASP.NET (4.5.2+): registra el trabajo ante el runtime; en un recycle recibe <code>CancellationToken</code> y período de gracia (~30-90 s) para cerrar la tanda limpio. Cero infraestructura nueva.</td></tr>
+  </table>
+
+  <h3>Por qué el recycle NO es el argumento en contra (la clave del diseño)</h3>
+  <p>El problema histórico de los hilos en IIS nunca fue el hilo — fue el <b>trabajo no-reanudable</b>. Aquí el trabajo es reanudable e idempotente por diseño:</p>
+  <ul>
+    <li><b>Checkpoint por documento:</b> cada cédula pasa por <code>ENVIANDO_DOC</code> (marca de intención, ANTES del POST) → envío → resultado anotado. Un crash entre enviar y anotar deja rastro: la reanudación <b>verifica</b> ese Nit en vez de reenviarlo → cero duplicados ante la DIAN.</li>
+    <li><b>Heartbeat por tanda:</b> el worker actualiza una marca de tiempo con cada tanda. <code>EN_PROCESO</code> + latido vencido = worker muerto o congelado.</li>
+    <li><b>Auto-reanudación:</b> cualquier poll que detecte latido vencido relanza el worker (<code>QueueBackgroundWorkItem</code> de nuevo) desde el primer pendiente. Botón "Reanudar" solo como respaldo manual.</li>
+    <li><b>Candado:</b> el worker "toma" el proceso con un UPDATE condicional (solo si nadie con latido vigente lo tiene) → imposible que corran dos sobre el mismo proceso.</li>
+  </ul>
+
+  <h3>Código de referencia (~40 líneas — validar contra el repo en /implementar)</h3>
+<pre><span class="c">// DISPARADOR (en el controller — la petición responde en ~2 s):</span>
+int idProceso = NominaElectronicaProcesoRepository.CrearProceso(form, usuario);
+HostingEnvironment.QueueBackgroundWorkItem(ct => DispapelesEnvioWorker.Ejecutar(idProceso, ct));
+return Json(new { status = "success", idProceso });
+
+<span class="c">// EL WORKER:</span>
+public static class DispapelesEnvioWorker
+{
+    public static void Ejecutar(int idProceso, CancellationToken ct)
+    {
+        try
+        {
+            if (!Repo.TomarProceso(idProceso)) return;          <span class="c">// candado (UPDATE condicional)</span>
+            var proveedor = new DispapelesProveedor();           <span class="c">// token auto-renovable adentro</span>
+
+            while (!ct.IsCancellationRequested)                  <span class="c">// recycle → salir limpio, SIN cerrar el proceso</span>
+            {
+                var tanda = Repo.TomarPendientes(idProceso, 85); <span class="c">// excluye Nits ya registrados</span>
+                if (tanda.Count == 0) { Repo.CerrarProceso(idProceso); return; }
+
+                Parallel.ForEach(tanda,
+                    new ParallelOptions { MaxDegreeOfParallelism = 5, CancellationToken = ct },
+                    emp =>
+                    {
+                        Repo.MarcarEnviando(idProceso, emp.Nit);              <span class="c">// 1. intención</span>
+                        var r = proveedor.EnviarDocumento(emp);               <span class="c">// 2. POST + respuesta (CON timeout)</span>
+                        Repo.GuardarResultado(idProceso, emp.Nit, r);         <span class="c">// 3. resultado</span>
+                    });
+
+                Repo.ActualizarContadoresYLatido(idProceso);     <span class="c">// resumen por tanda → mueve la barra</span>
+            }
+        }
+        catch (Exception ex)
+        {
+            LogHelper.WriteLogV1(...);                           <span class="c">// jamás morir en silencio</span>
+            Repo.RegistrarErrorProceso(idProceso, ex.Message);
+        }
+    }
+}</pre>
+
+  <h3>Checklist técnico que te pedimos validar (tu terreno, no el nuestro)</h3>
+  <ul class="chk">
+    <li><b>Configuración del app pool en producción:</b> ¿idle timeout (default 20 min)? ¿recycle programado (default 29 h) a qué hora? Impacta la probabilidad de interrupciones.</li>
+    <li><b>Timeout HTTP por llamada a Dispapeles</b> (RestSharp): obligatorio (~30 s) — sin él, un Dispapeles colgado congela el worker sin matarlo (el peor caso: vivo pero quieto).</li>
+    <li><b><code>MaxDegreeOfParallelism</code> y tamaño de tanda:</b> propuestos 5 y 85 — calíbralos con los tiempos reales y el rate limit de Dispapeles (tú los conoces).</li>
+    <li><b>El candado:</b> valida que el UPDATE condicional del "TomarProceso" sea atómico en esta BD (nivel de aislamiento).</li>
+    <li><b>Vigilante opcional (OPS-7 del plan):</b> tarea programada de Windows que llame cada 5 min un endpoint <code>VerificarProcesosHuerfanos</code> — detecta latidos vencidos sin depender de que alguien mire, y mantiene el app pool despierto. Recomendado; tu llamada.</li>
+  </ul>
+
+  <h2><span class="n">4</span>La abstracción que une los dos proveedores</h2>
+<pre>interface IProveedorNominaElectronica {
+    RespuestaEnvioNe Enviar(...);          <span class="c">// Dataico: lote completo → jobid · Dispapeles: lo usa el worker por documento</span>
+    EstadoLoteNe ConsultarEstado(...);     <span class="c">// Dataico: GET job-status · Dispapeles: lee nuestra BD (el worker ya la mantiene)</span>
+    ResultadoLoteNe ConsultarResultado(...);<span class="c">// Dataico: GET batch-result · Dispapeles: ya está en el detalle</span>
+    RespuestaEnvioNe Reemplazar(...);      <span class="c">// novedades: retransmitir un documento corregido</span>
+    bool ReportaAvanceParcial { get; }     <span class="c">// decide la forma de la barra (% real vs etapas)</span>
+}</pre>
+  <p>Consecuencia clave: <b>el front no tiene "modo Dispapeles"</b> — el mismo panel pinta ambos proveedores; las diferencias viajan en los datos del único endpoint que alimenta todo el seguimiento:</p>
+<pre><span class="c">// ConsultarEstadoProcesoNomina(idProceso) — el panel es un LECTOR de esta respuesta, nunca calcula:</span>
+{
+  "idProceso": 34,
+  "estado": "EN_PROCESO",     <span class="c">// ENVIANDO | EN_PROCESO | COMPLETADO | CON_NOVEDADES | RECHAZADO | FALLIDO</span>
+  "proveedor": "DISPAPELES",
+  "jobId": null,              <span class="c">// string (Dataico) · null (Dispapeles, envío individual)</span>
+  "reportaParciales": true,   <span class="c">// true → barra con % real y fracción · false → etapas sin número</span>
+  "total": 1012, "aceptados": 455, "rechazados": 5, "pendientes": 552,
+  "fechaCreacion": "…", "fechaFinalizacion": null, "mensajeError": null,
+  "workerActivo": true        <span class="c">// solo Dispapeles: heartbeat vigente. false → panel muestra "interrumpido</span>
+}                             <span class="c">//   — se reanuda automáticamente" + botón Reanudar (respaldo)</span></pre>
+  <p>Reglas del backend detrás: si es Dataico <code>EN_PROCESO</code> → reconcilia con <code>job-status</code>/<code>batch-result</code> y actualiza BD; si es Dispapeles → lee BD directo (el worker la mantiene); estado final → responde de BD sin llamar a nadie. Idempotente. El polling del front: cada 15 s con pantalla abierta, se detiene en estado final, <code>clearInterval</code> al cambiar de contexto.</p>
+
+  <h2><span class="n">5</span>PRIORIDAD: integración Dispapeles — qué sabemos y qué necesitamos de ti</h2>
+
+  <h3>Lo que ya verificamos</h3>
+  <ul>
+    <li>Tu tabla <code>BERP_NominaElectronica_LogEnvio_Dispapeles</code> registra envíos reales: <b>una fila por empleado</b> (Nit), con Prefijo NETK + Consecutivo por documento, Ano/Mes/Sucursal, FechaEnvio, JsonEnviado y una columna base64 (<code>eyJh…</code>).</li>
+    <li>Conclusión que ya tomamos de ahí: Dispapeles es <b>envío individual</b> (sin jobid de lote) → de ahí el worker por tandas. Tu log valida el enfoque: es la misma idea de "anotar cada envío" que generaliza el rediseño.</li>
+    <li>En <code>master</code> solo está la gestión del token (<code>NominaElectronicaDispapelesHelper</code>, renovación automática — buen trabajo, se reutiliza tal cual) y el envío comentado apuntando a <code>dispafactest.com</code>.</li>
+  </ul>
+
+  <h3>Lo que necesitamos de ti ANTES de implementar el Stream D (bloqueante)</h3>
+  <ul class="chk">
+    <li><b>Push de tu rama</b> con la integración (verificamos las 6 ramas remotas y no está) — o dinos dónde vive ese código (¿otro repo, app de consola, SP?).</li>
+    <li><b>DDL de las tablas nuevas</b> que creaste (script CREATE desde SSMS) + <b>cuerpos de tus SPs nuevos</b> (<code>sp_helptext</code> o Script as CREATE).</li>
+    <li><b>Cuerpo de <code>SBERP_GESTIONHNominaElectronicaTablaJson</code></b> (el empaquetador actual): ¿guarda el JSON en la tabla <code>NominaElectronica</code>? ¿se puede filtrar por Nit (lo necesitan los reemplazos)?</li>
+    <li>¿Qué contiene la <b>columna base64</b> de tu log — la respuesta de Dispapeles, el CUNE, un token?</li>
+    <li>¿Cómo devuelve Dispapeles un <b>rechazo</b> por documento (estructura del error)?</li>
+    <li>¿<b>Tiempos por documento y rate limit</b>? (calibran tanda y paralelismo)</li>
+    <li>¿Cómo se hace el <b>reemplazo/ajuste</b> de un documento ya transmitido? ¿Nuevo consecutivo?</li>
+    <li><b>URL de producción</b> de Dispapeles (la del código es de pruebas).</li>
+    <li>¿Qué rama se <b>despliega a producción</b> — <code>master</code> o <code>main</code>? (el plan asume master)</li>
+  </ul>
+  <div class="call gold"><span>💡</span><div>
+    <b>Decisión abierta que queremos tomar CONTIGO:</b> tu tabla de log vs. la nueva <code>BERP_NominaElectronicaProcesoDetalle</code>. Opciones: (a) tu log se convierte en la tabla de detalle (le agregamos IdProceso + Estado), (b) conviven (el worker escribe en ambas), (c) el detalle referencia tu log. Depende de cómo la usas hoy — tráete tu criterio a la reunión.
+  </div></div>
+
+  <h2><span class="n">6</span>Qué revisar — solo esto (el resto es referencia)</h2>
+  <div class="call info"><span>🎮</span><div>
+    <b>Única "lectura" obligatoria además de este documento — y es jugar, no leer (10 min):</b><br>
+    <a href="https://digital-baguer.github.io/prototipos/ERP/NominaElectronica/mockup" target="_blank"><b>→ Mockup interactivo</b></a> · corre el <b>Escenario C</b> (barra superior) con Febrero + Dispapeles y observa la bitácora "lo que sucede por debajo": narra en vivo endpoint → QBWI → tandas del worker → polls del panel → recycle → detección por latido → auto-reanudación, con los nombres reales de los métodos. Después consulta <b>Enero</b> (período ya procesado) y vuelve a <b>Febrero</b> a mitad de proceso (el panel se adjunta al proceso en curso).
+  </div></div>
+  <p><b>Referencias — solo cuando toque, no de entrada:</b></p>
+  <table class="files">
+    <tr><th>Enlace</th><th>Cuándo abrirlo</th></tr>
+    <tr><td><a href="https://digital-baguer.github.io/prototipos/ERP/NominaElectronica/seguimiento-procesamiento" target="_blank">Spec del panel de seguimiento</a></td><td>Solo al construir el panel (Tasks 12-13): máquina de estados completa, anatomía anotada, diagrama de actividades y checklist de aceptación. El contrato JSON esencial ya está en la sección 4 de este documento.</td></tr>
+    <tr><td><a href="https://digital-baguer.github.io/prototipos/ERP/NominaElectronica/spec" target="_blank">Spec funcional completa</a></td><td>Solo si quieres el contexto de negocio y las razones de cada decisión (pestaña "La experiencia explicada").</td></tr>
+    <tr><td><code>plan.md</code> (en la carpeta del REQ)</td><td>Antes de implementar cada task: contratos, archivos y verificación. Tu prioridad: Task 16 y sus dependencias (1-5).</td></tr>
+  </table>
+
+  <h2><span class="n">7</span>Tus respuestas: entrégalas en un markdown (plantilla lista)</h2>
+  <p>Para no perder nada en chats, te dejamos la plantilla <code>respuestas-dev.md</code> en la carpeta del REQ — cópiala, llénala y devuélvela (o hazle commit junto al push de tu rama). Estructura:</p>
+<pre># Respuestas del dev — Integración Dispapeles
+> Autor: · Fecha: · Rama con el código:
+
+## 1. Ubicación del código
+- Rama pusheada (nombre):
+- ¿Algo vive fuera del repo? (otro repo / app consola / solo SPs):
+
+## 2. Objetos de BD ya creados
+### 2.1 Tablas nuevas — pegar CREATE de cada una (SSMS: Script Table as → CREATE)
+### 2.2 SPs nuevos — pegar cuerpo de cada uno (sp_helptext 'nombre')
+### 2.3 SBERP_GESTIONHNominaElectronicaTablaJson — pegar cuerpo y responder:
+- ¿Guarda el JSON en la tabla NominaElectronica (histórico o sobreescribe)?:
+- ¿Se puede filtrar por Nit (para reemplazos)?:
+
+## 3. Contrato del API Dispapeles
+- Endpoint(s) de envío + ejemplo REAL de request y response:
+- La columna base64 del log (eyJh…) contiene:
+- Ejemplo REAL de un rechazo por documento (estructura del error):
+- Tiempo promedio por documento / ¿rate limit?:
+- Reemplazo de un documento ya transmitido (¿cómo? ¿nuevo consecutivo?):
+- URL producción / URL pruebas:
+- Token: ¿algún cambio vs lo que está en master?:
+
+## 4. Operación
+- Rama que se despliega a producción (¿master o main?):
+- App pool productivo: idle timeout / recycle programado (hora):
+
+## 5. Tu recomendación: tabla de log vs tabla de detalle
+- (a) tu log se vuelve el detalle · (b) conviven · (c) detalle referencia el log
+- Elección y por qué:
+
+## 6. Riesgos que ves / desacuerdos con el plan
+-
+
+## 7. (Si lo sabes) ¿Dónde se corrige hoy el dato maestro del empleado (correo/contrato/salario)?
+- </pre>
+
+  <h2><span class="n">8</span>Orden de trabajo sugerido</h2>
+  <table>
+    <tr><th>Bloque</th><th>Contenido</th><th>Dependencia</th></tr>
+    <tr><td>0 · <b>Destrabar (tu prioridad HOY)</b></td><td>Push de tu rama + DDL/SPs + respuestas de la sección 5</td><td>Nada — es entregar lo que ya tienes</td></tr>
+    <tr><td>1 · Fundaciones</td><td>Tablas + SPs del ciclo de vida + entidades (Tasks 1-3) · Interfaz + DataicoProveedor + repositorio (Tasks 4-5)</td><td>Ninguna — 100 % ejecutable ya</td></tr>
+    <tr><td>2 · Envío</td><td>Acción de inicio (Task 6) + pantalla rediseñada (Task 11)</td><td>Bloque 1</td></tr>
+    <tr><td>3 · Seguimiento</td><td>Reconciliación + consultas + reintento (Tasks 7-8, 10) + panel y Estado Proceso real (Tasks 12-13)</td><td>Bloque 2</td></tr>
+    <tr><td>4 · Novedades</td><td>Reemplazos (Task 9) + detalle y modal (Task 14) + limpieza (Task 15)</td><td>Bloque 3</td></tr>
+    <tr><td>5 · <b>Dispapeles</b></td><td>Worker por tandas (Task 16, con TU código integrado) + activar en UI (Task 17)</td><td>Bloque 0 resuelto + Bloque 1</td></tr>
+  </table>
+  <blockquote>Nota: los bloques 1-4 entregan el flujo completo funcionando con Dataico y la radio-card Dispapeles visible pero deshabilitada. El bloque 5 es incremental — no toca nada de lo anterior salvo activar la tarjeta. Por eso tu insumo del bloque 0 no frena la obra, pero sí define cuándo termina.</blockquote>
+
+  <h2><span class="n">9</span>Si ves un riesgo que no está aquí…</h2>
+  <p>…dilo antes de escribir código. El plan documenta los que conocemos (recycle, timeouts, rate limit, duplicados DIAN, ventana de detección de interrupciones — <code>plan.md</code> §4 y OPS-7). Tú conoces cosas que nosotros no: el comportamiento real del IIS de producción, los tiempos reales de Dispapeles y la historia de tu integración. Este handoff es el punto de partida de esa conversación, no su final.</p>
+
+</div>
+</body>
+</html>
