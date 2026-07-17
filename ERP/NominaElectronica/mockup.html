@@ -162,6 +162,13 @@
   .summary b{font-weight:600;}
   #toast{position:fixed; top:18px; right:18px; background:var(--navy); color:#fff; border-radius:8px; padding:13px 18px; font-size:13px; display:none; align-items:center; gap:10px; z-index:99; box-shadow:0 6px 20px rgba(0,0,0,.25);}
   .hidden{display:none !important;}
+  /* Bitácora técnica en vivo (Escenario C) */
+  .techlog{margin-top:16px; background:#1d2634; border-radius:10px; overflow:hidden;}
+  .techlog .tl-head{background:#141b26; color:#8fa3bc; font-size:11px; font-weight:700; padding:8px 14px; letter-spacing:.4px;}
+  #tlBody{max-height:230px; overflow-y:auto; padding:10px 14px; font-family:'SF Mono',Menlo,Consolas,monospace; font-size:11px; line-height:1.75;}
+  .tl{color:#c7d2e0;}
+  .tl span{color:#5c6e84; margin-right:8px;}
+  .tl.op{color:#f5c76e;} .tl.srv{color:#7fb8ef;} .tl.wrk{color:#c9a6f5;} .tl.pan{color:#7fe0b8;} .tl.sys{color:#ff8f9e; font-weight:700;}
   .backlink{font-size:12.5px; color:var(--blue); cursor:pointer; display:inline-flex; align-items:center; gap:6px; margin-bottom:4px;}
   .proc-head{display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:18px;}
   .ph{border:1px solid var(--border); border-radius:8px; padding:12px 14px;}
@@ -305,6 +312,10 @@
             <span class="pill" id="pollPill"><i class="fas fa-sync-alt"></i> actualizando cada 15 s</span>
           </div>
           <div id="trackResult"></div>
+          <div id="techLog" class="techlog hidden">
+            <div class="tl-head">🔍 LO QUE SUCEDE POR DEBAJO — bitácora en vivo (instrumentación del mockup · Escenario C)</div>
+            <div id="tlBody"></div>
+          </div>
         </div>
 
       </div>
@@ -475,10 +486,30 @@ function consultar(){
   if (previo){
     $('panelSelProv').classList.add('hidden');
     $('panelTrack').classList.remove('hidden');
-    $('step3Title').textContent = 'Proceso ya registrado para este período';
-    $('step3Hint').textContent  = `Enviado el ${previo.fecha} por ${previo.user}`;
-    pintarTrackFinal(previo.est, previo.prov, 'job_9f3k2m81', previo.est==='CON_NOVEDADES'?5:0);
+    if (previo.est === 'EN_PROCESO' && dbSim && dbSim.estado === 'EN_PROCESO'){
+      // PROCESO VIVO: el panel se adjunta en modo lectura al proceso que corre en el servidor
+      viendoProcesoC = true;
+      $('step3Title').textContent = 'Proceso EN CURSO para este período';
+      $('step3Hint').textContent  = `Iniciado el ${previo.fecha} por ${previo.user} · el envío continúa en el servidor`;
+      setStep(1,'done'); setStep(2,'doing'); setStep(3,'');
+      $('stp1sub').textContent = 'proceso registrado';
+      $('stp2lbl').textContent = 'Enviando a Dispapeles';
+      $('tmProv').textContent = 'Dispapeles'; $('tmJob').textContent = 'N/A (envío individual)'; $('tmEmp').textContent = '1.012';
+      $('pollPill').classList.remove('hidden');
+      $('pollPill').innerHTML = '<i class="fas fa-sync-alt"></i> consultando cada 5 s (demo)';
+      $('trackResult').innerHTML = '';
+      pintarDesdeBD();
+      logTech('op', '👥 OTRO OPERADOR: consultó el período → el panel se ADJUNTA al proceso en curso (solo lee el cuaderno)');
+    } else {
+      viendoProcesoC = false;
+      $('step3Title').textContent = 'Proceso ya registrado para este período';
+      $('step3Hint').textContent  = `Enviado el ${previo.fecha} por ${previo.user}`;
+      pintarTrackFinal(previo.est, previo.prov,
+        previo.prov === 'DISPAPELES' ? 'N/A (envío individual)' : 'job_9f3k2m81',
+        previo.est === 'CON_NOVEDADES' ? 5 : 0);
+    }
   } else {
+    viendoProcesoC = false;
     $('panelSelProv').classList.remove('hidden');
     $('panelTrack').classList.add('hidden');
     $('step3Title').textContent = 'Procesar nómina electrónica';
@@ -520,6 +551,8 @@ function iniciarProceso(){
   $('stp1sub').textContent = 'registrando proceso';
   $('pollPill').classList.remove('hidden');
   $('noPartial').classList.add('hidden');
+  $('techLog').classList.add('hidden');
+  clearInterval(workerT); clearInterval(pollSimT);
   stopElapsed();
   $('tmOk').textContent='0'; $('tmBad').textContent='0';
   setBar(3, '');
@@ -536,8 +569,9 @@ function iniciarProceso(){
       setStep(1,'done'); setStep(2,'doing');
       $('stp2lbl').textContent = 'Enviando a ' + (provSel==='DATAICO'?'Dataico':'Dispapeles');
       $('stp2sub').textContent = 'worker iniciado · tanda 1';
+      $('pollPill').innerHTML = '<i class="fas fa-sync-alt"></i> consultando cada 5 s (demo)';
       toast('Proceso registrado · worker de envío iniciado en el servidor');
-      simularTandas();
+      iniciarSimC();
       return;
     }
     $('tmJob').textContent = 'job_9f3k2m81';
@@ -550,44 +584,109 @@ function iniciarProceso(){
   }, 1400);
 }
 
-/* Escenario C: envío individual por tandas — avance propio del ERP, interrumpible y reanudable */
-let tandaEnviados = 0;
+/* ═══ Escenario C: simulación DESACOPLADA ═══
+   El "worker" escribe en una BD simulada cada ~2,5 s (una tanda).
+   El "panel" SOLO lee esa BD cada 5 s (el poll) — la barra únicamente cambia en los polls.
+   La bitácora (#techLog) narra cada evento para ver lo que sucede por debajo. */
 const TANDA = 85, TOTAL_C = 1012;
-function simularTandas(desde = 0){
-  tandaEnviados = desde;
-  const interrumpirEn = desde === 0 ? 510 : TOTAL_C + 1; // solo interrumpe la primera vez
-  timer = setInterval(()=>{
-    tandaEnviados = Math.min(tandaEnviados + TANDA, TOTAL_C);
-    const nTanda = Math.ceil(tandaEnviados / TANDA);
-    const av = Math.round(tandaEnviados * 100 / TOTAL_C);
-    setBar(av, ''); $('trackBar').textContent = `${av}% · ${tandaEnviados.toLocaleString('es-CO')}/${TOTAL_C.toLocaleString('es-CO')}`;
-    const ok = Math.round(tandaEnviados * .995);
-    $('tmOk').textContent = ok.toLocaleString('es-CO');
-    $('tmBad').textContent = tandaEnviados - ok;
-    $('stp2sub').textContent = `tanda ${nTanda} · ${tandaEnviados.toLocaleString('es-CO')} enviados`;
-    if (procesoActivo) procesoActivo.av = av;
-    if (tandaEnviados >= interrumpirEn){ clearInterval(timer); interrumpirTandas(); return; }
-    if (tandaEnviados >= TOTAL_C){ clearInterval(timer); finalizarProceso(); }
-  }, 700);
+let dbSim = null, workerT = null, pollSimT = null, t0 = 0;
+let viendoProcesoC = false;   // ¿la vista actual está adjunta a este proceso? (si no, el poll no pinta)
+const fmtN = n => n.toLocaleString('es-CO');
+function elapsedTag(){ const s = Math.floor((Date.now() - t0) / 1000); return `t+${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; }
+function logTech(cls, txt){
+  const b = $('tlBody');
+  b.innerHTML += `<div class="tl ${cls}"><span>${elapsedTag()}</span>${txt}</div>`;
+  b.scrollTop = b.scrollHeight;
 }
-function interrumpirTandas(){
-  $('stp2sub').textContent = `interrumpido · ${tandaEnviados.toLocaleString('es-CO')}/${TOTAL_C.toLocaleString('es-CO')} enviados`;
-  $('pollPill').classList.add('hidden');
+function iniciarSimC(){
+  clearInterval(workerT); clearInterval(pollSimT);
+  t0 = Date.now();
+  $('techLog').classList.remove('hidden'); $('tlBody').innerHTML = '';
+  viendoProcesoC = true;
+  dbSim = { env: 0, estado: 'EN_PROCESO', latido: Date.now(), muerto: false, yaInterrumpio: false };
+  logTech('op',  '👆 OPERADOR: clic "Confirmar y enviar"');
+  logTech('srv', '🌐 ENDPOINT IniciarProcesamientoNomina: crea proceso #34 en BD (1.012 pendientes)');
+  logTech('srv', '🌐 ENDPOINT: enciende el worker → QueueBackgroundWorkItem(#34)');
+  logTech('srv', '🌐 ENDPOINT: responde "registrado" al navegador — la petición terminó (~2 s)');
+  logTech('wrk', '🔧 WORKER: tomó el proceso (candado OK) · inicia tanda 1');
+  logTech('wrk', '&nbsp;&nbsp;&nbsp;↳ por cada cc: marca ENVIANDO_DOC → POST a Dispapeles → anota resultado (5 en vuelo)');
+  arrancarWorkerSim();
+  arrancarPollSim();
+}
+function arrancarWorkerSim(){
+  workerT = setInterval(()=>{
+    if (dbSim.estado !== 'EN_PROCESO'){ clearInterval(workerT); return; }
+    dbSim.env = Math.min(dbSim.env + TANDA, TOTAL_C);
+    dbSim.latido = Date.now();
+    const n = Math.ceil(dbSim.env / TANDA);
+    logTech('wrk', `🔧 WORKER: fin tanda ${n} → ✍ escribe BD: contadores ${fmtN(dbSim.env)}/${fmtN(TOTAL_C)} + latido`);
+    if (!dbSim.yaInterrumpio && dbSim.env >= 510){
+      dbSim.yaInterrumpio = true; dbSim.muerto = true;
+      clearInterval(workerT);
+      logTech('sys', '💥 SERVIDOR: recycle de IIS — el worker MUERE. El latido queda congelado (BD intacta: 510 anotados)');
+      return;
+    }
+    if (dbSim.env >= TOTAL_C){
+      dbSim.estado = 'CON_NOVEDADES';
+      clearInterval(workerT);
+      logTech('wrk', '🔧 WORKER: pendientes = 0 → ✍ escribe BD: cierra proceso CON_NOVEDADES (1.007 aceptados · 5 rechazados)');
+    }
+  }, 2500);
+}
+function arrancarPollSim(){
+  pollSimT = setInterval(()=>{
+    logTech('pan', '🖥 PANEL: poll (cada 5 s) → ConsultarEstadoProcesoNomina(#34) → 👁 lee BD');
+    if (dbSim.estado === 'CON_NOVEDADES'){
+      clearInterval(pollSimT);
+      if (procesoActivo){ procesoActivo.est = 'CON_NOVEDADES'; procesoActivo.av = 100; }
+      if (viendoProcesoC){
+        logTech('pan', '🖥 PANEL: estado FINAL → pinta 100 %, pasos en verde, y DETIENE el polling');
+        $('trackResult').innerHTML = '';
+        finalizarProceso();
+      } else {
+        logTech('pan', '🖥 BACKEND: el proceso finalizó (nadie lo está mirando) — quedará visible al consultar el período');
+      }
+      return;
+    }
+    if (viendoProcesoC){ pintarDesdeBD(); }
+    else { logTech('pan', '🖥 PANEL: la vista actual muestra OTRO período — no pinta este proceso (el worker sigue igual)'); }
+    if (dbSim.muerto && Date.now() - dbSim.latido > 6000){
+      logTech('pan', `🖥 PANEL: EN_PROCESO pero latido vencido → ⚡ backend RELANZA el worker (QBWI) desde el doc ${fmtN(dbSim.env + 1)}`);
+      mostrarCajaInterrupcion();
+      dbSim.muerto = false; dbSim.latido = Date.now();
+      setTimeout(()=>{
+        logTech('wrk', '🔧 WORKER (nuevo): tomó el candado · retoma tandas desde el primer pendiente');
+        $('trackResult').innerHTML = '';
+        arrancarWorkerSim();
+      }, 1800);
+    }
+  }, 5000);
+}
+function pintarDesdeBD(){
+  const av = Math.round(dbSim.env * 100 / TOTAL_C);
+  setBar(av, ''); $('trackBar').textContent = `${av}% · ${fmtN(dbSim.env)}/${fmtN(TOTAL_C)}`;
+  const ok = Math.round(dbSim.env * .995);
+  $('tmOk').textContent = fmtN(ok); $('tmBad').textContent = dbSim.env - ok;
+  $('stp2sub').textContent = dbSim.muerto
+    ? `interrumpido · ${fmtN(dbSim.env)}/${fmtN(TOTAL_C)} enviados`
+    : `worker enviando · ${fmtN(dbSim.env)} anotados en BD`;
+  logTech('pan', `🖥 PANEL: pinta barra → ${av}% · ${fmtN(dbSim.env)}/${fmtN(TOTAL_C)}`);
+  if (procesoActivo) procesoActivo.av = av;
+}
+function mostrarCajaInterrupcion(){
   $('trackResult').innerHTML = `
     <div class="resultbox warn">
       <i class="fas fa-pause-circle big"></i>
-      <div><h3>Envío interrumpido (simulación: se reinició el servidor — caso raro)</h3>
-        <p>El envío corre en el servidor: <b>cerrar el navegador NO lo detiene</b>. Este caso simula un reinicio del servidor a mitad de envío:
-        nada se perdió (${tandaEnviados.toLocaleString('es-CO')} documentos registrados en BD) y el sistema <b>reanuda solo</b> en la próxima consulta — este botón es el respaldo manual.</p></div>
-      <div class="actions"><button class="btn btn-green btn-sm" onclick="reanudarTandas()"><i class="fas fa-play"></i> Reanudar envío</button></div>
+      <div><h3>Interrupción detectada por latido vencido</h3>
+        <p>El poll encontró el proceso EN PROCESO sin señales del worker. Nada se perdió (${fmtN(dbSim.env)} documentos en BD). <b>Reanudando automáticamente…</b></p></div>
+      <div class="actions"><button class="btn btn-green btn-sm" onclick="reanudarManualC()"><i class="fas fa-play"></i> Reanudar ya</button></div>
     </div>`;
-  toast('Interrupción del servidor simulada · el avance quedó guardado');
 }
-function reanudarTandas(){
+function reanudarManualC(){
+  logTech('op', '👆 OPERADOR: clic "Reanudar" (respaldo manual)');
+  dbSim.muerto = false; dbSim.latido = Date.now();
   $('trackResult').innerHTML = '';
-  $('pollPill').classList.remove('hidden');
-  toast('Reanudando desde el documento ' + (tandaEnviados + 1).toLocaleString('es-CO'));
-  simularTandas(tandaEnviados);
+  arrancarWorkerSim();
 }
 
 /* Escenario B: el proveedor solo reporta etapas — barra indeterminada, sin % */
