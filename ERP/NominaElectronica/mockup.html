@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Nómina Electrónica · Validación y Envío</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<style>
+  :root{
+    --navy:#2b3648; --navy-h:#38465c;
+    --blue:#3f8ac9; --red:#e8556d; --green:#1fae83; --orange:#f5a02e;
+    --bg:#eef1f5; --card:#ffffff; --border:#e3e8ee; --txt:#33404f; --muted:#8492a6;
+    --teal:#1fae83;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; background:var(--bg); color:var(--txt); font-size:14px;}
+  .wrap{max-width:1280px; margin:0 auto; padding:16px 20px 60px;}
+
+  /* ── Barra de módulo + tabs (estética ERP) ─────────────────────── */
+  .module-bar{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+  .module-chip{background:var(--navy); color:#fff; font-weight:600; font-size:12.5px; padding:6px 14px; border-radius:4px; display:flex; align-items:center; gap:8px;}
+  .module-chip .fas{font-size:11px; opacity:.75;}
+  .mock-tag{font-size:11px; color:var(--muted); border:1px dashed var(--muted); border-radius:4px; padding:3px 8px;}
+  .tabs{display:flex; gap:2px; background:var(--card); border-radius:8px 8px 0 0; padding:0 10px; border-bottom:1px solid var(--border); overflow-x:auto;}
+  .tab{padding:13px 16px 11px; font-size:13.5px; color:var(--muted); cursor:pointer; border-bottom:2.5px solid transparent; white-space:nowrap; user-select:none;}
+  .tab:hover{color:var(--txt);}
+  .tab.active{color:var(--txt); font-weight:600; border-bottom-color:var(--teal);}
+  .tab.disabled{opacity:.45; cursor:not-allowed;}
+
+  /* ── Tarjetas / secciones ──────────────────────────────────────── */
+  .card{background:var(--card); border-radius:10px; box-shadow:0 1px 3px rgba(35,55,80,.08); margin-top:16px; overflow:hidden;}
+  .card-head{display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px solid var(--border);}
+  .step-n{width:26px; height:26px; border-radius:50%; background:var(--navy); color:#fff; font-size:12.5px; font-weight:700; display:flex; align-items:center; justify-content:center; flex:none;}
+  .card-head h2{font-size:15px; font-weight:600;}
+  .card-head .hint{margin-left:auto; font-size:12px; color:var(--muted);}
+  .card-body{padding:20px;}
+
+  /* ── Formulario ────────────────────────────────────────────────── */
+  .filter-row{display:grid; grid-template-columns:1fr 1.4fr 1.8fr auto; gap:14px; align-items:end;}
+  label{display:block; font-size:11.5px; color:var(--muted); margin-bottom:5px;}
+  select,input[type=text]{width:100%; padding:9px 10px; border:1px solid #c9d2dc; border-radius:5px; font-size:13.5px; color:var(--txt); background:#fff;}
+  select:focus,input:focus{outline:none; border-color:var(--blue);}
+  .btn{border:none; border-radius:5px; padding:10px 22px; font-size:13.5px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:background .15s;}
+  .btn-navy{background:var(--navy); color:#fff;} .btn-navy:hover{background:var(--navy-h);}
+  .btn-green{background:var(--green); color:#fff;} .btn-green:hover{filter:brightness(1.06);}
+  .btn-outline{background:#fff; color:var(--txt); border:1px solid #c9d2dc;} .btn-outline:hover{background:#f5f7fa;}
+  .btn-red{background:var(--red); color:#fff;}
+  .btn:disabled{opacity:.45; cursor:not-allowed;}
+  .btn-sm{padding:6px 12px; font-size:12.5px;}
+
+  /* ── Indicadores ───────────────────────────────────────────────── */
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:16px;}
+  .stat{border:1px solid var(--border); border-radius:10px; padding:18px 16px; text-align:center; position:relative;}
+  .stat .fas{font-size:22px; margin-bottom:6px;}
+  .stat .lbl{font-size:15px; font-weight:600; margin-bottom:2px;}
+  .stat .val{font-size:24px; font-weight:700;}
+  .stat.blue .fas,.stat.blue .lbl,.stat.blue .val{color:var(--blue);}
+  .stat.red .fas,.stat.red .lbl,.stat.red .val{color:var(--red);}
+  .stat.green .fas,.stat.green .lbl,.stat.green .val{color:var(--green);}
+  .stat.orange .fas,.stat.orange .lbl,.stat.orange .val{color:var(--orange);}
+
+  .warnbox{margin-top:16px; border:1px solid #f6d9a0; background:#fdf6e7; border-radius:8px; padding:12px 16px; display:flex; gap:10px; align-items:flex-start; font-size:13px;}
+  .warnbox .fas{color:var(--orange); margin-top:2px;}
+  .warnbox a{color:var(--blue); cursor:pointer; text-decoration:underline;}
+  .invalid-tbl{margin-top:10px; display:none;}
+
+  /* ── Selección de proveedor ────────────────────────────────────── */
+  .providers{display:grid; grid-template-columns:1fr 1fr; gap:16px; max-width:720px;}
+  .provider{border:2px solid var(--border); border-radius:10px; padding:16px 18px; cursor:pointer; display:flex; gap:14px; align-items:center; transition:all .15s; position:relative;}
+  .provider:hover{border-color:#b9c6d4;}
+  .provider.sel{border-color:var(--green); background:#f3fbf8;}
+  .provider.sel::after{content:'\f058'; font-family:'Font Awesome 5 Free'; font-weight:900; color:var(--green); position:absolute; top:10px; right:12px; font-size:16px;}
+  .plogo{width:44px; height:44px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px; color:#fff; flex:none;}
+  .plogo.dataico{background:#4657b4;} .plogo.dispa{background:#0e8a6c;}
+  .provider .pname{font-weight:700; font-size:14.5px;}
+  .provider .pdesc{font-size:12px; color:var(--muted); margin-top:2px;}
+  .badge{display:inline-block; font-size:10.5px; font-weight:700; border-radius:10px; padding:2.5px 9px; letter-spacing:.3px;}
+  .badge.prod{background:#e2f4ee; color:var(--green);}
+  .badge.test{background:#fdeee0; color:var(--orange);}
+
+  /* ── Panel de seguimiento ──────────────────────────────────────── */
+  .stepper{display:flex; align-items:flex-start; margin:6px 0 22px; max-width:720px;}
+  .step{flex:1; text-align:center; position:relative;}
+  .step .dot{width:34px; height:34px; border-radius:50%; margin:0 auto 8px; background:#e6ebf1; color:var(--muted); display:flex; align-items:center; justify-content:center; font-size:14px; position:relative; z-index:2; border:3px solid var(--bg-card,#fff);}
+  .step .slbl{font-size:12px; color:var(--muted); font-weight:600;}
+  .step .ssub{font-size:11px; color:var(--muted);}
+  .step::before{content:''; position:absolute; top:16px; left:-50%; width:100%; height:3px; background:#e6ebf1; z-index:1;}
+  .step:first-child::before{display:none;}
+  .step.done .dot{background:var(--green); color:#fff;}
+  .step.done::before{background:var(--green);}
+  .step.doing .dot{background:var(--blue); color:#fff;}
+  .step.doing::before{background:var(--green);}
+  .step.done .slbl,.step.doing .slbl{color:var(--txt);}
+
+  .progress{height:20px; background:#edf1f5; border-radius:10px; overflow:hidden; position:relative;}
+  .progress .bar{height:100%; border-radius:10px; background:repeating-linear-gradient(45deg,var(--blue),var(--blue) 12px,#5b9cd4 12px,#5b9cd4 24px); background-size:34px 34px; animation:stripes 1s linear infinite; color:#fff; font-size:11.5px; font-weight:700; display:flex; align-items:center; justify-content:center; transition:width .5s; min-width:34px;}
+  .progress .bar.ok{background:var(--green); animation:none;}
+  .progress .bar.warn{background:var(--orange); animation:none;}
+  .progress .bar.indet{width:100% !important; background:repeating-linear-gradient(45deg,#a9c6e0,#a9c6e0 12px,#c2d8ec 12px,#c2d8ec 24px); background-size:34px 34px; color:#39618c; animation:stripes .8s linear infinite;}
+  .sim-header{position:sticky; top:0; z-index:40; background:#222d3d; padding:9px 20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; border-bottom:3px dashed #4a5a72;}
+  .sim-header .simlbl{font-size:11.5px; color:#9fb0c6;}
+  .sim-header .simlbl b{color:#fff;}
+  .sim-header .chip{background:transparent; border-color:#4a5a72; color:#9fb0c6;}
+  .sim-header .chip.on{background:var(--green); border-color:var(--green); color:#fff;}
+  .sim-header #escDesc{margin-left:auto; font-style:italic;}
+  @keyframes stripes{from{background-position:0 0;}to{background-position:34px 0;}}
+
+  .track-meta{display:flex; gap:26px; flex-wrap:wrap; margin-top:14px; font-size:12.5px; color:var(--muted);}
+  .track-meta b{color:var(--txt); font-weight:600;}
+  .pill{display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); background:#f1f4f8; border-radius:12px; padding:3px 10px;}
+  .pill .fa-sync-alt{animation:spin 2.2s linear infinite; font-size:10px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .resultbox{border-radius:10px; padding:16px 20px; display:flex; align-items:center; gap:16px; margin-top:16px;}
+  .resultbox.warn{background:#fdf3e4; border:1px solid #f4ddb0;}
+  .resultbox.ok{background:#e9f8f2; border:1px solid #bfe8d8;}
+  .resultbox .big{font-size:26px;}
+  .resultbox.warn .big{color:var(--orange);} .resultbox.ok .big{color:var(--green);}
+  .resultbox h3{font-size:14.5px; margin-bottom:2px;}
+  .resultbox p{font-size:12.5px; color:var(--muted);}
+  .resultbox .actions{margin-left:auto; display:flex; gap:10px;}
+
+  /* ── Estados (badges) ──────────────────────────────────────────── */
+  .st{display:inline-block; font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:10px; letter-spacing:.3px;}
+  .st.EN_PROCESO{background:#e3eefb; color:var(--blue);}
+  .st.COMPLETADO{background:#e2f4ee; color:var(--green);}
+  .st.CON_NOVEDADES{background:#fdeee0; color:var(--orange);}
+  .st.FALLIDO,.st.RECHAZADO{background:#fbe5ea; color:var(--red);}
+  .st.ENVIANDO{background:#eef1f5; color:var(--muted);}
+  .st.ACEPTADO{background:#e2f4ee; color:var(--green);}
+  .st.PENDIENTE{background:#eef1f5; color:var(--muted);}
+  .st.REEMPLAZO{background:#e3eefb; color:var(--blue);}
+
+  /* ── Tablas ────────────────────────────────────────────────────── */
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  thead td{color:var(--muted); font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; padding:10px 12px; border-bottom:1px solid var(--border);}
+  tbody td{padding:11px 12px; border-bottom:1px solid #f0f3f6; vertical-align:middle;}
+  tbody tr:hover{background:#f8fafc;}
+  tbody tr.rej{background:#fef7f8;} tbody tr.rej:hover{background:#fdeff2;}
+  .err-msg{font-size:11.5px; color:var(--red); margin-top:3px;}
+  .mini-prog{width:130px; height:14px; background:#edf1f5; border-radius:7px; overflow:hidden;}
+  .mini-prog div{height:100%; font-size:9.5px; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center;}
+  .link{color:var(--blue); cursor:pointer;}
+  .toolbar{display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap;}
+  .chip{border:1px solid #c9d2dc; background:#fff; border-radius:16px; padding:5px 14px; font-size:12px; cursor:pointer; color:var(--muted); font-weight:600;}
+  .chip.on{background:var(--navy); border-color:var(--navy); color:#fff;}
+  .search{position:relative; margin-left:auto;}
+  .search input{width:230px; padding-left:30px;}
+  .search .fas{position:absolute; left:10px; top:10px; color:var(--muted); font-size:12px;}
+
+  /* ── Modales / toast ───────────────────────────────────────────── */
+  .overlay{position:fixed; inset:0; background:rgba(30,40,55,.45); display:none; align-items:center; justify-content:center; z-index:50;}
+  .overlay.open{display:flex;}
+  .modal{background:#fff; border-radius:12px; width:520px; max-width:94vw; box-shadow:0 12px 40px rgba(0,0,0,.25); overflow:hidden;}
+  .modal-head{padding:16px 22px; border-bottom:1px solid var(--border); font-weight:700; font-size:15px; display:flex; align-items:center; gap:10px;}
+  .modal-body{padding:20px 22px; font-size:13.5px;}
+  .modal-foot{padding:14px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px;}
+  .summary{border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-top:12px;}
+  .summary div{display:flex; justify-content:space-between; padding:8px 14px; border-bottom:1px solid #f0f3f6; font-size:13px;}
+  .summary div:last-child{border-bottom:none;}
+  .summary span:first-child{color:var(--muted);}
+  .summary b{font-weight:600;}
+  #toast{position:fixed; top:18px; right:18px; background:var(--navy); color:#fff; border-radius:8px; padding:13px 18px; font-size:13px; display:none; align-items:center; gap:10px; z-index:99; box-shadow:0 6px 20px rgba(0,0,0,.25);}
+  .hidden{display:none !important;}
+  .backlink{font-size:12.5px; color:var(--blue); cursor:pointer; display:inline-flex; align-items:center; gap:6px; margin-bottom:4px;}
+  .proc-head{display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:18px;}
+  .ph{border:1px solid var(--border); border-radius:8px; padding:12px 14px;}
+  .ph .k{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px;}
+  .ph .v{font-size:15px; font-weight:700; margin-top:3px;}
+</style>
+</head>
+<body>
+<!-- Barra de controles del mockup (no hace parte de la interfaz real) -->
+<div class="sim-header">
+  <span class="simlbl"><i class="fas fa-flask"></i> <b>MOCKUP</b> · flujo Validación y Envío + Estado Proceso · Simular respuesta del proveedor:</span>
+  <div class="chip on" id="escA" onclick="selEsc('A')">Escenario A · reporta avance parcial (%)</div>
+  <div class="chip" id="escB" onclick="selEsc('B')">Escenario B · solo etapas (sin %)</div>
+  <div class="chip" id="escC" onclick="selEsc('C')">Escenario C · individual por tandas (Dispapeles)</div>
+  <span class="simlbl" style="border-left:1px solid #4a5a72; padding-left:12px;">Modal novedad:</span>
+  <div class="chip" id="nvOptA" onclick="selNv('A')">A · Instrucción fija</div>
+  <div class="chip on" id="nvOptB" onclick="selNv('B')">B · Guía según tipo de error ★</div>
+  <div class="chip" id="nvOptC" onclick="selNv('C')">C · Mini-formulario</div>
+  <span class="simlbl" id="escDesc">El proveedor informa cuántos documentos lleva resueltos → barra con porcentaje real.</span>
+</div>
+
+<div class="wrap">
+
+  <!-- Barra módulo -->
+  <div class="module-bar">
+    <div class="module-chip"><i class="fas fa-file-invoice-dollar"></i> Nómina Electrónica</div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab disabled">Definiciones</div>
+    <div class="tab disabled">Conceptos</div>
+    <div class="tab disabled">Conceptos Dian</div>
+    <div class="tab active" id="tabVal" onclick="showView('val')">Validación y Envío</div>
+    <div class="tab" id="tabEst" onclick="showView('hist')">Estado Proceso</div>
+    <div class="tab disabled">Ausentismo</div>
+    <div class="tab disabled">Causación</div>
+  </div>
+
+  <!-- ══════════ VISTA: VALIDACIÓN Y ENVÍO ══════════ -->
+  <div id="view-val">
+
+    <!-- Paso 1 -->
+    <div class="card">
+      <div class="card-head"><div class="step-n">1</div><h2>Consultar período</h2>
+        <div class="hint">Seleccione el período y la sucursal a procesar</div></div>
+      <div class="card-body">
+        <div class="filter-row">
+          <div><label>Año</label><select id="fAno"><option>2026</option><option>2025</option></select></div>
+          <div><label>Mes</label>
+            <select id="fMes">
+              <option value="02" selected>02 - Febrero</option>
+              <option value="01">01 - Enero (ya procesado)</option>
+            </select></div>
+          <div><label>Sucursal</label>
+            <select id="fSuc"><option>BAGUER SAS</option><option>DYS SAS</option><option>TUAVAL SAS</option><option>TINTIPAN</option></select></div>
+          <button class="btn btn-navy" onclick="consultar()"><i class="fas fa-search"></i> Consultar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paso 2 -->
+    <div class="card hidden" id="step2">
+      <div class="card-head"><div class="step-n">2</div><h2>Validar indicadores del período</h2>
+        <div class="hint" id="lblPeriodo"></div></div>
+      <div class="card-body">
+        <div class="stats">
+          <div class="stat blue"><i class="fas fa-user-friends"></i><div class="lbl">Empleados</div><div class="val">1.012</div></div>
+          <div class="stat red"><i class="fas fa-user-times"></i><div class="lbl">Retirados</div><div class="val">65</div></div>
+          <div class="stat green"><i class="fas fa-hand-holding-usd"></i><div class="lbl">Devengado</div><div class="val">$3.196.805.578</div></div>
+          <div class="stat orange"><i class="fas fa-minus-circle"></i><div class="lbl">Deducciones</div><div class="val">$481.798.366</div></div>
+        </div>
+        <div class="warnbox">
+          <i class="fas fa-exclamation-triangle"></i>
+          <div><b>3 empleados con campos no válidos.</b> Puede procesar la nómina, pero estos empleados podrían ser rechazados por la DIAN.
+            <a onclick="document.querySelector('.invalid-tbl').style.display='block'">Ver empleados</a>
+            <div class="invalid-tbl">
+              <table>
+                <thead><tr><td>NIT</td><td>Empleado</td><td>Centro costo</td><td>Campo no válido</td><td>Valor</td></tr></thead>
+                <tbody>
+                  <tr><td>1045228790</td><td>MARTÍNEZ LÓPEZ ANDREA</td><td>VENTAS CC-04</td><td>Correo electrónico</td><td><i>(vacío)</i></td></tr>
+                  <tr><td>72284515</td><td>GUTIÉRREZ PÉREZ JAIRO</td><td>FÁBRICA CC-11</td><td>Tipo contrato</td><td><i>(vacío)</i></td></tr>
+                  <tr><td>1129501277</td><td>ROJAS CASTRO MILENA</td><td>CEDI CC-02</td><td>Salario básico</td><td>$0</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Paso 3: selección proveedor / seguimiento -->
+    <div class="card hidden" id="step3">
+      <div class="card-head"><div class="step-n">3</div><h2 id="step3Title">Procesar nómina electrónica</h2>
+        <div class="hint" id="step3Hint">Seleccione el proveedor tecnológico para transmitir a la DIAN</div></div>
+      <div class="card-body">
+
+        <!-- 3a: selección de proveedor -->
+        <div id="panelSelProv">
+          <div class="providers">
+            <div class="provider" id="provDataico" onclick="selProv('DATAICO')">
+              <div class="plogo dataico">DI</div>
+              <div><div class="pname">Dataico</div>
+                <div class="pdesc">Proveedor actual · lote único con seguimiento por job</div>
+                <span class="badge prod">PRODUCCIÓN</span></div>
+            </div>
+            <div class="provider" id="provDispa" onclick="selProv('DISPAPELES')">
+              <div class="plogo dispa">DP</div>
+              <div><div class="pname">Dispapeles</div>
+                <div class="pdesc">Nuevo proveedor · token auto-renovable</div>
+                <span class="badge prod">PRODUCCIÓN</span></div>
+            </div>
+          </div>
+          <div style="margin-top:18px; display:flex; gap:12px; align-items:center;">
+            <button class="btn btn-green" id="btnProcesar" disabled onclick="abrirConfirm()">
+              <i class="fas fa-paper-plane"></i> Iniciar procesamiento</button>
+            <span style="font-size:12px; color:var(--muted);">El procesamiento continúa en segundo plano: puede cerrar esta pantalla.</span>
+          </div>
+        </div>
+
+        <!-- 3b: panel de seguimiento -->
+        <div id="panelTrack" class="hidden">
+          <div class="stepper">
+            <div class="step" id="stp1"><div class="dot"><i class="fas fa-paper-plane"></i></div>
+              <div class="slbl">Enviado</div><div class="ssub" id="stp1sub">—</div></div>
+            <div class="step" id="stp2"><div class="dot"><i class="fas fa-cog"></i></div>
+              <div class="slbl" id="stp2lbl">Procesando</div><div class="ssub" id="stp2sub">—</div></div>
+            <div class="step" id="stp3"><div class="dot"><i class="fas fa-flag-checkered"></i></div>
+              <div class="slbl">Resultado</div><div class="ssub" id="stp3sub">—</div></div>
+          </div>
+          <div class="progress"><div class="bar" id="trackBar" style="width:3%">0%</div></div>
+          <p id="noPartial" class="hidden" style="font-size:11.5px; color:var(--muted); margin-top:8px;">
+            <i class="fas fa-info-circle"></i> Este proveedor no reporta avance parcial: se muestran las etapas del proceso y el resultado se conocerá al finalizar.</p>
+          <div class="track-meta">
+            <span>Proveedor: <b id="tmProv">—</b></span>
+            <span>Job ID: <b id="tmJob">—</b></span>
+            <span>Empleados: <b id="tmEmp">—</b></span>
+            <span>Aceptados: <b id="tmOk" style="color:var(--green)">0</b></span>
+            <span>Rechazados: <b id="tmBad" style="color:var(--red)">0</b></span>
+            <span id="tmElapsed" class="hidden">En proceso desde hace <b>0:00</b></span>
+            <span class="pill" id="pollPill"><i class="fas fa-sync-alt"></i> actualizando cada 15 s</span>
+          </div>
+          <div id="trackResult"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ VISTA: ESTADO PROCESO (HISTORIAL) ══════════ -->
+  <div id="view-hist" class="hidden">
+    <div class="card">
+      <div class="card-head"><i class="fas fa-tasks" style="color:var(--muted)"></i><h2>Estado de procesos de nómina electrónica</h2>
+        <div class="hint"><button class="btn btn-outline btn-sm" onclick="toast('Estados reconciliados con el proveedor')"><i class="fas fa-sync-alt"></i> Refrescar</button></div></div>
+      <div class="card-body">
+        <div class="toolbar">
+          <div class="chip on" onclick="filtHist(this,'*')">Todos</div>
+          <div class="chip" onclick="filtHist(this,'EN_PROCESO')">En proceso</div>
+          <div class="chip" onclick="filtHist(this,'CON_NOVEDADES')">Con novedades</div>
+          <div class="chip" onclick="filtHist(this,'COMPLETADO')">Completados</div>
+          <div class="chip" onclick="filtHist(this,'FALLIDO')">Fallidos</div>
+        </div>
+        <table>
+          <thead><tr><td>Fecha</td><td>Período</td><td>Sucursal</td><td>Proveedor</td><td>Estado</td><td>Avance</td><td>Usuario</td><td></td></tr></thead>
+          <tbody id="histBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ VISTA: DETALLE DE PROCESO ══════════ -->
+  <div id="view-det" class="hidden">
+    <div class="card">
+      <div class="card-body" style="padding-bottom:0;">
+        <span class="backlink" onclick="showView('hist')"><i class="fas fa-arrow-left"></i> Volver al historial</span>
+        <div class="card-head" style="padding:10px 0 16px; border-bottom:none;">
+          <i class="fas fa-users" style="color:var(--muted)"></i><h2 id="detTitle">Detalle del proceso</h2>
+          <div class="hint"><button class="btn btn-outline btn-sm"><i class="fas fa-file-excel" style="color:var(--green)"></i> Exportar Excel</button></div>
+        </div>
+        <div class="proc-head">
+          <div class="ph"><div class="k">Proveedor</div><div class="v" id="dProv">—</div></div>
+          <div class="ph"><div class="k">Job ID</div><div class="v" id="dJob" style="font-size:12.5px;">—</div></div>
+          <div class="ph"><div class="k">Estado</div><div class="v" id="dEst">—</div></div>
+          <div class="ph"><div class="k">Aceptados</div><div class="v" id="dOk" style="color:var(--green)">—</div></div>
+          <div class="ph"><div class="k">Rechazados</div><div class="v" id="dBad" style="color:var(--red)">—</div></div>
+        </div>
+      </div>
+      <div class="card-body" style="padding-top:6px;">
+        <div class="toolbar">
+          <div class="chip on" onclick="filtDet(this,'*')">Todos (1.012)</div>
+          <div class="chip" onclick="filtDet(this,'ACEPTADO')">Aceptados (1.007)</div>
+          <div class="chip" onclick="filtDet(this,'RECHAZADO')">Rechazados (<span id="cntRej">5</span>)</div>
+          <button class="btn btn-red btn-sm" id="btnBulk" onclick="reenviarTodos()"><i class="fas fa-redo"></i> Reenviar todos los rechazados (<span id="cntRej2">5</span>)</button>
+          <div class="search"><i class="fas fa-search"></i><input type="text" placeholder="Buscar NIT o nombre…" oninput="buscarDet(this.value)"></div>
+        </div>
+        <table>
+          <thead><tr><td>NIT</td><td>Empleado</td><td>Devengado</td><td>Deducciones</td><td>CUNE</td><td>Estado</td><td></td></tr></thead>
+          <tbody id="detBody"></tbody>
+        </table>
+        <p style="font-size:11.5px; color:var(--muted); margin-top:12px;">Mostrando 8 de 1.012 registros · <span class="link">1</span> 2 3 … 127</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: CONFIRMAR PROCESAMIENTO ══════════ -->
+<div class="overlay" id="mConfirm">
+  <div class="modal">
+    <div class="modal-head"><i class="fas fa-paper-plane" style="color:var(--green)"></i> Confirmar procesamiento de nómina</div>
+    <div class="modal-body">
+      Se transmitirá la nómina electrónica a la DIAN con la siguiente información:
+      <div class="summary">
+        <div><span>Período</span><b id="cfPeriodo">—</b></div>
+        <div><span>Sucursal</span><b id="cfSuc">—</b></div>
+        <div><span>Empleados a procesar</span><b>1.012 (65 retirados)</b></div>
+        <div><span>Devengado</span><b>$3.196.805.578</b></div>
+        <div><span>Deducciones</span><b>$481.798.366</b></div>
+        <div><span>Proveedor</span><b id="cfProv">—</b></div>
+        <div><span>Ambiente</span><b><span class="badge prod">PRODUCCIÓN</span></b></div>
+      </div>
+      <p style="margin-top:12px; font-size:12px; color:var(--muted);"><i class="fas fa-info-circle"></i> El proceso quedará registrado y continuará en segundo plano. Podrá seguir el avance en esta pantalla o en la pestaña <b>Estado Proceso</b>.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="cerrar('mConfirm')">Cancelar</button>
+      <button class="btn btn-green" onclick="iniciarProceso()"><i class="fas fa-check"></i> Confirmar y enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: NOVEDAD / CORREGIR Y REENVIAR ══════════ -->
+<div class="overlay" id="mNovedad">
+  <div class="modal">
+    <div class="modal-head"><i class="fas fa-user-edit" style="color:var(--blue)"></i> Novedad — Corregir y reenviar <span id="nvOptTag" style="margin-left:auto; font-size:10.5px; color:var(--muted); font-weight:600;"></span></div>
+    <div class="modal-body" id="nvBody"></div>
+    <div class="modal-foot" id="nvFoot"></div>
+  </div>
+</div>
+
+<div id="toast"><i class="fas fa-check-circle" style="color:#7fe0b8"></i><span id="toastMsg"></span></div>
+
+<script>
+/* ─────────────────────────────────────────────────────────────────
+   Estado simulado del mockup
+───────────────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+let provSel = null, procesoActivo = null, timer = null;
+let escenario = 'A', elapsedT = null, elapsedSec = 0;
+
+/* Selector de simulación (solo mockup): A = avance parcial, B = solo etapas */
+function selEsc(e){
+  escenario = e;
+  ['A','B','C'].forEach(x => $('esc'+x).classList.toggle('on', x===e));
+  $('escDesc').textContent = e==='A'
+    ? 'El proveedor informa cuántos documentos lleva resueltos → barra con porcentaje real.'
+    : e==='B'
+    ? 'El proveedor solo responde encolado/procesando/terminado → etapas sin porcentaje inventado.'
+    : 'Worker del servidor envía documento a documento en tandas → cerrar el navegador NO detiene el envío; avance real del ERP.';
+}
+function startElapsed(){
+  elapsedSec = 0;
+  $('tmElapsed').classList.remove('hidden');
+  elapsedT = setInterval(()=>{
+    elapsedSec++;
+    const m = Math.floor(elapsedSec/60), s = String(elapsedSec%60).padStart(2,'0');
+    $('tmElapsed').innerHTML = `En proceso desde hace <b>${m}:${s}</b>`;
+  }, 1000);
+}
+function stopElapsed(){ clearInterval(elapsedT); $('tmElapsed').classList.add('hidden'); }
+
+// Historial pre-cargado (procesos de otros períodos/sucursales)
+const historial = [
+  {fecha:'2026-07-04 08:12', periodo:'2026-06', suc:'BAGUER SAS', prov:'DATAICO',    est:'COMPLETADO',    av:100, user:'lmarin'},
+  {fecha:'2026-07-04 09:03', periodo:'2026-06', suc:'DYS SAS',    prov:'DATAICO',    est:'CON_NOVEDADES', av:100, user:'lmarin'},
+  {fecha:'2026-07-04 10:40', periodo:'2026-06', suc:'TUAVAL SAS', prov:'DISPAPELES', est:'EN_PROCESO',    av:62,  user:'jcortes'},
+  {fecha:'2026-07-03 16:22', periodo:'2026-06', suc:'TINTIPAN',   prov:'DISPAPELES', est:'FALLIDO',       av:0,   user:'jcortes'},
+  {fecha:'2026-02-05 07:55', periodo:'2026-01', suc:'BAGUER SAS', prov:'DATAICO',    est:'COMPLETADO',    av:100, user:'lmarin'},
+];
+
+// Detalle de empleados (muestra)
+let empleados = [
+  {nit:'32654881',   nom:'ACOSTA RAMÍREZ LUISA',      dev:'$2.418.000', ded:'$196.400', cune:'ne1f2a…9c31', est:'ACEPTADO'},
+  {nit:'1045228790', nom:'MARTÍNEZ LÓPEZ ANDREA',     dev:'$1.850.300', ded:'$148.000', cune:'—',           est:'RECHAZADO', err:'MISSING_REQUIRED: employee.email es obligatorio', tipo:'maestro', campo:'Correo electrónico', input:'email', valor:''},
+  {nit:'8745123',    nom:'BARRIOS MENDOZA CARLOS',    dev:'$3.204.150', ded:'$260.900', cune:'ne8d77…10ab', est:'ACEPTADO'},
+  {nit:'72284515',   nom:'GUTIÉRREZ PÉREZ JAIRO',     dev:'$2.011.600', ded:'$161.200', cune:'—',           est:'RECHAZADO', err:'INVALID_VALUE: contract.type no corresponde al catálogo DIAN', tipo:'maestro', campo:'Tipo de contrato', input:'select', valor:''},
+  {nit:'1129501277', nom:'ROJAS CASTRO MILENA',       dev:'$0',         ded:'$0',       cune:'—',           est:'RECHAZADO', err:'INVALID_VALUE: salario básico no puede ser $0', tipo:'valores', campo:'Salario básico', input:'money', valor:''},
+  {nit:'45689215',   nom:'PADILLA SUÁREZ ORLANDO',    dev:'$1.423.500', ded:'$114.000', cune:'ne41bc…77f2', est:'ACEPTADO'},
+  {nit:'1002458961', nom:'TORRES VILLA NATALIA',      dev:'$2.980.000', ded:'$241.100', cune:'ne90aa…c4d8', est:'ACEPTADO'},
+  {nit:'19456782',   nom:'ZABALA MORENO HERNÁN',      dev:'$4.520.700', ded:'$372.450', cune:'ne3c19…88e0', est:'ACEPTADO'},
+];
+
+/* ── Navegación entre vistas ── */
+function showView(v){
+  $('view-val').classList.toggle('hidden', v!=='val');
+  $('view-hist').classList.toggle('hidden', v!=='hist');
+  $('view-det').classList.toggle('hidden', v!=='det');
+  $('tabVal').classList.toggle('active', v==='val');
+  $('tabEst').classList.toggle('active', v!=='val');
+  if(v==='hist') pintarHistorial('*');
+}
+
+/* ── Paso 1: consultar ── */
+function consultar(){
+  const mes = $('fMes').value, suc = $('fSuc').value, ano = $('fAno').value;
+  $('lblPeriodo').textContent = `Período ${ano}-${mes} · ${suc}`;
+  $('step2').classList.remove('hidden');
+  $('step3').classList.remove('hidden');
+  document.querySelector('.invalid-tbl').style.display='none';
+
+  // Regla clave: si el período ya tiene proceso, mostrar su estado (no el botón procesar)
+  const previo = historial.find(h => h.periodo === `${ano}-${mes}` && h.suc === suc && h.est !== 'FALLIDO');
+  if (previo){
+    $('panelSelProv').classList.add('hidden');
+    $('panelTrack').classList.remove('hidden');
+    $('step3Title').textContent = 'Proceso ya registrado para este período';
+    $('step3Hint').textContent  = `Enviado el ${previo.fecha} por ${previo.user}`;
+    pintarTrackFinal(previo.est, previo.prov, 'job_9f3k2m81', previo.est==='CON_NOVEDADES'?5:0);
+  } else {
+    $('panelSelProv').classList.remove('hidden');
+    $('panelTrack').classList.add('hidden');
+    $('step3Title').textContent = 'Procesar nómina electrónica';
+    $('step3Hint').textContent  = 'Seleccione el proveedor tecnológico para transmitir a la DIAN';
+    provSel = null;
+    $('provDataico').classList.remove('sel'); $('provDispa').classList.remove('sel');
+    $('btnProcesar').disabled = true;
+  }
+  $('step2').scrollIntoView({behavior:'smooth'});
+}
+
+/* ── Paso 3: selección proveedor y confirmación ── */
+function selProv(p){
+  provSel = p;
+  $('provDataico').classList.toggle('sel', p==='DATAICO');
+  $('provDispa').classList.toggle('sel', p==='DISPAPELES');
+  $('btnProcesar').disabled = false;
+}
+function abrirConfirm(){
+  $('cfPeriodo').textContent = `${$('fAno').value}-${$('fMes').value}`;
+  $('cfSuc').textContent = $('fSuc').value;
+  $('cfProv').textContent = provSel === 'DATAICO' ? 'Dataico' : 'Dispapeles';
+  $('mConfirm').classList.add('open');
+}
+function cerrar(id){ $(id).classList.remove('open'); }
+
+/* ── Simulación del procesamiento en segundo plano ── */
+function iniciarProceso(){
+  cerrar('mConfirm');
+  $('panelSelProv').classList.add('hidden');
+  $('panelTrack').classList.remove('hidden');
+  $('step3Title').textContent = 'Seguimiento del procesamiento';
+  $('step3Hint').textContent  = 'Puede cerrar esta pantalla: el proceso continúa en el proveedor';
+  $('trackResult').innerHTML = '';
+  $('tmProv').textContent = provSel === 'DATAICO' ? 'Dataico' : 'Dispapeles';
+  $('tmEmp').textContent = '1.012';
+  $('tmJob').textContent = 'creando…';
+  setStep(1,'doing'); setStep(2,''); setStep(3,'');
+  $('stp1sub').textContent = 'registrando proceso';
+  $('pollPill').classList.remove('hidden');
+  $('noPartial').classList.add('hidden');
+  stopElapsed();
+  $('tmOk').textContent='0'; $('tmBad').textContent='0';
+  setBar(3, '');
+
+  // ENVIANDO → EN_PROCESO (llega el jobid, o arranca la primera tanda en modo individual)
+  setTimeout(()=>{
+    procesoActivo = {fecha:'2026-07-16 09:41', periodo:`${$('fAno').value}-${$('fMes').value}`, suc:$('fSuc').value,
+                     prov:provSel, est:'EN_PROCESO', av:0, user:'flizcano'};
+    historial.unshift(procesoActivo);
+    if (escenario === 'C'){
+      $('step3Hint').textContent = 'Puede cerrar esta pantalla: el worker del servidor continúa el envío';
+      $('tmJob').textContent = 'N/A (envío individual)';
+      $('stp1sub').textContent = 'proceso registrado · 1.012 pendientes';
+      setStep(1,'done'); setStep(2,'doing');
+      $('stp2lbl').textContent = 'Enviando a ' + (provSel==='DATAICO'?'Dataico':'Dispapeles');
+      $('stp2sub').textContent = 'worker iniciado · tanda 1';
+      toast('Proceso registrado · worker de envío iniciado en el servidor');
+      simularTandas();
+      return;
+    }
+    $('tmJob').textContent = 'job_9f3k2m81';
+    $('stp1sub').textContent = 'lote recibido por el proveedor';
+    setStep(1,'done'); setStep(2,'doing');
+    $('stp2lbl').textContent = 'Procesando en ' + (provSel==='DATAICO'?'Dataico':'Dispapeles');
+    $('stp2sub').textContent = 'validación DIAN en curso';
+    toast('Proceso encolado · Job job_9f3k2m81');
+    if (escenario === 'A') simularAvance(); else simularEtapas();
+  }, 1400);
+}
+
+/* Escenario C: envío individual por tandas — avance propio del ERP, interrumpible y reanudable */
+let tandaEnviados = 0;
+const TANDA = 85, TOTAL_C = 1012;
+function simularTandas(desde = 0){
+  tandaEnviados = desde;
+  const interrumpirEn = desde === 0 ? 510 : TOTAL_C + 1; // solo interrumpe la primera vez
+  timer = setInterval(()=>{
+    tandaEnviados = Math.min(tandaEnviados + TANDA, TOTAL_C);
+    const nTanda = Math.ceil(tandaEnviados / TANDA);
+    const av = Math.round(tandaEnviados * 100 / TOTAL_C);
+    setBar(av, ''); $('trackBar').textContent = `${av}% · ${tandaEnviados.toLocaleString('es-CO')}/${TOTAL_C.toLocaleString('es-CO')}`;
+    const ok = Math.round(tandaEnviados * .995);
+    $('tmOk').textContent = ok.toLocaleString('es-CO');
+    $('tmBad').textContent = tandaEnviados - ok;
+    $('stp2sub').textContent = `tanda ${nTanda} · ${tandaEnviados.toLocaleString('es-CO')} enviados`;
+    if (procesoActivo) procesoActivo.av = av;
+    if (tandaEnviados >= interrumpirEn){ clearInterval(timer); interrumpirTandas(); return; }
+    if (tandaEnviados >= TOTAL_C){ clearInterval(timer); finalizarProceso(); }
+  }, 700);
+}
+function interrumpirTandas(){
+  $('stp2sub').textContent = `interrumpido · ${tandaEnviados.toLocaleString('es-CO')}/${TOTAL_C.toLocaleString('es-CO')} enviados`;
+  $('pollPill').classList.add('hidden');
+  $('trackResult').innerHTML = `
+    <div class="resultbox warn">
+      <i class="fas fa-pause-circle big"></i>
+      <div><h3>Envío interrumpido (simulación: se reinició el servidor — caso raro)</h3>
+        <p>El envío corre en el servidor: <b>cerrar el navegador NO lo detiene</b>. Este caso simula un reinicio del servidor a mitad de envío:
+        nada se perdió (${tandaEnviados.toLocaleString('es-CO')} documentos registrados en BD) y el sistema <b>reanuda solo</b> en la próxima consulta — este botón es el respaldo manual.</p></div>
+      <div class="actions"><button class="btn btn-green btn-sm" onclick="reanudarTandas()"><i class="fas fa-play"></i> Reanudar envío</button></div>
+    </div>`;
+  toast('Interrupción del servidor simulada · el avance quedó guardado');
+}
+function reanudarTandas(){
+  $('trackResult').innerHTML = '';
+  $('pollPill').classList.remove('hidden');
+  toast('Reanudando desde el documento ' + (tandaEnviados + 1).toLocaleString('es-CO'));
+  simularTandas(tandaEnviados);
+}
+
+/* Escenario B: el proveedor solo reporta etapas — barra indeterminada, sin % */
+function simularEtapas(){
+  const b = $('trackBar');
+  b.className = 'bar indet'; b.textContent = 'Procesando en el proveedor…';
+  $('noPartial').classList.remove('hidden');
+  $('tmOk').textContent = '—'; $('tmBad').textContent = '—';
+  startElapsed();
+  const msgs = ['validación DIAN en curso', 'consultando estado… sigue en proceso', 'consultando estado… sigue en proceso'];
+  let i = 0;
+  timer = setInterval(()=>{
+    $('stp2sub').textContent = msgs[Math.min(i, msgs.length-1)]; i++;
+    if (i >= 4){ clearInterval(timer); stopElapsed(); $('noPartial').classList.add('hidden'); finalizarProceso(); }
+  }, 2200);
+}
+
+function simularAvance(){
+  let av = 0;
+  timer = setInterval(()=>{
+    av += Math.floor(Math.random()*14)+8;
+    if (av >= 100){ av = 100; clearInterval(timer); finalizarProceso(); }
+    const ok = Math.round(1012*av/100 * .995);
+    setBar(av,''); $('tmOk').textContent = ok.toLocaleString('es-CO');
+    $('tmBad').textContent = Math.max(0, Math.round(1012*av/100)-ok);
+    if(procesoActivo) procesoActivo.av = av;
+  }, 750);
+}
+function finalizarProceso(){
+  setStep(2,'done'); setStep(3,'done');
+  $('stp2sub').textContent = 'finalizado';
+  $('stp3sub').textContent = '2026-07-16 09:47';
+  setBar(100,'warn');
+  $('tmOk').textContent='1.007'; $('tmBad').textContent='5';
+  $('pollPill').classList.add('hidden');
+  if(procesoActivo){ procesoActivo.est='CON_NOVEDADES'; procesoActivo.av=100; }
+  $('trackResult').innerHTML = `
+    <div class="resultbox warn">
+      <i class="fas fa-exclamation-circle big"></i>
+      <div><h3>Proceso finalizado con novedades</h3>
+        <p>1.007 documentos aceptados por la DIAN · <b style="color:var(--red)">5 rechazados</b> requieren corrección y reenvío.</p></div>
+      <div class="actions"><button class="btn btn-navy btn-sm" onclick="abrirDetalle()"><i class="fas fa-list"></i> Ver detalle de empleados</button></div>
+    </div>`;
+  toast('Nómina procesada: 1.007 aceptados, 5 rechazados');
+}
+function pintarTrackFinal(est, prov, job, rechazados){
+  setStep(1,'done'); setStep(2,'done'); setStep(3,'done');
+  $('stp1sub').textContent='enviado'; $('stp2lbl').textContent='Procesado en '+(prov==='DATAICO'?'Dataico':'Dispapeles');
+  $('stp2sub').textContent='finalizado'; $('stp3sub').textContent='finalizado';
+  $('tmProv').textContent = prov==='DATAICO'?'Dataico':'Dispapeles';
+  $('tmJob').textContent = job; $('tmEmp').textContent='1.012';
+  $('tmOk').textContent = (1012-rechazados).toLocaleString('es-CO'); $('tmBad').textContent=rechazados;
+  $('pollPill').classList.add('hidden');
+  if(est==='COMPLETADO'){ setBar(100,'ok');
+    $('trackResult').innerHTML = `<div class="resultbox ok"><i class="fas fa-check-circle big"></i>
+      <div><h3>Proceso completado</h3><p>Todos los documentos fueron aceptados por la DIAN.</p></div>
+      <div class="actions"><button class="btn btn-outline btn-sm" onclick="abrirDetalle()"><i class="fas fa-list"></i> Ver detalle</button></div></div>`;
+  } else { setBar(100,'warn');
+    $('trackResult').innerHTML = `<div class="resultbox warn"><i class="fas fa-exclamation-circle big"></i>
+      <div><h3>Proceso finalizado con novedades</h3><p>${rechazados} documentos rechazados requieren corrección y reenvío.</p></div>
+      <div class="actions"><button class="btn btn-navy btn-sm" onclick="abrirDetalle()"><i class="fas fa-list"></i> Ver detalle de empleados</button></div></div>`;
+  }
+}
+function setStep(n, cls){ const el=$('stp'+n); el.classList.remove('done','doing'); if(cls) el.classList.add(cls); }
+function setBar(p, cls){ const b=$('trackBar'); b.style.width=p+'%'; b.textContent=p+'%'; b.className='bar'+(cls?' '+cls:''); }
+
+/* ── Historial ── */
+function pintarHistorial(filtro){
+  $('histBody').innerHTML = historial
+    .filter(h => filtro==='*' || h.est===filtro)
+    .map((h,i)=>{
+      const col = h.est==='COMPLETADO' ? 'var(--green)' : h.est==='CON_NOVEDADES' ? 'var(--orange)' : h.est==='EN_PROCESO' ? 'var(--blue)' : 'var(--red)';
+      return `<tr>
+        <td>${h.fecha}</td><td>${h.periodo}</td><td>${h.suc}</td>
+        <td><span class="plogo ${h.prov==='DATAICO'?'dataico':'dispa'}" style="width:26px;height:26px;font-size:10px;border-radius:6px;display:inline-flex;vertical-align:middle;">${h.prov==='DATAICO'?'DI':'DP'}</span>
+            <span style="margin-left:6px;">${h.prov==='DATAICO'?'Dataico':'Dispapeles'}</span></td>
+        <td><span class="st ${h.est}">${h.est.replace('_',' ')}</span></td>
+        <td><div class="mini-prog"><div style="width:${h.av}%;background:${col};">${h.av}%</div></div></td>
+        <td>${h.user}</td>
+        <td>${h.est==='FALLIDO'
+              ? '<button class="btn btn-outline btn-sm" onclick="toast(\'Reintentaría el envío del proceso\')"><i class=\'fas fa-redo\'></i> Reintentar</button>'
+              : '<button class="btn btn-outline btn-sm" onclick="abrirDetalle()"><i class=\'fas fa-eye\'></i> Ver detalle</button>'}</td>
+      </tr>`;
+    }).join('');
+}
+function filtHist(el, f){
+  document.querySelectorAll('#view-hist .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on'); pintarHistorial(f);
+}
+
+/* ── Detalle de proceso ── */
+let filtroDet='*', busq='';
+function abrirDetalle(){
+  showView('det');
+  $('detTitle').textContent = `Detalle — Período ${$('fAno').value}-${$('fMes').value} · ${$('fSuc').value}`;
+  $('dProv').textContent = $('tmProv').textContent==='—' ? 'Dataico' : $('tmProv').textContent;
+  $('dJob').textContent = 'job_9f3k2m81';
+  const rej = contarRechazados();
+  $('dEst').innerHTML = rej? '<span class="st CON_NOVEDADES">CON NOVEDADES</span>' : '<span class="st COMPLETADO">COMPLETADO</span>';
+  $('dOk').textContent = (1012 - rej).toLocaleString('es-CO');
+  $('dBad').textContent = String(rej);
+  pintarDetalle();
+}
+// La muestra visible tiene 3 de los 5 rechazados del proceso (los otros 2 están en páginas siguientes)
+function contarRechazados(){ return empleados.filter(e=>e.est==='RECHAZADO').length ? empleados.filter(e=>e.est==='RECHAZADO').length + 2 : 0; }
+function pintarDetalle(){
+  const rej = contarRechazados();
+  $('cntRej').textContent = rej; $('cntRej2').textContent = rej;
+  $('dBad').textContent = String(rej);
+  $('dOk').textContent = (1012 - rej).toLocaleString('es-CO');
+  $('btnBulk').style.display = rej? 'inline-flex' : 'none';
+  $('detBody').innerHTML = empleados
+    .filter(e => (filtroDet==='*' || e.est===filtroDet))
+    .filter(e => !busq || e.nom.toLowerCase().includes(busq) || e.nit.includes(busq))
+    .map((e,i)=>`<tr class="${e.est==='RECHAZADO'?'rej':''}">
+      <td>${e.nit}</td>
+      <td>${e.nom}${e.err?`<div class="err-msg"><i class="fas fa-times-circle"></i> ${e.err}</div>`:''}</td>
+      <td>${e.dev}</td><td>${e.ded}</td>
+      <td style="font-size:11.5px; color:var(--muted);">${e.cune}</td>
+      <td><span class="st ${e.est==='REEMPLAZO_EN_PROCESO'?'REEMPLAZO':e.est}">${e.est.replace(/_/g,' ')}</span></td>
+      <td>${e.est==='RECHAZADO'
+            ? `<button class="btn btn-navy btn-sm" onclick="abrirNovedad(${empleados.indexOf(e)})"><i class="fas fa-user-edit"></i> Corregir y reenviar</button>`
+            : e.est==='ACEPTADO' ? `<span class="link" onclick="toast('Descargaría el PDF/XML del documento')"><i class="fas fa-file-download"></i></span>` : ''}</td>
+    </tr>`).join('');
+}
+function filtDet(el, f){
+  document.querySelectorAll('#view-det .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on'); filtroDet=f; pintarDetalle();
+}
+function buscarDet(v){ busq = v.toLowerCase(); pintarDetalle(); }
+
+/* ── Novedades — 3 variantes del modal (selector en el header del mockup) ── */
+let empNovedad = null, modalOpt = 'B';
+function selNv(o){
+  modalOpt = o;
+  ['A','B','C'].forEach(x => $('nvOpt'+x).classList.toggle('on', x===o));
+}
+function abrirNovedad(idx){
+  empNovedad = idx;
+  const e = empleados[idx];
+  const resumen = `
+    <div class="summary">
+      <div><span>Empleado</span><b>${e.nom}</b></div>
+      <div><span>NIT</span><b>${e.nit}</b></div>
+      <div><span>Error DIAN</span><b style="color:var(--red); text-align:right; max-width:300px;">${e.err}</b></div>
+    </div>`;
+  const notaReemplazo = `<p style="font-size:12px; color:var(--muted); margin-top:12px;"><i class="fas fa-info-circle"></i> La retransmisión usa el flujo de <b>reemplazo</b> del proveedor: el documento anterior queda sustituido ante la DIAN.</p>`;
+  let body = resumen, foot = `<button class="btn btn-outline" onclick="cerrar('mNovedad')">Cancelar</button>`;
+  const tags = {A:'Variante A · Instrucción fija', B:'Variante B · Guía según tipo de error (recomendada)', C:'Variante C · Mini-formulario'};
+  $('nvOptTag').textContent = tags[modalOpt];
+
+  if (modalOpt === 'A'){
+    body += `
+      <div class="warnbox" style="margin-top:14px;"><i class="fas fa-hand-point-right"></i>
+        <div><b>Corrija el dato fuera de esta pantalla.</b> El campo <b>${e.campo}</b> se administra en el maestro de empleados
+        (sistema de Gestión Humana — <i>por confirmar con el equipo dónde se edita hoy</i>). Cuando esté corregido, retransmita.</div></div>
+      ${notaReemplazo}`;
+    foot += `<button class="btn btn-navy" onclick="retransmitir()"><i class="fas fa-redo"></i> Ya corregí — Retransmitir</button>`;
+  }
+  else if (modalOpt === 'B'){
+    if (e.tipo === 'valores'){
+      body += `
+        <p style="margin:14px 0 6px; font-size:13px;">1. Este error es de <b>valores del período</b> — se corrige en el módulo de liquidación:</p>
+        <button class="btn btn-outline btn-sm" onclick="toast('Abriría Liquidación de Nómina (módulo 1806) filtrada por el empleado')">
+          <i class="fas fa-external-link-alt"></i> Abrir Liquidación de Nómina</button>
+        <p style="margin:14px 0 6px; font-size:13px;">2. Con el valor corregido, retransmita:</p>${notaReemplazo}`;
+    } else {
+      body += `
+        <div class="warnbox" style="margin-top:14px;"><i class="fas fa-hand-point-right"></i>
+          <div><b>${e.campo}</b> es un <b>dato maestro del empleado</b> y hoy no es editable desde el ERP.
+          Corríjalo en el sistema de Gestión Humana (<i>destino por confirmar — pregunta #11 al equipo</i>) y luego retransmita.</div></div>
+        ${notaReemplazo}`;
+    }
+    foot += `<button class="btn btn-navy" onclick="retransmitir()"><i class="fas fa-redo"></i> Retransmitir como reemplazo</button>`;
+  }
+  else { // C: mini-formulario
+    let campoHtml = '';
+    if (e.input === 'select'){
+      campoHtml = `<select id="nvCampo"><option value="">— Seleccione —</option><option>Término indefinido</option><option>Término fijo</option><option>Obra o labor</option><option>Aprendizaje</option></select>`;
+    } else if (e.input === 'money'){
+      campoHtml = `<input type="text" id="nvCampo" placeholder="$ 1.423.500">`;
+    } else {
+      campoHtml = `<input type="text" id="nvCampo" placeholder="correo@ejemplo.com">`;
+    }
+    body += `
+      <p style="margin:14px 0 6px; font-size:13px;">Corrija el campo directamente y retransmita en un solo paso:</p>
+      <label>${e.campo}</label>${campoHtml}
+      <p style="font-size:11.5px; color:var(--orange); margin-top:10px;"><i class="fas fa-exclamation-triangle"></i>
+        Esta variante requiere habilitar <b>escritura sobre el maestro de empleados</b> desde el ERP (validar con RRHH la propiedad del dato).</p>
+      ${notaReemplazo}`;
+    foot += `<button class="btn btn-green" onclick="guardarYRetransmitir()"><i class="fas fa-save"></i> Guardar y retransmitir</button>`;
+  }
+  $('nvBody').innerHTML = body;
+  $('nvFoot').innerHTML = foot;
+  $('mNovedad').classList.add('open');
+}
+function guardarYRetransmitir(){
+  const v = $('nvCampo') ? $('nvCampo').value : '';
+  if (!v){ toast('Diligencie el campo antes de retransmitir'); return; }
+  toast('Dato guardado en el maestro (simulado)');
+  retransmitir();
+}
+function retransmitir(){
+  cerrar('mNovedad');
+  empleados[empNovedad].est = 'REEMPLAZO_EN_PROCESO';
+  empleados[empNovedad].err = null;
+  pintarDetalle();
+  toast('Reemplazo enviado al proveedor · el estado se actualizará al reconciliar');
+  setTimeout(()=>{ empleados[empNovedad].est='ACEPTADO'; empleados[empNovedad].cune='ne55fe…21aa'; pintarDetalle();
+    toast('Reemplazo aceptado por la DIAN'); }, 4000);
+}
+function reenviarTodos(){
+  const n = contarRechazados();
+  empleados.forEach(e=>{ if(e.est==='RECHAZADO'){ e.est='REEMPLAZO_EN_PROCESO'; e.err=null; } });
+  pintarDetalle();
+  toast(n + ' reemplazos enviados al proveedor');
+  setTimeout(()=>{ empleados.forEach(e=>{ if(e.est==='REEMPLAZO_EN_PROCESO'){ e.est='ACEPTADO'; e.cune='ne55fe…21aa'; } }); pintarDetalle(); }, 4500);
+}
+
+/* ── Toast ── */
+let toastT=null;
+function toast(msg){
+  $('toastMsg').textContent = msg;
+  $('toast').style.display='flex';
+  clearTimeout(toastT); toastT=setTimeout(()=>$('toast').style.display='none', 3200);
+}
+</script>
+</body>
+</html>

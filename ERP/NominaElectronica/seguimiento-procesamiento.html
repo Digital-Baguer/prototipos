@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spec de componente — Panel "Seguimiento del procesamiento"</title>
+<style>
+  :root{--navy:#2b3648; --blue:#3f8ac9; --red:#e8556d; --green:#1fae83; --orange:#f5a02e; --muted:#6b7a8d; --border:#e4e9ef;}
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif; background:#fff; color:#1a1a1a; line-height:1.65; font-size:15px;}
+  .container{max-width:900px; margin:0 auto; padding:36px 24px 80px;}
+  .doc-head{border-bottom:3px solid var(--navy); padding-bottom:20px; margin-bottom:26px;}
+  .doc-head h1{font-size:23px; color:var(--navy); line-height:1.3;}
+  .doc-head .sub{color:var(--muted); font-size:13.5px; margin-top:6px;}
+  .bdg{display:inline-block; font-size:11px; font-weight:700; padding:3px 11px; border-radius:11px; margin-right:6px; margin-top:10px;}
+  .bdg.id{background:#e9eef5; color:var(--navy);} .bdg.ok{background:#e2f4ee; color:var(--green);}
+  h2{font-size:18.5px; color:var(--navy); margin:38px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--border);}
+  h2 .n{display:inline-flex; width:26px; height:26px; border-radius:50%; background:var(--navy); color:#fff; font-size:13px; align-items:center; justify-content:center; margin-right:9px; vertical-align:-4px;}
+  h3{font-size:15px; color:var(--navy); margin:20px 0 8px;}
+  p{margin:9px 0;} ul,ol{margin:9px 0 9px 26px;} li{margin:5px 0;}
+  code{background:#f1f4f8; border-radius:4px; padding:1.5px 6px; font-family:'SF Mono',Menlo,Consolas,monospace; font-size:12.5px;}
+  pre{background:#f6f8fa; border:1px solid var(--border); border-radius:8px; padding:15px 17px; overflow-x:auto; font-family:'SF Mono',Menlo,Consolas,monospace; font-size:12px; line-height:1.55; margin:13px 0;}
+  table{width:100%; border-collapse:collapse; margin:13px 0; font-size:13px;}
+  th{background:var(--navy); color:#fff; text-align:left; padding:8px 12px; font-size:11.5px; letter-spacing:.4px;}
+  td{border:1px solid var(--border); padding:8px 12px; vertical-align:top;}
+  tr:nth-child(even) td{background:#f8fafc;}
+  blockquote{border-left:4px solid var(--blue); background:#f6f9fc; padding:10px 16px; border-radius:0 8px 8px 0; margin:13px 0; font-size:13.5px; color:#41505f;}
+  .call{border-radius:10px; padding:13px 17px; margin:14px 0; font-size:13.5px; display:flex; gap:11px;}
+  .call.gold{background:#fdf6e7; border:1px solid #f4dfae;}
+  .call.info{background:#eef5fc; border:1px solid #cfe2f4;}
+
+  /* Réplicas en miniatura del panel */
+  .mini{border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin:12px 0; background:#fff; box-shadow:0 1px 3px rgba(35,55,80,.07);}
+  .mini .tag{font-size:10px; font-weight:800; letter-spacing:.5px; color:#fff; padding:2px 9px; border-radius:9px; float:right;}
+  .mini h4{font-size:12.5px; color:var(--navy); margin-bottom:10px;}
+  .msteps{display:flex; align-items:center; gap:0; margin:8px 0 10px; max-width:430px;}
+  .mstep{flex:1; text-align:center; position:relative;}
+  .mstep .d{width:22px; height:22px; border-radius:50%; margin:0 auto 4px; background:#e6ebf1; position:relative; z-index:2; display:flex; align-items:center; justify-content:center; font-size:10px; color:#98a6b7;}
+  .mstep::before{content:''; position:absolute; top:10px; left:-50%; width:100%; height:2.5px; background:#e6ebf1; z-index:1;}
+  .mstep:first-child::before{display:none;}
+  .mstep.g .d{background:var(--green); color:#fff;} .mstep.g::before{background:var(--green);}
+  .mstep.b .d{background:var(--blue); color:#fff;} .mstep.b::before{background:var(--green);}
+  .mstep .l{font-size:10px; color:var(--muted); font-weight:600;}
+  .mbar{height:15px; background:#edf1f5; border-radius:8px; overflow:hidden; max-width:430px; margin-bottom:7px;}
+  .mbar div{height:100%; color:#fff; font-size:9.5px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+  .mmeta{font-size:11px; color:var(--muted); max-width:520px;}
+  .mmeta b{color:#1a1a1a;}
+  .mbox{border-radius:7px; padding:8px 12px; font-size:11px; margin-top:8px; max-width:520px;}
+  .anno{display:flex; gap:8px; align-items:flex-start; font-size:12.5px; margin:6px 0;}
+  .anno .k{flex:none; width:20px; height:20px; border-radius:50%; background:var(--orange); color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center;}
+  .stbadge{display:inline-block; font-size:9.5px; font-weight:700; padding:2px 8px; border-radius:9px;}
+  .chk li{list-style:none; position:relative; padding-left:28px; margin:8px 0;}
+  .chk li::before{content:''; position:absolute; left:0; top:3px; width:16px; height:16px; border:2px solid var(--green); border-radius:4px;}
+  .chk{margin-left:0;}
+
+  /* Diagrama de actividades */
+  .fx{margin:18px 0; font-size:12.5px;}
+  .fx-start,.fx-end{background:var(--navy); color:#fff; border-radius:20px; padding:9px 18px; text-align:center; font-weight:600; max-width:420px; margin:0 auto;}
+  .fx-act{background:#fff; border:1.5px solid #b9c6d4; border-radius:8px; padding:9px 13px; margin:0 auto; text-align:center;}
+  .fx-wide{max-width:640px;}
+  .fx-dec{background:#fdf6e7; border:1.5px solid var(--orange); border-radius:8px; padding:8px 13px; margin:0 auto; text-align:center; font-weight:600; color:#8a5a00;}
+  .fx-dec::before{content:'◆ '; color:var(--orange);}
+  .fx-arr{text-align:center; color:#9aa8b8; font-size:14px; line-height:1.6; padding:2px 0;}
+  .fx-arr small{display:block; font-size:10.5px; color:var(--muted); font-style:italic;}
+  .fx-fork{background:#eef5fc; border:1.5px dashed var(--blue); border-radius:8px; padding:8px 14px; margin:10px auto; text-align:center; font-weight:700; color:#2a5d8a; max-width:560px;}
+  .fx-lanes{display:grid; grid-template-columns:1fr 150px 1fr; gap:0; margin-top:12px; align-items:start;}
+  .fx-lane{padding:0 8px;}
+  .fx-lanehead{border-radius:8px 8px 0 0; color:#fff; font-weight:700; text-align:center; padding:8px 10px; font-size:12px;}
+  .fx-lanehead.w{background:#7a5ec4;} .fx-lanehead.p{background:#2f7ec2;}
+  .fx-lanebody{border:1.5px dashed #cbd5e0; border-top:none; border-radius:0 0 8px 8px; padding:12px 10px 14px;}
+  .fx-db{position:sticky; top:80px; text-align:center; padding-top:60px;}
+  .fx-cyl{width:110px; margin:0 auto; background:#fff;}
+  .fx-cyl .top{height:20px; border:2px solid var(--navy); border-radius:50%/100%; border-bottom:none; background:#e9eef5;}
+  .fx-cyl .body{border:2px solid var(--navy); border-top:none; border-radius:0 0 55px 55px/0 0 14px 14px; padding:12px 6px 18px; font-weight:700; font-size:11px; color:var(--navy); background:#e9eef5;}
+  .fx-io{font-size:10.5px; margin:8px 0; padding:4px 6px; border-radius:6px; font-weight:600;}
+  .fx-io.in{background:#f3eefb; color:#5a3fa8;}   /* escribe */
+  .fx-io.out{background:#e8f2fb; color:#1f5c94;}  /* lee */
+  .fx-loop{display:inline-block; background:#f1f4f8; border-radius:10px; padding:2px 10px; font-size:10.5px; color:var(--muted); font-weight:700;}
+  .fx-relanza{border:1.5px dashed #7a5ec4; background:#f7f4fd; color:#5a3fa8; border-radius:8px; padding:7px 11px; text-align:center; font-size:11.5px; font-weight:600; margin:0 auto;}
+  @media (max-width:760px){ .fx-lanes{grid-template-columns:1fr;} .fx-db{position:static; padding-top:10px;} }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="doc-head">
+    <h1>Spec de componente — Panel "Seguimiento del procesamiento"<br><span style="font-size:15px; font-weight:400; color:var(--muted);">Bloque 3 de la pestaña Validación y Envío · Nómina Electrónica</span></h1>
+    <div class="sub">Para el dev implementador · Referencias: mockup.html (contrato visual) · plan.md Tasks 7, 12, 16 · spec.md</div>
+    <div>
+      <span class="bdg id">ERP-NE-VALIDACION-ENVIO</span>
+      <span class="bdg ok">MOCKUP APROBADO</span>
+    </div>
+  </div>
+
+  <h2><span class="n">0</span>La regla que gobierna todo el componente</h2>
+  <div class="call gold"><span>⭐</span><div>
+    <b>El panel es un LECTOR, nunca un calculador.</b> Todo lo que pinta sale de UNA sola fuente: la respuesta del endpoint <code>ConsultarEstadoProcesoNomina(idProceso)</code>, que a su vez lee la tabla <code>BERP_NominaElectronicaProceso</code>. El panel no suma, no estima, no anima porcentajes por su cuenta, no tiene lógica de negocio. Si un dato no viene en la respuesta, no se muestra. <b>Prohibido inventar avance</b> (la pantalla vieja usaba <code>Math.random()</code> — eso es exactamente lo que se elimina).
+  </div></div>
+
+  <h2><span class="n">1</span>Anatomía del bloque</h2>
+
+  <div class="mini">
+    <div class="msteps">
+      <div class="mstep g"><div class="d">✈</div><div class="l">Enviado ①</div></div>
+      <div class="mstep b"><div class="d">⚙</div><div class="l">Procesando ②</div></div>
+      <div class="mstep"><div class="d">⚑</div><div class="l">Resultado ③</div></div>
+    </div>
+    <div class="mbar"><div style="width:45%; background:var(--blue);">45% · 460/1.012 ④</div></div>
+    <div class="mmeta">Proveedor: <b>Dispapeles</b> ⑤ · Job ID: <b>N/A</b> ⑥ · Empleados: <b>1.012</b> · Aceptados: <b style="color:var(--green)">455</b> · Rechazados: <b style="color:var(--red)">5</b> ⑦ · <span style="background:#f1f4f8; border-radius:9px; padding:1px 8px;">⟳ actualizando cada 15 s ⑧</span></div>
+    <div class="mbox" style="background:#fdf3e4; border:1px solid #f4ddb0;">⑨ Zona de resultado (solo en estados finales): resumen + botón "Ver detalle de empleados" / "Reanudar" / "Reintentar"</div>
+  </div>
+
+  <div class="anno"><div class="k">①</div><div><b>Stepper paso 1 "Enviado"</b> — verde cuando el proceso quedó registrado y el envío arrancó. Subtexto según proveedor: "lote recibido por el proveedor" (Dataico) / "proceso registrado · N pendientes" (Dispapeles).</div></div>
+  <div class="anno"><div class="k">②</div><div><b>Stepper paso 2 "Procesando en {proveedor}"</b> — azul mientras <code>estado == EN_PROCESO</code>; <b>verde SOLO cuando el backend responde un estado final</b>. El front jamás lo pinta verde por su cuenta ni por tiempo transcurrido.</div></div>
+  <div class="anno"><div class="k">③</div><div><b>Stepper paso 3 "Resultado"</b> — verde en estado final; subtexto = <code>fechaFinalizacion</code>.</div></div>
+  <div class="anno"><div class="k">④</div><div><b>Barra de progreso</b> — su forma depende de <code>reportaParciales</code> (ver §3). Con parciales: <code>% = (aceptados + rechazados) / total</code> (Dataico) o <code>enviados / total</code> (Dispapeles), SIEMPRE con la fracción visible ("45% · 460/1.012"). Sin parciales: barra indeterminada animada con texto "Procesando en el proveedor…" y SIN número.</div></div>
+  <div class="anno"><div class="k">⑤</div><div><b>Proveedor</b> — literal del campo <code>proveedor</code>.</div></div>
+  <div class="anno"><div class="k">⑥</div><div><b>Job ID</b> — el <code>jobId</code> si existe (Dataico); "N/A (envío individual)" si es null (Dispapeles). Se muestra por trazabilidad/soporte, el operador no lo usa.</div></div>
+  <div class="anno"><div class="k">⑦</div><div><b>Contadores</b> — copiados literales de la respuesta. Si <code>reportaParciales == false</code>, mostrar "—" hasta el estado final.</div></div>
+  <div class="anno"><div class="k">⑧</div><div><b>Indicador de polling</b> — visible solo mientras <code>estado ∈ {ENVIANDO, EN_PROCESO}</code>. En estados finales se oculta (ya no se consulta).</div></div>
+  <div class="anno"><div class="k">⑨</div><div><b>Zona de resultado</b> — solo en estados finales o interrupciones; contiene el mensaje y la acción primaria (ver §4).</div></div>
+
+  <h2><span class="n">2</span>El contrato de datos (una sola respuesta alimenta todo)</h2>
+<pre>GET/POST NominaElectronica/ConsultarEstadoProcesoNomina?idProceso=34
+
+{
+  "idProceso": 34,
+  "estado": "EN_PROCESO",          // ENVIANDO | EN_PROCESO | COMPLETADO | CON_NOVEDADES | RECHAZADO | FALLIDO
+  "proveedor": "DISPAPELES",       // DATAICO | DISPAPELES
+  "jobId": null,                   // string (Dataico) o null (Dispapeles)
+  "reportaParciales": true,        // decide la forma de la barra (§3)
+  "total": 1012,
+  "aceptados": 455,                // null si reportaParciales == false y no ha terminado
+  "rechazados": 5,
+  "pendientes": 552,
+  "fechaCreacion": "2026-07-16 09:41",
+  "fechaFinalizacion": null,       // set solo en estado final
+  "mensajeError": null,            // set en FALLIDO / RECHAZADO
+  "workerActivo": true             // solo Dispapeles: heartbeat vigente (§5)
+}</pre>
+  <p><b>Regla de oro del backend detrás de este endpoint</b> (Task 7): si el proceso está <code>EN_PROCESO</code> con proveedor Dataico, primero reconcilia contra <code>job-status</code>/<code>batch-result</code> y actualiza la tabla; si es Dispapeles, responde directo de la tabla (el worker ya la mantiene al día). Si el estado ya es final, responde de BD sin llamar a nadie. <b>Idempotente</b>: llamarlo N veces no duplica nada.</p>
+
+  <h2><span class="n">3</span>La barra: tres variantes, cero mentiras</h2>
+  <table>
+    <tr><th>Condición</th><th>Barra</th><th>Contadores</th><th>Caso real</th></tr>
+    <tr><td><code>reportaParciales == true</code></td><td>% real con fracción: "45% · 460/1.012", crece con cada respuesta del polling</td><td>En vivo</td><td>Dispapeles siempre (avance propio del ERP); Dataico si su job-status da conteos (por confirmar en Task 4)</td></tr>
+    <tr><td><code>reportaParciales == false</code> y <code>EN_PROCESO</code></td><td>Indeterminada animada, texto "Procesando en el proveedor…", <b>sin número</b> + cronómetro de tiempo transcurrido (desde <code>fechaCreacion</code>)</td><td>"—"</td><td>Dataico si su job-status solo responde etapas</td></tr>
+    <tr><td>Estado final</td><td>100% sólida: verde (COMPLETADO), naranja (CON_NOVEDADES), roja (RECHAZADO/FALLIDO)</td><td>Definitivos</td><td>Ambos proveedores</td></tr>
+  </table>
+
+  <h2><span class="n">4</span>Máquina de estados: qué renderiza el panel en cada caso</h2>
+  <table>
+    <tr><th>estado (+condición)</th><th>Stepper</th><th>Barra</th><th>Zona de resultado</th></tr>
+    <tr><td><span class="stbadge" style="background:#eef1f5;color:var(--muted)">ENVIANDO</span></td><td>①azul ②gris ③gris</td><td>3% fija "registrando…"</td><td>—</td></tr>
+    <tr><td><span class="stbadge" style="background:#e3eefb;color:var(--blue)">EN_PROCESO</span></td><td>①verde ②azul ③gris</td><td>según §3</td><td>—</td></tr>
+    <tr><td><span class="stbadge" style="background:#e3eefb;color:var(--blue)">EN_PROCESO</span> + <code>workerActivo==false</code> (solo Dispapeles)</td><td>①verde ②azul "interrumpido · X/Y"</td><td>% congelado</td><td>Aviso "envío interrumpido — se reanuda automáticamente" + botón <b>Reanudar</b> (respaldo manual)</td></tr>
+    <tr><td><span class="stbadge" style="background:#e2f4ee;color:var(--green)">COMPLETADO</span></td><td>todo verde</td><td>100% verde</td><td>Caja verde "Proceso completado" + <b>Ver detalle</b></td></tr>
+    <tr><td><span class="stbadge" style="background:#fdeee0;color:var(--orange)">CON_NOVEDADES</span></td><td>todo verde</td><td>100% naranja</td><td>Caja naranja "N rechazados requieren corrección" + <b>Ver detalle de empleados</b> (acción primaria)</td></tr>
+    <tr><td><span class="stbadge" style="background:#fbe5ea;color:var(--red)">RECHAZADO</span></td><td>①verde ②rojo</td><td>100% roja</td><td>Caja roja con <code>mensajeError</code> + <b>Ver detalle</b></td></tr>
+    <tr><td><span class="stbadge" style="background:#fbe5ea;color:var(--red)">FALLIDO</span></td><td>①rojo</td><td>0%</td><td>Caja roja "el envío no llegó al proveedor" + <code>mensajeError</code> + botón <b>Reintentar</b></td></tr>
+  </table>
+  <blockquote><b>El momento exacto en que el paso 2 se pinta verde:</b> cuando la respuesta del polling trae por primera vez un estado final (<code>COMPLETADO</code>/<code>CON_NOVEDADES</code>/<code>RECHAZADO</code>). Nunca por animación, tiempo o clic. El verde significa literalmente "la BD dice que no queda nada pendiente".</blockquote>
+
+  <h2><span class="n">5</span>El ciclo de actualización (polling) — pseudocódigo del front</h2>
+<pre>// Se entra al panel por 3 puertas — las 3 convergen en la misma función:
+//   a) recién confirmado el envío (IniciarProcesamientoNomina devuelve idProceso)
+//   b) al consultar un período que ya tiene proceso (ConsultarProcesoPorPeriodo)
+//   c) al abrir un proceso desde el historial de Estado Proceso
+
+function montarPanel(idProceso):
+    detenerPollingAnterior()                  // clearInterval SIEMPRE antes de crear otro
+    refrescar(idProceso)                      // primera pintada inmediata
+    timer = setInterval(() => refrescar(idProceso), 15000)
+
+function refrescar(idProceso):
+    r = await ConsultarEstadoProcesoNomina(idProceso)
+    pintarStepper(r); pintarBarra(r); pintarMeta(r); pintarResultado(r)   // §1-§4
+    if (r.estado es final):
+        detenerPolling()                       // no se consulta más: la BD ya es definitiva
+
+// Higiene obligatoria:
+//  - clearInterval al cambiar de tab, al consultar otro período y al llegar a estado final
+//  - un solo timer vivo a la vez (guardar el handle en variable del módulo)
+//  - si la petición falla (red), NO romper el panel: mantener lo último pintado
+//    y reintentar en el próximo tick</pre>
+
+  <h2><span class="n">6</span>Quién escribe el avance (contexto que el panel NO implementa, pero debe respetar)</h2>
+  <p>El panel es idéntico para ambos proveedores. La diferencia está detrás del endpoint:</p>
+<pre>DATAICO (lote):
+  Panel ──15s──► Endpoint ──"¿cómo va job_X?"──► Dataico
+                    │◄─────────respuesta──────────┘
+                    └─ actualiza tabla ─► responde al panel
+
+DISPAPELES (individual):
+  Worker del servidor (QBWI): envía doc a doc en tandas,
+  anota detalle por documento y contadores por tanda      ─► tabla
+  Panel ──15s──► Endpoint ──lee la tabla──► responde   (no llama a Dispapeles)</pre>
+  <p>Consecuencia para el front: <b>no hay ningún "modo Dispapeles" en el JS del panel</b>. El mismo código pinta ambos; las diferencias llegan en los datos (<code>jobId</code> null, <code>reportaParciales</code>, <code>workerActivo</code>).</p>
+
+  <h2><span class="n">7</span>El flujo completo con cronómetro (caso Dispapeles, paso a paso)</h2>
+
+  <h3>De principio a fin: los 7 pasos (la tabla para explicar el proceso)</h3>
+  <table>
+    <tr><th style="width:34px;">#</th><th>Qué hace el usuario</th><th>Qué hace el sistema</th><th>Dónde corre</th></tr>
+    <tr><td><b>1</b></td><td>Consulta el período (año + mes + sucursal)</td><td>Muestra los 4 indicadores y los empleados con campos no válidos. Si el período ya tiene proceso, salta directo al panel de seguimiento (paso 6)</td><td>Navegador + ERP</td></tr>
+    <tr><td><b>2</b></td><td>Selecciona el proveedor (ej. Dispapeles)</td><td>Habilita el botón "Iniciar procesamiento"</td><td>Navegador</td></tr>
+    <tr><td><b>3</b></td><td>Clic "Iniciar procesamiento"</td><td>Abre el modal de confirmación con el resumen (período, sucursal, totales, proveedor, ambiente)</td><td>Navegador</td></tr>
+    <tr><td><b>4</b></td><td>Clic "Confirmar y enviar"</td><td>Endpoint <code>IniciarProcesamientoNomina</code>: ① crea el proceso en BD (1.012 pendientes) → ② <b>enciende el worker</b> (<code>QueueBackgroundWorkItem</code>) → ③ responde "proceso registrado". Total: <b>~2 segundos</b></td><td>ERP (petición corta)</td></tr>
+    <tr><td><b>5</b></td><td><b>Nada — ya no se le necesita</b></td><td>El <b>worker</b> envía cédula por cédula (5 en vuelo, tandas de ~85): marca "enviando" → POST a Dispapeles → anota resultado; al cerrar cada tanda consolida contadores + latido. ~5 minutos para 1.012</td><td><b>Servidor</b> (segundo plano)</td></tr>
+    <tr><td><b>6</b></td><td>Mira el avance (opcional)</td><td>El panel lee la BD cada 15 s y pinta la barra a saltos de tanda (0% → 8% → 17%…). <b>Cerrar la página no detiene nada</b> — solo deja de mirar</td><td>Navegador (lector)</td></tr>
+    <tr><td><b>7</b></td><td>Vuelve cuando quiera</td><td>Pendientes = 0 → el worker cierra el proceso (COMPLETADO / CON_NOVEDADES); el panel muestra 100 %, el resultado y el acceso al detalle para gestionar rechazados</td><td>Servidor → BD → Navegador</td></tr>
+  </table>
+
+  <h3>¿Y si algo muere a mitad de camino?</h3>
+  <table>
+    <tr><th>Quién muere</th><th>¿El envío se detiene?</th><th>¿Quién lo revive?</th></tr>
+    <tr><td><b>El navegador</b> (el operador cierra la página)</td><td><b>No — sigue solo</b> (el worker vive en el servidor)</td><td>Nadie tiene que revivir nada; al volver, la pantalla lee el avance real</td></tr>
+    <tr><td><b>El servidor</b> (recycle de IIS — caso raro)</td><td>Sí: pausa en la última cédula anotada, sin perder nada</td><td>El sistema solo: el primer polling detecta el latido vencido y relanza el worker desde el primer pendiente. Botón "Reanudar" como respaldo manual</td></tr>
+    <tr><td><b>Una cédula</b> (Dispapeles la rechaza)</td><td>No: se anota el rechazo y continúa con la siguiente</td><td>No aplica — el rechazado espera en el detalle con su botón "Corregir y reenviar"</td></tr>
+  </table>
+
+  <h3>Los dos personajes (no confundirlos)</h3>
+  <p>La pregunta natural es: <i>"¿mando una cédula, Dispapeles responde, la barra sube, mando la siguiente?"</i>. Casi — pero hay <b>dos actores separados a propósito</b>:</p>
+  <ul>
+    <li><b>El repartidor (worker)</b>: llama al API de Dispapeles cédula por cédula y <b>anota en la BD</b>. No sabe que existe una pantalla.</li>
+    <li><b>La pantalla (panel)</b>: <b>lee la BD</b> cada 15 segundos y pinta la barra. No sabe cómo se envía nada.</li>
+  </ul>
+  <p>La barra no sube "por la respuesta de Dispapeles" — sube porque la respuesta <b>quedó anotada en la BD y la pantalla la leyó</b> en su siguiente vistazo. Esa indirección es la que permite cerrar el navegador sin matar nada.</p>
+
+  <h3>Línea de tiempo real (1.012 cédulas · tandas de 85 · 5 llamadas en vuelo)</h3>
+<pre>09:41:00  Operador da "Confirmar y enviar"
+          → Controller: crea proceso #34 (1.012 pendientes), arranca el worker,
+            responde al navegador en 2 segundos
+          → Panel: se monta, lee BD → "EN PROCESO · 0/1.012" → BARRA: 0%
+
+09:41:02  WORKER, tanda 1 (cédulas 1-85), con 5 mensajeros a la vez:
+            cc#1 → marca "enviando" en BD → POST a Dispapeles → "lista" → anota ACEPTADO
+            cc#2 → (igual, en paralelo con la #1)
+            ... hasta la #85 (~25 segundos la tanda completa)
+09:41:27  fin tanda 1 → worker actualiza contadores: "85 enviados, 927 faltan" + latido
+
+09:41:15  (mientras tanto) Panel hace su poll de 15 s → contadores aún en 0
+          (se consolidan por tanda) → BARRA sigue 0%
+09:41:30  Panel poll → contadores dicen 85/1.012 → BARRA: 8%   ← primer salto
+09:41:52  fin tanda 2 → contadores 170
+09:42:00  Panel poll → BARRA: 17%
+09:42:15  Panel poll → (tanda 3 aún en curso) → BARRA: 17% (sin cambio — honesto)
+09:42:30  Panel poll → BARRA: 25%
+   ...    (el patrón se repite ~12 veces)
+
+09:46:10  WORKER termina tanda 12: pendientes = 0
+          → 1.007 aceptados, 5 rechazados → cierra proceso: CON_NOVEDADES
+09:46:15  Panel poll → estado final → BARRA: 100% naranja, pasos 2 y 3 en verde,
+          caja "5 rechazados requieren corrección" → y DEJA de preguntar</pre>
+
+  <h3>Las tres precisiones sobre el modelo "una cédula a la vez"</h3>
+  <ol>
+    <li><b>¿Quién llama al API?</b> El worker del servidor — no la pantalla ni el operador. A las 09:43 el operador puede cerrar todo e irse: el cronómetro de arriba sigue corriendo igual.</li>
+    <li><b>¿La barra sube por cada respuesta?</b> Cada cédula se anota al instante (su fila en el detalle), pero la barra avanza <b>a saltos de tanda</b> (0% → 8% → 17%…): los contadores se consolidan cada ~85 y la pantalla mira cada 15 s. Nadie necesita ver avanzar 0,09% por cédula — y ese desacople es lo que hace el sistema robusto.</li>
+    <li><b>¿Estrictamente de a una?</b> No: <b>5 en vuelo a la vez</b> (mientras Dispapeles procesa la cc#1, ya salieron la #2 a la #5). Mismo orden de ideas, 5 veces más rápido: ~5 minutos en vez de ~25. El grado de paralelismo y el tamaño de tanda son configurables (calibrar con los tiempos reales de Dispapeles — pregunta d de OPS-2).</li>
+  </ol>
+
+  <h3>Los dos momentos delicados</h3>
+  <table>
+    <tr><th>Momento</th><th>Cómo lo resuelve el diseño</th></tr>
+    <tr><td>El worker muere entre "enviar la cc" y "anotar su respuesta"</td><td>La fila quedó marcada <code>ENVIANDO_DOC</code> <b>antes</b> del POST. Al reanudar, esa cédula se <b>verifica</b> en lugar de reenviarse a ciegas → cero duplicados ante la DIAN.</td></tr>
+    <tr><td>Dispapeles rechaza la cc#37</td><td>Su fila queda <code>RECHAZADO</code> con el error, el contador sube, y el reparto continúa con la #38. Los rechazados esperan al final en el detalle con su botón "Corregir y reenviar".</td></tr>
+  </table>
+
+  <h3>Diagrama de actividades: las dos vidas paralelas que alimentan la barra</h3>
+  <div class="fx">
+
+    <div class="fx-start">● Operador: clic "Confirmar y enviar"</div>
+    <div class="fx-arr">▼</div>
+    <div class="fx-act fx-wide"><b>CONTROLLER</b> (una petición normal de ~2 segundos):<br>
+      ① crea el proceso en BD (1.012 pendientes) &nbsp;→&nbsp; ② enciende el worker (<code>QueueBackgroundWorkItem</code>) &nbsp;→&nbsp; ③ responde "proceso #34 registrado"</div>
+    <div class="fx-fork">⑂ Desde aquí corren DOS VIDAS PARALELAS e independientes — solo se encuentran en la BD</div>
+
+    <div class="fx-lanes">
+
+      <!-- CARRIL WORKER -->
+      <div class="fx-lane">
+        <div class="fx-lanehead w">🔧 EL WORKER — escribe (vive en el servidor)</div>
+        <div class="fx-lanebody">
+          <div class="fx-act">Toma el proceso con candado<br><small>(solo si ningún otro worker tiene latido vigente)</small></div>
+          <div class="fx-arr">▼</div>
+          <div class="fx-dec">¿Quedan pendientes?</div>
+          <div class="fx-arr">▼ <small>sí</small></div>
+          <div class="fx-act">Toma la siguiente <b>tanda</b> (~85 cédulas)</div>
+          <div class="fx-arr">▼</div>
+          <div class="fx-act"><b>Por cada cédula</b> (5 en vuelo a la vez):<br>
+            1. marca la fila <code>ENVIANDO_DOC</code><br>
+            2. POST a <b>Dispapeles</b> → espera SU respuesta<br>
+            3. anota <code>ACEPTADO</code> / <code>RECHAZADO</code> + detalle</div>
+          <div class="fx-io in">✍ escribe en BD: una fila por documento (anti-duplicados)</div>
+          <div class="fx-arr">▼</div>
+          <div class="fx-act">Fin de tanda: actualiza <b>contadores</b> del proceso + <b>latido</b> "sigo vivo"</div>
+          <div class="fx-io in">✍ escribe en BD: resumen por tanda (esto mueve la barra)</div>
+          <div class="fx-arr">↻ <small>vuelve a "¿Quedan pendientes?"</small></div>
+          <div class="fx-arr">▼ <small>cuando pendientes = 0</small></div>
+          <div class="fx-end">■ Cierra el proceso:<br>COMPLETADO o CON_NOVEDADES</div>
+        </div>
+      </div>
+
+      <!-- BD CENTRAL -->
+      <div class="fx-lane">
+        <div class="fx-db">
+          <div class="fx-cyl"><div class="top"></div><div class="body">EL CUADERNO<br>BERP_Nomina<br>ElectronicaProceso<br>(+ Detalle)</div></div>
+          <p style="font-size:10.5px; color:var(--muted); margin-top:10px;">Única fuente de verdad.<br>El worker escribe ✍<br>El panel lee 👁</p>
+        </div>
+      </div>
+
+      <!-- CARRIL PANEL -->
+      <div class="fx-lane">
+        <div class="fx-lanehead p">🖥 EL PANEL — lee (vive en el navegador)</div>
+        <div class="fx-lanebody">
+          <div class="fx-act">Se monta por cualquiera de sus 3 puertas:<br><small>a) recién confirmado · b) consultar un período con proceso · c) desde el historial</small></div>
+          <div class="fx-arr">▼</div>
+          <div class="fx-act">Llama <code>ConsultarEstadoProcesoNomina(#34)</code></div>
+          <div class="fx-io out">👁 lee de BD: estado + contadores + latido</div>
+          <div class="fx-arr">▼</div>
+          <div class="fx-dec">¿Latido del worker vigente?</div>
+          <div class="fx-arr">▼ <small>no (murió por recycle — caso raro)</small></div>
+          <div class="fx-relanza">⚡ El backend RELANZA el worker (QBWI de nuevo)<br>→ retoma en el carril izquierdo desde el primer pendiente</div>
+          <div class="fx-arr">▼ <small>sí / ya relanzado</small></div>
+          <div class="fx-act"><b>Pinta</b>: barra = resueltos ÷ total · contadores · stepper<br><small>no calcula nada — copia lo que dice el cuaderno</small></div>
+          <div class="fx-arr">▼</div>
+          <div class="fx-dec">¿Estado final?</div>
+          <div class="fx-arr">↻ <small>no → espera 15 s y vuelve a consultar</small></div>
+          <div class="fx-arr">▼ <small>sí</small></div>
+          <div class="fx-end">■ Pinta 100 %, pasos en verde,<br>caja de resultado — y DEJA de preguntar</div>
+        </div>
+      </div>
+    </div>
+
+    <blockquote style="margin-top:16px;"><b>Lectura del diagrama en una frase:</b> la barra avanza porque el carril izquierdo escribe el resumen de cada tanda en el cuaderno, y el carril derecho lo fotografía cada 15 segundos. Si cierras el navegador, muere el carril derecho (el lector) — el izquierdo ni se entera. Si se recicla el servidor, muere el izquierdo — y el derecho lo resucita en su siguiente lectura (⚡).</blockquote>
+  </div>
+
+  <h2><span class="n">8</span>Casos borde que el panel debe sobrevivir</h2>
+  <table>
+    <tr><th>Caso</th><th>Comportamiento esperado</th></tr>
+    <tr><td>El operador cierra la pestaña en cualquier momento</td><td>Nada se pierde. Al volver a consultar el período, la puerta (b) remonta el panel con el estado real.</td></tr>
+    <tr><td>Dos operadores miran el mismo proceso</td><td>Ambos ven lo mismo (leen la misma tabla). El endpoint es idempotente; el doble polling no duplica nada.</td></tr>
+    <tr><td>Se pierde la red durante el polling</td><td>El panel conserva lo último pintado y reintenta al siguiente tick. Sin alertas intrusivas por un fallo transitorio.</td></tr>
+    <tr><td>El servidor se recicla con worker Dispapeles activo</td><td>El siguiente poll trae <code>workerActivo:false</code> → fila 3 de la máquina de estados; el backend auto-reanuda y el poll siguiente vuelve a la normalidad.</td></tr>
+    <tr><td>El período consultado ya tiene proceso final</td><td>El panel se monta directo en el estado final (sin polling) — reemplaza al botón "Iniciar procesamiento".</td></tr>
+    <tr><td>Cambio de pestaña/período con polling activo</td><td><code>clearInterval</code> obligatorio — nunca dos timers vivos.</td></tr>
+  </table>
+
+  <h2><span class="n">9</span>Checklist de aceptación del componente</h2>
+  <ul class="chk">
+    <li>Todo dato visible proviene de <code>ConsultarEstadoProcesoNomina</code>; no existe ningún cálculo de avance en el JS.</li>
+    <li>El paso 2 se pinta verde únicamente cuando la respuesta trae estado final.</li>
+    <li>Con <code>reportaParciales:false</code> jamás se muestra un número de porcentaje.</li>
+    <li>La barra siempre muestra la fracción junto al % ("45% · 460/1.012") cuando hay parciales.</li>
+    <li>El polling arranca en las 3 puertas de entrada, corre cada 15 s, y se detiene en estado final y al salir del contexto (sin timers huérfanos).</li>
+    <li>Cerrar y reabrir el navegador a mitad de un proceso muestra el estado correcto sin acción del usuario.</li>
+    <li>Los 7 estados de la máquina (§4) renderizan como se especifica — verificables sembrando registros en la tabla.</li>
+    <li>Caída de red transitoria no rompe el panel ni dispara alertas.</li>
+  </ul>
+
+  <div class="call info"><span>📎</span><div>
+    <b>Referencias:</b> comportamiento visual exacto → <code>mockup.html</code> (Escenarios A/B/C del simulador) · contratos backend → <code>plan.md</code> Tasks 6, 7, 8, 12, 16 · razones de diseño → <code>spec.html</code> pestaña "La experiencia explicada".
+  </div></div>
+
+</div>
+</body>
+</html>

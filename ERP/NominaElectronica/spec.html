@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spec — Nómina Electrónica: Validación y envío (rediseño)</title>
+<style>
+  :root{--navy:#2b3648; --blue:#3f8ac9; --green:#1fae83; --orange:#f5a02e; --red:#e8556d; --muted:#6b7a8d; --border:#e4e9ef;}
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif; background:#fff; color:#1a1a1a; line-height:1.65; font-size:15px;}
+  .container{max-width:860px; margin:0 auto; padding:36px 24px 80px;}
+
+  /* Header */
+  .doc-head{border-bottom:3px solid var(--navy); padding-bottom:22px; margin-bottom:8px;}
+  .doc-head h1{font-size:25px; line-height:1.3; color:var(--navy);}
+  .doc-head .sub{color:var(--muted); font-size:14px; margin-top:6px;}
+  .badges{display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; align-items:center;}
+  .bdg{font-size:11.5px; font-weight:700; padding:4px 12px; border-radius:12px; letter-spacing:.3px;}
+  .bdg.id{background:#e9eef5; color:var(--navy);}
+  .bdg.ok{background:#e2f4ee; color:var(--green);}
+  .bdg.date{background:#f1f4f8; color:var(--muted);}
+  .bdg.warn{background:#fdeee0; color:var(--orange);}
+  .btn-mockup{margin-left:auto; background:var(--green); color:#fff; text-decoration:none; font-weight:700; font-size:13.5px; padding:10px 20px; border-radius:6px;}
+  .btn-mockup:hover{filter:brightness(1.07);}
+
+  /* Tabs */
+  .tabs{display:flex; gap:4px; border-bottom:2px solid var(--border); margin:26px 0 30px; position:sticky; top:0; background:#fff; z-index:10;}
+  .tab{padding:12px 20px; font-size:14px; font-weight:600; color:var(--muted); cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px;}
+  .tab.active{color:var(--navy); border-bottom-color:var(--green);}
+  .pane{display:none;} .pane.active{display:block;}
+
+  /* Tipografía del contenido */
+  h2{font-size:19px; color:var(--navy); margin:34px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--border);}
+  h3{font-size:15.5px; color:var(--navy); margin:24px 0 8px;}
+  p{margin:10px 0;}
+  ul,ol{margin:10px 0 10px 26px;}
+  li{margin:5px 0;}
+  b,strong{font-weight:600;}
+  code{background:#f1f4f8; border-radius:4px; padding:1.5px 6px; font-family:'SF Mono',Menlo,Consolas,monospace; font-size:12.5px; color:#334;}
+  pre{background:#f6f8fa; border:1px solid var(--border); border-radius:8px; padding:16px 18px; overflow-x:auto; font-family:'SF Mono',Menlo,Consolas,monospace; font-size:12.5px; line-height:1.5; margin:14px 0;}
+  blockquote{border-left:4px solid var(--blue); background:#f6f9fc; padding:10px 16px; border-radius:0 8px 8px 0; margin:14px 0; color:#41505f; font-size:13.5px;}
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:13.5px;}
+  th{background:var(--navy); color:#fff; text-align:left; padding:9px 12px; font-size:12px; letter-spacing:.4px;}
+  td{border:1px solid var(--border); padding:9px 12px; vertical-align:top;}
+  tr:nth-child(even) td{background:#f8fafc;}
+
+  /* Criterios con check visual */
+  .criteria li{list-style:none; position:relative; padding-left:30px; margin:9px 0;}
+  .criteria li::before{content:'✓'; position:absolute; left:0; top:1px; width:20px; height:20px; border:2px solid var(--green); border-radius:5px; color:var(--green); font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center;}
+  .criteria{margin-left:0;}
+
+  /* Callouts */
+  .call{border-radius:10px; padding:14px 18px; margin:16px 0; font-size:13.5px; display:flex; gap:12px; align-items:flex-start;}
+  .call .ic{font-size:17px; line-height:1.4;}
+  .call.info{background:#eef5fc; border:1px solid #cfe2f4;}
+  .call.warn{background:#fdf6e7; border:1px solid #f4dfae;}
+  .call.risk{background:#fdf0f2; border:1px solid #f5cdd5;}
+  .st{display:inline-block; font-size:10.5px; font-weight:700; padding:2px 9px; border-radius:9px;}
+  .st.b{background:#e3eefb; color:var(--blue);} .st.g{background:#e2f4ee; color:var(--green);}
+  .st.o{background:#fdeee0; color:var(--orange);} .st.r{background:#fbe5ea; color:var(--red);} .st.m{background:#eef1f5; color:var(--muted);}
+  .flow-step{display:flex; gap:14px; margin:14px 0; align-items:flex-start;}
+  .flow-n{flex:none; width:28px; height:28px; border-radius:50%; background:var(--navy); color:#fff; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center; margin-top:2px;}
+  @media print{ .tabs,.btn-mockup{display:none;} .pane{display:block !important;} }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="doc-head">
+    <h1>Nómina Electrónica — Rediseño de Validación y envío<br>con multiproveedor y procesamiento en segundo plano</h1>
+    <div class="sub">ERP Baguer (Crm-Baguer · ASP.NET MVC 5 + NHibernate) · Módulo RRHH / Nómina Electrónica · Permisos <code>1805-*</code></div>
+    <div class="badges">
+      <span class="bdg id">ERP-NE-VALIDACION-ENVIO</span>
+      <span class="bdg ok">SPEC APROBADA</span>
+      <span class="bdg warn">MOCKUP EN REVISIÓN</span>
+      <span class="bdg date">2026-07-16</span>
+      <a class="btn-mockup" href="mockup.html" target="_blank">Ver mockup interactivo →</a>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="tab(0)">La experiencia explicada</div>
+    <div class="tab" onclick="tab(1)">Flujo de interacción</div>
+    <div class="tab" onclick="tab(2)">Especificación</div>
+    <div class="tab" onclick="tab(3)">Guía del mockup</div>
+  </div>
+
+  <!-- ═══════════ TAB 0: LA EXPERIENCIA EXPLICADA (pedagógico) ═══════════ -->
+  <div class="pane active" id="pUX">
+
+    <h2>¿Qué buscamos con este rediseño?</h2>
+    <p>Hoy, cuando el operador da <b>"Procesar"</b>, pasan tres cosas malas:</p>
+    <ol>
+      <li><b>Se queda atrapado esperando</b>: el navegador muestra un spinner y no puede hacer nada más hasta que responda el proveedor. Si cierra la pestaña, pierde la respuesta.</li>
+      <li><b>El resultado se pierde</b>: el proveedor responde con una "guía de rastreo" (el <code>jobid</code>), pero el sistema la muestra en una alerta y no la guarda en ningún lado. Después nadie puede saber desde el ERP si esa nómina quedó aceptada o rechazada por la DIAN.</li>
+      <li><b>La pantalla de estado es decorativa</b>: la pestaña "Estado Proceso" actual pinta fechas quemadas en el código y porcentajes al azar. No informa nada real.</li>
+    </ol>
+    <p>El rediseño busca cinco cualidades en la experiencia:</p>
+    <table>
+      <tr><th>Cualidad</th><th>Qué significa para el operador</th></tr>
+      <tr><td><b>Elección</b></td><td>Antes de transmitir, escoge el proveedor: Dataico o Dispapeles (el nuevo).</td></tr>
+      <tr><td><b>Libertad</b></td><td>Da "Procesar" y en segundos queda libre. Puede cerrar la pantalla, irse a almorzar — el proceso no muere.</td></tr>
+      <tr><td><b>Memoria</b></td><td>Cada procesamiento queda registrado: quién lo envió, cuándo, con qué proveedor, con qué guía y cómo terminó.</td></tr>
+      <tr><td><b>Transparencia</b></td><td>El avance que se muestra es siempre real. Si no hay datos de avance, se muestran etapas honestas — nunca un número inventado.</td></tr>
+      <tr><td><b>Corrección</b></td><td>Si la DIAN rechaza a algunos empleados, se ven con su error exacto y se corrigen y reenvían individualmente, sin retransmitir toda la nómina.</td></tr>
+    </table>
+
+    <h2>La idea central: piense en un envío por Servientrega</h2>
+    <p>El trabajo demorado (validar 1.012 documentos contra la DIAN, generar CUNEs) <b>no ocurre en el navegador ni en el servidor del ERP — ocurre en los servidores del proveedor</b>. El ERP solo hace dos cosas cortas: entregar el paquete y preguntar después cómo va.</p>
+<pre>[Navegador]──clic──►[ERP]──entrega el lote (segundos)──►[Proveedor]───procesa──►[DIAN]
+                      │                                      │         (minutos,
+                      └── guarda en BD: proceso + guía ◄─────┘          en SUS servidores)</pre>
+    <p>Cuando usted entrega un paquete en una oficina de Servientrega, le dan una <b>guía de rastreo</b> — aquí esa guía es el <code>jobid</code> que devuelve el proveedor. El paquete viaja solo, aunque usted nunca abra la página de rastreo; y cuando quiere saber cómo va, consulta con el número de guía. La pantalla de seguimiento es exactamente eso: <b>la página de rastreo, no el camión</b>.</p>
+    <div class="call info"><span class="ic">💡</span><div>
+      <b>¿Y si cierro el navegador?</b> No pasa nada. La fase que depende del ERP dura segundos (registrar el proceso y entregar el lote). Lo demorado corre donde el proveedor, y la guía quedó guardada en la base de datos. La próxima vez que cualquier persona abra la pantalla, el ERP le pregunta al proveedor "¿cómo va la guía?" y se pone al día. Mientras la pantalla esté abierta, esa pregunta se repite sola cada ~15 segundos.
+    </div></div>
+
+    <h2>¿Y Dispapeles, que recibe documento a documento?</h2>
+    <p>Hallazgo confirmado con datos reales (tabla de log de envíos): Dispapeles no recibe una caja con toda la nómina — recibe <b>un documento por empleado</b> (~1.012 llamadas, con numeración propia por documento). Ese bucle no cabe en una petición del navegador: tomaría ~25 minutos y los timeouts del servidor la abortan mucho antes (protección estándar de toda aplicación web).</p>
+    <p>La solución: un <b>"repartidor" propio dentro del servidor del ERP</b> (técnicamente: un worker en segundo plano con <code>QueueBackgroundWorkItem</code>, la API oficial de ASP.NET para esto). Al confirmar, el servidor arranca el repartidor y el navegador queda de espectador — <b>cerrar la pestaña no detiene nada</b>. El repartidor envía en tandas (~85 documentos por ronda), anota cada respuesta en la base de datos y actualiza el avance, que aquí es <b>siempre real y propio del ERP</b>: enviados/total.</p>
+    <div class="call info"><span class="ic">🛡️</span><div>
+      <b>¿Y si el servidor se reinicia a mitad del reparto?</b> (caso raro: despliegues, reciclaje de IIS). Cada documento enviado quedó anotado, así que el proceso queda "EN PROCESO · 510/1.012" y el sistema <b>se auto-reanuda</b> desde el documento 511 en la siguiente consulta — sin reenviar jamás un documento ya transmitido (cero duplicados ante la DIAN). El botón "Reanudar" queda como respaldo manual.
+    </div></div>
+
+    <h2>¿Qué pasa si consulto un período que ya fue procesado?</h2>
+    <p>La pantalla lo detecta y <b>cambia de modo</b>: en lugar del botón "Iniciar procesamiento", el paso 3 muestra directamente el <b>estado del proceso existente</b> — quién lo envió, cuándo, con qué proveedor, y cómo va o cómo terminó — con las acciones que correspondan:</p>
+    <ul>
+      <li><span class="st b">EN PROCESO</span> → se ve el seguimiento en vivo (como si nunca hubiera cerrado la pantalla).</li>
+      <li><span class="st g">COMPLETADO</span> / <span class="st o">CON NOVEDADES</span> → botón "Ver detalle de empleados".</li>
+      <li><span class="st r">FALLIDO</span> → botón "Reintentar" (el envío nunca llegó al proveedor).</li>
+    </ul>
+    <p>¿Por qué es importante? Dos razones: <b>(1) evita duplicados ante la DIAN</b> — el error más costoso sería que dos operadores transmitan el mismo período sin saberlo; <b>(2) da contexto inmediato</b> — cualquiera que consulte el período entiende al instante qué pasó, sin preguntar por chat "¿alguien ya envió la nómina de febrero?". <i>En el mockup se prueba consultando <b>Enero</b>.</i></p>
+
+    <h2>Los empleados "con campos no válidos": por qué existen</h2>
+    <p>La nómina electrónica exige <b>datos obligatorios por empleado</b> (correo, tipo de contrato, salario básico…) que no nacen en este módulo sino en el <b>maestro de RRHH</b>. Este módulo solo empaqueta lo que ya está registrado:</p>
+<pre>Maestro RRHH (datos del empleado) → Liquidación de nómina (valores del período)
+        → JSON de nómina electrónica → Proveedor → DIAN</pre>
+    <p>Si un empleado quedó con el correo vacío (ingreso reciente, registro incompleto), ese dato viaja vacío y <b>la DIAN rechaza el documento de ese empleado individualmente</b> — no rechaza toda la nómina. Por eso el diseño <b>advierte pero no bloquea</b>: la transmisión tiene plazos de calendario DIAN, y bloquear 1.009 empleados correctos por 3 con datos malos puede costar el plazo. Los 3 llegan como "rechazados" y se corrigen con el flujo de novedades.</p>
+    <div class="call warn"><span class="ic">⚠️</span><div>
+      <b>Decisión de producto abierta</b> (del PM): ¿<b>advertir</b> (como el mockup), <b>bloquear</b> hasta corregir, o <b>intermedio</b> (advertir + confirmación explícita "entiendo que 3 pueden ser rechazados" en el modal)? Recomendación: advertir o intermedio, porque las novedades hacen barato corregir después.
+    </div></div>
+
+    <h2>El porcentaje de avance: honestidad ante todo</h2>
+    <p>El porcentaje <b>no lo calcula el ERP: se lo pregunta al proveedor</b>. Y lo que el proveedor pueda responder define dos experiencias distintas — ambas están simuladas en el mockup:</p>
+    <table>
+      <tr><th></th><th>Escenario A · el proveedor reporta avance parcial</th><th>Escenario B · el proveedor solo reporta etapas</th></tr>
+      <tr><td><b>Qué responde</b></td><td>"van 630 resueltos de 1.012 (625 aceptados, 5 rechazados)"</td><td>"encolado / procesando / terminado"</td></tr>
+      <tr><td><b>Barra</b></td><td>Porcentaje real que crece</td><td>Barra indeterminada "procesando…" — <b>sin número inventado</b></td></tr>
+      <tr><td><b>Mientras tanto</b></td><td>Contadores de aceptados/rechazados en vivo</td><td>Etapas del stepper + cronómetro de tiempo transcurrido</td></tr>
+      <tr><td><b>Al final</b></td><td colspan="2">Igual en ambos: resultado completo con detalle por empleado</td></tr>
+    </table>
+    <p>Regla de oro: <b>un número falso es peor que ningún número</b>, porque el operador toma decisiones con él (la pantalla actual pinta porcentajes con <code>Math.random()</code> — eso es exactamente lo que eliminamos). Los dos escenarios pueden convivir: si Dataico reporta parciales y Dispapeles no, cada proceso muestra su variante sin cambiar el diseño. Confirmar cuál aplica a cada proveedor es la pregunta #4 de la lista para el dev.</p>
+
+    <h2>Las novedades: corregir sin retransmitir todo</h2>
+    <p>Cuando el proceso termina <span class="st o">CON NOVEDADES</span>, el detalle muestra cada empleado rechazado con su <b>error exacto de la DIAN</b> (ej. "correo obligatorio"). El operador: (1) corrige el dato en la nómina interna, (2) da "Retransmitir como reemplazo" — se reenvía <b>solo ese documento</b>, que sustituye al anterior ante la DIAN. También hay reenvío masivo de todos los rechazados. Así, un error en 3 empleados nunca obliga a reprocesar 1.012.</p>
+
+    <h2>Casos borde, en una tabla</h2>
+    <table>
+      <tr><th>Situación</th><th>Qué pasa</th></tr>
+      <tr><td>Cierro el navegador durante los segundos del envío</td><td>La petición ya está en el servidor y termina sola; la guía se guarda cuando el proveedor responde. El navegador es solo espectador.</td></tr>
+      <tr><td>El envío falla (red caída, proveedor no responde)</td><td>El proceso queda <span class="st r">FALLIDO</span> con el mensaje del error y botón <b>Reintentar</b>. Nada queda en el limbo.</td></tr>
+      <tr><td>Nadie mira la pantalla en horas</td><td>El proveedor terminó igual; el ERP se entera y guarda el resultado la primera vez que alguien vuelva a consultar (evolución futura: aviso automático por Telegram/correo).</td></tr>
+      <tr><td>Consulto un período ya procesado</td><td>Veo su estado en lugar del botón Procesar — evita duplicados ante la DIAN y da contexto inmediato.</td></tr>
+      <tr><td>El proveedor no reporta avance parcial</td><td>Etapas honestas + cronómetro (Escenario B). Nunca un porcentaje inventado.</td></tr>
+      <tr><td>El servidor se reinicia a mitad de un envío individual (Dispapeles)</td><td>El worker muere, pero cada documento enviado quedó registrado: auto-reanudación desde el siguiente pendiente, sin duplicados.</td></tr>
+    </table>
+  </div>
+
+  <!-- ═══════════ TAB: ESPECIFICACIÓN ═══════════ -->
+  <div class="pane" id="p0">
+
+    <h2>Objetivo</h2>
+    <p>Rediseñar el flujo de <b>Validación y envío</b> de la nómina electrónica para:</p>
+    <ol>
+      <li>Permitir elegir el <b>proveedor tecnológico</b> de transmisión a la DIAN: <b>Dataico</b> o <b>Dispapeles</b> (nuevo).</li>
+      <li>Dejar de bloquear al operador durante el procesamiento, registrándolo como <b>proceso en segundo plano con seguimiento</b>.</li>
+      <li>Activar la pestaña <b>"Estado Proceso"</b> (hoy con datos mock) como historial real con <b>detalle por empleado</b> y gestión de <b>novedades</b> (corregir y reenviar como reemplazo).</li>
+    </ol>
+
+    <h2>Contexto técnico: cómo funciona hoy y qué corrige el rediseño</h2>
+    <div class="call info"><span class="ic">💡</span><div>
+      <b>Hallazgo clave (verificado en código):</b> el proveedor Dataico ya procesa en segundo plano. Al enviar el lote responde de inmediato <code>{batchcount, jobid}</code>. Los métodos para consultar el avance (<code>job-status/{id}</code>) y el resultado (<code>batch-result/{id}</code>) existen en <code>DataicoHelper.cs</code> <b>pero nunca se han invocado</b>. El <code>jobid</code> se muestra en una alerta y se pierde: hoy nadie puede saber desde el ERP si una nómina transmitida quedó aceptada o rechazada.
+    </div></div>
+    <p>El rediseño convierte ese dato volátil en un <b>registro permanente</b>: cada procesamiento queda en BD con su jobid y su ciclo de vida, y el estado se actualiza consultando al proveedor.</p>
+
+    <h2>Alcance</h2>
+    <table>
+      <tr><th>Incluye</th><th>No incluye</th></tr>
+      <tr><td>
+        · Pestañas "Validación y Envío" y "Estado Proceso"<br>
+        · Tablas y SPs de soporte (proceso + detalle)<br>
+        · Refactor de <code>ConsultarNominaElectronica</code><br>
+        · Acción de reconciliación de estado<br>
+        · Conexión del envío Dispapeles a la integración ya desarrollada
+      </td><td>
+        · Definiciones / Conceptos / Conceptos Dian / Ausentismo / Causación / Tintipan<br>
+        · Cambios al armado del JSON de nómina (SPs existentes)<br>
+        · Notificaciones automáticas (Telegram/correo al finalizar) — evolución futura
+      </td></tr>
+    </table>
+
+    <h2>Modelo de datos</h2>
+    <h3>Tabla <code>BERP_NominaElectronicaProceso</code> (cabecera, 1 por procesamiento)</h3>
+    <p><code>IdProceso</code> · <code>Ano/Mes/Sucursal</code> · <code>Proveedor</code> (DATAICO|DISPAPELES) · <code>Ambiente</code> · <code>Estado</code> · <code>JobId</code> · contadores (<code>TotalEmpleados, Aceptados, Rechazados, Pendientes</code>) · snapshot (<code>TotalDevengado, TotalDeducciones</code>) · auditoría (<code>Usuario, FechaCreacion, FechaUltimaConsulta, FechaFinalizacion</code>) · <code>MensajeError</code>.</p>
+    <h3>Tabla <code>BERP_NominaElectronicaProcesoDetalle</code> (1 por empleado del proceso)</h3>
+    <p><code>IdProceso</code> · <code>Nit, Nombre, Contrato</code> · <code>Devengado, Deducciones</code> · <code>Estado</code> (PENDIENTE | ACEPTADO | RECHAZADO | REEMPLAZO_EN_PROCESO) · <code>Cune, Prefijo/Numero</code> · <code>MensajeDian</code> · <code>FechaActualizacion</code>.</p>
+
+    <h3>Ciclo de vida del proceso</h3>
+<pre>ENVIANDO ──► EN_PROCESO ──► COMPLETADO        (todos aceptados)
+    │             │      └─► CON_NOVEDADES     (terminó con rechazados por gestionar)
+    └─► FALLIDO   └─► RECHAZADO                (batch completo rechazado)</pre>
+    <p>
+      <span class="st m">ENVIANDO</span> registro creado, POST al proveedor en curso ·
+      <span class="st b">EN_PROCESO</span> jobid recibido, proveedor procesando ·
+      <span class="st g">COMPLETADO</span> ·
+      <span class="st o">CON_NOVEDADES</span> ·
+      <span class="st r">FALLIDO</span> error técnico (permite Reintentar) ·
+      <span class="st r">RECHAZADO</span> lote rechazado.
+    </p>
+    <blockquote>La transición <code>EN_PROCESO → estado final</code> ocurre solo por <b>reconciliación</b>: el ERP consulta al proveedor al abrir/refrescar pantalla (polling ~15 s con pantalla abierta). No hay hilos en background en IIS ni servicio externo — el trabajo pesado corre en los servidores del proveedor.</blockquote>
+
+    <h2>Backend</h2>
+    <ol>
+      <li><b>Acción de inicio</b> (<code>IniciarProcesamientoNomina(mes, sucursal, ano, proveedor)</code>): valida (conceptos $0, básico), crea registro <code>ENVIANDO</code>, arma JSON (SPs existentes), envía al proveedor seleccionado, guarda <code>JobId</code> → <code>EN_PROCESO</code> y <b>retorna de inmediato</b>.</li>
+      <li><b>Reconciliación</b> (<code>ConsultarEstadoProcesoNomina(idProceso)</code>): si está <code>EN_PROCESO</code> consulta <code>job-status</code>; si terminó trae <code>batch-result</code>, persiste detalle por empleado y actualiza estado. La llaman ambas pantallas.</li>
+      <li><b>Historial y detalle</b>: <code>ConsultarHistorialProcesos(filtros)</code> y <code>ConsultarDetalleProceso(idProceso)</code>.</li>
+      <li><b>Novedades</b>: <code>ReenviarEmpleado(idProceso, nit)</code> / <code>ReenviarRechazados(idProceso)</code> vía flujo de reemplazo del proveedor.</li>
+      <li><b>Abstracción de proveedor</b>: <code>IProveedorNominaElectronica { Enviar, ConsultarEstado, ConsultarResultado, Reemplazar }</code> con implementaciones <code>DataicoProveedor</code> y <code>DispapelesProveedor</code>.</li>
+      <li><b>Worker de envío individual (Dispapeles)</b>: el bucle de ~1.012 envíos corre en el servidor con <code>QueueBackgroundWorkItem</code> (no en la petición del navegador, que los timeouts abortarían): tandas configurables, checkpoint por documento en BD, heartbeat por tanda, auto-reanudación al detectar heartbeat vencido y guard de concurrencia (nunca dos workers al mismo proceso, nunca reenvío de un Nit ya registrado).</li>
+      <li>~4-6 SPs nuevos siguiendo la convención <code>SBERP_GESTIONH*</code>. Permisos: reutiliza <code>1805-2</code>.</li>
+    </ol>
+
+    <h2>Criterios de aceptación</h2>
+    <ul class="criteria">
+      <li>El operador consulta un período, ve los 4 indicadores y elige proveedor antes de procesar.</li>
+      <li>Al procesar, el navegador queda libre en segundos; el proceso queda registrado con jobid; cerrar el navegador no pierde el proceso.</li>
+      <li>Consultar un período con proceso existente muestra su estado real (no el botón de procesar).</li>
+      <li>"Estado Proceso" muestra historial real de todos los procesos; el mock desaparece.</li>
+      <li>El detalle por empleado muestra CUNE/estado/error DIAN y permite corregir y reenviar rechazados (individual y masivo).</li>
+      <li>Todo el flujo funciona igual con Dataico y Dispapeles (diferencias absorbidas por la abstracción de proveedor).</li>
+    </ul>
+
+    <h2>Riesgos y pendientes</h2>
+    <div class="call warn"><span class="ic">⚠️</span><div>
+      <b>Granularidad del avance (%) sin confirmar.</b> El porcentaje sale de lo que reporte el proveedor: <code>(aceptados + rechazados) / total</code>. Si el proveedor solo reporta etapas (encolado/procesando/terminado), la UI <b>no debe inventar porcentajes</b>: muestra etapas con barra indeterminada y conteos al final (ver Escenario B en el mockup). Pregunta pendiente para ambos proveedores. Plan B si el negocio exige % fino: envío por sub-lotes (fuera del alcance de la primera versión).
+    </div></div>
+    <div class="call warn"><span class="ic">⚠️</span><div>
+      <b>Contrato Dispapeles parcialmente confirmado.</b> El log de envíos reales (<code>BERP_NominaElectronica_LogEnvio_Dispapeles</code>) confirma: envío <b>individual</b> (una llamada por empleado, prefijo NETK + consecutivo), payload y período guardados por documento — por eso el envío corre como worker por tandas (ver Backend). Pendiente del dev: ubicación del código que escribió ese log, contenido de la columna base64 (¿respuesta/CUNE?), estructura de rechazos, tiempos por documento (dimensiona la tanda) y mecanismo de reemplazo. Preguntas refinadas en <code>brainstorming.md</code>.
+    </div></div>
+    <div class="call risk"><span class="ic">⛔</span><div>
+      <b>Reprocesar un período ya transmitido puede duplicar documentos ante la DIAN.</b> La confirmación reforzada debe explicitarlo (regla de negocio a validar con el área de nómina).
+    </div></div>
+  </div>
+
+  <!-- ═══════════ TAB 2: FLUJO DE INTERACCIÓN ═══════════ -->
+  <div class="pane" id="p1">
+
+    <h2>Pestaña "Validación y Envío" — flujo del operador</h2>
+
+    <div class="flow-step"><div class="flow-n">1</div><div>
+      <b>Consultar período.</b> Año + Mes + Sucursal → botón Consultar (sin cambios funcionales respecto a hoy).
+    </div></div>
+    <div class="flow-step"><div class="flow-n">2</div><div>
+      <b>Validar indicadores.</b> Tarjetas <b>Empleados / Retirados / Devengado / Deducciones</b> + tabla "Empleados con campos no válidos".
+      Los inválidos <b>advierten pero no bloquean</b>: la DIAN rechaza documentos individualmente y el flujo de novedades hace barato corregirlos después. <i>(Decisión de producto abierta: advertir / bloquear / confirmación explícita — hoy el mockup advierte.)</i>
+    </div></div>
+    <div class="flow-step"><div class="flow-n">3</div><div>
+      <b>Procesar.</b> Selección de proveedor con <b>radio-cards</b> (Dataico / Dispapeles, mostrando ambiente) → "Iniciar procesamiento" → <b>modal de confirmación</b> con resumen (período, sucursal, empleados, totales, proveedor, ambiente) → al confirmar, el paso 3 <b>se transforma en el panel de seguimiento</b>.
+    </div></div>
+    <div class="flow-step"><div class="flow-n">4</div><div>
+      <b>Seguimiento.</b> Stepper <code>Enviado → Procesando en {proveedor} → Resultado</code> + avance + jobid + indicador de actualización automática (~15 s). El operador <b>puede cerrar la pantalla</b>: el proceso continúa en el proveedor y el estado se reconcilia al volver a consultar.
+    </div></div>
+    <div class="flow-step"><div class="flow-n">5</div><div>
+      <b>Regla de período ya procesado.</b> Si el período consultado ya tiene proceso, el paso 3 muestra directamente su estado (no el botón de procesar), con acciones según estado: <code>FALLIDO</code> → Reintentar · <code>CON_NOVEDADES</code>/<code>COMPLETADO</code> → Ver detalle.
+    </div></div>
+
+    <h2>Pestaña "Estado Proceso" — historial y novedades</h2>
+    <div class="flow-step"><div class="flow-n">A</div><div>
+      <b>Historial global</b>: todos los procesos de todas las sucursales (fecha, período, sucursal, proveedor, estado con badge, avance, usuario) + filtros por estado + botón refrescar (dispara reconciliación de los <code>EN_PROCESO</code>).
+    </div></div>
+    <div class="flow-step"><div class="flow-n">B</div><div>
+      <b>Detalle del proceso</b>: cabecera (proveedor, jobid, contadores) + tabla de empleados con búsqueda, filtros y export Excel. Filas rechazadas resaltadas con el mensaje de error DIAN.
+    </div></div>
+    <div class="flow-step"><div class="flow-n">C</div><div>
+      <b>Novedad = corregir y reenviar como reemplazo</b>: en cada fila rechazada, "Corregir y reenviar" abre un modal con los datos del empleado + error DIAN + acceso a la nómina interna para corregir + botón "Retransmitir como reemplazo" (usa <code>payroll-replacements</code>). La fila pasa a <code>REEMPLAZO_EN_PROCESO</code> y luego a su estado final. Acción masiva: "Reenviar todos los rechazados".
+    </div></div>
+
+    <h2>Cómo se muestra el avance (los 2 escenarios)</h2>
+    <table>
+      <tr><th></th><th>Escenario A — proveedor reporta avance parcial</th><th>Escenario B — proveedor solo reporta etapas</th></tr>
+      <tr><td><b>Barra</b></td><td>Porcentaje real: <code>(aceptados + rechazados) / total</code></td><td>Barra indeterminada "Procesando en el proveedor…" — <b>nunca inventar un %</b></td></tr>
+      <tr><td><b>Contadores</b></td><td>Aceptados / rechazados subiendo en vivo</td><td>"—" hasta finalizar + cronómetro de tiempo transcurrido</td></tr>
+      <tr><td><b>Stepper</b></td><td colspan="2">Idéntico en ambos: las etapas siempre son veraces</td></tr>
+      <tr><td><b>Convivencia</b></td><td colspan="2">Pueden coexistir: cada proceso muestra su variante según lo que su proveedor reporte, sin cambiar el diseño</td></tr>
+    </table>
+    <h3>Escenario C — envío individual por tandas (caso Dispapeles, confirmado por el log de envíos)</h3>
+    <p>Cuando el proveedor recibe documento a documento, el bucle de envío corre como <b>worker en segundo plano del servidor</b> (<code>QueueBackgroundWorkItem</code>): cerrar el navegador no detiene el envío. La barra muestra <b>porcentaje real calculado por el ERP</b> (enviados/total, ej. "45 % · 460/1.012"), los contadores suben por tanda, no existe jobid de lote (cada documento lleva prefijo + consecutivo propios), y el proceso es <b>reanudable</b>: si el servidor se recicla a mitad, auto-reanuda desde el primer pendiente sin duplicar documentos. Simulado en el mockup como "Escenario C".</p>
+  </div>
+
+  <!-- ═══════════ TAB 3: GUÍA DEL MOCKUP ═══════════ -->
+  <div class="pane" id="p2">
+    <h2>Qué probar en el mockup</h2>
+    <blockquote>La barra oscura superior es <b>instrumentación del prototipo</b> (selector de Escenario A/B) — no hace parte de la interfaz propuesta. Todo lo que está debajo de la línea punteada es la pantalla real.</blockquote>
+    <ol>
+      <li><b>Flujo feliz</b>: Febrero + BAGUER SAS → Consultar → revisar indicadores y advertencia de inválidos → elegir proveedor → Iniciar procesamiento → confirmar en el modal → observar el panel de seguimiento hasta "finalizado con novedades" (1.007 aceptados / 5 rechazados).</li>
+      <li><b>Escenarios de avance</b>: repetir el flujo cambiando arriba entre <b>Escenario A</b> (barra con % real) y <b>Escenario B</b> (barra indeterminada + cronómetro, sin % inventado).</li>
+      <li><b>Período ya procesado</b>: consultar <b>Enero</b> — aparece el estado del proceso existente en lugar del botón Procesar.</li>
+      <li><b>Estado Proceso</b>: historial con badges y filtros; el proceso <code>FALLIDO</code> muestra botón Reintentar.</li>
+      <li><b>Novedades</b>: entrar al detalle → fila rechazada → "Corregir y reenviar" → retransmitir como reemplazo → ver la transición <code>REEMPLAZO EN PROCESO → ACEPTADO</code>. Probar también el reenvío masivo.</li>
+    </ol>
+
+    <h2>Notas para el dev</h2>
+    <ul>
+      <li>Los 3 ejemplos de empleados inválidos (correo vacío, tipo de contrato, salario $0) corresponden a los tipos de error reales que devuelve Dataico (<code>MISSING_REQUIRED</code>, <code>INVALID_VALUE</code>) y a las validaciones previas existentes (<code>SBERP_GESTIONHEmpleadosSinCorreo</code>, <code>SBERP_GESTIONHValidarBasico</code>).</li>
+      <li>La pestaña "Estado Proceso" actual pinta datos quemados con <code>Math.random()</code> (<code>nominaelectronica.js:1493-1525</code>) — se elimina por completo.</li>
+      <li>El detalle simulado muestra 8 de 1.012 empleados (3 de los 5 rechazados visibles); en producción es DataTable paginada con export Excel, como el patrón del módulo.</li>
+      <li>Referencias: contexto del módulo en <code>docs/contexto/ERP-BAGUER-NOMINA-ELECTRONICA.md</code>; decisiones y preguntas pendientes en <code>brainstorming.md</code> de esta carpeta.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const paneOrder = ['pUX','p1','p0','p2']; // orden visual de tabs → id del panel
+function tab(n){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active', i===n));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById(paneOrder[n]).classList.add('active');
+  window.scrollTo({top:0});
+}
+</script>
+</body>
+</html>
