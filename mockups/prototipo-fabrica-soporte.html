@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quac — Fábrica de soporte · Bandeja de casos</title>
+<!--
+  Primer bosquejo — Fábrica de soporte (PDF·B7 / Playbook §7).
+  Bandeja de gestión manual para casos excepcionales del journey de crédito:
+  el equipo de crédito recibe, clasifica, gestiona y resuelve; al resolver,
+  la solicitud RETORNA AL PUNTO EXACTO del flujo principal.
+  A diferencia del vendedor de tienda, el operador SÍ ve las calificaciones
+  del sistema (checklist por soporte, match facial, reglas disparadas).
+  Sistema de diseño: nueva versión QuacOne (mismo del expediente v4.1).
+  Prototipo de validación — NO es código de producción.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --violet:#7C3AED; --violet-dark:#6D28D9; --violet-soft:#EFEBFD; --navy:#1E1B39;
+  --txt:#26263E; --txt-2:#565673; --txt-3:#9C9CB0; --mut:#A0A0B8;
+  --bg:#F6F6FA; --card:#FFFFFF; --line:#ECECF2; --line-2:#F0F0F6; --thead:#F4F4FB;
+  --green:#16A34A; --green-bg:#DCFCE7; --green-tx:#15803D;
+  --red:#DC2626; --red-bg:#FCE7EF; --red-tx:#BE185D;
+  --amber:#D97706; --amber-bg:#FEF3C7; --amber-tx:#A16207;
+  --lav-bg:#EDEBFB; --lav-tx:#6D5BD0; --gray-bg:#EEEEF6; --gray-tx:#565673;
+  --blue-bg:#E0F2FE; --blue-tx:#0369A1;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;color:var(--txt);background:var(--bg);height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:13.5px}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit}
+.isvg{flex-shrink:0;vertical-align:-2px;display:inline-block}
+
+#esc-bar{background:#171528;color:#B9B3D6;padding:7px 16px;display:flex;align-items:center;gap:8px;flex-shrink:0}
+#esc-bar .lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#7E76A8}
+#esc-bar .sep{flex:1}
+.esc-tool{border:1px solid #3A3560;background:#242043;color:#DDD8F2;border-radius:8px;padding:4px 12px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+
+#shell{flex:1;display:flex;overflow:hidden}
+#sidebar{width:210px;background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0}
+.sb-logo{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 14px}
+.sb-logo b{font-size:17px;font-weight:800;color:var(--navy)}
+.sb-sec{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);padding:14px 16px 6px}
+.sb-item{display:flex;align-items:center;gap:9px;padding:8px 10px;margin:1px 8px;border-radius:8px;font-size:12.5px;font-weight:500;color:var(--txt-2);cursor:pointer;white-space:nowrap}
+.sb-item:hover{background:#F6F5FB}
+.sb-item.on{background:var(--violet-soft);color:var(--violet-dark);font-weight:600}
+.sb-item .ic{width:16px;display:flex;align-items:center;justify-content:center;opacity:.75}
+.sb-scroll{flex:1;overflow-y:auto;padding-bottom:10px}
+.sb-foot{border-top:1px solid var(--line);padding:12px 16px;font-size:12px;color:var(--txt-2)}
+.sb-foot .u{font-weight:600;color:var(--txt)}
+.sb-foot .out{color:var(--txt-3);margin-top:6px;cursor:pointer;display:flex;align-items:center;gap:7px}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+#tabs{background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:flex-end;padding:6px 16px 0;gap:4px;flex-shrink:0}
+.ntab{display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:12.5px;font-weight:600;color:var(--txt-3);cursor:pointer;white-space:nowrap;border:1px solid transparent;border-bottom:none;border-radius:9px 9px 0 0;position:relative}
+.ntab.active{background:var(--bg);border-color:var(--line);color:var(--navy)}
+.ntab.active::after{content:'';position:absolute;top:0;left:10px;right:10px;height:2.5px;border-radius:0 0 3px 3px;background:var(--violet)}
+.ntab .dot{width:7px;height:7px;border-radius:50%}
+.ntab .idm{font-family:var(--mono);font-size:11px;color:var(--violet);font-weight:600}
+.ntab .cls{border:none;background:none;color:var(--txt-3);font-size:11px;padding:0 2px}
+#titlebar{background:var(--card);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+#titlebar h1{font-size:15.5px;font-weight:700;color:var(--navy)}
+#titlebar .crumb{font-size:13px;color:var(--txt-3);cursor:pointer}
+#titlebar .crumb:hover{color:var(--violet)}
+#titlebar .sepc{color:var(--line)}
+#content{flex:1;overflow-y:auto;padding:20px 24px}
+
+.btn{border:none;border-radius:8px;padding:9px 16px;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:7px}
+.btn-primary{background:var(--violet);color:#fff}.btn-primary:hover{background:var(--violet-dark)}
+.btn-outline{background:var(--card);border:1px solid var(--violet);color:var(--violet)}
+.btn-ghost{background:var(--card);border:1px solid var(--line);color:var(--txt-2)}
+.btn-green{background:var(--green);color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.b-green{background:var(--green-bg);color:var(--green-tx)}
+.b-red{background:var(--red-bg);color:var(--red-tx)}
+.b-amber{background:var(--amber-bg);color:var(--amber-tx)}
+.b-lav{background:var(--lav-bg);color:var(--lav-tx)}
+.b-gray{background:var(--gray-bg);color:var(--gray-tx)}
+.b-blue{background:var(--blue-bg);color:var(--blue-tx)}
+.mono{font-family:var(--mono);font-size:12px}
+.search{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 13px;font-size:12.5px;color:var(--txt-3);width:320px}
+.search input{border:none;outline:none;flex:1;background:transparent;color:var(--txt)}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px}
+.stat .l{font-size:11.5px;color:var(--txt-3)}
+.stat .n{font-size:22px;font-weight:700;margin-top:2px;color:var(--navy)}
+.stat .n.v{color:var(--violet)}.stat .n.g{color:var(--green)}.stat .n.a{color:var(--amber)}.stat .n.b{color:var(--blue-tx)}
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.toolbar .grow{flex:1}
+.fchip{padding:6px 13px;border-radius:20px;border:1px solid var(--line);background:var(--card);font-size:11.5px;font-weight:600;color:var(--txt-2)}
+.fchip.on{background:var(--violet-soft);border-color:#DDD0FA;color:var(--violet-dark)}
+table.tb{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.tb thead th{background:var(--thead);text-align:left;font-size:11.5px;font-weight:600;color:var(--txt-2);padding:11px 14px;white-space:nowrap}
+.tb td{padding:12px 14px;border-top:1px solid var(--line-2);vertical-align:middle}
+.tb tr.row{cursor:pointer}
+.tb tr.row:hover td{background:#FAFAFE}
+.tb .id{font-family:var(--mono);font-size:12px;color:var(--violet);font-weight:600}
+.tb .cl b{font-size:12.5px;font-weight:600;display:block}
+.tb .cl span{font-size:11px;color:var(--txt-3);font-family:var(--mono)}
+.tb .mo b{font-size:12.5px;font-weight:600;display:block}
+.tb .mo span{font-size:11px;color:var(--txt-3)}
+.sla{font-family:var(--mono);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.sla .d{width:7px;height:7px;border-radius:50%}
+.sla-g{color:var(--green-tx)}.sla-g .d{background:var(--green)}
+.sla-a{color:var(--amber-tx)}.sla-a .d{background:var(--amber)}
+.sla-r{color:var(--red-tx)}.sla-r .d{background:var(--red)}
+
+/* caso */
+.caso-head{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:12px}
+.caso-head .who h2{font-size:16px;font-weight:700;color:var(--navy)}
+.caso-head .who .m{font-size:11.5px;color:var(--txt-3);font-family:var(--mono);margin-top:2px}
+.kv{min-width:96px}
+.kv .k{font-size:10.5px;color:var(--txt-3)}
+.kv .v{font-size:13px;font-weight:600;margin-top:2px}
+.caso-head .grow{flex:1}
+.ctx{border:1px solid #FDE68A;background:#FFFBEB;color:#78350F;border-radius:12px;padding:13px 18px;display:flex;gap:12px;align-items:flex-start;margin-bottom:16px;font-size:13px}
+.ctx b{display:block;font-weight:700}
+.ctx .sub-t{font-size:12px;margin-top:2px}
+.grid{display:flex;gap:18px;align-items:flex-start}
+.g-main{flex:1;min-width:0}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:14px;animation:fadeIn .25s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.panel h2{font-size:14.5px;font-weight:700;color:var(--navy);margin-bottom:4px;display:flex;align-items:center;gap:9px}
+.panel .sub{font-size:12.5px;color:var(--txt-2);margin-bottom:14px}
+.btn-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
+.result{border-radius:10px;padding:13px 16px;margin:10px 0;font-size:12.5px;line-height:1.5}
+.result h3{font-size:13px;font-weight:700;margin-bottom:3px}
+.r-ok{background:#F0FDF4;border:1px solid #BBF7D0;color:#14532D}
+.r-err{background:#FEF2F2;border:1px solid #FECACA;color:#7F1D1D}
+.r-warn{background:#FFFBEB;border:1px solid #FDE68A;color:#78350F}
+.r-info{background:#EFF6FF;border:1px solid #BFDBFE;color:#1E3A8A}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--txt-2);margin-bottom:5px}
+.field select,.field textarea{width:100%;padding:9px 12px;border:1px solid #DDDCE8;border-radius:8px;font-size:13px;background:var(--card);color:var(--txt)}
+.field textarea{min-height:64px;resize:vertical}
+
+/* revisión de soportes */
+.sop-rev{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px;display:flex;gap:16px}
+.sop-rev .ph{width:150px;flex-shrink:0}
+.sop-rev .foto{background:linear-gradient(135deg,#E9E4F8,#DDEBF9);border:1px solid var(--line);border-radius:10px;aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--txt-3);gap:6px;font-size:10.5px;font-weight:600}
+.sop-rev .ph h5{font-size:12px;font-weight:700;margin-top:8px;text-align:center}
+.sop-rev .bx{flex:1;min-width:0}
+.ck-line{display:flex;align-items:center;gap:8px;font-size:12px;padding:3.5px 0;color:var(--txt-2)}
+.ck-line .ok{color:var(--green-tx);font-weight:700}
+.ck-line .no{color:var(--red-tx);font-weight:700}
+.acciones{display:flex;gap:6px;margin-top:10px}
+.acc{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:600;color:var(--txt-2);cursor:pointer}
+.acc.sel-ok{border-color:#BBF7D0;background:var(--green-bg);color:var(--green-tx)}
+.acc.sel-rep{border-color:#BFDBFE;background:var(--blue-bg);color:var(--blue-tx)}
+.acc.sel-fr{border-color:#FECACA;background:var(--red-bg);color:var(--red-tx)}
+.match{font-family:var(--mono);font-size:12px;font-weight:700}
+
+/* rail */
+.rail{width:290px;flex-shrink:0}
+.rcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px}
+.rcard h4{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--violet);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.rkv{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:5px 0;border-bottom:1px solid var(--line-2)}
+.rkv:last-child{border-bottom:none}
+.rkv .k{color:var(--txt-3)}
+.rkv .v{font-weight:600;text-align:right}
+.hist{display:flex;gap:8px}
+.hist .h-foto{flex:1;background:linear-gradient(135deg,#EDE9F9,#E2EEF9);border:1px solid var(--line);border-radius:8px;aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--txt-3);font-size:9.5px;font-weight:600;gap:4px}
+.tlmini .s{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--txt-3);padding:3.5px 0}
+.tlmini .p{width:8px;height:8px;border-radius:50%;background:var(--line);flex-shrink:0}
+.tlmini .done{color:var(--txt-2)}.tlmini .done .p{background:var(--green)}
+.tlmini .attn{color:var(--amber-tx);font-weight:600}.tlmini .attn .p{background:var(--amber)}
+
+/* drawer sucesos */
+#suc-drawer{position:fixed;top:0;right:0;bottom:0;width:430px;max-width:92vw;background:var(--card);border-left:1px solid var(--line);z-index:52;transform:translateX(100%);transition:transform .25s;display:flex;flex-direction:column;box-shadow:-12px 0 32px rgba(30,27,57,.08)}
+#suc-drawer.open{transform:none}
+.sd-head{display:flex;align-items:flex-start;gap:13px;padding:20px 20px 16px;border-bottom:1px solid var(--line)}
+.sd-ic{width:40px;height:40px;border-radius:11px;border:1.5px solid var(--violet-soft);color:var(--violet);display:flex;align-items:center;justify-content:center}
+.sd-head h2{font-size:17px;font-weight:800;color:var(--navy)}
+.sd-head .s{font-size:12px;color:var(--txt-3);margin-top:3px}
+.sd-close{margin-left:auto;width:28px;height:28px;border-radius:8px;border:1.5px solid var(--line);background:var(--card);color:var(--txt-2);font-size:12px}
+.sd-body{flex:1;overflow-y:auto;padding:22px 20px}
+.suc-wrap{position:relative;padding-left:44px}
+.suc-wrap::before{content:'';position:absolute;left:13px;top:14px;bottom:14px;width:2px;background:var(--line)}
+.suc-item{position:relative;margin-bottom:12px}
+.suc-badge{position:absolute;left:-44px;top:14px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;box-shadow:0 0 0 4px var(--card)}
+.tb-ok{background:var(--green)}.tb-sys{background:#94A3B8}.tb-info{background:var(--violet)}.tb-warn{background:var(--amber)}.tb-err{background:var(--red)}
+.suc-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 16px;display:flex;gap:12px}
+.suc-card .tx{flex:1}
+.suc-card .ti{font-size:13px;font-weight:700}
+.suc-card .de{font-size:12px;color:var(--txt-3);margin-top:3px}
+.suc-card .tm{font-size:11.5px;color:var(--txt-3);white-space:nowrap}
+
+#guia{position:fixed;top:0;right:0;bottom:0;width:340px;background:#171528;color:#C9C3E4;z-index:50;transform:translateX(100%);transition:transform .25s;display:flex;flex-direction:column;border-left:3px dashed var(--violet)}
+#guia.open{transform:none}
+#guia .g-head{padding:14px 18px;border-bottom:1px solid #2C2850}
+#guia .g-tag{font-size:9px;font-weight:700;letter-spacing:.6px;background:var(--violet);color:#fff;border-radius:20px;padding:2px 9px}
+#guia h3{color:#fff;font-size:14px;margin-top:7px}
+#guia .g-body{flex:1;overflow-y:auto;padding:16px 18px;font-size:12.5px;line-height:1.65}
+#guia .g-body p{margin-bottom:11px}
+#guia .g-body b{color:#fff}
+.g-cite{display:inline-block;font-size:9.5px;font-weight:700;background:#2C2850;color:#B9A8F5;border-radius:20px;padding:1px 8px;margin:1px 2px}
+#guia-toggle{position:fixed;bottom:18px;right:18px;z-index:55;width:44px;height:44px;border-radius:50%;border:none;background:var(--violet);color:#fff;font-size:18px;font-weight:700;box-shadow:0 4px 14px rgba(124,58,237,.35)}
+#toasts{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:70;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{background:#171528;color:#fff;border-radius:10px;padding:11px 18px;font-size:12.5px;font-weight:600;display:flex;gap:9px;align-items:center;animation:fadeIn .25s}
+@media(max-width:1150px){.rail{display:none}}
+</style>
+</head>
+<body>
+
+<div id="esc-bar">
+  <span class="lbl">Bosquejo v1 — Fábrica de soporte</span>
+  <span class="sep"></span>
+  <button class="esc-tool" onclick="location.reload()">↺ Reiniciar</button>
+  <button class="esc-tool" onclick="toggleGuia()"><span data-ic="book"></span>Guía</button>
+</div>
+
+<div id="shell">
+  <aside id="sidebar">
+    <div class="sb-logo"><b>Quac</b></div>
+    <div class="sb-scroll">
+      <div class="sb-item" onclick="toast('Solo maqueta — Inicio')"><span class="ic" data-ic="home"></span>Inicio</div>
+      <div class="sb-sec">Operativo</div>
+      <div class="sb-item" onclick="toast('Solo maqueta — Mesa de estudios')"><span class="ic" data-ic="list"></span>Mesa de estudios</div>
+      <div class="sb-item on" onclick="showBandeja()"><span class="ic" data-ic="factory"></span>Fábrica de soporte</div>
+      <div class="sb-sec">Administración</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="user"></span>Operadores</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="alert"></span>Motivos de escalamiento</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="shield"></span>Reglas de fraude</div>
+      <div class="sb-sec">Diagnóstico</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="bot"></span>Bot Ubica</div>
+    </div>
+    <div class="sb-foot"><div class="u">Operadora 03 · Ana Cifuentes</div><div class="out"><span data-ic="logout"></span>Salir</div></div>
+  </aside>
+  <div id="main">
+    <div id="tabs"></div>
+    <div id="titlebar"></div>
+    <div id="content"></div>
+  </div>
+</div>
+
+<aside id="suc-drawer">
+  <div class="sd-head">
+    <div class="sd-ic" data-ic="history"></div>
+    <div><h2>Sucesos del caso</h2><div class="s">Caso F-208 · solicitud #1049</div></div>
+    <button class="sd-close" onclick="toggleSucesos()">✕</button>
+  </div>
+  <div class="sd-body" id="sd-body"></div>
+</aside>
+
+<button id="guia-toggle" onclick="toggleGuia()">?</button>
+<aside id="guia">
+  <div class="g-head"><span class="g-tag">GUÍA — NO HACE PARTE DE LA INTERFAZ</span><h3 id="g-title"></h3></div>
+  <div class="g-body" id="g-body"></div>
+</aside>
+<div id="toasts"></div>
+
+<script>
+/* ═══ íconos (Lucide, monocromo) ═══ */
+const ICMAP={
+ home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>',
+ list:'<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>',
+ user:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-3.5 3.8-5.5 7-5.5s6 2 7 5.5"/>',
+ alert:'<path d="M12 3 2.5 20h19L12 3z"/><path d="M12 10v4M12 17.2h.01"/>',
+ shield:'<path d="M12 3c3 1.5 6 2 8 2v7c0 5-3.5 8-8 9-4.5-1-8-4-8-9V5c2 0 5-.5 8-2z"/>',
+ bot:'<rect x="4" y="8" width="16" height="11" rx="2.5"/><path d="M12 8V4.5"/><path d="M9 13h.01M15 13h.01"/><path d="M1.8 12.5v3M22.2 12.5v3"/>',
+ logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+ search:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+ history:'<path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3.5 2"/>',
+ camera:'<path d="M4 8h3l2-2.5h6L17 8h3a1.5 1.5 0 0 1 1.5 1.5V19a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 19V9.5A1.5 1.5 0 0 1 4 8z"/><circle cx="12" cy="14" r="3.5"/>',
+ idcard:'<rect x="2.5" y="5" width="19" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.5-1.4 1.4-2.1 2.5-2.1s2 .7 2.5 2.1"/><path d="M14 9.5h5M14 13h5M14 16.5h3"/>',
+ refresh:'<path d="M3 12a9 9 0 0 1 15.5-6L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6L3 16"/><path d="M3 21v-5h5"/>',
+ phone:'<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.3h2"/>',
+ bell:'<path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10.5 20a1.8 1.8 0 0 0 3 0"/>',
+ factory:'<path d="M3 21V9l6 4V9l6 4V9l6 4v8H3z"/><path d="M8 17h.01M12 17h.01M16 17h.01"/>',
+ book:'<path d="M2.5 5.5H9a3 3 0 0 1 3 3V20a3 3 0 0 0-3-3H2.5V5.5z"/><path d="M21.5 5.5H15a3 3 0 0 0-3 3V20a3 3 0 0 1 3-3h6.5V5.5z"/>',
+ folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>',
+ wallet:'<rect x="2.5" y="6" width="19" height="13" rx="2.5"/><path d="M16 12.5h3"/><path d="M2.5 9.5h19"/>',
+ zap:'<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/>',
+ compass:'<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2z"/>',
+};
+function I(n,px){return `<svg class="isvg" style="width:${px||15}px;height:${px||15}px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICMAP[n]||''}</svg>`}
+
+/* ═══ datos de la bandeja ═══ */
+const CASOS=[
+ {id:'F-208',sol:'#1049',cliente:'María Alejandra Rodríguez',cc:'1.098.765.432',
+  motivo:'Fallas en prueba de vida',regla:'SELFIE_NO_COINCIDE_DOCUMENTO',
+  origen:'Validación de identidad (paso 10)',canal:'Tienda · Stirpe Cacique',prio:['Media','b-amber'],
+  min:26,operador:null,estado:['Sin asignar','b-gray'],rico:true},
+ {id:'F-207',sol:'#1045',cliente:'Carlos Martínez',cc:'79.554.120',
+  motivo:'Posible suplantación',regla:'ALERTA_SUPLANTACION',
+  origen:'Definición UBICA (paso 11)',canal:'Tienda · Derek Santafé',prio:['Crítica','b-red'],
+  min:72,operador:'Operadora 03',estado:['En gestión','b-lav']},
+ {id:'F-206',sol:'#1032',cliente:'Jorge Iván Muñoz',cc:'79.456.123',
+  motivo:'Cambio de correo sospechoso',regla:'EMAIL_CHANGE_POST_OTP_FAIL',
+  origen:'Activación de cupo (paso 11)',canal:'Web · preaprobado',prio:['Alta','b-red'],
+  min:118,operador:null,estado:['Sin asignar','b-gray']},
+ {id:'F-205',sol:'#1027',cliente:'Valentina Ortiz',cc:'1.005.321.789',
+  motivo:'Token no recibido',regla:'SIN_RESPUESTA_MAX_INTENTOS',
+  origen:'T&C y token (paso 4)',canal:'En autogestión · WhatsApp',prio:['Media','b-amber'],
+  min:44,operador:'Operador 01',estado:['Esperando cliente','b-blue']},
+ {id:'F-204',sol:'#1018',cliente:'Sandra Londoño',cc:'65.432.109',
+  motivo:'Actualización de datos rechazada',regla:'CONTACTO_CHANGE_DURANTE_RETO_ACTIVO',
+  origen:'Creación del cliente (paso 2)',canal:'Web · preaprobado',prio:['Media','b-amber'],
+  min:203,operador:'Operador 01',estado:['En gestión','b-lav']},
+ {id:'F-203',sol:'#1015',cliente:'Andrés Quintero',cc:'1.098.776.554',
+  motivo:'Inconsistencias documentales',regla:'MAX_VERSIONES_FOTO_SUPERADO',
+  origen:'Validación de identidad (paso 10)',canal:'Tienda · Typer Chipichape',prio:['Media','b-amber'],
+  min:0,operador:'Operadora 03',estado:['Resuelto','b-green']},
+];
+
+/* ═══ estado ═══ */
+const S={view:'bandeja',tabOpen:false,filtro:'todos',
+ tomado:false,dec:{selfie:null,frontal:null,reverso:null},resuelto:null,
+ log:[
+  {tone:'warn',ti:'Caso creado — escalado desde Validación de identidad',de:'Regla SELFIE_NO_COINCIDE_DOCUMENTO · match facial 62% < umbral 85%',t:'20 de jul · 3:04 p. m.'},
+  {tone:'sys',ti:'Clasificación automática',de:'Motivo: fallas en prueba de vida · prioridad Media · canal Tienda',t:'20 de jul · 3:04 p. m.'},
+ ]};
+const CASO=CASOS[0];
+function toast(txt){const c=document.getElementById('toasts');const d=document.createElement('div');
+ d.className='toast';d.innerHTML=`${I('bell',14)}${txt}`;c.appendChild(d);setTimeout(()=>d.remove(),4200)}
+function toggleGuia(){document.getElementById('guia').classList.toggle('open')}
+function toggleSucesos(){document.getElementById('suc-drawer').classList.toggle('open');
+ document.getElementById('sd-body').innerHTML=sucesosHTML()}
+function addLog(tone,ti,de){S.log.unshift({tone,ti,de,t:'20 de jul · 3:31 p. m.'});
+ const sd=document.getElementById('sd-body');if(sd)sd.innerHTML=sucesosHTML()}
+const TG={ok:'✓',sys:'⚙',info:'i',warn:'!',err:'✕'};
+function sucesosHTML(){return `<div class="suc-wrap">${[...S.log].reverse().map(l=>`
+ <div class="suc-item"><span class="suc-badge tb-${l.tone}">${TG[l.tone]}</span>
+  <div class="suc-card"><div class="tx"><div class="ti">${l.ti}</div>${l.de?`<div class="de">${l.de}</div>`:''}</div>
+  <span class="tm">${l.t}</span></div></div>`).join('')}</div>`}
+
+/* ═══ navegación ═══ */
+function showBandeja(){S.view='bandeja';render()}
+function openCaso(rico){if(!rico){toast('En el bosquejo solo el caso F-208 tiene detalle');return}
+ S.view='caso';S.tabOpen=true;render()}
+function closeTab(e){e.stopPropagation();S.tabOpen=false;S.view='bandeja';render()}
+function setFiltro(f){S.filtro=f;render()}
+
+/* ═══ render ═══ */
+function render(){
+ document.getElementById('tabs').innerHTML=
+  `<div class="ntab ${S.view==='bandeja'?'active':''}" onclick="showBandeja()">${I('factory',14)} Bandeja de soporte</div>`+
+  (S.tabOpen?`<div class="ntab ${S.view==='caso'?'active':''}" onclick="openCaso(true)">
+    <span class="dot" style="background:${S.resuelto==='ok'?'var(--green)':S.resuelto?'var(--blue-tx)':'var(--amber)'}"></span>
+    <span class="idm">F-208</span> ${CASO.cliente.split(' ')[0]} ${CASO.cliente.split(' ')[2]||''}
+    <button class="cls" onclick="closeTab(event)">✕</button></div>`:'');
+ document.getElementById('titlebar').innerHTML=S.view==='bandeja'?
+  `<h1>Fábrica de soporte</h1>`:
+  `<span class="crumb" onclick="showBandeja()">Fábrica de soporte</span><span class="sepc">/</span>
+   <h1>F-208 — ${CASO.cliente} · solicitud ${CASO.sol}</h1>`;
+ if(S.view==='bandeja')renderBandeja();else renderCaso();
+ renderGuia();
+}
+
+/* ═══ bandeja ═══ */
+function slaCls(m){return m<30?'sla-g':m<90?'sla-a':'sla-r'}
+function slaTxt(m){return m===0?'—':m<60?m+' min':Math.floor(m/60)+' h '+(m%60)+' min'}
+function casoEstado(c){
+ if(c.id!=='F-208')return c.estado;
+ if(S.resuelto==='ok')return ['Resuelto','b-green'];
+ if(S.resuelto==='cliente')return ['Esperando cliente','b-blue'];
+ if(S.tomado)return ['En gestión','b-lav'];
+ return ['Sin asignar','b-gray'];
+}
+function renderBandeja(){
+ const rows=CASOS.filter(c=>{
+  const est=casoEstado(c)[0];
+  if(S.filtro==='sin')return est==='Sin asignar';
+  if(S.filtro==='gestion')return est==='En gestión';
+  if(S.filtro==='cliente')return est==='Esperando cliente';
+  if(S.filtro==='criticos')return c.prio[0]!=='Media';
+  return true});
+ const n={tot:0,sin:0,ges:0,cli:0,res:0};
+ CASOS.forEach(c=>{const e=casoEstado(c)[0];n.tot++;
+  if(e==='Sin asignar')n.sin++;else if(e==='En gestión')n.ges++;
+  else if(e==='Esperando cliente')n.cli++;else if(e==='Resuelto')n.res++});
+ document.getElementById('content').innerHTML=`
+  <div class="stats">
+   <div class="stat"><div class="l">En bandeja</div><div class="n">${n.tot-n.res}</div></div>
+   <div class="stat"><div class="l">Sin asignar</div><div class="n a">${n.sin}</div></div>
+   <div class="stat"><div class="l">En gestión</div><div class="n v">${n.ges}</div></div>
+   <div class="stat"><div class="l">Esperando cliente</div><div class="n b">${n.cli}</div></div>
+   <div class="stat"><div class="l">Resueltos hoy</div><div class="n g">${n.res}</div></div>
+  </div>
+  <div class="toolbar">
+   <div class="search">${I('search',14)}<input placeholder="Buscar por cliente, solicitud, motivo..."></div>
+   ${[['todos','Todos'],['sin','Sin asignar'],['gestion','En gestión'],['cliente','Esperando cliente'],['criticos','Alta / Crítica']]
+    .map(f=>`<button class="fchip ${S.filtro===f[0]?'on':''}" onclick="setFiltro('${f[0]}')">${f[1]}</button>`).join('')}
+   <div class="grow"></div>
+   <button class="btn btn-primary" onclick="openCaso(true);toast('Caso F-208 asignado por prioridad y antigüedad')">${I('zap',14)} Tomar siguiente caso</button>
+  </div>
+  <table class="tb">
+   <thead><tr><th>Caso</th><th>Solicitud / Cliente</th><th>Motivo de ingreso</th><th>Origen</th><th>Canal</th>
+   <th>Prioridad</th><th>En fábrica</th><th>Operador</th><th>Estado</th></tr></thead>
+   <tbody>${rows.map(c=>{const est=casoEstado(c);return `<tr class="row" onclick="openCaso(${!!c.rico})">
+    <td class="id">${c.id}</td>
+    <td class="cl"><b>${c.cliente}</b><span>${c.sol} · CC ${c.cc}</span></td>
+    <td class="mo"><b>${c.motivo}</b><span class="mono">${c.regla}</span></td>
+    <td style="font-size:12px">${c.origen}</td>
+    <td style="font-size:12px;color:var(--txt-2)">${c.canal}</td>
+    <td><span class="badge ${c.prio[1]}">${c.prio[0]}</span></td>
+    <td><span class="sla ${slaCls(c.min)}"><span class="d"></span>${slaTxt(c.min)}</span></td>
+    <td style="font-size:12px">${c.id==='F-208'&&S.tomado?'Operadora 03':c.operador||'<span style="color:var(--txt-3)">—</span>'}</td>
+    <td><span class="badge ${est[1]}">${est[0]}</span></td></tr>`}).join('')}</tbody>
+  </table>`;
+}
+
+/* ═══ caso ═══ */
+function renderCaso(){
+ const est=casoEstado(CASO);
+ document.getElementById('content').innerHTML=`
+  <div class="caso-head">
+   <div class="who"><h2>${CASO.cliente}</h2><div class="m">Caso F-208 · Solicitud ${CASO.sol} · CC ${CASO.cc} · ${CASO.canal}</div></div>
+   <div class="kv"><div class="k">Prioridad</div><div class="v"><span class="badge ${CASO.prio[1]}">${CASO.prio[0]}</span></div></div>
+   <div class="kv"><div class="k">En fábrica</div><div class="v"><span class="sla ${slaCls(CASO.min)}"><span class="d"></span>${slaTxt(CASO.min)}</span></div></div>
+   <div class="kv"><div class="k">Estado</div><div class="v"><span class="badge ${est[1]}">${est[0]}</span></div></div>
+   <div class="grow"></div>
+   <button class="btn btn-ghost" onclick="toggleSucesos()">${I('history',14)} Sucesos <span style="font-size:10px;background:var(--violet-soft);color:var(--violet);border-radius:20px;padding:1px 7px;font-family:var(--mono)">${S.log.length}</span></button>
+  </div>
+  <div class="ctx">${I('factory',16)}<div>
+   <b>Escalado desde: ${CASO.origen} · ${CASO.motivo}</b>
+   <div class="sub-t">Regla disparada: <span class="mono">${CASO.regla}</span> — match facial 62% (umbral 85%). La solicitud está pausada; al resolver este caso, retorna al punto exacto del flujo.</div>
+  </div></div>
+  <div class="grid">
+   <div class="g-main" id="g-main"></div>
+   <aside class="rail">${railHTML()}</aside>
+  </div>`;
+ renderMain();
+}
+
+function renderMain(){
+ const M=document.getElementById('g-main');
+ if(S.resuelto){M.innerHTML=`<div class="panel">
+  <h2>Caso resuelto</h2>
+  ${S.resuelto==='ok'?`<div class="result r-ok"><h3>✓ Verificación aprobada — la solicitud retornó al flujo</h3>
+   <p>La solicitud ${CASO.sol} continúa en Validación de identidad. El vendedor y el cliente fueron notificados.</p></div>`:
+  S.resuelto==='cliente'?`<div class="result r-info"><h3>${I('phone',13)} Se solicitó nueva captura al cliente</h3>
+   <p>Se envió notificación por SMS y WhatsApp. El caso queda "Esperando cliente" y volverá a la bandeja cuando suba los nuevos soportes.</p></div>`:
+  `<div class="result r-err"><h3>✕ Solicitud rechazada</h3><p>La solicitud ${CASO.sol} se cerró con la causal seleccionada. El cliente recibió el mensaje genérico.</p></div>`}
+  <div class="btn-row"><button class="btn btn-ghost" onclick="showBandeja()">Volver a la bandeja</button></div></div>`;return}
+ if(!S.tomado){M.innerHTML=`<div class="panel">
+  <h2>Caso sin asignar</h2>
+  <p class="sub">Toma el caso para gestionarlo. Quedará registrado a tu nombre y saldrá de la cola de asignación.</p>
+  <div class="btn-row"><button class="btn btn-primary" onclick="S.tomado=true;addLog('info','Caso asignado — Operadora 03 (Ana Cifuentes)');toast('Caso F-208 asignado a Operadora 03');render()">${I('zap',14)} Tomar caso</button>
+  <button class="btn btn-ghost" onclick="showBandeja()">Volver a la bandeja</button></div></div>`;return}
+ M.innerHTML=`
+  ${sopRev('selfie','Selfie / prueba de vida','phone',[
+    ['Persona real (liveness)','ok'],['Rostro visible y encuadrado','ok'],['Imagen nítida','ok'],
+    ['Match facial vs documento — <span class="match" style="color:var(--red-tx)">62%</span> (umbral 85%)','no'],
+    ['Sin coincidencia en base de suplantadores','ok']])}
+  ${sopRev('frontal','Documento — cara frontal','idcard',[
+    ['Etiquetas válidas (documento real)','ok'],['No es fotocopia ni pantalla','ok'],
+    ['Rostro visible','ok'],['Texto legible (OCR 96%)','ok']])}
+  ${sopRev('reverso','Documento — cara posterior','refresh',[
+    ['Etiquetas válidas','ok'],['Código de barras legible','ok'],['Datos coinciden con el registro','ok']])}
+  <div class="panel"><h2>Resolución del caso</h2>
+   <p class="sub">${resumenDec()}</p>
+   <div class="field"><label>Nota interna (opcional)</label><textarea placeholder="Observaciones para auditoría…"></textarea></div>
+   <div class="btn-row">
+    <button class="btn btn-green" ${todas('ok')?'':'disabled title="Marca los tres soportes como Aprobado"'}
+     onclick="S.resuelto='ok';addLog('ok','Caso resuelto — verificación aprobada, la solicitud retorna al flujo');toast('Solicitud ${CASO.sol} devuelta al flujo');render()">${I('zap',14)} Aprobar y devolver al flujo</button>
+    <button class="btn btn-outline" ${alguna('rep')?'':'disabled title="Marca al menos un soporte como Repetir"'}
+     onclick="S.resuelto='cliente';addLog('info','Se solicitó nueva captura al cliente — SMS + WhatsApp enviados');toast('Notificación enviada al cliente');render()">${I('phone',14)} Solicitar nueva captura</button>
+    <button class="btn btn-red" onclick="if(confirm('¿Rechazar la solicitud ${CASO.sol}? Esta acción la cierra definitivamente.')){S.resuelto='rechazo';addLog('err','Solicitud rechazada — posible suplantación');render()}">✕ Rechazar solicitud</button>
+   </div></div>`;
+}
+function sopRev(k,titulo,ic,checks){
+ const d=S.dec[k];
+ return `<div class="panel" style="padding:16px"><div class="sop-rev" style="border:none;padding:0;margin:0">
+  <div class="ph"><div class="foto">${I(ic,26)}<span>${k==='selfie'?'captura liveness':'foto documento'}</span></div><h5>${titulo}</h5></div>
+  <div class="bx">
+   ${checks.map(c=>`<div class="ck-line"><span class="${c[1]}">${c[1]==='ok'?'✓':'✕'}</span><span>${c[0]}</span></div>`).join('')}
+   <div class="acciones">
+    <button class="acc ${d==='ok'?'sel-ok':''}" onclick="S.dec.${k}='ok';renderMain()">✓ Aprobar</button>
+    <button class="acc ${d==='rep'?'sel-rep':''}" onclick="S.dec.${k}='rep';renderMain()">${I('refresh',12)} Repetir — pedir al cliente</button>
+    <button class="acc ${d==='fr'?'sel-fr':''}" onclick="S.dec.${k}='fr';renderMain()">✕ Marcar fraude</button>
+   </div>
+  </div></div></div>`;
+}
+function todas(v){return ['selfie','frontal','reverso'].every(k=>S.dec[k]===v)}
+function alguna(v){return ['selfie','frontal','reverso'].some(k=>S.dec[k]===v)}
+function resumenDec(){
+ const n=['selfie','frontal','reverso'].filter(k=>S.dec[k]).length;
+ if(n===0)return 'Revisa cada soporte y márcalo como Aprobado, Repetir o Fraude. La resolución se habilita según tus decisiones.';
+ return `Decisiones tomadas: ${n} de 3 soportes.`;
+}
+
+/* rail del caso */
+function railHTML(){
+ return `
+  <div class="rcard"><h4>${I('folder',13)} Solicitud ${CASO.sol}</h4>
+   <div class="rkv"><span class="k">Estado</span><span class="v"><span class="badge b-amber">Escalado a fábrica</span></span></div>
+   <div class="rkv"><span class="k">Canal</span><span class="v">Tienda · Caja 01</span></div>
+   <div class="rkv"><span class="k">Asesor</span><span class="v mono">1015425789</span></div>
+   <div class="rkv"><span class="k">Creada</span><span class="v">Hoy 2:30 p. m.</span></div>
+  </div>
+  <div class="rcard"><h4>${I('compass',13)} Dónde va la solicitud</h4>
+   <div class="tlmini">
+    <div class="s done"><span class="p"></span>Identificación · Creación · Gestión</div>
+    <div class="s done"><span class="p"></span>T&C y token — firmada</div>
+    <div class="s done"><span class="p"></span>Estudio — viable · cupo $1,200,000</div>
+    <div class="s done"><span class="p"></span>Dirección registrada</div>
+    <div class="s attn"><span class="p"></span>Validación de identidad — EN ESTE CASO</div>
+    <div class="s"><span class="p"></span>Activación de cupo</div>
+   </div></div>
+  <div class="rcard"><h4>${I('user',13)} Cliente</h4>
+   <div class="rkv"><span class="k">Documento</span><span class="v mono">CC ${CASO.cc}</span></div>
+   <div class="rkv"><span class="k">Nombre</span><span class="v">${CASO.cliente}</span></div>
+   <div class="rkv"><span class="k">Celular</span><span class="v mono">314 567 8901 ✓</span></div>
+   <div class="rkv"><span class="k">Correo</span><span class="v" style="font-size:11px">maria.rodriguez@gmail.com</span></div>
+  </div>
+  <div class="rcard"><h4>${I('camera',13)} Historial del cliente</h4>
+   <div class="hist">
+    <div class="h-foto">${I('phone',16)}<span>selfie 2024</span></div>
+    <div class="h-foto">${I('idcard',16)}<span>cédula 2024</span></div>
+   </div>
+   <p style="font-size:10.5px;color:var(--txt-3);margin-top:8px">Estudio anterior #0812 (mar 2024) — aprobado. Compara los soportes actuales contra el historial.</p>
+  </div>`;
+}
+
+/* guía */
+const GUIA={
+ bandeja:['La bandeja de soporte',`<p>El equivalente de la mesa de solicitudes, pero para el <b>equipo de crédito</b>: los casos que el sistema no pudo aprobar solo. Cada fila registra motivo (con la regla disparada), bloque de origen, canal, prioridad y tiempo en fábrica con semáforo de SLA.</p>
+ <p><b>"Tomar siguiente caso"</b> asigna por prioridad + antigüedad (recepción y clasificación son automáticas). Estados del caso: Sin asignar → En gestión → Esperando cliente / Resuelto.</p>
+ <p><span class="g-cite">PDF·B7</span> <span class="g-cite">PB §7.1–7.2</span></p>`],
+ caso:['El detalle del caso',`<p>A diferencia del vendedor, el operador <b>SÍ ve las calificaciones</b>: checklist del sistema por soporte, match facial con porcentaje y la regla disparada.</p>
+ <p>Flujo: tomar el caso → revisar cada soporte y decidir (<b>Aprobar / Repetir / Fraude</b>) → resolver: <b>Aprobar y devolver al flujo</b> (retorna al punto exacto), <b>Solicitar nueva captura</b> (notifica al cliente por SMS/WhatsApp y el caso queda esperando), o <b>Rechazar</b> (cierra con causal). El rail muestra dónde está pausada la solicitud y el historial de fotos de estudios anteriores para comparar.</p>
+ <p><span class="g-cite">PB §7.2–7.4</span> <span class="g-cite">Reglas de fraude</span></p>`],
+};
+function renderGuia(){
+ const g=S.view==='bandeja'?GUIA.bandeja:GUIA.caso;
+ document.getElementById('g-title').textContent=g[0];
+ document.getElementById('g-body').innerHTML=g[1];
+}
+
+/* init */
+document.querySelectorAll('[data-ic]').forEach(el=>{el.innerHTML=I(el.dataset.ic,el.classList.contains('sd-ic')?18:15)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('suc-drawer').classList.remove('open')});
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quac — Solicitud de crédito · Expediente</title>
+<!--
+  Propuesta v4.1 — expediente de un solo lienzo (sin tabs) con los 11 pasos del documento:
+  1 Identificación del cliente · 2 Creación del cliente (incluye validación de contacto) ·
+  3 Tipo de gestión (autogestión → enlace | asistida → asignar asesor con validación facial obligatoria) ·
+  4 Iniciar estudio — TyC y token · 5 Consulta de antecedentes · 6 Validación de viabilidad (Preselecta) ·
+  7 Validación de cotización (FOSYGA) · 8 Definición de cupo preliminar (aquí se lanza UBICA en 2º plano) ·
+  9 Registro de dirección · 10 Validación de identidad (fotos cédula + prueba de vida aquí o por enlace WhatsApp) ·
+  11 Activación de cupo (espera UBICA → resultado → token al correo → cupo express aprobado).
+  Sin anotaciones instruccionales: la interfaz se muestra tal cual se vería implementada.
+  Prototipo de validación — NO es código de producción.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --violet:#7C3AED; --violet-dark:#6D28D9; --violet-soft:#EFEBFD; --navy:#1E1B39; --navy-btn:#1E1B4B;
+  --txt:#26263E; --txt-2:#565673; --txt-3:#9C9CB0; --mut:#A0A0B8;
+  --bg:#F6F6FA; --card:#FFFFFF; --line:#ECECF2; --line-2:#F0F0F6; --thead:#F4F4FB;
+  --green:#16A34A; --green-bg:#DCFCE7; --green-tx:#15803D;
+  --red:#DC2626; --red-bg:#FCE7EF; --red-tx:#BE185D;
+  --amber:#D97706; --amber-bg:#FEF3C7; --amber-tx:#A16207;
+  --lav-bg:#EDEBFB; --lav-tx:#6D5BD0; --gray-bg:#EEEEF6; --gray-tx:#565673;
+  --blue-bg:#E0F2FE; --blue-tx:#0369A1;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;color:var(--txt);background:var(--bg);height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:13.5px}
+button{font-family:inherit;cursor:pointer}
+input,select{font-family:inherit}
+.isvg{flex-shrink:0;vertical-align:-2px;display:inline-block}
+
+#esc-bar{background:#171528;color:#B9B3D6;padding:7px 16px;display:flex;align-items:center;gap:8px;flex-shrink:0;overflow-x:auto}
+#esc-bar .lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#7E76A8;white-space:nowrap}
+.esc-chip{border:1px solid #3A3560;background:transparent;color:#B9B3D6;border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;white-space:nowrap}
+.esc-chip.on{background:var(--violet);border-color:var(--violet);color:#fff}
+#esc-bar .sep{flex:1}
+.esc-tool{border:1px solid #3A3560;background:#242043;color:#DDD8F2;border-radius:8px;padding:4px 12px;font-size:11px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+
+#shell{flex:1;display:flex;overflow:hidden}
+#sidebar{width:210px;background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0}
+.sb-logo{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 14px}
+.sb-logo b{font-size:17px;font-weight:800;color:var(--navy);letter-spacing:-.3px}
+.sb-logo .col{color:var(--mut);font-size:14px;cursor:pointer}
+.sb-sec{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);padding:14px 16px 6px}
+.sb-item{display:flex;align-items:center;gap:9px;padding:8px 10px;margin:1px 8px;border-radius:8px;font-size:12.5px;font-weight:500;color:var(--txt-2);cursor:pointer;white-space:nowrap}
+.sb-item:hover{background:#F6F5FB}
+.sb-item.on{background:var(--violet-soft);color:var(--violet-dark);font-weight:600}
+.sb-item .ic{width:16px;display:flex;align-items:center;justify-content:center;opacity:.75}
+.sb-scroll{flex:1;overflow-y:auto;padding-bottom:10px}
+.sb-foot{border-top:1px solid var(--line);padding:12px 16px;font-size:12px;color:var(--txt-2)}
+.sb-foot .u{font-weight:600;color:var(--txt)}
+.sb-foot .out{color:var(--txt-3);font-size:12px;margin-top:6px;cursor:pointer;display:flex;align-items:center;gap:7px}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+#tabs{background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:flex-end;padding:6px 16px 0;gap:4px;flex-shrink:0;overflow-x:auto}
+.ntab{display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:12.5px;font-weight:600;color:var(--txt-3);cursor:pointer;white-space:nowrap;border:1px solid transparent;border-bottom:none;border-radius:9px 9px 0 0;position:relative}
+.ntab:hover{color:var(--txt-2)}
+.ntab.active{background:var(--bg);border-color:var(--line);color:var(--navy)}
+.ntab.active::after{content:'';position:absolute;top:0;left:10px;right:10px;height:2.5px;border-radius:0 0 3px 3px;background:var(--violet)}
+.ntab .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.ntab .cls{border:none;background:none;color:var(--txt-3);font-size:11px;padding:0 2px;border-radius:4px}
+.ntab .cls:hover{color:var(--red);background:var(--red-bg)}
+.ntab .idm{font-family:var(--mono);font-size:11px;color:var(--violet);font-weight:600}
+
+#titlebar{background:var(--card);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+#titlebar h1{font-size:15.5px;font-weight:700;color:var(--navy)}
+#titlebar .crumb{font-size:13px;color:var(--txt-3);cursor:pointer}
+#titlebar .crumb:hover{color:var(--violet)}
+#titlebar .sepc{color:var(--line);font-size:13px}
+#content{flex:1;overflow-y:auto;padding:20px 24px}
+
+.btn{border:none;border-radius:8px;padding:9px 16px;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:7px}
+.btn-primary{background:var(--violet);color:#fff}.btn-primary:hover{background:var(--violet-dark)}
+.btn-outline{background:var(--card);border:1px solid var(--violet);color:var(--violet)}
+.btn-ghost{background:var(--card);border:1px solid var(--line);color:var(--txt-2)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.link{background:none;border:none;color:var(--violet);font-size:12px;font-weight:600;text-decoration:underline;padding:0}
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.b-green{background:var(--green-bg);color:var(--green-tx)}
+.b-red{background:var(--red-bg);color:var(--red-tx)}
+.b-amber{background:var(--amber-bg);color:var(--amber-tx)}
+.b-lav{background:var(--lav-bg);color:var(--lav-tx)}
+.b-gray{background:var(--gray-bg);color:var(--gray-tx)}
+.b-blue{background:var(--blue-bg);color:var(--blue-tx)}
+.mono{font-family:var(--mono);font-size:12px}
+.search{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 13px;font-size:12.5px;color:var(--txt-3);width:340px}
+.search input{border:none;outline:none;flex:1;font-size:12.5px;background:transparent;color:var(--txt)}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px}
+.stat .l{font-size:11.5px;color:var(--txt-3);font-weight:500}
+.stat .n{font-size:22px;font-weight:700;margin-top:2px;color:var(--navy)}
+.stat .n.v{color:var(--violet)}.stat .n.g{color:var(--green)}.stat .n.r{color:var(--red)}.stat .n.a{color:var(--amber)}
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.toolbar .grow{flex:1}
+.vtoggle{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}
+.vtoggle button{border:none;background:transparent;padding:8px 11px;color:var(--txt-3)}
+.vtoggle button.on{background:var(--violet-soft);color:var(--violet)}
+table.tb{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.tb thead th{background:var(--thead);text-align:left;font-size:11.5px;font-weight:600;color:var(--txt-2);padding:11px 14px;white-space:nowrap}
+.tb thead th .ar{color:var(--mut);font-size:9px}
+.tb td{padding:13px 14px;border-top:1px solid var(--line-2);vertical-align:middle}
+.tb tr.row{cursor:pointer}
+.tb tr.row:hover td{background:#FAFAFE}
+.tb .id{font-family:var(--mono);font-size:12px;color:var(--violet);font-weight:600}
+.tb .cl b{font-size:13px;font-weight:600;display:block}
+.tb .cl span{font-size:11.5px;color:var(--txt-3);font-family:var(--mono)}
+.tb .fp b{font-size:12.5px;font-weight:600;display:block}
+.tb .fp span{font-size:11.5px;color:var(--txt-3)}
+.tb .money{font-family:var(--mono);font-size:12px;font-weight:600}
+.tb .dt{font-size:12px;color:var(--txt-2)}
+.esp{font-family:var(--mono);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.esp .d{width:7px;height:7px;border-radius:50%}
+.esp-g .d{background:var(--green)}.esp-a .d{background:var(--amber)}.esp-r .d{background:var(--red)}
+.esp-g{color:var(--green-tx)}.esp-a{color:var(--amber-tx)}.esp-r{color:var(--red-tx)}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.mcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;cursor:pointer}
+.mcard:hover{border-color:#D8D0F5}
+.mcard .top{display:flex;justify-content:space-between;gap:8px;margin-bottom:10px}
+.mcard h3{font-size:13.5px;font-weight:600}
+.mcard .cc{font-size:11px;color:var(--txt-3);font-family:var(--mono)}
+.mcard .fp{font-size:12px;color:var(--txt-2);margin:8px 0}
+.mcard .foot{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line-2);padding-top:10px;margin-top:4px}
+
+/* ficha */
+.ficha-head{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:12px}
+.ficha-head .who h2{font-size:16px;font-weight:700;color:var(--navy)}
+.ficha-head .who .m{font-size:11.5px;color:var(--txt-3);font-family:var(--mono);margin-top:2px}
+.kv{min-width:100px}
+.kv .k{font-size:10.5px;color:var(--txt-3);font-weight:500}
+.kv .v{font-size:13px;font-weight:600;margin-top:2px}
+.ficha-head .grow{flex:1}
+#turno{border-radius:12px;padding:13px 18px;display:flex;gap:12px;align-items:center;margin-bottom:16px;font-size:13.5px;font-weight:600;border:1px solid}
+#turno .sub-t{font-size:12px;font-weight:400;margin-top:1px}
+#turno .grow{flex:1}
+.tu-asesor{background:var(--violet-soft);border-color:#DDD0FA;color:var(--violet-dark)}
+.tu-sis{background:#EFF6FF;border-color:#BFDBFE;color:#1E40AF}
+.tu-cli{background:#ECFEFF;border-color:#A5F3FC;color:#0E7490}
+.tu-fab{background:#FFFBEB;border-color:#FDE68A;color:#92400E}
+.tu-ok{background:#F0FDF4;border-color:#BBF7D0;color:#15803D}
+.tu-err{background:#FEF2F2;border-color:#FECACA;color:#B91C1C}
+.spin-sm{width:14px;height:14px;border:2.5px solid rgba(0,0,0,.12);border-top-color:currentColor;border-radius:50%;animation:spin .9s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.flow-grid{display:flex;gap:18px;align-items:flex-start}
+.stream{flex:1;min-width:0;position:relative;padding-left:44px}
+.stream::before{content:'';position:absolute;left:13px;top:16px;bottom:16px;width:2px;background:var(--line)}
+.st-item{position:relative;margin-bottom:12px}
+.st-badge{position:absolute;left:-44px;top:13px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;box-shadow:0 0 0 4px var(--bg);z-index:1}
+.sb-ok{background:var(--green)}.sb-run{background:var(--violet)}.sb-sis{background:#3B82F6}
+.sb-warn{background:var(--amber)}.sb-err{background:var(--red)}.sb-p{background:#C9C9DA}
+.sb-run.pulse,.sb-sis.pulse{animation:pulse 1.4s infinite}
+@keyframes pulse{50%{opacity:.55}}
+.st-row{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 1px 2px rgba(30,27,57,.03)}
+.st-row .tx{flex:1;min-width:0}
+.st-row .ti{font-size:13px;font-weight:700;color:var(--txt)}
+.st-row .re{font-size:12px;color:var(--txt-3);margin-top:2px}
+.st-item.pend .st-row{background:transparent;border-style:dashed;box-shadow:none}
+.st-item.pend .ti{color:var(--txt-3);font-weight:600}
+.st-card{background:var(--card);border:1.5px solid #DDD0FA;border-radius:14px;padding:22px;box-shadow:0 4px 16px rgba(124,58,237,.06);animation:fadeIn .25s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.st-card h2{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:4px;display:flex;align-items:center;gap:9px}
+.st-card .sub{font-size:12.5px;color:var(--txt-2);margin-bottom:16px;line-height:1.55}
+.st-card.sis{border-color:#BFDBFE;box-shadow:0 4px 16px rgba(59,130,246,.06)}
+.st-card.warn{border-color:#FDE68A;box-shadow:0 4px 16px rgba(217,119,6,.06)}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--txt-2);margin-bottom:5px}
+.field input,.field select{width:100%;padding:9px 12px;border:1px solid #DDDCE8;border-radius:8px;font-size:13px;background:var(--card);color:var(--txt)}
+.field input:focus,.field select:focus{outline:none;border-color:var(--violet);box-shadow:0 0 0 3px rgba(124,58,237,.1)}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px}
+.sec{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--violet);margin:18px 0 12px;padding-top:14px;border-top:1px dashed var(--line)}
+.sec:first-of-type{margin-top:4px;border-top:none;padding-top:0}
+.ok-inline{font-size:10.5px;font-weight:700;color:var(--green-tx)}
+.btn-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;align-items:center}
+.result{border-radius:10px;padding:14px 16px;margin:12px 0;font-size:12.5px;line-height:1.55}
+.result h3{font-size:13px;font-weight:700;margin-bottom:3px}
+.r-ok{background:#F0FDF4;border:1px solid #BBF7D0;color:#14532D}
+.r-err{background:#FEF2F2;border:1px solid #FECACA;color:#7F1D1D}
+.r-warn{background:#FFFBEB;border:1px solid #FDE68A;color:#78350F}
+.r-info{background:#EFF6FF;border:1px solid #BFDBFE;color:#1E3A8A}
+.r-tok{background:#F5F1FF;border:1px solid #DDD0FA;color:#4C1D95}
+.spinner{width:40px;height:40px;border:3.5px solid var(--line);border-top-color:var(--violet);border-radius:50%;animation:spin .9s linear infinite;margin:0 auto}
+.wait-mini{text-align:center;padding:16px 8px}
+.wait-mini p{font-size:12.5px;color:var(--txt-2);margin-top:10px}
+.timer{display:inline-flex;align-items:center;gap:6px;background:var(--violet-soft);color:var(--violet-dark);font-weight:700;font-size:12.5px;border-radius:20px;padding:5px 14px;margin-top:10px;font-family:var(--mono)}
+.choice2{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:12px 0}
+.choice{border:1px solid var(--line);border-radius:10px;padding:17px;cursor:pointer;text-align:center}
+.choice:hover{border-color:var(--violet);background:#FBFAFF}
+.choice .ic{margin-bottom:6px;color:var(--violet)}
+.choice h4{font-size:12.5px;font-weight:700}.choice p{font-size:11px;color:var(--txt-3);margin-top:4px}
+.otp-row{display:flex;gap:6px;margin:14px 0}
+.otp{width:40px;height:48px;border:1.5px solid #DDDCE8;border-radius:8px;text-align:center;font-size:19px;font-weight:700;font-family:var(--mono);background:var(--card)}
+.otp:focus{outline:none;border-color:var(--violet)}
+.chk{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;margin-bottom:9px}
+.chk input{margin-top:2px}
+.canales{display:flex;gap:8px;margin:8px 0}
+.canal{flex:1;border:1px solid var(--line);border-radius:8px;padding:10px;text-align:center;font-size:12px;font-weight:600;cursor:pointer;color:var(--txt-2)}
+.canal.sel{border-color:var(--violet);background:var(--violet-soft);color:var(--violet-dark)}
+.canal.dis{opacity:.4;cursor:not-allowed}
+.sms{background:#0B1220;color:#E2E8F0;border-radius:10px;padding:12px 14px;font-size:12px;line-height:1.5;margin:10px 0}
+.sms .from{font-size:9.5px;color:#94A3B8;font-weight:700;margin-bottom:4px}
+.envios{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:10px 14px;margin-top:12px}
+.envios h4{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--txt-3);margin-bottom:6px}
+.envio{display:flex;gap:9px;font-size:11.5px;padding:3px 0;color:var(--txt-2)}
+.envio .t{font-family:var(--mono);font-size:10.5px;color:var(--txt-3)}
+.kvt{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0}
+.kvt td{padding:8px 10px;border-bottom:1px solid var(--line-2)}
+.kvt td:first-child{color:var(--txt-2);width:32%}
+.kvt td .badge{margin-right:8px}
+
+/* fotos de cédula (paso identidad) */
+.docs2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0}
+.doccard{border:1.5px dashed #D8D2EC;border-radius:12px;padding:12px;text-align:center;background:#FBFAFF}
+.doccard.click{cursor:pointer}
+.doccard.click:hover{border-color:var(--violet)}
+.doccard.ok{border-style:solid;border-color:#BBF7D0;background:#F7FEF9}
+.doccard .ced{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:9px;text-align:left;min-height:74px}
+.doccard .ced .h{font-size:7.5px;font-weight:700;letter-spacing:.5px;color:var(--txt-3);display:flex;align-items:center;gap:5px;margin-bottom:7px}
+.doccard .ced .ln{height:4px;border-radius:2px;background:var(--line);margin:4px 0}
+.doccard .ced .row{display:flex;gap:8px;align-items:center}
+.doccard .ced .ava{width:26px;height:26px;border-radius:50%;background:var(--gray-bg);display:flex;align-items:center;justify-content:center;color:var(--txt-3)}
+.doccard .ced .cc{font-size:7px;font-family:var(--mono);color:var(--txt-3);text-align:right;margin-top:5px}
+.doccard .ced .bar{height:14px;background:repeating-linear-gradient(90deg,#26263E 0 2px,transparent 2px 5px);border-radius:2px;margin-top:6px}
+.doccard h5{font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:7px}
+.doccard p{font-size:10.5px;color:var(--txt-3);margin-top:3px}
+.doccard .st{font-size:10px;font-weight:700;margin-top:6px}
+.doccard.ok .st{color:var(--green-tx)}
+.doccard:not(.ok) .st{color:var(--txt-3)}
+
+/* rail */
+.rail{width:290px;flex-shrink:0;position:sticky;top:0}
+.rcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px}
+.rcard h4{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--violet);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.rkv{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:5px 0;border-bottom:1px solid var(--line-2)}
+.rkv:last-child{border-bottom:none}
+.rkv .k{color:var(--txt-3)}
+.rkv .v{font-weight:600;text-align:right}
+.rkv .v.mono{font-size:11.5px}
+.rkv .v.emp{color:var(--mut);font-weight:400}
+.sop{display:flex;align-items:center;gap:10px;font-size:12px;padding:6px 0;border-bottom:1px solid var(--line-2)}
+.sop:last-child{border-bottom:none}
+.sop .th{width:38px;height:26px;border-radius:6px;background:var(--gray-bg);display:flex;align-items:center;justify-content:center;color:var(--txt-3);flex-shrink:0}
+.sop.up .th{background:#EEF2FF;color:#3730A3}
+.sop .st{margin-left:auto;font-size:10.5px;font-weight:600;color:var(--txt-3)}
+.sop.up .st{color:#3730A3}
+
+#modal-bg{position:fixed;inset:0;background:rgba(30,27,57,.45);display:none;align-items:center;justify-content:center;z-index:60}
+#modal{background:var(--card);border-radius:14px;width:520px;max-width:94vw;max-height:88vh;overflow-y:auto;padding:26px;animation:fadeIn .2s;border:1px solid var(--line)}
+#modal h2{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:4px}
+#modal .sub{font-size:12.5px;color:var(--txt-2);margin-bottom:16px}
+.cam{background:#171528;border-radius:12px;aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#B9B3D6;gap:10px;margin:12px 0}
+.cam .face{width:105px;height:135px;border:3px dashed #8B7BF0;border-radius:52px 52px 62px 62px;display:flex;align-items:center;justify-content:center;color:#8B7BF0}
+.cam .gesto{font-size:12.5px;font-weight:600;color:#DDD8F2}
+.wait-panel{text-align:center;padding:22px 8px}
+.wait-panel h3{font-size:14px;font-weight:700;color:var(--navy);margin:14px 0 4px}
+.wait-panel p{font-size:12.5px;color:var(--txt-2)}
+
+#suc-drawer{position:fixed;top:0;right:0;bottom:0;width:430px;max-width:92vw;background:var(--card);border-left:1px solid var(--line);z-index:52;transform:translateX(100%);transition:transform .25s;display:flex;flex-direction:column;box-shadow:-12px 0 32px rgba(30,27,57,.08)}
+#suc-drawer.open{transform:none}
+.sd-head{display:flex;align-items:flex-start;gap:13px;padding:20px 20px 16px;border-bottom:1px solid var(--line);flex-shrink:0}
+.sd-ic{width:40px;height:40px;border-radius:11px;border:1.5px solid var(--violet-soft);color:var(--violet);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sd-head h2{font-size:17px;font-weight:800;color:var(--navy);line-height:1.2}
+.sd-head .s{font-size:12px;color:var(--txt-3);margin-top:3px}
+.sd-close{margin-left:auto;width:28px;height:28px;border-radius:8px;border:1.5px solid var(--line);background:var(--card);color:var(--txt-2);font-size:12px;flex-shrink:0}
+.sd-body{flex:1;overflow-y:auto;padding:22px 20px}
+.suc-wrap{position:relative;padding-left:44px}
+.suc-wrap::before{content:'';position:absolute;left:13px;top:14px;bottom:14px;width:2px;background:var(--line)}
+.suc-item{position:relative;margin-bottom:12px}
+.suc-badge{position:absolute;left:-44px;top:14px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;box-shadow:0 0 0 4px var(--card)}
+.tb-ok{background:var(--green)}.tb-sys{background:#94A3B8}.tb-info{background:var(--violet)}
+.tb-warn{background:var(--amber)}.tb-err{background:var(--red)}
+.suc-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 16px;display:flex;gap:12px;align-items:flex-start;box-shadow:0 1px 2px rgba(30,27,57,.03)}
+.suc-card .tx{flex:1;min-width:0}
+.suc-card .ti{font-size:13px;font-weight:700;color:var(--txt)}
+.suc-card .de{font-size:12px;color:var(--txt-3);margin-top:3px}
+.suc-card .tm{font-size:11.5px;color:var(--txt-3);white-space:nowrap;padding-top:1px}
+.suc-empty{font-size:12.5px;color:var(--txt-3);padding:10px 0}
+
+#guia{position:fixed;top:0;right:0;bottom:0;width:340px;background:#171528;color:#C9C3E4;z-index:50;transform:translateX(100%);transition:transform .25s;display:flex;flex-direction:column;border-left:3px dashed var(--violet)}
+#guia.open{transform:none}
+#guia .g-head{padding:14px 18px;border-bottom:1px solid #2C2850;flex-shrink:0}
+#guia .g-tag{font-size:9px;font-weight:700;letter-spacing:.6px;background:var(--violet);color:#fff;border-radius:20px;padding:2px 9px}
+#guia h3{color:#fff;font-size:14px;margin-top:7px}
+#guia .g-body{flex:1;overflow-y:auto;padding:16px 18px;font-size:12.5px;line-height:1.65}
+#guia .g-body p{margin-bottom:11px}
+#guia .g-body b{color:#fff}
+.g-cite{display:inline-block;font-size:9.5px;font-weight:700;background:#2C2850;color:#B9A8F5;border-radius:20px;padding:1px 8px;margin:1px 2px}
+#guia-toggle{position:fixed;bottom:18px;right:18px;z-index:55;width:44px;height:44px;border-radius:50%;border:none;background:var(--violet);color:#fff;font-size:18px;font-weight:700;box-shadow:0 4px 14px rgba(124,58,237,.35)}
+#toasts{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:70;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{background:#171528;color:#fff;border-radius:10px;padding:11px 18px;font-size:12.5px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.25);display:flex;gap:9px;align-items:center;animation:fadeIn .25s}
+@media(max-width:1150px){.rail{display:none}}
+@media(max-width:900px){#sidebar{display:none}}
+</style>
+</head>
+<body>
+
+<div id="esc-bar">
+  <span class="lbl">Simulación · activar antes de iniciar</span>
+  <div id="esc-chips" style="display:flex;gap:6px"></div>
+  <span class="sep"></span>
+  <button class="esc-tool" onclick="resetAll()">↺ Reiniciar</button>
+  <button class="esc-tool" onclick="toggleGuia()"><span data-ic="book"></span>Guía</button>
+</div>
+
+<div id="shell">
+  <aside id="sidebar">
+    <div class="sb-logo"><b>Quac</b><span class="col">▤</span></div>
+    <div class="sb-scroll">
+      <div class="sb-item" onclick="toast('Solo maqueta — Inicio')"><span class="ic" data-ic="home"></span>Inicio</div>
+      <div class="sb-sec">Operativo</div>
+      <div class="sb-item on" onclick="showMesa()"><span class="ic" data-ic="list"></span>Mesa de estudios</div>
+      <div class="sb-sec">Administración</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="user"></span>Operadores</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="chat"></span>Canales de origen</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="alert"></span>Motivos de escalamiento</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="states"></span>Estados</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="layers"></span>Fases</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="hash"></span>Pasos</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="swap"></span>Transiciones</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="branch"></span>Reglas de negocio</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="shield"></span>Reglas de fraude</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="landmark"></span>Centrales de riesgo</div>
+      <div class="sb-sec">Diagnóstico</div>
+      <div class="sb-item" onclick="toast('Solo maqueta')"><span class="ic" data-ic="bot"></span>Bot Ubica</div>
+    </div>
+    <div class="sb-foot"><div class="u">Cajero 01 · Stirpe Cacique</div><div class="out"><span data-ic="logout"></span>Salir</div></div>
+  </aside>
+  <div id="main">
+    <div id="tabs"></div>
+    <div id="titlebar"></div>
+    <div id="content"></div>
+  </div>
+</div>
+
+<div id="modal-bg"><div id="modal"></div></div>
+<input type="file" id="file-pick" accept="image/*" style="display:none">
+
+<aside id="suc-drawer">
+  <div class="sd-head">
+    <div class="sd-ic" data-ic="history"></div>
+    <div><h2>Sucesos de la solicitud</h2><div class="s" id="sd-sub">Solicitud #1049</div></div>
+    <button class="sd-close" onclick="toggleSucesos()">✕</button>
+  </div>
+  <div class="sd-body" id="sd-body"></div>
+</aside>
+
+<button id="guia-toggle" onclick="toggleGuia()">?</button>
+<aside id="guia">
+  <div class="g-head"><span class="g-tag">GUÍA — NO HACE PARTE DE LA INTERFAZ</span><h3 id="g-title"></h3></div>
+  <div class="g-body" id="g-body"></div>
+</aside>
+<div id="toasts"></div>
+
+<script>
+/* ════════ ÍCONOS (Lucide, monocromo) ════════ */
+const ICMAP={
+ home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>',
+ list:'<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>',
+ grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+ user:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-3.5 3.8-5.5 7-5.5s6 2 7 5.5"/>',
+ chat:'<path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.5L3 21l2-5.6A8.5 8.5 0 1 1 21 11.5z"/>',
+ alert:'<path d="M12 3 2.5 20h19L12 3z"/><path d="M12 10v4M12 17.2h.01"/>',
+ states:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/>',
+ layers:'<path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13.5 9 5 9-5"/>',
+ hash:'<path d="M9 3 7 21M17 3l-2 18M4 8.5h17M3 15.5h17"/>',
+ swap:'<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
+ branch:'<circle cx="6" cy="5.5" r="2.5"/><circle cx="6" cy="18.5" r="2.5"/><circle cx="18" cy="7.5" r="2.5"/><path d="M6 8v8"/><path d="M18 10c0 4.5-6 3.5-9.5 5.5"/>',
+ shield:'<path d="M12 3c3 1.5 6 2 8 2v7c0 5-3.5 8-8 9-4.5-1-8-4-8-9V5c2 0 5-.5 8-2z"/>',
+ landmark:'<path d="M3 21h18"/><path d="M5.5 21V10M10 21V10M14 21V10M18.5 21V10"/><path d="m12 3 9 5H3l9-5z"/>',
+ bot:'<rect x="4" y="8" width="16" height="11" rx="2.5"/><path d="M12 8V4.5"/><path d="M9 13h.01M15 13h.01"/><path d="M1.8 12.5v3M22.2 12.5v3"/>',
+ logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+ search:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+ history:'<path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3.5 2"/>',
+ camera:'<path d="M4 8h3l2-2.5h6L17 8h3a1.5 1.5 0 0 1 1.5 1.5V19a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 19V9.5A1.5 1.5 0 0 1 4 8z"/><circle cx="12" cy="14" r="3.5"/>',
+ keyboard:'<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/>',
+ idcard:'<rect x="2.5" y="5" width="19" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.5-1.4 1.4-2.1 2.5-2.1s2 .7 2.5 2.1"/><path d="M14 9.5h5M14 13h5M14 16.5h3"/>',
+ refresh:'<path d="M3 12a9 9 0 0 1 15.5-6L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6L3 16"/><path d="M3 21v-5h5"/>',
+ phone:'<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.3h2"/>',
+ lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+ pin:'<path d="M12 21s-7-6-7-11a7 7 0 0 1 14 0c0 5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+ bell:'<path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10.5 20a1.8 1.8 0 0 0 3 0"/>',
+ factory:'<path d="M3 21V9l6 4V9l6 4V9l6 4v8H3z"/><path d="M8 17h.01M12 17h.01M16 17h.01"/>',
+ book:'<path d="M2.5 5.5H9a3 3 0 0 1 3 3V20a3 3 0 0 0-3-3H2.5V5.5z"/><path d="M21.5 5.5H15a3 3 0 0 0-3 3V20a3 3 0 0 1 3-3h6.5V5.5z"/>',
+ mail:'<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+ folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/>',
+ wallet:'<rect x="2.5" y="6" width="19" height="13" rx="2.5"/><path d="M16 12.5h3"/><path d="M2.5 9.5h19"/>',
+ whatsapp:'<path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.5L3 21l2-5.6A8.5 8.5 0 1 1 21 11.5z"/><path d="M9 9.5c.5 2.5 3 5 5.5 5.5l1-1.5-2-1-1 .5c-.8-.5-1.5-1.2-2-2l.5-1-1-2-1 1.5z"/>',
+ fingerprint:'<path d="M12 11a3 3 0 0 1 3 3c0 2-1 4-2 5.5"/><path d="M9 12.5a5.5 5.5 0 0 1 9 4"/><path d="M6.5 10a8 8 0 0 1 13 3"/><path d="M4.5 7.5A11 11 0 0 1 12 4c2.5 0 4.8.8 6.7 2.2"/><path d="M8.5 16.5c-.5 1.5-1 2.5-1.5 3.5"/>',
+};
+function I(n,px){return `<svg class="isvg" style="width:${px||15}px;height:${px||15}px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICMAP[n]||''}</svg>`}
+
+/* ════════ ESCENARIOS ════════ */
+const ESCENARIOS=[
+ {key:'feliz',chip:'1 · Flujo feliz (OCR)',desc:'Cliente nuevo por OCR, estudio limpio, cupo express activado'},
+ {key:'t2',chip:'2 · Cliente existente',desc:'Existe sin cupo ni estudio vigente → verificar y actualizar datos'},
+ {key:'t8',chip:'3 · Cierre reciente',desc:'Estudio reciente cerrado no viable → no puede aplicar aún'},
+ {key:'difiere',chip:'4 · Nombre difiere',desc:'Diferencia documental → actualizar datos y re-evaluar'},
+ {key:'fraude',chip:'5 · Número no coincide',desc:'Documento distinto al digitado → Fraude / inconsistencia'},
+ {key:'abandono',chip:'6 · Se va sin tokenizar',desc:'Pausado → retoma re-digitando el documento'},
+ {key:'fabrica',chip:'7 · Identidad a revisión',desc:'Escalado a fábrica de soporte'},
+ {key:'ubica',chip:'8 · UBICA demorado',desc:'Llega a activación antes de que UBICA termine'},
+];
+
+/* ════════ 11 PASOS (nombres del documento) ════════ */
+const STEPS=[
+ {k:'ident',    cat:'Captura',  t:'Identificación del cliente',            sys:0},
+ {k:'tercero',  cat:'Captura',  t:'Creación del cliente',                  sys:0},
+ {k:'gestion',  cat:'Captura',  t:'Tipo de gestión y asesor',              sys:0},
+ {k:'token',    cat:'Captura',  t:'Iniciar estudio — T&C y token',         sys:0},
+ {k:'antec',    cat:'Estudio',  t:'Consulta de antecedentes',              sys:1},
+ {k:'presel',   cat:'Estudio',  t:'Validación de viabilidad — Preselecta', sys:1},
+ {k:'fosyga',   cat:'Estudio',  t:'Validación de cotización — FOSYGA',     sys:1},
+ {k:'cupo',     cat:'Estudio',  t:'Definición de cupo preliminar',         sys:1},
+ {k:'direccion',cat:'Estudio',  t:'Registro de dirección',                 sys:0},
+ {k:'identidad',cat:'Biometría',t:'Validación de identidad',               sys:0},
+ {k:'activa',   cat:'Cierre',   t:'Activación de cupo',                    sys:0},
+];
+
+const CLIENTE={nombre:'María Alejandra',apellido:'Rodríguez López',cc:'1.098.765.432',cel:'314 567 8901',correo:'maria.rodriguez@gmail.com',
+ nac:'1995-03-15',expCiudad:'Medellín',expFecha:'2013-04-02',depto:'Antioquia',ciudad:'Medellín',dir:'Cra 43A # 18-95 Apto 502',cupo:'$1,200,000'};
+
+const MESA=[
+ {id:'#1048',nombre:'Jorge Ramírez',cc:'80.221.443',est:['Rechazado','b-red'],fase:'Cierre',paso:'Rechazado',asesor:'1015425789',cupo:'—',min:0,ult:'2026-07-20 10:20'},
+ {id:'#1047',nombre:'Andrés Quintero',cc:'1.098.776.554',est:['Aprobado','b-green'],fase:'Cierre',paso:'Cupo activado',asesor:'52998477',cupo:'$4,900,000',min:0,ult:'2026-07-20 10:12'},
+ {id:'#1046',nombre:'Laura Daniela Pérez',cc:'43.778.901',est:['Pausado','b-lav'],fase:'Biometría',paso:'Validación de identidad',asesor:'1015425789',cupo:'$2,700,000',min:9,ult:'2026-07-20 10:05'},
+ {id:'#1045',nombre:'Carlos Martínez',cc:'79.554.120',est:['Escalado a fábrica','b-amber'],fase:'Fábrica',paso:'En revisión manual',asesor:'52998477',cupo:'$2,800,000',min:17,ult:'2026-07-20 09:58'},
+ {id:'#1044',nombre:'—',cc:'1.022.334.556',est:['En proceso','b-gray'],fase:'Captura',paso:'Creación del cliente',asesor:'1015425789',cupo:'—',min:2,ult:'2026-07-20 10:21'},
+ {id:'#1043',nombre:'Valentina Ortiz Pérez',cc:'1.005.321.789',est:['En autogestión','b-blue'],fase:'Biometría',paso:'Autogestión — flujo web',asesor:'1015425789',cupo:'$950,000',min:0,ult:'2026-07-20 09:47'},
+];
+
+/* ════════ ESTADO ════════ */
+const S={
+ esc:0,view:'mesa',vista:'tabla',
+ fichaOpen:false,tabOpen:false,identificado:false,
+ idx:0,ph:0,res:{},attn:false,
+ log:[],envios:[],clock:14*3600+30*60,waitStart:null,waitTimer:null,
+ ubica:'idle',ubicaT0:null,direccionOk:false,tercero:false,solicitud:false,asesorOk:false,
+ abandono:false,retoma:false,fotosOCR:false,autogestion:false,cerrada:null,re:{sms:false,ivr:false},
+};
+function esc(){return ESCENARIOS[S.esc]}
+function step(){return STEPS[S.idx]}
+function tick(s){S.clock+=s||35;let h=Math.floor(S.clock/3600);const m=Math.floor(S.clock%3600/60);
+ const ap=h>=12?'p. m.':'a. m.';h=h%12||12;return '20 de jul · '+h+':'+String(m).padStart(2,'0')+' '+ap}
+const TONO={'ok':'tb-ok','sys':'tb-sys','info':'tb-info','warn':'tb-warn','err':'tb-err'};
+const TGLIFO={ok:'✓',sys:'⚙',info:'i',warn:'!',err:'✕'};
+function addLog(tone,txt){
+ const p=txt.split(' — ');
+ S.log.unshift({t:tick(),tone,ti:p[0],de:p.slice(1).join(' — ')});
+ const sd=document.getElementById('sd-body');if(sd)sd.innerHTML=sucesosHTML();
+}
+function sucesosHTML(){
+ if(!S.log.length)return '<p class="suc-empty">Sin sucesos todavía.</p>';
+ return `<div class="suc-wrap">${[...S.log].reverse().map(l=>`
+  <div class="suc-item"><span class="suc-badge ${TONO[l.tone]}">${TGLIFO[l.tone]}</span>
+   <div class="suc-card"><div class="tx"><div class="ti">${l.ti}</div>${l.de?`<div class="de">${l.de}</div>`:''}</div>
+   <span class="tm">${l.t}</span></div></div>`).join('')}</div>`;
+}
+function quien(){
+ if(S.tercero)return {t:CLIENTE.nombre+' '+CLIENTE.apellido,corto:CLIENTE.nombre.split(' ')[0]+' '+CLIENTE.apellido.split(' ')[0],cc:'CC '+CLIENTE.cc};
+ if(S.identificado)return {t:'CC '+CLIENTE.cc,corto:'CC '+CLIENTE.cc,cc:'CC '+CLIENTE.cc};
+ return {t:'Nueva solicitud',corto:'Nueva solicitud',cc:'— sin identificar'};
+}
+function estadoActivo(){
+ if(S.cerrada)return S.cerrada==='Cupo activado'?['Aprobado','b-green']:['Rechazado','b-red'];
+ if(S.res.activa)return ['Aprobado','b-green'];
+ if(S.attn)return ['Escalado a fábrica','b-amber'];
+ if(S.autogestion)return ['En autogestión','b-blue'];
+ if(S.abandono)return ['Pausado','b-lav'];
+ return ['En proceso','b-gray'];
+}
+function fasePasoActivo(){
+ if(S.attn)return ['Fábrica','En revisión manual'];
+ if(S.cerrada&&S.cerrada!=='Cupo activado')return ['Cierre','Rechazado'];
+ if(S.res.activa)return ['Cierre','Cupo activado'];
+ if(S.autogestion)return ['Captura','Autogestión — flujo web'];
+ return [step().cat,step().t];
+}
+
+/* ════════ NAVEGACIÓN ════════ */
+function showMesa(){S.view='mesa';render()}
+function openFicha(){S.view='ficha';S.fichaOpen=true;S.tabOpen=true;
+ if(!S.waitStart){S.waitStart=Date.now();S.waitTimer=setInterval(updWait,1000)}
+ render()}
+function closeTab(e){e.stopPropagation();S.tabOpen=false;S.view='mesa';render()}
+function nuevaSolicitud(){resetFicha();openFicha()}
+function resetFicha(){S.idx=0;S.ph=0;S.res={};S.attn=false;S.log=[];S.envios=[];S.clock=14*3600+30*60;
+ clearInterval(S.waitTimer);S.waitStart=null;S.ubica='idle';S.ubicaT0=null;
+ S.direccionOk=false;S.tercero=false;S.solicitud=false;S.asesorOk=false;S.abandono=false;S.retoma=false;
+ S.fotosOCR=false;S.fF=false;S.fR=false;S.autogestion=false;S.cerrada=null;S.re={sms:false,ivr:false};S.fichaOpen=false;S.tabOpen=false;S.identificado=false}
+function resetAll(){resetFicha();S.view='mesa';render()}
+function setEsc(i){S.esc=i;resetFicha();S.view='mesa';renderEscBar();render();toast('Escenario: '+ESCENARIOS[i].chip)}
+function setVista(v){S.vista=v;render()}
+function setPh(p){S.ph=p;renderFicha()}
+function advance(k,resumen){S.res[k]=resumen;if(S.idx<STEPS.length-1){S.idx++;S.ph=0}
+ if(S.view==='ficha')renderFicha();else if(S.view==='mesa')render();
+ hooks()}
+/* pasos del sistema: se ejecutan solos al volverse actuales */
+const SYSFLOW={
+ antec:{ms:1600,res:'Sin registros vigentes — judiciales · disciplinarios · fiscales',log:['ok','Antecedentes — sin registros vigentes']},
+ presel:{ms:2000,res:'Viable · score 712 · riesgo bajo',log:['ok','Preselecta — viable · score 712 · riesgo bajo']},
+ fosyga:{manual:true,res:'No aplica — CC, 31 años',log:['ok','FOSYGA — no aplica (CC, 31 años)']},
+ cupo:{manual:true,res:'Cupo preliminar '+'$1,200,000',log:['ok','Cupo preliminar definido — $1,200,000']},
+};
+function sysResolve(){
+ const k=step().k,f=SYSFLOW[k];
+ if(!f||S.res[k])return;
+ addLog(f.log[0],f.log[1]);
+ if(k==='cupo'){startUbica();toast('Cupo preliminar definido — '+CLIENTE.cupo)}
+ sysRunning=null;
+ advance(k,f.res);
+}
+let sysRunning=null;
+function hooks(){
+ /* saltar pasos ya resueltos en paralelo (ej: dirección registrada durante FOSYGA/cupo) */
+ let skipped=false;
+ while(S.res[step().k]&&S.idx<STEPS.length-1){S.idx++;S.ph=0;skipped=true}
+ if(skipped&&S.view==='ficha')renderFicha();
+ const k=step().k;
+ if(STEPS[S.idx].sys&&!S.res[k]&&!SYSFLOW[k].manual&&sysRunning!==k){
+  sysRunning=k;
+  setTimeout(()=>{
+   if(S.cerrada||step().k!==k)return;
+   const f=SYSFLOW[k];
+   addLog(f.log[0],f.log[1]);
+   sysRunning=null;
+   advance(k,f.res);
+  },SYSFLOW[k].ms);
+ }
+ if(k==='activa'&&S.ubica==='done'&&S.ph===0&&S.view==='ficha')renderFicha();
+}
+function updWait(){const el=document.getElementById('wait-t');if(!el||!S.waitStart)return;
+ const s=Math.floor((Date.now()-S.waitStart)/1000)+7*60+42;
+ el.innerHTML=`<span class="esp ${s<600?'esp-g':s<1200?'esp-a':'esp-r'}"><span class="d"></span>${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}</span>`}
+function toast(txt){const c=document.getElementById('toasts');const d=document.createElement('div');
+ d.className='toast';d.innerHTML=`${I('bell',14)}${txt}`;c.appendChild(d);setTimeout(()=>d.remove(),4200)}
+function modal(html){document.getElementById('modal').innerHTML=html;document.getElementById('modal-bg').style.display='flex'}
+function closeModal(){document.getElementById('modal-bg').style.display='none'}
+function toggleGuia(){document.getElementById('guia').classList.toggle('open')}
+function toggleSucesos(){document.getElementById('suc-drawer').classList.toggle('open');
+ document.getElementById('sd-sub').textContent='Solicitud #1049 · '+quien().t.toLowerCase();
+ const sd=document.getElementById('sd-body');if(sd)sd.innerHTML=sucesosHTML()}
+
+/* ════════ RENDER ════════ */
+function render(){renderNavTabs();renderTitle();
+ if(S.view==='mesa')renderMesa();else renderFicha();renderGuia()}
+function renderNavTabs(){
+ const est=estadoActivo();
+ const dot={'b-green':'var(--green)','b-red':'var(--red)','b-amber':'var(--amber)','b-lav':'#6D5BD0','b-blue':'#0EA5E9','b-gray':'var(--violet)'}[est[1]];
+ document.getElementById('tabs').innerHTML=
+  `<div class="ntab ${S.view==='mesa'?'active':''}" onclick="showMesa()">${I('list',14)} Mesa de estudios</div>`+
+  (S.tabOpen?`<div class="ntab ${S.view==='ficha'?'active':''}" onclick="openFicha()">
+    <span class="dot" style="background:${dot}"></span><span class="idm">#1049</span>
+    ${quien().corto} · ${fasePasoActivo()[0]}
+    <button class="cls" onclick="closeTab(event)">✕</button></div>`:'');
+}
+function renderTitle(){
+ document.getElementById('titlebar').innerHTML=S.view==='mesa'?
+  `<h1>Mesa de estudios</h1>`:
+  `<span class="crumb" onclick="showMesa()">Mesa de estudios</span><span class="sepc">/</span>
+   <h1>#1049 — ${quien().t}</h1>`;
+}
+
+/* ════════ MESA ════════ */
+function mesaRows(){
+ const act=S.fichaOpen?[{id:'#1049',nombre:S.tercero?CLIENTE.nombre+' '+CLIENTE.apellido:'—',cc:S.identificado?CLIENTE.cc:'—',
+  est:estadoActivo(),fase:fasePasoActivo()[0],paso:fasePasoActivo()[1],asesor:S.asesorOk?'1015425789':'—',
+  cupo:S.res.cupo?CLIENTE.cupo:'—',min:8,ult:'hace un momento',activa:true}]:[];
+ return [...act,...MESA];
+}
+function renderMesa(){
+ const rows=mesaRows();
+ const n={tot:rows.length,pen:0,apr:0,rec:0,esca:0};
+ rows.forEach(r=>{if(r.est[0]==='Aprobado')n.apr++;else if(r.est[0]==='Rechazado')n.rec++;
+  else if(r.est[0]==='Escalado a fábrica')n.esca++;else n.pen++});
+ document.getElementById('content').innerHTML=`
+  <div class="stats">
+   <div class="stat"><div class="l">Total</div><div class="n">${n.tot}</div></div>
+   <div class="stat"><div class="l">Pendientes</div><div class="n v">${n.pen}</div></div>
+   <div class="stat"><div class="l">Aprobados</div><div class="n g">${n.apr}</div></div>
+   <div class="stat"><div class="l">Rechazados</div><div class="n r">${n.rec}</div></div>
+   <div class="stat"><div class="l">Escalados</div><div class="n a">${n.esca}</div></div>
+  </div>
+  <div class="toolbar">
+   <div class="search">${I('search',14)}<input placeholder="Buscar por cliente, NIT, estado..."></div>
+   <div class="grow"></div>
+   <div class="vtoggle"><button class="${S.vista==='tabla'?'on':''}" onclick="setVista('tabla')">${I('list',14)}</button><button class="${S.vista==='cards'?'on':''}" onclick="setVista('cards')">${I('grid',14)}</button></div>
+   <button class="btn btn-primary" onclick="nuevaSolicitud()">＋ Nueva solicitud</button>
+  </div>
+  ${S.vista==='tabla'?`
+  <table class="tb">
+   <thead><tr><th>ID <span class="ar">⇅</span></th><th>Cliente <span class="ar">⇅</span></th><th>Estado <span class="ar">⇅</span></th>
+   <th>Fase / Paso <span class="ar">⇅</span></th><th>Espera <span class="ar">⇅</span></th><th>Asesor <span class="ar">⇅</span></th>
+   <th>Cupo preap. <span class="ar">⇅</span></th><th>Última actividad <span class="ar">⇅</span></th></tr></thead>
+   <tbody>${rows.map(r=>`<tr class="row" onclick="openFicha()">
+    <td class="id">${r.id}</td>
+    <td class="cl"><b>${r.nombre}</b><span>${r.cc}</span></td>
+    <td><span class="badge ${r.est[1]}">${r.est[0]}</span></td>
+    <td class="fp"><b>${r.fase}</b><span>${r.paso}</span></td>
+    <td>${r.min>0?`<span class="esp ${r.min<5?'esp-g':r.min<15?'esp-a':'esp-r'}"><span class="d"></span>${r.min} min</span>`:'<span class="mono" style="color:var(--txt-3)">—</span>'}</td>
+    <td class="mono">${r.asesor}</td>
+    <td class="money">${r.cupo}</td>
+    <td class="dt">${r.ult}</td></tr>`).join('')}</tbody>
+  </table>`:`
+  <div class="mgrid">${rows.map(r=>`<div class="mcard" onclick="openFicha()">
+    <div class="top"><div><h3>${r.nombre}</h3><div class="cc">${r.id} · CC ${r.cc}</div></div>
+     <span class="badge ${r.est[1]}">${r.est[0]}</span></div>
+    <div class="fp"><b>${r.fase}</b> · ${r.paso}</div>
+    <div class="foot">${r.min>0?`<span class="esp ${r.min<5?'esp-g':r.min<15?'esp-a':'esp-r'}"><span class="d"></span>${r.min} min esperando</span>`:'<span></span>'}
+     <span class="money mono">${r.cupo}</span></div>
+   </div>`).join('')}</div>`}`;
+}
+
+/* ════════ FICHA ════════ */
+function renderFicha(){
+ document.getElementById('content').innerHTML=`
+  <div class="ficha-head">
+   <div class="who"><h2>${quien().t}</h2><div class="m">#1049 · ${quien().cc} · Caja 01</div></div>
+   <div class="kv"><div class="k">Estado</div><div class="v"><span class="badge ${estadoActivo()[1]}">${estadoActivo()[0]}</span></div></div>
+   <div class="kv"><div class="k">Espera en caja</div><div class="v" id="wait-t"><span class="esp esp-a"><span class="d"></span>7:42</span></div></div>
+   <div class="grow"></div>
+   <button class="btn btn-ghost" onclick="toggleSucesos()">${I('history',14)} Sucesos ${S.log.length?`<span style="font-size:10px;background:var(--violet-soft);color:var(--violet);border-radius:20px;padding:1px 7px;font-family:var(--mono)">${S.log.length}</span>`:''}</button>
+  </div>
+  ${turnoHTML()}
+  <div class="flow-grid">
+   <div class="stream">${streamHTML()}</div>
+   <aside class="rail">${railHTML()}</aside>
+  </div>`;
+ updWait();renderNavTabs();renderTitle();startTimers();
+}
+
+function turnoHTML(){
+ const ub=S.ubica==='run'?`<span class="badge b-blue">☁ UBICA en 2º plano · <span class="ub-t">${ubElapsed()}</span></span>`:'';
+ if(S.cerrada&&S.cerrada!=='Cupo activado')return `<div id="turno" class="tu-err">${I('alert',16)}<div>Solicitud cerrada — ${S.cerrada}</div></div>`;
+ if(S.res.activa)return `<div id="turno" class="tu-ok">${I('states',16)}<div>Cupo express activado — el cliente ya puede pagar en caja<div class="sub-t">Notificado por SMS y correo.</div></div></div>`;
+ if(S.attn)return `<div id="turno" class="tu-fab">${I('factory',16)}<div>En fábrica de soporte — en revisión manual<div class="sub-t">La solicitud retomará aquí cuando haya resolución.</div></div><div class="grow"></div>${ub}</div>`;
+ if(S.autogestion)return `<div id="turno" class="tu-cli">${I('whatsapp',16)}<div>Autogestión — enlace enviado al cliente<div class="sub-t">La solicitud continúa en el flujo web.</div></div></div>`;
+ if(S.abandono)return `<div id="turno" class="tu-cli">${I('user',16)}<div>Pausada — esperando que el cliente regrese</div></div>`;
+ const k=step().k;
+ if(k==='ident')return `<div id="turno" class="tu-asesor">${I('zap',16)}<div>Consulta el documento del cliente</div></div>`;
+ if(k==='tercero')return `<div id="turno" class="tu-asesor">${I('zap',16)}<div>Captura los datos del cliente</div></div>`;
+ if(k==='gestion')return `<div id="turno" class="tu-asesor">${I('zap',16)}<div>Define el tipo de gestión y valida tu identidad de asesor</div></div>`;
+ if(k==='token')return `<div id="turno" class="tu-cli">${I('phone',16)}<div>Con el cliente — aceptación de T&C y firma con token</div></div>`;
+ if(STEPS[S.idx].sys){const par=['fosyga','cupo'].includes(step().k)&&(!S.direccionOk||!S.res.identidad);
+  return `<div id="turno" class="tu-sis"><span class="spin-sm"></span><div>Turno del sistema — ${step().t.toLowerCase()}<div class="sub-t">${par?'Mientras el sistema termina, puedes registrar la dirección y lanzar la validación de identidad.':'Puedes volver a la mesa; te avisamos al terminar.'}</div></div><div class="grow"></div>${ub}</div>`}
+ if(k==='direccion')return `<div id="turno" class="tu-asesor">${I('pin',16)}<div>Registra la dirección de residencia del cliente</div></div><div class="grow"></div>${ub}`;
+ if(k==='identidad')return `<div id="turno" class="tu-cli">${I('camera',16)}<div>Con el cliente — validación de identidad y prueba de vida</div><div class="grow"></div>${ub}</div>`;
+ if(S.ubica!=='done')return `<div id="turno" class="tu-sis"><span class="spin-sm"></span><div>Turno del sistema — terminando definición de UBICA<div class="sub-t">Puedes volver a la mesa; te avisamos al terminar.</div></div><div class="grow"></div>${ub}</div>`;
+ return `<div id="turno" class="tu-cli">${I('mail',16)}<div>Con el cliente — token de correo para activar el cupo</div></div>`;
+}
+
+/* ════════ STREAM ════════ */
+function streamHTML(){
+ let html='';
+ STEPS.forEach((st,i)=>{
+  const done=!!S.res[st.k];
+  const cur=i===S.idx&&!S.cerrada&&!S.res.activa;
+  const attn=st.k==='identidad'&&S.attn;
+  if(attn){html+=stWrap('sb-warn pulse','!',EXP.identidad());return}
+  if(done){html+=stWrap('sb-ok','✓',`<div class="st-row"><div class="tx"><div class="ti">${st.t}</div>
+    <div class="re">${S.res[st.k]}</div></div></div>`);return}
+  if(cur){
+   const cls=st.sys||((st.k==='activa')&&S.ubica!=='done')?'sb-sis pulse':'sb-run pulse';
+   html+=stWrap(cls,i+1,EXP[st.k]());return}
+  /* dirección e identidad disponibles en paralelo mientras FOSYGA o cupo preliminar procesan */
+  if(st.k==='direccion'&&['fosyga','cupo'].includes(step().k)&&!S.cerrada){
+   html+=stWrap('sb-run pulse',i+1,EXP.direccion());return}
+  if(st.k==='identidad'&&['fosyga','cupo','direccion'].includes(step().k)&&!S.cerrada){
+   html+=stWrap('sb-run pulse',i+1,EXP.identidad());return}
+  html+=`<div class="st-item pend"><span class="st-badge sb-p">${i+1}</span>
+   <div class="st-row"><div class="tx"><div class="ti">${st.t}</div></div></div></div>`;
+ });
+ if(S.cerrada&&S.cerrada!=='Cupo activado')html+=stWrap('sb-err','✕',`<div class="st-card warn" style="border-color:#FECACA">
+  <h2>Solicitud cerrada</h2>
+  <div class="result r-err"><h3>✕ ${S.cerrada}</h3><p>${esc().key==='t8'?
+   'Existe un estudio de los últimos 90 días cerrado como <b>No viable centrales</b>. El cliente podrá intentarlo de nuevo más adelante.':
+   'El documento capturado no corresponde al digitado. La solicitud finaliza.'}</p></div>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="showMesa()">Volver a la mesa</button></div></div>`);
+ if(S.res.activa)html+=stWrap('sb-ok','✓',`<div class="st-card" style="border-color:#BBF7D0;text-align:center">
+  <div style="width:52px;height:52px;border-radius:50%;background:var(--green-bg);color:var(--green-tx);display:flex;align-items:center;justify-content:center;margin:4px auto 12px">${I('states',26)}</div>
+  <h2 style="justify-content:center">Cupo express aprobado</h2>
+  <div style="font-family:var(--mono);font-size:30px;font-weight:700;color:var(--green-tx);margin:8px 0 4px">${CLIENTE.cupo}</div>
+  <p style="font-size:12.5px;color:var(--txt-2)">Disponible de inmediato para pagar en caja · notificación enviada por SMS y correo</p>
+  <div class="btn-row" style="justify-content:center;margin-top:18px"><button class="btn btn-primary" onclick="showMesa()">Volver a la mesa</button></div></div>`);
+ return html;
+}
+function stWrap(badgeCls,glifo,inner){return `<div class="st-item"><span class="st-badge ${badgeCls}">${glifo}</span>${inner}</div>`}
+
+/* ════════ Contenido por paso ════════ */
+const EXP={
+/* 1 · Identificación del cliente */
+ident(){
+ if(S.retoma&&S.ph===2)return `<div class="st-card"><h2>Identificación del cliente</h2>
+  <div class="result r-info"><h3>${I('refresh',13)} Solicitud recuperada</h3><p>El cliente tenía un registro en curso. La información capturada se conserva — continúa en la firma con token.</p></div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="S.retoma=false;S.abandono=false;S.res.ident='CC ${CLIENTE.cc} · registro recuperado';S.res.tercero='${CLIENTE.nombre} ${CLIENTE.apellido.split(' ')[0]} · datos conservados';S.res.gestion='Asistida en tienda · asesor 1015425789';S.idx=3;S.ph=0;addLog('info','Registro recuperado — retoma en T&C y token');renderFicha()">Retomar donde quedó →</button></div></div>`;
+ if(S.ph===0)return `<div class="st-card"><h2>Identificación del cliente</h2>
+  <div class="f2">
+   <div class="field"><label>Tipo de documento</label><select><option>CC — Cédula de ciudadanía</option><option>CE</option><option>PPT</option></select></div>
+   <div class="field"><label>Número de documento</label><input id="doc-num" placeholder="Digite el número"></div>
+  </div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="const n=document.getElementById('doc-num');if(n&&!n.value)n.value='${CLIENTE.cc}';S.identificado=true;setPh(1);setTimeout(()=>{if(step().k==='ident'&&S.ph===1)setPh(2)},1400)">Consultar →</button></div></div>`;
+ if(S.ph===1)return `<div class="st-card sis"><div class="wait-mini"><div class="spinner"></div><p>Consultando existencia y estado del cliente…</p></div></div>`;
+ if(esc().key==='t8')return `<div class="st-card"><h2>Identificación del cliente</h2>
+  <div class="result r-err"><h3>✕ No puede aplicar por ahora</h3><p>Existe un estudio reciente cerrado como <b>No viable centrales</b> que no permite retomar.</p></div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="S.tercero=true;S.cerrada='No aplica — cierre reciente';addLog('err','Identificación — estudio reciente no viable, no puede aplicar');renderFicha()">Ver detalle →</button></div></div>`;
+ if(esc().key==='t2')return `<div class="st-card"><h2>Identificación del cliente</h2>
+  <div class="result r-info"><h3>${I('user',13)} Cliente existente</h3><p>${CLIENTE.nombre} ${CLIENTE.apellido} ya está registrado, sin cupo vigente ni estudio en curso.</p></div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="S.tercero=true;addLog('ok','Identificación — cliente existente, sin novedades');advance('ident','CC ${CLIENTE.cc} · cliente existente')">Verificar y actualizar datos →</button></div></div>`;
+ return `<div class="st-card"><h2>Identificación del cliente</h2>
+  <div class="result r-ok"><h3>✓ Cliente nuevo</h3><p>El documento no está registrado. Puede continuar con la creación del cliente.</p></div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="addLog('ok','Identificación — cliente nuevo');advance('ident','CC ${CLIENTE.cc} · cliente nuevo')">Crear cliente →</button></div></div>`;
+}
+,
+/* 2 · Creación del cliente (incluye validación de contacto) */
+tercero(){
+ const t2=esc().key==='t2';
+ if(S.ph===0&&!t2)return `<div class="st-card"><h2>Creación del cliente</h2>
+  <div class="choice2">
+   <div class="choice" onclick="setPh(1)">
+    <div class="ic">${I('camera',24)}</div><h4>Mediante OCR</h4><p>Captura del documento y extracción automática</p></div>
+   <div class="choice" onclick="setPh(3)"><div class="ic">${I('keyboard',24)}</div><h4>Manual</h4><p>Ingreso manual de los datos</p></div>
+  </div></div>`;
+ if(S.ph===1)return `<div class="st-card"><h2>Creación del cliente — Fotos del documento</h2>
+  <p class="sub">Capture ambas caras del documento con la cámara del punto de venta.</p>
+  <div class="docs2">
+   <div class="doccard ${S.fF?'ok':'click'}" ${S.fF?'':`onclick="pickFoto('f')"`}>
+    <div class="ced"><div class="h"><span style="width:7px;height:7px;border-radius:50%;background:var(--line);display:inline-block"></span>REPÚBLICA DE COLOMBIA</div>
+     <div class="row"><span class="ava">${I('user',13)}</span><div style="flex:1"><div class="ln" style="width:85%"></div><div class="ln" style="width:65%"></div><div class="ln" style="width:75%"></div></div></div>
+     <div class="cc">CC ${CLIENTE.cc}</div></div>
+    <h5>Cara frontal</h5><p>Foto, datos personales y número CC</p>
+    <div class="st">${S.fF?'✓ Cargada':`${I('camera',12)} Capturar`}</div></div>
+   <div class="doccard ${S.fR?'ok':'click'}" ${S.fR?'':`onclick="pickFoto('r')"`}>
+    <div class="ced"><div class="h">REGISTRADURÍA NACIONAL</div>
+     <div class="row"><span class="ava">${I('fingerprint',13)}</span><div class="bar" style="flex:1"></div></div>
+     <div class="ln" style="width:55%;margin-top:8px"></div></div>
+    <h5>Cara posterior</h5><p>Huella dactilar y código de barras</p>
+    <div class="st">${S.fR?'✓ Cargada':`${I('camera',12)} Capturar`}</div></div>
+  </div>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="setPh(0)">← Cambiar método</button>
+  <button class="btn btn-primary" ${S.fF&&S.fR?'':'disabled'}
+   onclick="S.fotosOCR=true;setPh(2);addLog('sys','OCR en proceso — extrayendo datos del documento');setTimeout(()=>{if(step().k==='tercero'&&S.ph===2){setPh(3);addLog('sys','OCR completado — datos extraídos')}},1600)">Procesar con OCR ▶</button></div></div>`;
+ if(S.ph===2)return `<div class="st-card sis"><div class="wait-mini"><div class="spinner"></div><p>Procesando imágenes del documento…</p></div></div>`;
+ if(S.ph===9)return `<div class="st-card sis"><div class="wait-mini"><div class="spinner"></div><p>Validando contacto…</p></div></div>`;
+ return `<div class="st-card"><h2>${t2?'Verificar y actualizar datos':'Creación del cliente'}</h2>
+  ${S.fotosOCR?`<p class="sub">Datos extraídos del documento — permita la edición antes de guardar.</p>`:''}
+  <div class="sec">Datos personales</div>
+  <div class="f3">
+   <div class="field"><label>Número de documento</label><input value="${CLIENTE.cc}"></div>
+   <div class="field"><label>Nombres</label><input value="${CLIENTE.nombre}"></div>
+   <div class="field"><label>Apellidos</label><input value="${CLIENTE.apellido}"></div>
+   <div class="field"><label>Fecha de nacimiento</label><input value="${CLIENTE.nac}"></div>
+   <div class="field"><label>Ciudad de expedición</label><input value="${CLIENTE.expCiudad}"></div>
+   <div class="field"><label>Fecha de expedición</label><input value="${CLIENTE.expFecha}"></div>
+  </div>
+  <div class="sec">Contacto</div>
+  <div class="f2">
+   <div class="field"><label>Celular</label><input value="${CLIENTE.cel}"></div>
+   <div class="field"><label>Correo electrónico</label><input value="${CLIENTE.correo}"></div>
+  </div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="setPh(9);setTimeout(()=>{if(step().k==='tercero'){S.tercero=true;addLog('ok','Cliente ${t2?'actualizado':'creado'} — contacto validado disponible');advance('tercero','${CLIENTE.nombre} ${CLIENTE.apellido.split(' ')[0]} · contacto validado ✓')}},1300)">${t2?'Confirmar datos →':'Guardar cliente →'}</button></div></div>`;
+}
+,
+/* 3 · Tipo de gestión y asesor */
+gestion(){
+ if(S.ph===0)return `<div class="st-card"><h2>Tipo de gestión</h2>
+  <p class="sub">¿El cliente realizará autogestión?</p>
+  <div class="choice2">
+   <div class="choice" onclick="setPh(1)"><div class="ic">${I('zap',24)}</div><h4>Gestión asistida en tienda</h4><p>El asesor acompaña todo el proceso</p></div>
+   <div class="choice" onclick="S.autogestion=true;addLog('sys','Enlace de autogestión generado y enviado por WhatsApp — ••• ${CLIENTE.cel.slice(-4)}');renderFicha()"><div class="ic">${I('whatsapp',24)}</div><h4>Autogestión</h4><p>Generar y enviar enlace al cliente</p></div>
+  </div>
+  ${S.autogestion?`<div class="result r-info"><h3>${I('whatsapp',13)} Enlace enviado</h3><p>El cliente continúa el proceso desde su celular. La gestión en tienda finaliza.</p></div>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="showMesa()">Volver a la mesa</button></div>`:''}</div>`;
+ return `<div class="st-card"><h2>Asignar asesor</h2>
+  <div class="f2">
+   <div class="field"><label>Código de asesor ${S.asesorOk?'<span class="ok-inline">✓ Carlos Mejía</span>':''}</label><input value="1015425789" ${S.asesorOk?'disabled':''}></div>
+   <div class="field"><label>Validación facial</label>
+    ${S.asesorOk?'<span class="ok-inline" style="font-size:12px">✓ Rostro verificado</span>':`<button class="btn btn-outline" onclick="modalAsesor(0)">${I('camera',14)} Validar rostro</button>`}</div>
+  </div>
+  <div class="btn-row"><button class="btn btn-primary" ${S.asesorOk?'':'disabled'}
+   onclick="advance('gestion','Asistida en tienda · asesor 1015425789 ✓')">Continuar →</button></div></div>`;
+}
+,
+/* 4 · Iniciar estudio — T&C y token */
+token(){
+ if(S.abandono)return `<div class="st-card warn"><h2>Iniciar estudio — T&C y token</h2>
+  <div class="result r-info"><h3>${I('user',13)} Solicitud pausada</h3><p>El cliente se retiró antes de firmar. Al regresar, se retoma desde la identificación con los datos conservados.</p></div>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="showMesa()">Volver a la mesa</button>
+  <button class="btn btn-primary" onclick="S.retoma=true;S.idx=0;S.ph=1;renderFicha();setTimeout(()=>{if(step().k==='ident')setPh(2)},1400)">El cliente regresó →</button></div></div>`;
+ const waGate=S.re.sms&&S.re.ivr;
+ if(S.ph===0)return `<div class="st-card"><h2>Iniciar estudio — T&C y token</h2>
+  <div class="chk"><input type="checkbox" checked><span>El cliente acepta los <b>Términos y Condiciones</b> del crédito QUAC</span></div>
+  <div class="chk"><input type="checkbox" checked><span>El cliente acepta la <b>Política de tratamiento de datos</b></span></div>
+  <div class="field" style="margin-top:8px"><label>Canal de envío del token</label>
+   <div class="canales">
+    <div class="canal ${canalSel==='SMS'?'sel':''}" onclick="selCanal('SMS')">SMS</div>
+    <div class="canal ${canalSel==='IVR'?'sel':''}" onclick="selCanal('IVR')">IVR (llamada)</div>
+    <div class="canal ${canalSel==='WhatsApp'?'sel':''} ${waGate?'':'dis'}" onclick="selCanal('WhatsApp')">WhatsApp</div>
+   </div></div>
+  ${enviosHTML()}
+  <div class="btn-row"><button class="btn btn-primary" onclick="envioPush(canalSel);setPh(1)">Enviar token →</button>
+  ${esc().key==='abandono'?`<button class="btn btn-ghost" onclick="S.abandono=true;addLog('warn','El cliente se retiró sin firmar — solicitud pausada');renderFicha()">El cliente se retiró</button>`:''}</div></div>`;
+ return `<div class="st-card"><h2>Iniciar estudio — T&C y token</h2>
+  <div class="result r-tok"><h3>${I('phone',13)} Token enviado al celular ••• ${CLIENTE.cel.slice(-4)}</h3>
+  <p>Se envió un código de 6 dígitos por ${canalSel}. Solicite el código al cliente y digítelo a continuación.</p></div>
+  <div class="otp-row" id="otp-cel">${[0,1,2,3,4,5].map(()=>`<input class="otp" maxlength="1">`).join('')}</div>
+  <div class="btn-row" style="margin-top:4px">
+   <button class="btn btn-ghost" onclick="fillOtp('otp-cel','472918')">Llenar demo</button>
+   <span style="font-size:12px;color:var(--txt-3)">¿No recibió el token?</span>
+   <button class="link" onclick="envioPush('SMS');renderFicha()">Reenviar SMS</button>
+   <button class="link" onclick="envioPush('IVR');renderFicha()">Llamada</button>
+   <button class="link" ${waGate?'':'disabled style="opacity:.4"'} onclick="envioPush('WhatsApp');renderFicha()">WhatsApp</button></div>
+  ${enviosHTML()}
+  <div class="btn-row"><button class="btn btn-primary" onclick="S.solicitud=true;addLog('ok','Token validado — solicitud #1049 creada · estudio iniciado');advance('token','Firmado vía ${canalSel} · solicitud creada')">Verificar token →</button></div></div>`;
+}
+,
+/* 5–8 · pasos del sistema */
+antec(){return sysCard('Consulta de antecedentes','Antecedentes judiciales, disciplinarios y fiscales')},
+presel(){return sysCard('Validación de viabilidad — Preselecta','Evaluando viabilidad crediticia en centrales de riesgo')},
+fosyga(){return sysCard('Validación de cotización — FOSYGA','Consultando cotización reciente en seguridad social',true)},
+cupo(){return sysCard('Definición de cupo preliminar','Calculando el cupo según las variables del estudio',true)},
+/* 9 · Registro de dirección (disponible en paralelo desde FOSYGA) */
+direccion(){
+ return `<div class="st-card"><h2>Registro de dirección</h2>
+  <div class="f2"><div class="field"><label>Departamento</label><select><option>Antioquia</option></select></div>
+  <div class="field"><label>Ciudad</label><input value="${CLIENTE.ciudad}"></div></div>
+  <div class="field"><label>Dirección de residencia</label><input value="${CLIENTE.dir}"></div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="guardarDireccion()">Guardar dirección →</button></div></div>`;
+}
+,
+/* 10 · Validación de identidad */
+identidad(){
+ if(S.attn)return `<div class="st-card warn"><h2>Validación de identidad</h2>
+  <div class="result r-warn"><h3>${I('factory',13)} En revisión manual</h3><p>La verificación requiere revisión del equipo de soporte. La solicitud queda activa y retomará aquí.</p></div>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="showMesa()">Volver a la mesa</button>
+   <button class="btn btn-outline" onclick="S.attn=false;addLog('ok','Fábrica de soporte — verificación aprobada');toast('Fábrica resolvió — la solicitud continúa');completarIdentidad('Soportes verificados · aprobada por soporte')">Revisión resuelta →</button></div></div>`;
+ if(S.ph===1)return `<div class="st-card"><h2>Validación de identidad</h2>
+  <div class="result r-tok"><h3>${I('whatsapp',13)} Enlace enviado por WhatsApp al ••• ${CLIENTE.cel.slice(-4)}</h3>
+  <p>El cliente realiza la prueba de vida y la captura desde su celular.</p></div>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="showMesa()">Volver a la mesa</button>
+  <button class="btn btn-primary" onclick="modalVida(3)">El cliente completó el proceso →</button></div></div>`;
+ return `<div class="st-card"><h2>Validación de identidad</h2>
+  <div class="sec">Fotos del documento de identidad</div>
+  <div class="docs2">
+   <div class="doccard ${S.fotosOCR?'ok':''}">
+    <div class="ced"><div class="h"><span style="width:7px;height:7px;border-radius:50%;background:var(--line);display:inline-block"></span>REPÚBLICA DE COLOMBIA</div>
+     <div class="row"><span class="ava">${I('user',13)}</span><div style="flex:1"><div class="ln" style="width:85%"></div><div class="ln" style="width:65%"></div><div class="ln" style="width:75%"></div></div></div>
+     <div class="cc">CC ${CLIENTE.cc}</div></div>
+    <h5>Cara frontal</h5><p>Foto, datos personales y número CC</p>
+    <div class="st">${S.fotosOCR?'✓ Cargada (OCR)':'Pendiente'}</div></div>
+   <div class="doccard ${S.fotosOCR?'ok':''}">
+    <div class="ced"><div class="h">REGISTRADURÍA NACIONAL</div>
+     <div class="row"><span class="ava">${I('fingerprint',13)}</span><div class="bar" style="flex:1"></div></div>
+     <div class="ln" style="width:55%;margin-top:8px"></div></div>
+    <h5>Cara posterior</h5><p>Huella dactilar y código de barras</p>
+    <div class="st">${S.fotosOCR?'✓ Cargada (OCR)':'Pendiente'}</div></div>
+  </div>
+  <div class="sec">Prueba de vida</div>
+  <div class="btn-row" style="margin-top:2px">
+   <button class="btn btn-primary" onclick="modalVida(0)">${I('camera',14)} ${S.fotosOCR?'Iniciar prueba de vida':'Iniciar verificación fotos cédula'} ▶</button>
+   <button class="btn btn-outline" onclick="S.ph=1;addLog('sys','Enlace de validación enviado por WhatsApp — ••• ${CLIENTE.cel.slice(-4)}');renderFicha()">${I('whatsapp',14)} Enviar enlace al cliente</button>
+  </div></div>`;
+}
+,
+/* 11 · Activación de cupo */
+activa(){
+ if(S.ubica!=='done')return `<div class="st-card sis"><h2>${I('states',15)} Activación de cupo</h2>
+  <p class="sub">Esperando la definición de UBICA para activar. El estudio se lanzó desde la definición de cupo y continúa en segundo plano.</p>
+  <div class="wait-mini"><div class="spinner"></div>
+  <div class="timer">⏱ <span class="ub-t">${ubElapsed()}</span></div></div>
+  <div class="btn-row" style="justify-content:center"><button class="btn btn-ghost" onclick="showMesa()">Volver a la mesa</button>
+   <button class="btn btn-primary" onclick="ubicaDone()">Simular respuesta</button></div></div>`;
+ if(S.ph===0)return `<div class="st-card"><h2>Definición de UBICA</h2>
+  <p class="sub">Decidir si el contacto actual es consistente con lo que UBICA conoce.</p>
+  <div class="result r-ok"><h3>Ok UBICA (cel y correo)</h3>
+  <p>Celular y correo tienen antigüedad mayor a 4 meses y actualización reciente. El flujo continúa sin intervención humana.</p></div>
+  <table class="kvt">
+   <tr><td>Celular</td><td><span class="badge b-green">Coincide</span><span class="mono">${CLIENTE.cel.replace(/ /g,'')}</span></td></tr>
+   <tr><td>Correo</td><td><span class="badge b-green">Coincide</span><span class="mono">${CLIENTE.correo}</span></td></tr>
+   <tr><td>Dirección</td><td><span class="badge b-green">Coincide</span></td></tr>
+  </table>
+  <div class="result r-tok"><h3>${I('mail',13)} Tokenización de correo electrónico</h3>
+  <p>Para activar el cupo express se requiere verificar el correo electrónico del cliente. Se enviará un token de 6 dígitos a <b>${CLIENTE.correo}</b>.</p>
+  <div class="btn-row" style="margin-top:10px"><button class="btn btn-primary" onclick="addLog('sys','Token enviado al correo — ${CLIENTE.correo}');setPh(1)">Enviar token al correo ▶</button></div></div></div>`;
+ if(S.ph===1)return `<div class="st-card"><h2 style="justify-content:center;text-align:center;display:block">
+  <div style="width:46px;height:46px;border-radius:50%;background:var(--violet-soft);color:var(--violet);display:flex;align-items:center;justify-content:center;margin:0 auto 10px">${I('mail',20)}</div>
+  Tokenización de correo y activación de cupo express</h2>
+  <p class="sub" style="text-align:center">El celular ya fue tokenizado en el paso 4. Aquí solo falta tokenizar el correo.</p>
+  <div class="result r-tok"><h3>Token enviado a ${CLIENTE.correo}</h3>
+  <p>Se envió un código de 6 dígitos al correo del cliente. Solicite el código y digítelo a continuación.</p>
+  <div class="otp-row" id="otp-mail" style="justify-content:center">${[0,1,2,3,4,5].map(()=>`<input class="otp" maxlength="1">`).join('')}</div></div>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="fillOtp('otp-mail','835172')">Llenar demo</button>
+   <span style="font-size:12px;color:var(--txt-3)">¿No recibió el token?</span>
+   <button class="link" onclick="addLog('sys','Token de correo reenviado — ${CLIENTE.correo}');toast('Token reenviado al correo')">Reenviar</button></div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="setPh(2);setTimeout(()=>{if(step().k==='activa'){addLog('ok','Cupo express activado — ${CLIENTE.cupo}');S.res.activa='Cupo express aprobado · ${CLIENTE.cupo}';toast('Cupo express activado');renderFicha()}},1800)">Verificar token ▶</button></div></div>`;
+ return `<div class="st-card sis"><div class="wait-mini"><div class="spinner"></div><p>Verificando token y activando el cupo…</p></div></div>`;
+}
+};
+function sysCard(titulo,desc,manual){
+ return `<div class="st-card sis"><h2>${I('states',15)} ${titulo}</h2>
+  <div class="wait-mini"><div class="spinner"></div><p>${desc}…</p></div>
+  ${manual?`<div class="btn-row" style="justify-content:center"><button class="btn btn-primary" onclick="sysResolve()">Simular respuesta</button></div>`:''}</div>`;
+}
+
+/* ════════ RAIL ════════ */
+function railHTML(){
+ const emp='<span class="v emp">—</span>';
+ const up=!!S.res.identidad||S.attn;
+ return `
+  <div class="rcard"><h4>${I('folder',13)} Solicitud</h4>
+   <div class="rkv"><span class="k">ID</span><span class="v mono">${S.solicitud?'#1049':'— preliminar'}</span></div>
+   <div class="rkv"><span class="k">Canal</span><span class="v">Tienda · Caja 01</span></div>
+   <div class="rkv"><span class="k">Asesor</span>${S.asesorOk?'<span class="v mono">1015425789</span>':emp}</div>
+   <div class="rkv"><span class="k">Estado</span><span class="v"><span class="badge ${estadoActivo()[1]}">${estadoActivo()[0]}</span></span></div>
+  </div>
+  <div class="rcard"><h4>${I('user',13)} Cliente</h4>
+   <div class="rkv"><span class="k">Documento</span>${S.identificado?`<span class="v mono">CC ${CLIENTE.cc}</span>`:emp}</div>
+   <div class="rkv"><span class="k">Nombre</span>${S.tercero?`<span class="v">${CLIENTE.nombre} ${CLIENTE.apellido.split(' ')[0]}.</span>`:emp}</div>
+   <div class="rkv"><span class="k">Nacimiento</span>${S.tercero?`<span class="v mono">${CLIENTE.nac}</span>`:emp}</div>
+   <div class="rkv"><span class="k">Celular</span>${S.tercero?`<span class="v mono">${CLIENTE.cel}</span>`:emp}</div>
+   <div class="rkv"><span class="k">Correo</span>${S.tercero?`<span class="v" style="font-size:11px">${CLIENTE.correo}</span>`:emp}</div>
+   <div class="rkv"><span class="k">Dirección</span>${S.direccionOk?`<span class="v" style="font-size:11px">${CLIENTE.dir}</span>`:emp}</div>
+  </div>
+  <div class="rcard"><h4>${I('wallet',13)} Crédito</h4>
+   <div class="rkv"><span class="k">Antecedentes</span>${S.res.antec?'<span class="v">Sin registros ✓</span>':emp}</div>
+   <div class="rkv"><span class="k">Score</span>${S.res.presel?'<span class="v mono">712 · riesgo bajo</span>':emp}</div>
+   <div class="rkv"><span class="k">FOSYGA</span>${S.res.fosyga?'<span class="v">No aplica</span>':emp}</div>
+   <div class="rkv"><span class="k">Cupo preliminar</span>${S.res.cupo?`<span class="v mono">${CLIENTE.cupo}</span>`:emp}</div>
+   <div class="rkv"><span class="k">UBICA</span>${S.ubica==='done'?'<span class="v">Ok cel y correo ✓</span>':S.ubica==='run'?'<span class="v" style="color:var(--blue-tx)">En 2º plano…</span>':emp}</div>
+  </div>
+  <div class="rcard"><h4>${I('camera',13)} Soportes</h4>
+   <div class="sop ${S.fotosOCR||up?'up':''}"><span class="th">${I('idcard',14)}</span>Doc. frontal<span class="st">${S.fotosOCR||up?'cargada':'—'}</span></div>
+   <div class="sop ${S.fotosOCR||up?'up':''}"><span class="th">${I('refresh',14)}</span>Doc. reverso<span class="st">${S.fotosOCR||up?'cargada':'—'}</span></div>
+   <div class="sop ${up?'up':''}"><span class="th">${I('phone',14)}</span>Selfie / liveness<span class="st">${up?'en revisión':'—'}</span></div>
+  </div>`;
+}
+
+/* ════════ Sub-flujos ════════ */
+let canalSel='SMS';
+function selCanal(c){if(c==='WhatsApp'&&!(S.re.sms&&S.re.ivr))return;canalSel=c;renderFicha()}
+function envioPush(c){S.envios.unshift({t:tick(),c});if(c==='SMS')S.re.sms=true;if(c==='IVR')S.re.ivr=true;
+ addLog('sys','Token enviado vía '+c+' — celular ••• '+CLIENTE.cel.slice(-4))}
+function enviosHTML(){return S.envios.length?`<div class="envios"><h4>Envíos</h4>
+ ${S.envios.map(e=>`<div class="envio"><span class="t">${e.t}</span>Token → ${e.c} · celular ••• ${CLIENTE.cel.slice(-4)}</div>`).join('')}</div>`:''}
+function fillOtp(id,code){const box=document.getElementById(id);if(!box)return;
+ [...box.querySelectorAll('input')].forEach((el,i)=>el.value=code[i]||'')}
+/* carga de fotos del documento: abre el explorador de archivos nativo; el archivo elegido
+   solo marca la cara como cargada (no se lee ni se sube nada en el mockup) */
+let pickTarget=null;
+function pickFoto(t){pickTarget=t;const i=document.getElementById('file-pick');if(!i)return;i.value='';i.click()}
+function onFotoPicked(e){
+ const f=e&&e.target&&e.target.files&&e.target.files[0];
+ if(!f||!pickTarget)return;
+ if(pickTarget==='f'){S.fF=true;addLog('sys','Foto frontal del documento cargada — '+f.name)}
+ else{S.fR=true;addLog('sys','Foto posterior del documento cargada — '+f.name)}
+ pickTarget=null;renderFicha();
+}
+function guardarDireccion(){
+ S.direccionOk=true;addLog('ok','Dirección registrada — '+CLIENTE.ciudad);
+ const resumen=CLIENTE.dir+' · '+CLIENTE.ciudad;
+ if(step().k==='direccion'){advance('direccion',resumen)}
+ else{S.res.direccion=resumen;renderFicha()}
+}
+function completarIdentidad(resumen){
+ if(step().k==='identidad'){advance('identidad',resumen)}
+ else{S.res.identidad=resumen;renderFicha();hooks()}
+}
+
+let ubInt=null;
+function startUbica(){
+ if(S.ubica!=='idle')return;
+ S.ubica='run';S.ubicaT0=Date.now();
+ addLog('sys','Definición de UBICA lanzada en 2º plano');
+ if(esc().key!=='ubica')setTimeout(()=>ubicaDone(true),22000);
+}
+function ubicaDone(silent){
+ if(S.ubica==='done')return;
+ S.ubica='done';
+ addLog('ok','Definición de UBICA — Ok UBICA (cel y correo)');
+ if(!silent)toast('UBICA finalizó — resultado disponible');
+ if(S.view==='ficha')renderFicha();else render();
+}
+function ubElapsed(){if(!S.ubicaT0)return '0 seg';const s=Math.floor((Date.now()-S.ubicaT0)/1000);
+ return s<60?s+' seg':Math.floor(s/60)+' min '+s%60+' seg'}
+function startTimers(){clearInterval(ubInt);
+ ubInt=setInterval(()=>{document.querySelectorAll('.ub-t').forEach(el=>el.textContent=ubElapsed())},1000)}
+
+/* modales de cámara */
+function modalAsesor(p){
+ if(p===0)return modal(`<h2>Validación facial del asesor</h2><p class="sub">1015425789 · Carlos Mejía — mira a la cámara</p>
+  <div class="cam"><div class="face">${I('user',44)}</div><div class="gesto">Encuadra tu rostro en la guía</div></div>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+  <button class="btn btn-primary" onclick="modalAsesor(1)">Capturar y validar →</button></div>`);
+ modal(`<h2>Asesor validado</h2>
+  <div class="result r-ok"><h3>✓ 1015425789 · Carlos Mejía</h3><p>Validación facial superada.</p></div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="closeModal();S.asesorOk=true;addLog('ok','Asesor 1015425789 validado — código + rostro');renderFicha()">Continuar</button></div>`);
+}
+function modalVida(p){
+ if(p===0)return modal(`<h2>${S.fotosOCR?'Prueba de vida':'Verificación de fotos y prueba de vida'}</h2><p class="sub">Gira la pantalla o la cámara hacia el cliente</p>
+  <div class="cam"><div class="face">${I('user',44)}</div><div class="gesto">Cliente: mira a la cámara y sigue las instrucciones</div></div>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+  <button class="btn btn-primary" onclick="modalVida(1)">Iniciar captura →</button></div>`);
+ if(p===1)return modal(`<h2>Prueba de vida</h2><p class="sub">Siguiendo gestos…</p>
+  <div class="cam"><div class="face">${I('refresh',44)}</div><div class="gesto">"Gira lentamente la cabeza a la derecha… ahora sonríe"</div></div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="addLog('sys','Prueba de vida capturada — gestos completados');modalVida(2);setTimeout(()=>modalVida(3),2400)">Gestos completados →</button></div>`);
+ if(p===2)return modal(`<div class="wait-panel"><div class="spinner"></div><h3>Procesando…</h3><p>Enviando verificación al sistema${S.fotosOCR?'':' · capturando frontal y reverso'}</p></div>`);
+ const falla=esc().key==='fabrica';
+ modal(`<h2>Verificación enviada</h2>
+  <div class="result ${falla?'r-warn':'r-ok'}"><h3>${falla?'! Requiere revisión adicional':'✓ Verificación procesada'}</h3>
+  <p>${falla?'La verificación pasó a revisión del equipo de soporte.':'Soportes cargados y verificación procesada por el sistema.'}</p></div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="closeModal();vidaResult(${falla})">Continuar</button></div>`);
+}
+function vidaResult(falla){
+ addLog('sys','Verificación de identidad enviada — selfie + frontal + reverso');
+ if(esc().key==='difiere'){
+  addLog('info','Verificación documental — el nombre difiere; datos actualizados con la información del documento');
+  toast('Datos actualizados desde el documento — re-evaluando viabilidad');
+  setTimeout(()=>{addLog('ok','Viabilidad re-evaluada — continúa');toast('Re-evaluación completada');
+   completarIdentidad('Soportes verificados · nombre corregido · re-evaluado')},2400);
+  renderFicha();return}
+ if(esc().key==='fraude'){
+  addLog('err','Verificación documental — tipo y número no coinciden; la solicitud finaliza');
+  S.cerrada='Fraude / inconsistencia';renderFicha();return}
+ if(falla){S.attn=true;addLog('warn','Validación de identidad — escalada a fábrica de soporte');renderFicha();return}
+ completarIdentidad('Soportes verificados por el sistema ✓');
+}
+
+/* ════════ GUÍA ════════ */
+const GUIA={
+ mesa:['Mesa de estudios',`<p>Tabla de solicitudes de la tienda con espera en caja (semáforo). Clic en una fila abre su pestaña.</p>`],
+ ficha:['El expediente',`<p>Los 11 pasos del documento en un solo lienzo: <b>1</b> Identificación · <b>2</b> Creación del cliente (con validación de contacto) · <b>3</b> Tipo de gestión y asesor (facial obligatoria) · <b>4</b> T&C y token · <b>5–8</b> antecedentes, Preselecta, FOSYGA y cupo (el sistema los corre en cascada; en el paso 8 se suelta UBICA en 2º plano) · <b>9</b> dirección · <b>10</b> identidad (fotos cédula + prueba de vida aquí o por enlace WhatsApp) · <b>11</b> activación (espera UBICA → resultado → token al correo → cupo express).</p>
+ <p>El banner superior dice de quién es el turno; el chip azul muestra UBICA mientras corre; el rail acumula el expediente.</p>
+ <p><span class="g-cite">FLUJO_CREDITOS_V3</span> <span class="g-cite">API-ACTIVACION-V2</span></p>`],
+};
+function renderGuia(){
+ const g=S.view==='mesa'?GUIA.mesa:GUIA.ficha;
+ document.getElementById('g-title').textContent=g[0];
+ document.getElementById('g-body').innerHTML=`<p style="font-size:11px;color:#8F86B8">Escenario: <b style="color:#fff">${esc().chip}</b> — ${esc().desc}</p><hr style="border-color:#2C2850;margin:10px 0">`+g[1];
+}
+
+/* ════════ INIT ════════ */
+function renderEscBar(){document.getElementById('esc-chips').innerHTML=ESCENARIOS.map((e,i)=>
+ `<button class="esc-chip ${i===S.esc?'on':''}" onclick="setEsc(${i})">${e.chip}</button>`).join('')}
+renderEscBar();
+document.querySelectorAll('[data-ic]').forEach(el=>{el.innerHTML=I(el.dataset.ic,el.classList.contains('sd-ic')?18:15)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();document.getElementById('suc-drawer').classList.remove('open')}});
+document.getElementById('modal-bg').addEventListener('click',e=>{if(e.target.id==='modal-bg')closeModal()});
+document.getElementById('file-pick').addEventListener('change',onFotoPicked);
+render();
+</script>
+</body>
+</html>
