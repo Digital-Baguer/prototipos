@@ -204,7 +204,6 @@
     <a href="#p2" class="part">Parte 2 · Propuesta</a>
     <a href="#insight">5. El insight unificador</a>
     <a href="#modelo">6. Modelo de datos nuevo</a>
-    <a href="#escenarios" style="padding-left:28px;font-size:13px">↳ Escenarios reales</a>
     <a href="#codigo">7. Estructura de código</a>
     <a href="#migracion">8. Ruta de migración</a>
     <a href="#beneficios">9. Qué ganamos</a>
@@ -461,7 +460,7 @@ erDiagram
     datetime fecha_fin
     decimal compra_minima
     int minimo_articulos
-    enum aplica_segun_precio "SOLO_FULL|TODOS|SOLO_CON_DESC"
+    enum presencia_en_promocion "TODAS|SOLO_SIN|SOLO_CON"
     bool acumulable
   }
   promocion_condicion_grupo {
@@ -551,20 +550,10 @@ erDiagram
       <tr><td><code>estado</code></td><td>enum <code>borrador · programada · activa · vencida · archivada</code></td><td>el booleano <code>publicado</code> (que deja 97% de zombies)</td></tr>
       <tr><td><code>fecha_inicio · fecha_fin · hora_inicio · hora_fin</code></td><td>datetime</td><td>vigencia + horarios (los horarios ya los pide el JSON POS)</td></tr>
       <tr><td><code>compra_minima · minimo_articulos</code></td><td>decimal / int</td><td>umbral compartido</td></tr>
-      <tr><td><code>aplica_segun_precio</code></td><td>enum <code>SOLO_FULL · TODOS · SOLO_CON_DESCUENTO</code></td><td>los 2 booleanos confusos (<code>aplica_prendas_descuento</code> + <code>aplica_solo_promocion</code>), fundidos en un solo eje</td></tr>
+      <tr><td><code>presencia_en_promocion</code></td><td>enum <code>TODAS · SOLO_SIN_DESCUENTO · SOLO_CON_DESCUENTO</code></td><td>los 2 booleanos confusos, fundidos</td></tr>
       <tr><td><code>acumulable</code></td><td>bool</td><td>igual</td></tr>
       <tr><td><code>created_by · updated_by · timestamps</code></td><td></td><td>auditoría real</td></tr>
     </table></div>
-    <div class="box prop">
-      <div class="bh">◆ «En promoción» y «con descuento» son lo mismo</div>
-      Un producto está «con descuento» cuando <code>producto_precio_antes &gt; producto_precio</code> — sin
-      importar si el descuento viene de una rebaja de liquidación o de una campaña (Hot Sale, Black Friday).
-      <strong>La campaña es solo el soporte del descuento</strong> (el porqué se vendió más barato ese día),
-      no un estado aparte: no existe «en promoción a precio full». Por eso los 2 flags legacy colapsan en
-      <strong>un eje de 3 estados</strong>: <code>SOLO_FULL</code> (default, 553 de 621) · <code>TODOS</code>
-      (<code>aplica_prendas_descuento=1</code>) · <code>SOLO_CON_DESCUENTO</code>
-      (<code>aplica_solo_promocion=1</code>, precede en la migración).
-    </div>
 
     <h3><code>promocion_condicion</code> — reemplaza los pivotes con codificación invertida, <em>y agrupa</em></h3>
     <p>Las condiciones se organizan en <strong>grupos</strong> (cada grupo es una regla de elegibilidad). Dos tablas, legibles para <em>todas</em> las condiciones de <em>cualquier</em> promoción:</p>
@@ -707,161 +696,15 @@ erDiagram
       <tr><td><code>carrito_promocion_regalo</code></td><td><code>shop_estrategia_venta_productos</code> — con reconciliación explícita (cierra el «placeholder huérfano»)</td></tr>
     </table></div>
 
-  </section>
-
-  <!-- 6b. ESCENARIOS REALES -->
-  <section id="escenarios">
-    <style>
-      .scenario{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:18px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-      .sc-title{font-family:'Fraunces',serif;font-size:19px;font-weight:600;color:var(--ink);margin:0}
-      .sc-tag{display:inline-block;background:var(--teal);color:#fff;font:600 12px/1 'Inter';border-radius:6px;padding:5px 9px;margin-right:10px;vertical-align:middle}
-      .sc-tag.new{background:var(--warn)}
-      .sc-what{display:block;font-family:'Inter';font-size:13.5px;color:var(--muted);font-weight:400;margin:6px 0 16px}
-      .rec{margin:12px 0}
-      .rec-t{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;color:var(--teal-dk);background:var(--teal-bg);border-radius:7px 7px 0 0;padding:4px 11px;border:1px solid var(--line);border-bottom:0}
-      .rec table{border-collapse:collapse;width:100%;font-family:'JetBrains Mono',monospace;font-size:12px;background:#fff;border:1px solid var(--line)}
-      .rec th{background:#faf8f2;color:var(--muted);font-weight:500;text-align:left;padding:6px 10px;border:1px solid var(--line-soft);white-space:nowrap;font-size:11px;letter-spacing:.02em}
-      .rec td{padding:6px 10px;border:1px solid var(--line-soft);color:var(--ink);white-space:nowrap}
-      .nul{color:#b3ac9d;font-style:italic}
-      .cross{color:var(--warn);font-weight:600}
-      .rec-note{font-family:'Inter';font-size:12.5px;color:var(--muted);margin-top:8px;padding-left:2px}
-      .rec-note b{color:var(--teal-dk)}
-    </style>
-    <div class="sec-num">6·</div>
-    <h2>Escenarios reales, vistos como registros</h2>
-    <p>La prueba del modelo no es el diagrama, son los datos. Aquí están los <strong>escenarios que hoy
-    viven en producción</strong> —y el que hoy es imposible— escritos como se verían en las tablas
-    nuevas. Los ids son ilustrativos.</p>
-
-    <div class="box prop">
-      <div class="bh">◆ Anclado en uso real (validación 2026-07-19 · <code>baguer_pro</code>)</div>
-      De 621 estrategias, <strong>solo ~18 están vigentes hoy</strong>. Los 4 beneficios se usan
-      (envío gratis con 6 vigentes). El <strong>cruce AND entre dimensiones es el patrón dominante</strong>
-      (43 estrategias producto+marca en OBTIENE · 66 tipo+marca en REQUISITO · 105 cupones marca+tipo), no
-      un extra. El regalo es <strong>multiplicativo por defecto</strong> (220 de 249). Fuera por 0 uso: el
-      «descuento nominal» del regalo y el tope de envío.
-    </div>
-
-    <!-- 1 -->
-    <div class="scenario">
-      <div class="sc-title"><span class="sc-tag">01</span>SALE — 20% en promoción</div>
-      <span class="sc-what">Porcentaje sobre todo el carrito, sin condición de producto. El caso más común (tipo 1, 316 publicadas).</span>
-      <div class="rec"><div class="rec-t">promocion</div><table>
-        <tr><th>id</th><th>nombre</th><th>canal</th><th>activacion</th><th>beneficio_tipo</th><th>estado</th><th>compra_minima</th><th>aplica_segun_precio</th></tr>
-        <tr><td>1001</td><td>SALE — 20% en promoción</td><td>ONLINE</td><td>AUTOMATICA</td><td>PORCENTAJE</td><td>activa</td><td class="nul">NULL</td><td>SOLO_CON_DESCUENTO</td></tr>
-      </table></div>
-      <div class="rec"><div class="rec-t">beneficio_descuento</div><table>
-        <tr><th>promocion_id</th><th>es_porcentaje</th><th>valor</th><th>tope_maximo</th><th>aplica_sobre</th></tr>
-        <tr><td>1001</td><td>1</td><td>20.00</td><td class="nul">NULL</td><td>CARRITO</td></tr>
-      </table></div>
-      <div class="rec-note">Sin filas en <b>promocion_condicion</b>: aplica a todo lo que esté en promoción. Cero condiciones = cero pivotes.</div>
-    </div>
-
-    <!-- 2 -->
-    <div class="scenario">
-      <div class="sc-title"><span class="sc-tag">02</span>Envío gratis desde $250.000</div>
-      <span class="sc-what">Beneficio de envío disparado por umbral de monto (tipo 4, 6 vigentes hoy). El tope de envío nunca se usa: siempre es total.</span>
-      <div class="rec"><div class="rec-t">promocion</div><table>
-        <tr><th>id</th><th>nombre</th><th>canal</th><th>activacion</th><th>beneficio_tipo</th><th>estado</th><th>compra_minima</th></tr>
-        <tr><td>1002</td><td>Envío gratis desde $250.000</td><td>ONLINE</td><td>AUTOMATICA</td><td>ENVIO_GRATIS</td><td>activa</td><td>250000</td></tr>
-      </table></div>
-      <div class="rec"><div class="rec-t">beneficio_envio_gratis</div><table>
-        <tr><th>promocion_id</th><th>tope_valor</th></tr>
-        <tr><td>1002</td><td class="nul">NULL <span style="font-style:normal">(envío 100% gratis)</span></td></tr>
-      </table></div>
-    </div>
-
-    <!-- 3 -->
-    <div class="scenario">
-      <div class="sc-title"><span class="sc-tag">03</span>Compra $400.000 y lleva gorra Goorin por $49.900 <span style="font-size:13px;color:var(--muted)">(la 633)</span></div>
-      <span class="sc-what">Regalo a valor fijo, con cruce (gorra Y Goorin) y semántica multiplicativa. El caso insignia — tipo 3, regla «valor fijo».</span>
-      <div class="rec"><div class="rec-t">promocion</div><table>
-        <tr><th>id</th><th>nombre</th><th>canal</th><th>activacion</th><th>beneficio_tipo</th><th>estado</th><th>compra_minima</th></tr>
-        <tr><td>1003</td><td>Compra $400.000 y lleva gorra Goorin…</td><td>ONLINE</td><td>AUTOMATICA</td><td>REGALO</td><td>activa</td><td>400000</td></tr>
-      </table></div>
-      <div class="rec"><div class="rec-t">beneficio_regalo</div><table>
-        <tr><th>promocion_id</th><th>cantidad</th><th>valor</th><th>limite_por_pedido</th></tr>
-        <tr><td>1003</td><td>1</td><td>49900</td><td class="nul">NULL <span style="font-style:normal">(= multiplicativo)</span></td></tr>
-      </table></div>
-      <div class="rec"><div class="rec-t">promocion_condicion_grupo</div><table>
-        <tr><th>id</th><th>promocion_id</th><th>rol</th></tr>
-        <tr><td>5001</td><td>1003</td><td>OBTIENE</td></tr>
-      </table></div>
-      <div class="rec"><div class="rec-t">promocion_condicion</div><table>
-        <tr><th>id</th><th>grupo_id</th><th>dimension</th><th>valor</th></tr>
-        <tr><td>9001</td><td>5001</td><td>TIPO_PRENDA</td><td>011 <span class="nul" style="font-style:normal">(gorra)</span></td></tr>
-        <tr><td>9002</td><td>5001</td><td>MARCA</td><td>127 <span class="nul" style="font-style:normal">(Goorin)</span></td></tr>
-      </table></div>
-      <div class="rec-note">Dos filas, <b>mismo grupo 5001</b> = <span class="cross">AND</span>: «gorra <b>Y</b> Goorin». Sin grupo REQUISITO → el requisito es solo el monto (<b>compra_minima 400000</b>). <b>limite NULL</b> → por cada $400.000, una gorra a $49.900.</div>
-    </div>
-
-    <!-- 4 -->
-    <div class="scenario">
-      <div class="sc-title"><span class="sc-tag">04</span>Cupón BIENVENIDA15</div>
-      <span class="sc-what">Cupón de porcentaje activado por código masivo (compartido). Un cupón es una promoción con activación = CÓDIGO.</span>
-      <div class="rec"><div class="rec-t">promocion</div><table>
-        <tr><th>id</th><th>nombre</th><th>canal</th><th>activacion</th><th>beneficio_tipo</th><th>estado</th><th>compra_minima</th></tr>
-        <tr><td>1004</td><td>BIENVENIDA15</td><td>ONLINE</td><td>CODIGO</td><td>PORCENTAJE</td><td>programada</td><td class="nul">NULL</td></tr>
-      </table></div>
-      <div class="rec"><div class="rec-t">beneficio_descuento</div><table>
-        <tr><th>promocion_id</th><th>es_porcentaje</th><th>valor</th><th>aplica_sobre</th></tr>
-        <tr><td>1004</td><td>1</td><td>15.00</td><td>CARRITO</td></tr>
-      </table></div>
-      <div class="rec"><div class="rec-t">promocion_codigo</div><table>
-        <tr><th>id</th><th>promocion_id</th><th>codigo</th><th>usos_max_cliente</th></tr>
-        <tr><td>7001</td><td>1004</td><td>BIENVENIDA15</td><td>1</td></tr>
-      </table></div>
-      <div class="rec-note">Código <b>masivo</b> = 1 fila. Si fuera personalizado (uno por cédula/correo), serían N filas — el mismo mecanismo que hoy genera 23M códigos.</div>
-    </div>
-
-    <!-- 5 -->
-    <div class="scenario">
-      <div class="sc-title"><span class="sc-tag">05</span>Bono POS $50.000 · clientes premium</div>
-      <span class="sc-what">Monto fijo entregado a una lista de NITs (canal POS). Es el caso del REQ 1468, ahora nativo del modelo.</span>
-      <div class="rec"><div class="rec-t">promocion</div><table>
-        <tr><th>id</th><th>nombre</th><th>canal</th><th>activacion</th><th>beneficio_tipo</th><th>estado</th></tr>
-        <tr><td>1005</td><td>Bono POS clientes premium</td><td>POS</td><td>SEGMENTO</td><td>MONTO</td><td>activa</td></tr>
-      </table></div>
-      <div class="rec"><div class="rec-t">beneficio_descuento</div><table>
-        <tr><th>promocion_id</th><th>es_porcentaje</th><th>valor</th><th>aplica_sobre</th></tr>
-        <tr><td>1005</td><td>0</td><td>50000</td><td>CARRITO</td></tr>
-      </table></div>
-      <div class="rec"><div class="rec-t">promocion_segmento</div><table>
-        <tr><th>id</th><th>promocion_id</th><th>documento</th><th>origen</th></tr>
-        <tr><td>8001</td><td>1005</td><td>900123456</td><td>CSV</td></tr>
-        <tr><td>8002</td><td>1005</td><td>800987654</td><td>CSV</td></tr>
-        <tr><td colspan="4" class="nul">… 1.284 filas (una por NIT del CSV)</td></tr>
-      </table></div>
-    </div>
-
-    <!-- 6 -->
-    <div class="scenario">
-      <div class="sc-title"><span class="sc-tag new">NUEVO</span>25% en camisetas Unser <em>o</em> zapatos Adidas</div>
-      <span class="sc-what">Combinación precisa: dos grupos unidos con O, cada uno con su propio cruce. Hoy imposible — obligaría a crear dos promociones separadas.</span>
-      <div class="rec"><div class="rec-t">promocion</div><table>
-        <tr><th>id</th><th>nombre</th><th>activacion</th><th>beneficio_tipo</th><th>estado</th></tr>
-        <tr><td>1006</td><td>25% en camisetas Unser o zapatos Adidas</td><td>AUTOMATICA</td><td>PORCENTAJE</td><td>borrador</td></tr>
-      </table></div>
-      <div class="rec"><div class="rec-t">beneficio_descuento</div><table>
-        <tr><th>promocion_id</th><th>es_porcentaje</th><th>valor</th><th>aplica_sobre</th></tr>
-        <tr><td>1006</td><td>1</td><td>25.00</td><td>CALIFICAN</td></tr>
-      </table></div>
-      <div class="rec"><div class="rec-t">promocion_condicion_grupo</div><table>
-        <tr><th>id</th><th>promocion_id</th><th>rol</th></tr>
-        <tr><td>5010</td><td>1006</td><td>APLICA</td></tr>
-        <tr><td>5011</td><td>1006</td><td>APLICA</td></tr>
-      </table></div>
-      <div class="rec"><div class="rec-t">promocion_condicion</div><table>
-        <tr><th>id</th><th>grupo_id</th><th>dimension</th><th>valor</th></tr>
-        <tr><td>9010</td><td>5010</td><td>TIPO_PRENDA</td><td>camiseta</td></tr>
-        <tr><td>9011</td><td>5010</td><td>MARCA</td><td>Unser</td></tr>
-        <tr><td>9012</td><td>5011</td><td>TIPO_PRENDA</td><td>zapato</td></tr>
-        <tr><td>9013</td><td>5011</td><td>MARCA</td><td>Adidas</td></tr>
-      </table></div>
-      <div class="rec-note">Grupo <b>5010</b> = camiseta <span class="cross">Y</span> Unser · Grupo <b>5011</b> = zapato <span class="cross">Y</span> Adidas · entre grupos, <span class="cross">O</span>. Una camiseta Adidas o un zapato Unser <b>quedan fuera</b> — justo lo que hoy no se puede.</div>
-    </div>
-
-    <p class="kicker">Compárese con hoy: la 633 vivía en 8 columnas dispersas de una tabla ancha + 2 pivotes con codificación invertida. Aquí cualquiera lee cada escenario de un vistazo, y el último —imposible en el sistema actual— usa exactamente las mismas cuatro tablas.</p>
+    <h4>La estrategia 633 en el modelo nuevo</h4>
+    <pre><span class="k">promocion</span>:            activacion=AUTOMATICA · beneficio_tipo=REGALO · canal=ONLINE
+                      estado=activa · compra_minima=400000
+                      presencia_en_promocion=SOLO_CON_DESCUENTO
+<span class="k">beneficio_regalo</span>:     cantidad=1 · regla=FIJO · valor=49900 · limite_por_pedido=NULL
+<span class="k">grupo</span> (OBTIENE):       (TIPO_PRENDA, '011') · (MARCA, '127')   <span class="c">← "gorra Goorin"</span>
+                      <span class="c">-- un solo grupo, dos dimensiones = AND: gorra Y Goorin</span>
+                      <span class="c">-- sin grupos REQUISITO = "compra cualquier cosa hasta $400k"</span></pre>
+    <p class="kicker">Compárese con hoy: 8 columnas dispersas en una tabla ancha + 2 pivotes con codificación invertida. Aquí cualquiera lo lee de un vistazo.</p>
   </section>
 
   <!-- 7. CODIGO -->
