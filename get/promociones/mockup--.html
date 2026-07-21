@@ -230,15 +230,6 @@ tailwind.config = { theme: { extend: {
             </div>
           </div>
 
-          <!-- REQUISITO (producto) — solo para regalo -->
-          <div id="card-requisito" class="card p-4 mb-5">
-            <div class="text-[13px] font-semibold text-neutral-800 mb-1">…y además debe llevar estos productos <span class="text-neutral-400 font-normal">(opcional)</span></div>
-            <p class="text-[12px] text-sub mb-3">Vacío = basta con el monto mínimo de arriba. Con reglas, el carrito debe incluir un producto que las cumpla — ej. «compra 2 camisetas Nike y llévate…». <span class="text-neutral-400">El simulador evalúa por tipo y marca.</span></p>
-            <div id="rules-requisito" class="space-y-3"></div>
-            <button onclick="addRule('requisito')" class="mt-3 text-[13px] font-medium text-neutral-700 hover:text-neutral-900 flex items-center gap-1.5 border border-dashed border-neutral-300 rounded-md px-3 py-2 w-full justify-center hover:bg-neutral-50"><span class="text-[15px]">＋</span> Agregar regla de requisito</button>
-          </div>
-
-          <!-- OBTIENE / APLICA -->
           <div class="card p-4">
             <div class="flex items-center justify-between mb-1">
               <div class="text-[13px] font-semibold text-neutral-800" id="reglas-titulo">El regalo debe ser…</div>
@@ -247,7 +238,7 @@ tailwind.config = { theme: { extend: {
                 <button onclick="togglePreview()" class="text-[12px] text-neutral-600 hover:text-neutral-900 font-medium">👁 Vista previa</button>
               </div>
             </div>
-            <p class="text-[12px] text-sub mb-3">Un producto que cumpla <b>al menos una</b> de estas reglas. <b>5 dimensiones</b>: tipo de prenda, marca, categoría, género y producto.</p>
+            <p class="text-[12px] text-sub mb-3">Un producto que cumpla <b>al menos una</b> de estas reglas.</p>
 
             <div class="bg-neutral-50 border border-line rounded-md px-3 py-2 mb-3 text-[12px] text-neutral-600 flex flex-wrap gap-x-5 gap-y-1">
               <span>Dentro de una dimensión: <b class="text-neutral-900 mono">O</b> (Gorra o Camiseta)</span>
@@ -256,7 +247,7 @@ tailwind.config = { theme: { extend: {
             </div>
 
             <div id="rules-obtiene" class="space-y-3"></div>
-            <button onclick="addRule('obtiene')" class="mt-3 text-[13px] font-medium text-neutral-700 hover:text-neutral-900 flex items-center gap-1.5 border border-dashed border-neutral-300 rounded-md px-3 py-2 w-full justify-center hover:bg-neutral-50"><span class="text-[15px]">＋</span> Agregar regla <span class="text-neutral-400 font-normal">(solo para combinaciones precisas)</span></button>
+            <button onclick="addRule()" class="mt-3 text-[13px] font-medium text-neutral-700 hover:text-neutral-900 flex items-center gap-1.5 border border-dashed border-neutral-300 rounded-md px-3 py-2 w-full justify-center hover:bg-neutral-50"><span class="text-[15px]">＋</span> Agregar regla <span class="text-neutral-400 font-normal">(solo para combinaciones precisas)</span></button>
 
             <div id="preview" class="hidden mt-4 pt-4 border-t border-neutral-100">
               <div class="text-[12px] font-semibold text-neutral-600 mb-2">Productos que calificarían:</div>
@@ -271,14 +262,11 @@ tailwind.config = { theme: { extend: {
           </div>
 
           <div class="bg-neutral-50 border border-line rounded-lg p-4 mt-5">
-            <div class="text-[13px] font-semibold text-neutral-800 mb-1">¿A qué productos aplica, según su precio?</div>
-            <p class="text-[12px] text-sub mb-2.5">«Con descuento» = el producto tiene <span class="mono">precio_antes &gt; precio</span> (venga de rebaja o de campaña Hot Sale / Black Friday — la campaña es solo el porqué del descuento).</p>
-            <div class="space-y-1.5 text-[13px]">
-              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="precio" checked class="accent-neutral-900" onclick="S.aplicaPrecio='full'"> Solo productos a <b>precio full</b> (sin descuento) <span class="text-neutral-400">— el más usado (89%)</span></label>
-              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="precio" class="accent-neutral-900" onclick="S.aplicaPrecio='todos'"> <b>Todos</b> (full + con descuento; el descuento se acumula)</label>
-              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="precio" class="accent-neutral-900" onclick="S.aplicaPrecio='desc'"> Solo productos <b>que ya tienen descuento</b></label>
+            <div class="text-[13px] font-semibold text-neutral-800 mb-3">Otras restricciones</div>
+            <div class="grid grid-cols-2 gap-3 text-[13px]">
+              <label class="flex items-center gap-2"><input type="checkbox" checked class="accent-neutral-900"> Solo productos en promoción</label>
+              <label class="flex items-center gap-2"><input type="checkbox" class="accent-neutral-900"> Acumulable con cupones</label>
             </div>
-            <label class="flex items-center gap-2 text-[13px] mt-3 pt-3 border-t border-line cursor-pointer"><input type="checkbox" class="accent-neutral-900"> Acumulable con cupones</label>
           </div>
         </div>
 
@@ -349,8 +337,6 @@ const S = {
   regaloUnidades:1, regaloPrecio:49900, multiplicativo:true, limiteN:0,
   umbralTipo:'monto', umbralValor:400000,
   rules:[{id:1,dims:{TIPO_PRENDA:['Gorra'],MARCA:['Goorin']}}],
-  reglasReq:[],
-  aplicaPrecio:'full',
   medioRestringido:false, mediosSel:[],
 };
 const money = n => '$'+Math.round(n).toLocaleString('es-CO');
@@ -426,71 +412,53 @@ function setBenefit(el,tipo){
 function syncReglasTitulo(){
   const t=document.getElementById('reglas-titulo');if(!t)return;
   t.textContent = S.benefit==='regalo' ? 'El regalo debe ser…' : (S.aplicaSobre==='califican'?'El descuento aplica sobre productos que sean…':'Productos que habilitan la promo…');
-  const cardReq=document.getElementById('card-requisito');
-  if(cardReq) cardReq.style.display = S.benefit==='regalo' ? 'block' : 'none';
 }
 
-// ============ CONSTRUCTOR DE REGLAS (5 dimensiones · REQUISITO + OBTIENE) ============
+// ============ CONSTRUCTOR DE REGLAS ============
 const DIMS={
-  TIPO_PRENDA:{label:'Tipo de prenda',chip:'background:#ede9fe;color:#6d28d9',core:true,opts:['Gorra','Camiseta','Zapato','Pantalón','Chaqueta']},
-  MARCA:{label:'Marca',chip:'background:#d1fae5;color:#047857',core:true,opts:['Goorin','Nike','Adidas','Unser','Derek']},
-  CATEGORIA:{label:'Categoría',chip:'background:#e0f2fe;color:#0369a1',opts:['Zapatos','Enterizos','Maquillaje','Accesorios','Ropa interior']},
+  TIPO_PRENDA:{label:'Tipo de prenda',chip:'background:#ede9fe;color:#6d28d9',opts:['Gorra','Camiseta','Zapato','Pantalón','Chaqueta']},
+  MARCA:{label:'Marca',chip:'background:#d1fae5;color:#047857',opts:['Goorin','Nike','Adidas','Unser','Derek']},
   GENERO:{label:'Género',chip:'background:#fef3c7;color:#b45309',opts:['Hombre','Mujer','Unisex']},
-  PRODUCTO:{label:'Producto (SKU)',chip:'background:#fee2e2;color:#b91c1c',opts:['Gorra Goorin (837610)','Camiseta Nike (133835)','Zapato Adidas (820352)']},
 };
-const SETS={
-  requisito:{arr:S.reglasReq, cont:'rules-requisito', seq:0},
-  obtiene:{arr:S.rules, cont:'rules-obtiene', seq:1},
-};
-const esc=s=>(''+s).replace(/'/g,'&#39;');
-function renderRuleset(setKey){
-  const set=SETS[setKey];const cont=document.getElementById(set.cont);if(!cont)return;
-  cont.innerHTML=set.arr.map((r,idx)=>{
-    const dims=r.dims||{};
+let ruleSeq=1;
+function renderRules(){
+  const cont=document.getElementById('rules-obtiene');
+  cont.innerHTML=S.rules.map((r,idx)=>{
     const dimBlocks=Object.keys(DIMS).map(dk=>{
-      if(!DIMS[dk].core && !(dk in dims))return'';
-      const sel=dims[dk]||[];
-      const chips=sel.map(v=>`<span class="badge" style="${DIMS[dk].chip}">${v} <button onclick="rmChip('${setKey}',${r.id},'${dk}','${esc(v)}')" class="ml-1 opacity-50 hover:opacity-100">×</button></span>`).join('<span class="text-[11px] text-neutral-900 font-bold px-0.5 mono">o</span>');
+      const sel=r.dims[dk]||[];
+      if(sel.length===0&&dk==='GENERO')return'';
+      const chips=sel.map(v=>`<span class="badge" style="${DIMS[dk].chip}">${v} <button onclick="rmChip(${r.id},'${dk}','${v}')" class="ml-1 opacity-50 hover:opacity-100">×</button></span>`).join('<span class="text-[11px] text-neutral-900 font-bold px-0.5 mono">o</span>');
       const remaining=DIMS[dk].opts.filter(o=>!sel.includes(o));
-      const adder=remaining.length?`<select onchange="addChip('${setKey}',${r.id},'${dk}',this.value);this.value=''" class="text-[12px] border border-neutral-200 rounded-md px-1.5 py-1 bg-white text-neutral-500"><option value="">+ ${DIMS[dk].label.toLowerCase()}</option>${remaining.map(o=>`<option>${o}</option>`).join('')}</select>`:'';
+      const adder=remaining.length?`<select onchange="addChip(${r.id},'${dk}',this.value);this.value=''" class="text-[12px] border border-neutral-200 rounded-md px-1.5 py-1 bg-white text-neutral-500"><option value="">+ ${DIMS[dk].label.toLowerCase()}</option>${remaining.map(o=>`<option>${o}</option>`).join('')}</select>`:'';
       return `<div class="mb-2"><div class="text-[11px] font-semibold text-neutral-500 uppercase tracking-wide mb-1">${DIMS[dk].label}</div><div class="flex flex-wrap items-center gap-1.5">${chips||'<span class="text-[12px] text-neutral-300">cualquiera</span>'} ${adder}</div></div>`;
-    }).filter(Boolean).join('<div class="text-center text-[10.5px] font-bold text-brand-700 tracking-widest my-1">— Y —</div>');
-    const extras=['CATEGORIA','GENERO','PRODUCTO'].filter(dk=>!(dk in dims));
-    const addDim=extras.length?`<select onchange="addDimension('${setKey}',${r.id},this.value);this.value=''" class="text-[11.5px] border border-dashed border-neutral-300 rounded-md px-2 py-1 bg-white text-neutral-500 mt-1"><option value="">+ otra dimensión</option>${extras.map(dk=>`<option value="${dk}">${DIMS[dk].label}</option>`).join('')}</select>`:'';
-    const del=set.arr.length>1?`<button onclick="rmRule('${setKey}',${r.id})" class="text-neutral-300 hover:text-red-500 text-[16px]">×</button>`:'';
+    }).join('<div class="text-center text-[10.5px] font-bold text-brand-700 tracking-widest my-1">— Y —</div>');
+    const del=S.rules.length>1?`<button onclick="rmRule(${r.id})" class="text-neutral-300 hover:text-red-500 text-[16px]">×</button>`:'';
     const orSep=idx>0?`<div class="text-center my-2"><span class="text-[13px] font-bold text-neutral-900 mono">O</span></div>`:'';
-    return `${orSep}<div style="border:1px solid #a7f3d0;background:#f0fdf9;border-radius:.5rem;padding:14px"><div class="flex items-center justify-between mb-2"><span class="text-[10.5px] font-bold uppercase tracking-widest text-brand-700 mono">Regla ${idx+1}</span>${del}</div>${dimBlocks}${addDim}</div>`;
-  }).join('') || '<div class="text-[12px] text-neutral-300 py-1">Sin reglas de requisito — agrega una solo si el regalo exige comprar un producto específico.</div>';
-  if(setKey==='obtiene' && !document.getElementById('preview').classList.contains('hidden'))renderMatrix();
+    return `${orSep}<div style="border:1px solid #a7f3d0;background:#f0fdf9;border-radius:.5rem;padding:14px"><div class="flex items-center justify-between mb-2"><span class="text-[10.5px] font-bold uppercase tracking-widest text-brand-700 mono">Regla ${idx+1}</span>${del}</div>${dimBlocks}</div>`;
+  }).join('');
+  if(!document.getElementById('preview').classList.contains('hidden'))renderMatrix();
 }
-function renderRules(){renderRuleset('obtiene');renderRuleset('requisito');}
-function addRule(setKey){const s=SETS[setKey];s.seq++;s.arr.push({id:s.seq,dims:{TIPO_PRENDA:[],MARCA:[]}});renderRuleset(setKey);}
-function rmRule(setKey,id){const a=SETS[setKey].arr;const i=a.findIndex(r=>r.id===id);if(i>=0)a.splice(i,1);renderRuleset(setKey);}
-function addChip(setKey,id,dk,val){if(!val)return;const r=SETS[setKey].arr.find(x=>x.id===id);if(!r.dims[dk])r.dims[dk]=[];if(!r.dims[dk].includes(val))r.dims[dk].push(val);renderRuleset(setKey);}
-function rmChip(setKey,id,dk,val){const r=SETS[setKey].arr.find(x=>x.id===id);r.dims[dk]=(r.dims[dk]||[]).filter(v=>v!==val);renderRuleset(setKey);}
-function addDimension(setKey,id,dk){if(!dk)return;const r=SETS[setKey].arr.find(x=>x.id===id);if(!r.dims[dk])r.dims[dk]=[];renderRuleset(setKey);}
+function addRule(){ruleSeq++;S.rules.push({id:ruleSeq,dims:{TIPO_PRENDA:[],MARCA:[]}});renderRules();}
+function rmRule(id){S.rules=S.rules.filter(r=>r.id!==id);renderRules();}
+function addChip(id,dk,val){if(!val)return;const r=S.rules.find(x=>x.id===id);if(!r.dims[dk])r.dims[dk]=[];if(!r.dims[dk].includes(val))r.dims[dk].push(val);renderRules();}
+function rmChip(id,dk,val){const r=S.rules.find(x=>x.id===id);r.dims[dk]=r.dims[dk].filter(v=>v!==val);renderRules();}
 function loadEjemploCruce(){
-  const a=SETS.obtiene.arr;a.length=0;a.push({id:1,dims:{TIPO_PRENDA:['Gorra','Camiseta'],MARCA:['Adidas','Unser']}});SETS.obtiene.seq=1;
-  renderRuleset('obtiene');
+  ruleSeq=1;
+  S.rules=[{id:1,dims:{TIPO_PRENDA:['Gorra','Camiseta'],MARCA:['Adidas','Unser']}}];
+  renderRules();
   document.getElementById('preview').classList.remove('hidden');renderMatrix();
 }
 
-// ============ ELEGIBILIDAD ============
-function matchesRules(tipo,marca,rulesArr){
-  return (rulesArr||[]).some(r=>{
-    const dims=r.dims||{};
-    const active=Object.keys(dims).filter(dk=>(dims[dk]||[]).length);
-    if(!active.length)return false;
-    return active.every(dk=>{
-      if(dk==='TIPO_PRENDA')return dims[dk].includes(tipo);
-      if(dk==='MARCA')return dims[dk].includes(marca);
-      return true; // categoría/género/producto: el carrito de prueba solo tiene tipo+marca (ilustrativo)
-    });
+// ============ MATRIZ ELEGIBILIDAD ============
+function itemMatches(tipo,marca){
+  return S.rules.some(r=>{
+    const any=(r.dims.TIPO_PRENDA?.length||0)+(r.dims.MARCA?.length||0)>0;
+    if(!any)return false;
+    const t=!(r.dims.TIPO_PRENDA?.length)||r.dims.TIPO_PRENDA.includes(tipo);
+    const m=!(r.dims.MARCA?.length)||r.dims.MARCA.includes(marca);
+    return t&&m;
   });
 }
-function itemMatches(tipo,marca){return matchesRules(tipo,marca,SETS.obtiene.arr);}
-function ruleToText(rr){const parts=[];Object.keys(DIMS).forEach(dk=>{if((rr.dims[dk]||[]).length)parts.push(DIMS[dk].label.split(' ')[0].toLowerCase()+' ∈ {'+rr.dims[dk].join(', ')+'}');});return '('+(parts.join(' Y ')||'cualquiera')+')';}
-function reqActivas(){return SETS.requisito.arr.filter(r=>Object.keys(r.dims||{}).some(dk=>(r.dims[dk]||[]).length));}
 function togglePreview(){const p=document.getElementById('preview');p.classList.toggle('hidden');if(!p.classList.contains('hidden'))renderMatrix();}
 function renderMatrix(){
   const tipos=['Gorra','Camiseta','Zapato'],marcas=['Goorin','Nike','Adidas','Unser'];
@@ -498,7 +466,7 @@ function renderMatrix(){
   tipos.forEach(t=>{html+=`<tr><td class="text-right text-[11.5px] font-semibold text-neutral-500 pr-2 whitespace-nowrap">${t}</td>`;
     marcas.forEach(m=>{const y=itemMatches(t,m);html+=`<td><div class="${y?'cell-yes':'cell-no'}" style="width:66px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">${y?'✓':'·'}</div></td>`;});
     html+=`</tr>`;});
-  html+=`</table><p class="text-[11.5px] text-neutral-400 mt-2">Cruce tipo × marca (ilustrativo). Verde = califica. Categoría, género y producto también son dimensiones válidas.</p>`;
+  html+=`</table><p class="text-[11.5px] text-neutral-400 mt-2">Verde = califica. Cambia las reglas y la matriz se actualiza.</p>`;
   document.getElementById('matrix').innerHTML=html;
 }
 
@@ -514,23 +482,20 @@ function toggleMedio(m){if(S.mediosSel.includes(m))S.mediosSel=S.mediosSel.filte
 // ============ SIMULADOR DE CARRITO ============
 const PALETTE=[
   {tipo:'Gorra',marca:'Goorin',precio:169900},
-  {tipo:'Gorra',marca:'Adidas',precio:99900,desc:true},
+  {tipo:'Gorra',marca:'Adidas',precio:99900},
   {tipo:'Camiseta',marca:'Unser',precio:89900},
-  {tipo:'Camiseta',marca:'Nike',precio:129900,desc:true},
+  {tipo:'Camiseta',marca:'Nike',precio:129900},
   {tipo:'Zapato',marca:'Adidas',precio:349900},
   {tipo:'Pantalón',marca:'Derek',precio:159900},
 ];
-const PRECIO_LABEL={full:'solo precio full',todos:'todos los precios',desc:'solo con descuento'};
-function precioElegible(c){return S.aplicaPrecio==='todos'?true:(S.aplicaPrecio==='desc'?!!c.desc:!c.desc);}
-const dtoTag='<span style="font-size:10px;background:#fef3c7;color:#b45309;border-radius:4px;padding:1px 5px;margin-left:5px;font-weight:600">dto</span>';
 let cart=[{tipo:'Zapato',marca:'Adidas',precio:349900,qty:1},{tipo:'Camiseta',marca:'Unser',precio:89900,qty:1},{tipo:'Gorra',marca:'Goorin',precio:169900,qty:2}];
 function renderPalette(){
-  document.getElementById('palette').innerHTML=PALETTE.map((p,i)=>`<button onclick="addToCart(${i})" class="flex items-center justify-between text-[12.5px] px-3 py-2 border border-neutral-200 rounded-md hover:bg-neutral-50 text-left"><span>${p.tipo} <span class="text-neutral-400">·</span> ${p.marca}${p.desc?dtoTag:''}</span><span class="text-sub tnum">${money(p.precio)} <span class="text-brand-700 font-bold ml-1">＋</span></span></button>`).join('');
+  document.getElementById('palette').innerHTML=PALETTE.map((p,i)=>`<button onclick="addToCart(${i})" class="flex items-center justify-between text-[12.5px] px-3 py-2 border border-neutral-200 rounded-md hover:bg-neutral-50 text-left"><span>${p.tipo} <span class="text-neutral-400">·</span> ${p.marca}</span><span class="text-sub tnum">${money(p.precio)} <span class="text-brand-700 font-bold ml-1">＋</span></span></button>`).join('');
 }
 function addToCart(i){const p=PALETTE[i];const ex=cart.find(c=>c.tipo===p.tipo&&c.marca===p.marca);if(ex)ex.qty++;else cart.push({...p,qty:1});renderSim();}
 function cartQty(idx,d){cart[idx].qty+=d;if(cart[idx].qty<=0)cart.splice(idx,1);renderSim();}
 function renderCart(){
-  document.getElementById('cart').innerHTML=cart.length?cart.map((c,i)=>`<div class="flex items-center justify-between text-[12.5px] bg-neutral-50 rounded-md px-2 py-1.5"><span class="${itemMatches(c.tipo,c.marca)?'text-brand-700 font-medium':'text-neutral-600'}">${itemMatches(c.tipo,c.marca)?'✓ ':''}${c.tipo} · ${c.marca}${c.desc?dtoTag:''}</span><span class="flex items-center gap-2"><button onclick="cartQty(${i},-1)" class="w-5 h-5 rounded bg-white border border-neutral-200 text-neutral-500">−</button><span class="w-4 text-center tnum">${c.qty}</span><button onclick="cartQty(${i},1)" class="w-5 h-5 rounded bg-white border border-neutral-200 text-neutral-500">＋</button><span class="w-20 text-right text-sub tnum">${money(c.precio*c.qty)}</span></span></div>`).join(''):'<div class="text-[12px] text-neutral-300 py-2">Carrito vacío</div>';
+  document.getElementById('cart').innerHTML=cart.length?cart.map((c,i)=>`<div class="flex items-center justify-between text-[12.5px] bg-neutral-50 rounded-md px-2 py-1.5"><span class="${itemMatches(c.tipo,c.marca)?'text-brand-700 font-medium':'text-neutral-600'}">${itemMatches(c.tipo,c.marca)?'✓ ':''}${c.tipo} · ${c.marca}</span><span class="flex items-center gap-2"><button onclick="cartQty(${i},-1)" class="w-5 h-5 rounded bg-white border border-neutral-200 text-neutral-500">−</button><span class="w-4 text-center tnum">${c.qty}</span><button onclick="cartQty(${i},1)" class="w-5 h-5 rounded bg-white border border-neutral-200 text-neutral-500">＋</button><span class="w-20 text-right text-sub tnum">${money(c.precio*c.qty)}</span></span></div>`).join(''):'<div class="text-[12px] text-neutral-300 py-2">Carrito vacío</div>';
 }
 function renderMedioSelect(){
   const sel=document.getElementById('sim-medio');
@@ -546,22 +511,15 @@ function compute(medio){
   const totalQty=cart.reduce((a,c)=>a+c.qty,0);
   const cumpleUmbral=S.umbralTipo==='monto'?subtotal>=S.umbralValor:totalQty>=S.umbralValor;
   const medioOk=!S.medioRestringido||S.mediosSel.includes(medioReal);
-  const elegibles=cart.filter(precioElegible);
-  const califican=elegibles.filter(c=>itemMatches(c.tipo,c.marca));
+  const califican=cart.filter(c=>itemMatches(c.tipo,c.marca));
   const baseCalifican=califican.reduce((a,c)=>a+c.precio*c.qty,0);
-  const baseCarrito=elegibles.reduce((a,c)=>a+c.precio*c.qty,0);
-  const base=S.aplicaSobre==='carrito'?baseCarrito:baseCalifican;
-  const reqRules=reqActivas();
-  const requisitoOk=(S.benefit!=='regalo'||reqRules.length===0)?true:cart.some(c=>matchesRules(c.tipo,c.marca,reqRules));
+  const base=S.aplicaSobre==='carrito'?subtotal:baseCalifican;
   let descuento=0,detalle='',regalos=0;
   const bloqueos=[];
   if(!cumpleUmbral)bloqueos.push(S.umbralTipo==='monto'?`No llega al mínimo de ${money(S.umbralValor)} (lleva ${money(subtotal)})`:`No llega a ${S.umbralValor} artículos`);
   if(!medioOk)bloqueos.push(`El pago con «${medioReal}» no está habilitado para esta promo`);
-  if(S.benefit==='regalo'&&reqRules.length&&!requisitoOk&&cumpleUmbral&&medioOk)bloqueos.push('El carrito no incluye el producto requerido: '+reqRules.map(ruleToText).join(' o '));
   if(S.benefit!=='envio'&&S.aplicaSobre==='califican'&&califican.length===0&&cumpleUmbral&&medioOk)bloqueos.push('Ningún producto del carrito cumple las reglas');
-  if(S.benefit!=='envio'&&cumpleUmbral&&medioOk&&elegibles.length===0)bloqueos.push(`Ningún producto cumple el filtro de precio («${PRECIO_LABEL[S.aplicaPrecio]}»)`);
-  const gate=cumpleUmbral&&medioOk&&(S.benefit!=='regalo'||requisitoOk);
-  if(gate){
+  if(cumpleUmbral&&medioOk){
     if(S.benefit==='pct'){descuento=base*S.pct/100;if(S.tope>0&&descuento>S.tope)descuento=S.tope;detalle=`${S.pct}% sobre ${money(base)}${S.tope?' (tope '+money(S.tope)+')':''}`;}
     else if(S.benefit==='monto'){descuento=Math.min(S.montoFijo,base);detalle=`${money(S.montoFijo)} sobre ${money(base)}`;}
     else if(S.benefit==='envio'){descuento=S.envioValor;detalle=`Envío ${money(S.envioValor)} → gratis`;}
@@ -607,17 +565,13 @@ function renderSim(){
       <div class="flex justify-between text-[18px] font-bold mt-3 text-neutral-900"><span>Total</span><span class="tnum">${money(r.total)}</span></div>
     `}`;
   const umbralTxt=S.umbralTipo==='monto'?`compra ≥ ${money(S.umbralValor)}`:`≥ ${S.umbralValor} artículos`;
-  const reqRules=reqActivas();
-  const reqTxt=(S.benefit==='regalo'&&reqRules.length)?` · requisito: ${reqRules.map(ruleToText).join(' O ')}`:'';
-  const reglasTxt=SETS.obtiene.arr.map(ruleToText).join(' O ');
-  const objLabel=S.benefit==='regalo'?'regalo':'aplica a';
-  const precioTxt=` · ${PRECIO_LABEL[S.aplicaPrecio]}`;
+  const reglasTxt=S.rules.map(rr=>{const parts=[];if(rr.dims.TIPO_PRENDA?.length)parts.push('tipo ∈ {'+rr.dims.TIPO_PRENDA.join(', ')+'}');if(rr.dims.MARCA?.length)parts.push('marca ∈ {'+rr.dims.MARCA.join(', ')+'}');return '('+(parts.join(' Y ')||'cualquiera')+')';}).join(' O ');
   const medioTxt=(S.medioRestringido&&S.mediosSel.length)?` · medios: ${S.mediosSel.join(', ')}`:' · cualquier medio de pago';
-  document.getElementById('sum-config').innerHTML=`<b>${benLabel}</b> · ${umbralTxt}${reqTxt} · ${objLabel}: ${reglasTxt}${precioTxt}${medioTxt}`;
+  document.getElementById('sum-config').innerHTML=`<b>${benLabel}</b> · ${umbralTxt} · producto: ${reglasTxt}${medioTxt}`;
 }
 
 // init
-renderRows();renderRules();renderMedios();syncReglasTitulo();
+renderRows();renderRules();renderMedios();
 </script>
 </body>
 </html>
