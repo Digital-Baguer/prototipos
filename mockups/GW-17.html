@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-17 · Mockup · Gestión de promociones</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet">
+<script>
+// Tokens reales de get-web (resources/css/app.css @ master) — shadcn/ui neutral + acento esmeralda
+tailwind.config = { theme: { extend: {
+  fontFamily: { sans: ['"Instrument Sans"','ui-sans-serif','system-ui','sans-serif'] },
+  colors: {
+    ink: '#171717',            // --primary
+    brand: { DEFAULT:'#059669', 50:'#ecfdf5', 100:'#d1fae5', 200:'#a7f3d0', 600:'#059669', 700:'#047857' }, // --secondary
+    sub: '#737373',            // --muted-foreground
+    line: '#e7e7e7',           // --border
+    surface: '#fafafa',        // --sidebar-background
+  },
+  boxShadow: { card:'0 1px 2px 0 rgb(0 0 0 / 0.05)' }
+}}}
+</script>
+<style>
+  body{font-family:'Instrument Sans',ui-sans-serif,system-ui,sans-serif}
+  .tnum{font-variant-numeric:tabular-nums}
+  .mono{font-family:ui-monospace,'SF Mono',Menlo,monospace}
+  ::-webkit-scrollbar{height:8px;width:8px}::-webkit-scrollbar-thumb{background:#d4d4d4;border-radius:8px}
+  .badge{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:2px 10px;border-radius:100px;border:1px solid transparent}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:.5rem;box-shadow:0 1px 2px 0 rgb(0 0 0 / .05)}
+  .opt-card{text-align:left;border:1px solid #e5e7eb;border-radius:.5rem;padding:12px 14px;background:#fff;transition:all .12s;cursor:pointer}
+  .opt-card:hover{border-color:#d4d4d4;background:#fafafa}
+  .opt-card.selected{border-color:#059669;background:#ecfdf5;box-shadow:0 0 0 3px #d1fae5}
+  .btn-primary{background:#171717;color:#fff;border-radius:.375rem;font-weight:500;transition:.12s}
+  .btn-primary:hover{background:#262626}
+  .btn-brand{background:#059669;color:#fff;border-radius:.375rem;font-weight:500;transition:.12s}
+  .btn-brand:hover{background:#047857}
+  .btn-ghost{color:#525252;font-weight:500;border-radius:.375rem}.btn-ghost:hover{background:#f5f5f5}
+  .sc{width:28px;height:28px;border-radius:100px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;transition:.15s;flex-shrink:0}
+  .sc-active{background:#171717;color:#fff;box-shadow:0 0 0 4px rgba(23,23,23,.08)}
+  .sc-done{background:#059669;color:#fff}
+  .sc-todo{background:#fff;color:#a3a3a3;border:1.5px solid #e5e5e5}
+  .st-label{font-size:13px;font-weight:500;white-space:nowrap}
+  .st-label.active{color:#171717;font-weight:600}.st-label.done{color:#404040}.st-label.todo{color:#a3a3a3}
+  .st-conn{flex:1;height:2px;margin:0 12px;border-radius:2px}.st-conn.done{background:#059669}.st-conn.todo{background:#e5e5e5}
+  #stepper button{cursor:pointer}
+  .cell-yes{background:#d1fae5;color:#047857;border:1.5px solid #6ee7b7}
+  .cell-no{background:#f5f5f5;color:#a3a3a3;border:1.5px solid #e5e5e5}
+  .pay-chip{cursor:pointer;user-select:none;transition:.12s;border:1px solid #e5e7eb;background:#fff}
+  .pay-chip.on{border-color:#059669;background:#ecfdf5;color:#047857;font-weight:600}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:#171717;box-shadow:0 0 0 3px rgba(23,23,23,.08)}
+</style>
+</head>
+<body class="bg-neutral-100 text-neutral-900">
+
+<div class="flex min-h-screen">
+  <!-- Sidebar (claro, como get-web) -->
+  <aside class="w-60 bg-surface border-r border-line flex flex-col shrink-0">
+    <div class="px-5 py-4 border-b border-line">
+      <div class="font-semibold text-[15px] text-neutral-900">get-web</div>
+      <div class="text-[11px] text-sub mt-0.5">Panel de operadores</div>
+    </div>
+    <nav class="flex-1 px-3 py-4 text-[13.5px] space-y-0.5">
+      <div class="px-3 py-2 text-[11px] uppercase tracking-wider text-neutral-400 font-semibold">Comercial</div>
+      <a class="flex items-center gap-3 px-3 py-2 rounded-md bg-neutral-200/70 text-neutral-900 font-medium"><span class="text-brand">🏷️</span> Promociones</a>
+      <a class="flex items-center gap-3 px-3 py-2 rounded-md text-neutral-600 hover:bg-neutral-200/50 cursor-pointer"><span>🎟️</span> Bonos POS</a>
+      <a class="flex items-center gap-3 px-3 py-2 rounded-md text-neutral-600 hover:bg-neutral-200/50 cursor-pointer"><span>📦</span> Productos</a>
+      <a class="flex items-center gap-3 px-3 py-2 rounded-md text-neutral-600 hover:bg-neutral-200/50 cursor-pointer"><span>🛒</span> Pedidos</a>
+    </nav>
+    <div class="px-4 py-3 border-t border-line text-[12px] flex items-center gap-3">
+      <div class="w-8 h-8 rounded-full bg-neutral-900 text-white grid place-items-center font-semibold text-[11px]">FL</div>
+      <div><div class="text-neutral-800">Francisco L.</div><div class="text-sub text-[11px]">Mercadeo</div></div>
+    </div>
+  </aside>
+
+  <main class="flex-1 min-w-0">
+    <div class="bg-amber-50 border-b border-amber-200 text-amber-800 text-[12px] px-6 py-2 flex items-center gap-2">
+      <span>🧪</span> <b>Mockup interactivo GW-17</b> — estética real de get-web. El constructor de reglas (paso 2) y el simulador (paso 4) funcionan de verdad.
+    </div>
+
+    <!-- ===== LISTADO ===== -->
+    <section id="scr-list">
+      <div class="px-6 py-5 bg-white border-b border-line flex items-center justify-between">
+        <div>
+          <h1 class="text-[22px] font-bold text-neutral-900 tracking-tight">Promociones de descuento</h1>
+          <p class="text-[13px] text-sub mt-0.5">Cupones, estrategias automáticas y bonos — un solo lugar.</p>
+        </div>
+        <button onclick="goWizard()" class="btn-primary text-[13.5px] px-4 h-10 flex items-center gap-2 shadow-card"><span class="text-[16px] leading-none">＋</span> Crear promoción</button>
+      </div>
+
+      <div class="p-6 space-y-4">
+        <div class="grid grid-cols-4 gap-4">
+          <div class="card p-4"><div class="text-[12px] text-sub">Activas ahora</div><div class="text-2xl font-bold text-brand-700 mt-1 tnum">19</div></div>
+          <div class="card p-4"><div class="text-[12px] text-sub">Programadas</div><div class="text-2xl font-bold text-neutral-900 mt-1 tnum">4</div></div>
+          <div class="card p-4"><div class="text-[12px] text-sub">Redimidas (30d)</div><div class="text-2xl font-bold text-neutral-900 mt-1 tnum">3.847</div></div>
+          <div class="card p-4"><div class="text-[12px] text-sub">Descuento otorgado (30d)</div><div class="text-2xl font-bold text-neutral-900 mt-1 tnum">$412 M</div></div>
+        </div>
+
+        <div class="card p-3 flex flex-wrap items-center gap-2">
+          <div class="relative flex-1 min-w-[200px]"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-[14px]">🔍</span>
+            <input placeholder="Buscar por nombre o código…" class="w-full pl-9 pr-3 py-2 text-[13.5px] border border-neutral-200 rounded-md"></div>
+          <select class="text-[13.5px] border border-neutral-200 rounded-md px-3 py-2 bg-white"><option>Todas las tiendas</option><option>Factory</option><option>Derek</option><option>Stirpe</option></select>
+          <select class="text-[13.5px] border border-neutral-200 rounded-md px-3 py-2 bg-white"><option>Toda activación</option><option>Automática</option><option>Por código</option><option>Por segmento</option></select>
+          <select class="text-[13.5px] border border-neutral-200 rounded-md px-3 py-2 bg-white"><option>Todo estado</option><option>Activa</option><option>Programada</option><option>Borrador</option><option>Vencida</option><option>Archivada</option></select>
+        </div>
+
+        <div class="card overflow-hidden p-0">
+          <table class="w-full text-[13.5px]">
+            <thead class="bg-neutral-50 text-sub text-[11.5px] uppercase tracking-wide border-b border-line"><tr>
+              <th class="text-left font-semibold px-4 py-3">Promoción</th><th class="text-left font-semibold px-4 py-3">Activación</th>
+              <th class="text-left font-semibold px-4 py-3">Beneficio</th><th class="text-left font-semibold px-4 py-3">Tienda</th>
+              <th class="text-left font-semibold px-4 py-3">Vigencia</th><th class="text-left font-semibold px-4 py-3">Estado</th>
+              <th class="text-right font-semibold px-4 py-3">Redimidos</th><th class="px-4 py-3"></th></tr></thead>
+            <tbody class="divide-y divide-neutral-100" id="rows"></tbody>
+          </table>
+        </div>
+        <p class="text-[12px] text-neutral-400">Mostrando 6 de 616 · <b class="text-sub">solo 19 vigentes</b> — las vencidas ya no ensucian el listado.</p>
+      </div>
+    </section>
+
+    <!-- ===== WIZARD ===== -->
+    <section id="scr-wizard" class="hidden">
+      <div class="px-6 py-4 bg-white border-b border-line flex items-center gap-3">
+        <button onclick="goList()" class="text-neutral-400 hover:text-neutral-800 text-[20px]">←</button>
+        <div><h1 class="text-[18px] font-bold text-neutral-900 tracking-tight">Nueva promoción</h1><p class="text-[12px] text-sub">Borrador · sin guardar</p></div>
+      </div>
+      <div class="bg-white border-b border-line px-6 py-4">
+        <div id="stepper" class="max-w-3xl"></div>
+      </div>
+
+      <div class="p-6 max-w-3xl">
+        <!-- STEP 1 -->
+        <div class="step-body" data-step="1">
+          <h2 class="text-[17px] font-bold text-neutral-900 mb-1 tracking-tight">¿Cómo se activa y qué entrega?</h2>
+          <p class="text-[13px] text-sub mb-5">Lo mismo cubre un cupón, una estrategia automática o un bono POS.</p>
+          <label class="block text-[13px] font-medium text-neutral-700 mb-2">Nombre</label>
+          <input value="Compra $400.000 y lleva gorra Goorin por $49.900" class="w-full mb-5 px-3 py-2.5 text-[14px] border border-neutral-200 rounded-md">
+
+          <label class="block text-[13px] font-medium text-neutral-700 mb-2">Se activa</label>
+          <div class="grid grid-cols-3 gap-3 mb-3">
+            <button class="opt-card selected" onclick="setActivacion(this,'automatica')"><div class="font-semibold text-[13.5px]">⚙️ Automática</div><div class="text-[11.5px] text-sub mt-1">Se aplica sola cuando el carrito cumple</div></button>
+            <button class="opt-card" onclick="setActivacion(this,'codigo')"><div class="font-semibold text-[13.5px]">🎟️ Por código</div><div class="text-[11.5px] text-sub mt-1">El cliente escribe un cupón</div></button>
+            <button class="opt-card" onclick="setActivacion(this,'segmento')"><div class="font-semibold text-[13.5px]">👥 Por segmento</div><div class="text-[11.5px] text-sub mt-1">Lista de clientes / NITs (POS)</div></button>
+          </div>
+
+          <div id="cfg-codigo" class="hidden bg-neutral-50 border border-line rounded-lg p-4 mb-3">
+            <div class="grid grid-cols-2 gap-4">
+              <div><label class="block text-[12px] text-sub mb-1">Código del cupón</label><input value="BIENVENIDA15" class="w-full px-2 py-1.5 border border-neutral-200 rounded-md text-[13.5px] mono uppercase"></div>
+              <div><label class="block text-[12px] text-sub mb-1">Usos máximos por cliente</label><input value="1" class="w-full px-2 py-1.5 border border-neutral-200 rounded-md text-[13.5px] tnum"></div>
+            </div>
+          </div>
+
+          <div id="cfg-segmento" class="hidden bg-neutral-50 border border-line rounded-lg p-4 mb-3">
+            <div class="text-[13px] font-medium text-neutral-700 mb-2">¿Quiénes reciben la promoción?</div>
+            <div class="space-y-1 text-[13px]">
+              <label class="flex items-start gap-2 cursor-pointer p-2 rounded-md hover:bg-white"><input type="radio" name="seg" checked class="accent-neutral-900 mt-0.5" onclick="segMode('csv')">
+                <div><div class="font-medium">Subir lista de NITs / documentos (CSV)</div><div class="text-[11.5px] text-sub">Para bonos POS — una columna de documentos.</div></div></label>
+              <label class="flex items-start gap-2 cursor-pointer p-2 rounded-md hover:bg-white"><input type="radio" name="seg" class="accent-neutral-900 mt-0.5" onclick="segMode('analytics')">
+                <div><div class="font-medium">Segmento de analytics</div><div class="text-[11.5px] text-sub">Clientes ya calculados en baguer_analytics.</div></div></label>
+              <label class="flex items-start gap-2 cursor-pointer p-2 rounded-md hover:bg-white"><input type="radio" name="seg" class="accent-neutral-900 mt-0.5" onclick="segMode('manual')">
+                <div><div class="font-medium">Lista manual</div><div class="text-[11.5px] text-sub">Pego documentos separados por coma.</div></div></label>
+            </div>
+            <div id="seg-csv" class="mt-3 border-2 border-dashed border-neutral-300 rounded-lg p-5 text-center bg-white">
+              <div class="text-[13px] text-neutral-500">📄 Arrastra <b>bonos-julio.csv</b> o haz clic</div>
+              <div class="text-[12px] text-brand-700 mt-1 font-medium tnum">✓ 1.284 NITs cargados · 12 duplicados ignorados</div>
+            </div>
+            <div id="seg-analytics" class="hidden mt-3"><select class="w-full px-2 py-2 border border-neutral-200 rounded-md text-[13.5px] bg-white"><option>Clientes premium (4.120)</option><option>Recompra últimos 90 días (11.870)</option><option>Sin compra 180 días (33.402)</option></select></div>
+            <div id="seg-manual" class="hidden mt-3"><textarea rows="2" class="w-full px-2 py-2 border border-neutral-200 rounded-md text-[13px] mono" placeholder="900123456, 800987654, 79111222…"></textarea></div>
+          </div>
+
+          <label class="block text-[13px] font-medium text-neutral-700 mb-2 mt-4">Entrega</label>
+          <div class="grid grid-cols-4 gap-3 mb-4">
+            <button class="opt-card" onclick="setBenefit(this,'pct')"><div class="text-[18px]">％</div><div class="font-semibold text-[13px] mt-1">Porcentaje</div></button>
+            <button class="opt-card" onclick="setBenefit(this,'monto')"><div class="text-[18px]">$</div><div class="font-semibold text-[13px] mt-1">Monto fijo</div></button>
+            <button class="opt-card" onclick="setBenefit(this,'envio')"><div class="text-[18px]">🚚</div><div class="font-semibold text-[13px] mt-1">Envío gratis</div></button>
+            <button class="opt-card selected" onclick="setBenefit(this,'regalo')"><div class="text-[18px]">🎁</div><div class="font-semibold text-[13px] mt-1">Regalo</div></button>
+          </div>
+
+          <div id="cfg-pct" class="hidden bg-brand-50 border border-brand-100 rounded-lg p-4">
+            <div class="text-[13px] font-semibold text-brand-700 mb-3">Configuración del porcentaje</div>
+            <div class="grid grid-cols-3 gap-4">
+              <div><label class="block text-[12px] text-sub mb-1">Descuento</label><div class="flex items-center gap-1"><input value="20" oninput="S.pct=+this.value" class="w-full px-2 py-1.5 border border-neutral-200 rounded-md text-[13.5px] tnum"><span class="text-neutral-400">%</span></div></div>
+              <div><label class="block text-[12px] text-sub mb-1">Se aplica sobre</label><select onchange="S.aplicaSobre=this.value;syncReglasTitulo()" class="w-full px-2 py-1.5 border border-neutral-200 rounded-md text-[13.5px] bg-white"><option value="carrito">Todo el carrito</option><option value="califican">Solo productos que cumplen</option></select></div>
+              <div><label class="block text-[12px] text-sub mb-1">Tope máx. (opcional)</label><div class="flex items-center gap-1"><span class="text-neutral-400">$</span><input placeholder="sin tope" oninput="S.tope=parseMoney(this.value)" class="w-full px-2 py-1.5 border border-neutral-200 rounded-md text-[13.5px] tnum"></div></div>
+            </div>
+          </div>
+
+          <div id="cfg-monto" class="hidden bg-brand-50 border border-brand-100 rounded-lg p-4">
+            <div class="text-[13px] font-semibold text-brand-700 mb-3">Configuración del monto fijo</div>
+            <div class="grid grid-cols-2 gap-4">
+              <div><label class="block text-[12px] text-sub mb-1">Descuenta</label><div class="flex items-center gap-1"><span class="text-neutral-400">$</span><input value="50.000" oninput="S.montoFijo=parseMoney(this.value)" class="w-full px-2 py-1.5 border border-neutral-200 rounded-md text-[13.5px] tnum"></div></div>
+              <div><label class="block text-[12px] text-sub mb-1">Se aplica sobre</label><select onchange="S.aplicaSobre=this.value;syncReglasTitulo()" class="w-full px-2 py-1.5 border border-neutral-200 rounded-md text-[13.5px] bg-white"><option value="carrito">Todo el carrito</option><option value="califican">Solo productos que cumplen</option></select></div>
+            </div>
+          </div>
+
+          <div id="cfg-envio" class="hidden bg-brand-50 border border-brand-100 rounded-lg p-4">
+            <div class="text-[13px] font-semibold text-brand-700 mb-1">Envío gratis</div>
+            <p class="text-[12.5px] text-brand-700/90">Cuando el carrito cumple las condiciones del paso 2, el costo de envío pasa a $0. El envío del ejemplo del simulador es $12.900.</p>
+          </div>
+
+          <div id="cfg-regalo" class="bg-brand-50 border border-brand-100 rounded-lg p-4">
+            <div class="text-[13px] font-semibold text-brand-700 mb-3">Configuración del regalo</div>
+            <div class="grid grid-cols-2 gap-4">
+              <div><label class="block text-[12px] text-sub mb-1">El cliente recibe</label><div class="flex items-center gap-2"><input value="1" oninput="S.regaloUnidades=+this.value||1" class="w-16 px-2 py-1.5 border border-neutral-200 rounded-md text-[13.5px] tnum"><span class="text-[13px] text-sub">unidad(es)</span></div></div>
+              <div><label class="block text-[12px] text-sub mb-1">A precio</label><div class="flex items-center gap-1"><span class="text-neutral-400">$</span><input value="49.900" oninput="S.regaloPrecio=parseMoney(this.value)" class="w-full px-2 py-1.5 border border-neutral-200 rounded-md text-[13.5px] tnum"></div></div>
+            </div>
+            <div class="mt-3"><label class="block text-[12px] text-sub mb-1">¿Cuántas veces por pedido?</label>
+              <div class="flex items-center gap-3 text-[13px]">
+                <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="lim" checked class="accent-brand-600" onclick="S.multiplicativo=true"> Multiplicativo</label>
+                <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="lim" class="accent-brand-600" onclick="S.multiplicativo=false"> Tope:</label>
+                <input class="w-14 px-2 py-1 border border-neutral-200 rounded-md text-[13px] tnum" placeholder="N" oninput="S.limiteN=+this.value||0">
+              </div>
+              <p class="text-[11px] text-brand-700 mt-1">Multiplicativo = por cada compra mínima, un regalo.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2 · CONDICIONES -->
+        <div class="step-body hidden" data-step="2">
+          <h2 class="text-[17px] font-bold text-neutral-900 mb-1 tracking-tight">¿Cuándo aplica y sobre qué?</h2>
+          <p class="text-[13px] text-sub mb-5">Mínimo de compra, qué productos participan y con qué medios de pago.</p>
+
+          <div class="card p-4 mb-5">
+            <div class="text-[13px] font-semibold text-neutral-800 mb-3">El cliente debe comprar mínimo</div>
+            <div class="flex items-center gap-3">
+              <label class="flex items-center gap-2 text-[13.5px]"><input type="radio" name="umbral" checked class="accent-neutral-900" onclick="S.umbralTipo='monto'"> Monto</label>
+              <div class="flex items-center gap-1"><span class="text-neutral-400">$</span><input value="400.000" oninput="S.umbralValor=parseMoney(this.value)" class="w-28 px-2 py-1.5 border border-neutral-200 rounded-md text-[13.5px] tnum"></div>
+              <span class="text-neutral-300">|</span>
+              <label class="flex items-center gap-2 text-[13.5px] text-neutral-400"><input type="radio" name="umbral" class="accent-neutral-900" onclick="S.umbralTipo='cantidad'"> Cantidad de artículos</label>
+            </div>
+          </div>
+
+          <!-- REQUISITO (producto) — solo para regalo -->
+          <div id="card-requisito" class="card p-4 mb-5">
+            <div class="text-[13px] font-semibold text-neutral-800 mb-1">…y además debe llevar estos productos <span class="text-neutral-400 font-normal">(opcional)</span></div>
+            <p class="text-[12px] text-sub mb-3">Vacío = basta con el monto mínimo de arriba. Con reglas, el carrito debe incluir un producto que las cumpla — ej. «compra 2 camisetas Nike y llévate…». <span class="text-neutral-400">El simulador evalúa por tipo y marca.</span></p>
+            <div id="rules-requisito" class="space-y-3"></div>
+            <button onclick="addRule('requisito')" class="mt-3 text-[13px] font-medium text-neutral-700 hover:text-neutral-900 flex items-center gap-1.5 border border-dashed border-neutral-300 rounded-md px-3 py-2 w-full justify-center hover:bg-neutral-50"><span class="text-[15px]">＋</span> Agregar regla de requisito</button>
+          </div>
+
+          <!-- OBTIENE / APLICA -->
+          <div class="card p-4">
+            <div class="flex items-center justify-between mb-1">
+              <div class="text-[13px] font-semibold text-neutral-800" id="reglas-titulo">El regalo debe ser…</div>
+              <div class="flex items-center gap-3">
+                <button onclick="loadEjemploCruce()" class="text-[12px] text-brand-700 hover:text-brand-600 font-medium">⚡ Ejemplo: gorras y camisetas de Adidas y Unser</button>
+                <button onclick="togglePreview()" class="text-[12px] text-neutral-600 hover:text-neutral-900 font-medium">👁 Vista previa</button>
+              </div>
+            </div>
+            <p class="text-[12px] text-sub mb-3">Un producto que cumpla <b>al menos una</b> de estas reglas. <b>5 dimensiones</b>: tipo de prenda, marca, categoría, género y producto.</p>
+
+            <div class="bg-neutral-50 border border-line rounded-md px-3 py-2 mb-3 text-[12px] text-neutral-600 flex flex-wrap gap-x-5 gap-y-1">
+              <span>Dentro de una dimensión: <b class="text-neutral-900 mono">O</b> (Gorra o Camiseta)</span>
+              <span>Entre dimensiones: <b class="text-brand-700 mono">Y</b> (tipo Y marca → cruce)</span>
+              <span>Entre reglas: <b class="text-neutral-900 mono">O</b> (combinaciones precisas)</span>
+            </div>
+
+            <div id="rules-obtiene" class="space-y-3"></div>
+            <button onclick="addRule('obtiene')" class="mt-3 text-[13px] font-medium text-neutral-700 hover:text-neutral-900 flex items-center gap-1.5 border border-dashed border-neutral-300 rounded-md px-3 py-2 w-full justify-center hover:bg-neutral-50"><span class="text-[15px]">＋</span> Agregar regla <span class="text-neutral-400 font-normal">(solo para combinaciones precisas)</span></button>
+
+            <div id="preview" class="hidden mt-4 pt-4 border-t border-neutral-100">
+              <div class="text-[12px] font-semibold text-neutral-600 mb-2">Productos que calificarían:</div>
+              <div id="matrix" class="text-[12.5px]"></div>
+            </div>
+          </div>
+
+          <div class="card p-4 mt-5">
+            <label class="flex items-center gap-2 text-[13px] font-semibold text-neutral-800 cursor-pointer"><input type="checkbox" class="accent-neutral-900" onclick="toggleMedios(this.checked)"> Restringir a medios de pago específicos</label>
+            <p class="text-[12px] text-sub mt-1 mb-3">Si no marcas nada, la promo aplica con cualquier medio de pago.</p>
+            <div id="medios-wrap" class="hidden flex flex-wrap gap-2"></div>
+          </div>
+
+          <div class="bg-neutral-50 border border-line rounded-lg p-4 mt-5">
+            <div class="text-[13px] font-semibold text-neutral-800 mb-1">¿A qué productos aplica, según su precio?</div>
+            <p class="text-[12px] text-sub mb-2.5">«Con descuento» = el producto tiene <span class="mono">precio_antes &gt; precio</span> (venga de rebaja o de campaña Hot Sale / Black Friday — la campaña es solo el porqué del descuento).</p>
+            <div class="space-y-1.5 text-[13px]">
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="precio" checked class="accent-neutral-900" onclick="S.aplicaPrecio='full'"> Solo productos a <b>precio full</b> (sin descuento) <span class="text-neutral-400">— el más usado (89%)</span></label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="precio" class="accent-neutral-900" onclick="S.aplicaPrecio='todos'"> <b>Todos</b> (full + con descuento; el descuento se acumula)</label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="precio" class="accent-neutral-900" onclick="S.aplicaPrecio='desc'"> Solo productos <b>que ya tienen descuento</b></label>
+            </div>
+            <label class="flex items-center gap-2 text-[13px] mt-3 pt-3 border-t border-line cursor-pointer"><input type="checkbox" class="accent-neutral-900"> Acumulable con cupones</label>
+          </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="step-body hidden" data-step="3">
+          <h2 class="text-[17px] font-bold text-neutral-900 mb-1 tracking-tight">Presentación y vigencia</h2>
+          <p class="text-[13px] text-sub mb-5">Cómo se ve la promo y cuándo está activa.</p>
+          <div class="grid grid-cols-2 gap-4 mb-5">
+            <div><label class="block text-[13px] font-medium text-neutral-700 mb-1.5">Vigente desde</label><input type="datetime-local" value="2026-07-15T00:00" class="w-full px-3 py-2 border border-neutral-200 rounded-md text-[13.5px] tnum"></div>
+            <div><label class="block text-[13px] font-medium text-neutral-700 mb-1.5">Hasta</label><input type="datetime-local" value="2026-07-31T23:59" class="w-full px-3 py-2 border border-neutral-200 rounded-md text-[13.5px] tnum"></div>
+          </div>
+          <label class="block text-[13px] font-medium text-neutral-700 mb-1.5">Mensaje al cliente</label>
+          <input value="¡Llévate una gorra Goorin por solo $49.900!" class="w-full mb-5 px-3 py-2 border border-neutral-200 rounded-md text-[13.5px]">
+          <label class="block text-[13px] font-medium text-neutral-700 mb-2">Banners</label>
+          <div class="grid grid-cols-3 gap-3">
+            <div class="border-2 border-dashed border-neutral-200 rounded-lg p-6 text-center text-neutral-400 text-[12px] hover:border-neutral-300 cursor-pointer">📱<br>Móvil<br>961×1088</div>
+            <div class="border-2 border-dashed border-neutral-200 rounded-lg p-6 text-center text-neutral-400 text-[12px] hover:border-neutral-300 cursor-pointer">🖥<br>Full<br>1920×350</div>
+            <div class="border-2 border-dashed border-neutral-200 rounded-lg p-6 text-center text-neutral-400 text-[12px] hover:border-neutral-300 cursor-pointer">🎬<br>Video<br>máx 3MB</div>
+          </div>
+        </div>
+
+        <!-- STEP 4 · SIMULADOR + RESUMEN -->
+        <div class="step-body hidden" data-step="4">
+          <h2 class="text-[17px] font-bold text-neutral-900 mb-1 tracking-tight">Simulador — prueba la promo antes de publicar</h2>
+          <p class="text-[13px] text-sub mb-5">Arma un carrito de prueba, elige el medio de pago y mira el descuento que el motor aplicaría. Usa la config que definiste en los pasos anteriores.</p>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="card p-4">
+              <div class="text-[13px] font-semibold text-neutral-800 mb-2">1 · Agrega productos</div>
+              <div id="palette" class="grid grid-cols-1 gap-1.5 mb-4"></div>
+              <div class="text-[13px] font-semibold text-neutral-800 mb-2">Carrito</div>
+              <div id="cart" class="space-y-1.5 min-h-[40px]"></div>
+              <div class="text-[13px] font-semibold text-neutral-800 mb-2 mt-4">2 · Medio de pago</div>
+              <select id="sim-medio" onchange="renderSim()" class="w-full px-2 py-2 border border-neutral-200 rounded-md text-[13.5px] bg-white"></select>
+            </div>
+
+            <div class="card p-4 flex flex-col bg-neutral-50">
+              <div class="text-[13px] font-semibold text-neutral-800 mb-3">Resultado del motor</div>
+              <div id="sim-result" class="flex-1"></div>
+            </div>
+          </div>
+
+          <div class="card p-0 divide-y divide-neutral-100 text-[13.5px] mt-5">
+            <div class="flex px-4 py-3"><div class="w-36 text-sub shrink-0">Nombre</div><div class="font-medium">Compra $400.000 y lleva gorra Goorin por $49.900</div></div>
+            <div class="flex px-4 py-3"><div class="w-36 text-sub shrink-0">Config</div><div id="sum-config" class="text-neutral-700"></div></div>
+          </div>
+
+          <div class="flex items-center justify-between mt-6">
+            <button class="btn-ghost text-[13.5px] px-4 h-10">💾 Guardar borrador</button>
+            <button class="btn-brand text-[13.5px] px-5 h-10 shadow-card">✓ Publicar promoción</button>
+          </div>
+        </div>
+
+        <div id="wiz-nav" class="flex items-center justify-between mt-8 pt-5 border-t border-line">
+          <button id="btn-back" onclick="setStep(step-1)" class="btn-ghost text-[13.5px] px-4 h-10">← Atrás</button>
+          <button id="btn-next" onclick="setStep(step+1)" class="btn-primary text-[13.5px] px-5 h-10 shadow-card">Continuar →</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+// ============ ESTADO DE LA PROMO ============
+const S = {
+  activacion:'automatica', benefit:'regalo',
+  pct:20, montoFijo:50000, tope:0, aplicaSobre:'carrito', envioValor:12900,
+  regaloUnidades:1, regaloPrecio:49900, multiplicativo:true, limiteN:0,
+  umbralTipo:'monto', umbralValor:400000,
+  rules:[{id:1,dims:{TIPO_PRENDA:['Gorra'],MARCA:['Goorin']}}],
+  reglasReq:[],
+  aplicaPrecio:'full',
+  medioRestringido:false, mediosSel:[],
+};
+const money = n => '$'+Math.round(n).toLocaleString('es-CO');
+const parseMoney = s => +(''+s).replace(/[^\d]/g,'')||0;
+
+// ============ LISTADO ============
+const promos = [
+  {n:'Compra $400.000 y lleva gorra Goorin por $49.900',act:'Automática',ben:'🎁 Regalo · $49.900',tienda:'Factory',vig:'15 jul – 31 jul',estado:'activa',red:'142 pedidos · $8,4 M'},
+  {n:'SALE — 20% adicional en promoción',act:'Automática',ben:'％ 20%',tienda:'Stirpe',vig:'01 jul – 28 jul',estado:'activa',red:'1.204 pedidos · $214 M'},
+  {n:'Envío gratis en compras > $250.000',act:'Automática',ben:'🚚 Envío gratis',tienda:'Factory',vig:'sin fin',estado:'activa',red:'2.011 pedidos · $38 M'},
+  {n:'BIENVENIDA15',act:'Por código',ben:'％ 15%',tienda:'Todas',vig:'20 jul – 20 ago',estado:'programada',red:'—'},
+  {n:'Combo camisetas Nike + tenis Adidas',act:'Automática',ben:'％ 25%',tienda:'Derek',vig:'—',estado:'borrador',red:'—'},
+  {n:'Bono POS clientes premium',act:'Por segmento',ben:'$ 50.000',tienda:'Todas',vig:'01 may – 24 may',estado:'vencida',red:'488 pedidos · $61 M'},
+];
+const estadoStyle={
+  activa:['Activa','background:#d1fae5;color:#047857'],
+  programada:['Programada','background:#171717;color:#fff'],
+  borrador:['Borrador','background:#fff;color:#737373;border-color:#e5e5e5'],
+  vencida:['Vencida','background:#fef3c7;color:#b45309'],
+  archivada:['Archivada','background:#f5f5f5;color:#a3a3a3;text-decoration:line-through'],
+};
+function renderRows(){
+  document.getElementById('rows').innerHTML=promos.map(p=>{const[lbl,style]=estadoStyle[p.estado];
+    const actions=(p.estado==='vencida'||p.estado==='archivada')?`<button class="act">Duplicar</button><button class="act">Archivar</button>`:`<button class="act" onclick="goWizard()">Editar</button><button class="act">Duplicar</button>`;
+    return `<tr class="hover:bg-neutral-50"><td class="px-4 py-3 font-medium text-neutral-900 max-w-xs">${p.n}</td><td class="px-4 py-3 text-neutral-600">${p.act}</td><td class="px-4 py-3 text-neutral-600">${p.ben}</td><td class="px-4 py-3 text-neutral-600">${p.tienda}</td><td class="px-4 py-3 text-sub text-[12.5px]">${p.vig}</td><td class="px-4 py-3"><span class="badge" style="${style}">${lbl}</span></td><td class="px-4 py-3 text-right text-[12.5px] text-sub tnum">${p.red}</td><td class="px-4 py-3 text-right whitespace-nowrap space-x-3">${actions}</td></tr>`;
+  }).join('');
+  document.querySelectorAll('.act').forEach(b=>b.className='act text-[12.5px] text-neutral-700 hover:text-brand-700 font-medium');
+}
+
+// ============ NAV PANTALLAS ============
+function goWizard(){document.getElementById('scr-list').classList.add('hidden');document.getElementById('scr-wizard').classList.remove('hidden');setStep(1);window.scrollTo(0,0);}
+function goList(){document.getElementById('scr-wizard').classList.add('hidden');document.getElementById('scr-list').classList.remove('hidden');window.scrollTo(0,0);}
+
+// ============ WIZARD STEPS ============
+let step=1;
+const STEPS=[[1,'Tipo y beneficio'],[2,'Condiciones'],[3,'Presentación'],[4,'Simulador']];
+function renderStepper(){
+  const html=STEPS.map(([n,label],i)=>{
+    const state = n<step?'done':(n===step?'active':'todo');
+    const circle = state==='done'?`<span class="sc sc-done">✓</span>`:`<span class="sc sc-${state}">${n}</span>`;
+    const conn = i<STEPS.length-1?`<span class="st-conn ${n<step?'done':'todo'}"></span>`:'';
+    return `<button onclick="setStep(${n})" class="flex items-center gap-2.5">${circle}<span class="st-label ${state}">${label}</span></button>${conn}`;
+  }).join('');
+  document.getElementById('stepper').innerHTML=`<div class="flex items-center">${html}</div>`;
+}
+function setStep(n){
+  if(n<1||n>4)return;step=n;
+  renderStepper();
+  document.querySelectorAll('.step-body').forEach(b=>b.classList.toggle('hidden',+b.dataset.step!==n));
+  document.getElementById('btn-back').style.visibility=n===1?'hidden':'visible';
+  document.getElementById('btn-next').style.display=n===4?'none':'inline-block';
+  if(n===2)syncReglasTitulo();
+  if(n===4)renderSim();
+  window.scrollTo(0,0);
+}
+
+// ============ ACTIVACIÓN ============
+function setActivacion(el,tipo){
+  el.parentElement.querySelectorAll('.opt-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');
+  S.activacion=tipo;
+  document.getElementById('cfg-codigo').classList.toggle('hidden',tipo!=='codigo');
+  document.getElementById('cfg-segmento').classList.toggle('hidden',tipo!=='segmento');
+}
+function segMode(m){['csv','analytics','manual'].forEach(x=>document.getElementById('seg-'+x).classList.toggle('hidden',x!==m));}
+
+// ============ BENEFICIO ============
+function setBenefit(el,tipo){
+  el.parentElement.querySelectorAll('.opt-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');
+  S.benefit=tipo;
+  ['pct','monto','envio','regalo'].forEach(x=>document.getElementById('cfg-'+x).classList.toggle('hidden',x!==tipo));
+  syncReglasTitulo();
+}
+function syncReglasTitulo(){
+  const t=document.getElementById('reglas-titulo');if(!t)return;
+  t.textContent = S.benefit==='regalo' ? 'El regalo debe ser…' : (S.aplicaSobre==='califican'?'El descuento aplica sobre productos que sean…':'Productos que habilitan la promo…');
+  const cardReq=document.getElementById('card-requisito');
+  if(cardReq) cardReq.style.display = S.benefit==='regalo' ? 'block' : 'none';
+}
+
+// ============ CONSTRUCTOR DE REGLAS (5 dimensiones · REQUISITO + OBTIENE) ============
+const DIMS={
+  TIPO_PRENDA:{label:'Tipo de prenda',chip:'background:#ede9fe;color:#6d28d9',core:true,opts:['Gorra','Camiseta','Zapato','Pantalón','Chaqueta']},
+  MARCA:{label:'Marca',chip:'background:#d1fae5;color:#047857',core:true,opts:['Goorin','Nike','Adidas','Unser','Derek']},
+  CATEGORIA:{label:'Categoría',chip:'background:#e0f2fe;color:#0369a1',opts:['Zapatos','Enterizos','Maquillaje','Accesorios','Ropa interior']},
+  GENERO:{label:'Género',chip:'background:#fef3c7;color:#b45309',opts:['Hombre','Mujer','Unisex']},
+  PRODUCTO:{label:'Producto (SKU)',chip:'background:#fee2e2;color:#b91c1c',opts:['Gorra Goorin (837610)','Camiseta Nike (133835)','Zapato Adidas (820352)']},
+};
+const SETS={
+  requisito:{arr:S.reglasReq, cont:'rules-requisito', seq:0},
+  obtiene:{arr:S.rules, cont:'rules-obtiene', seq:1},
+};
+const esc=s=>(''+s).replace(/'/g,'&#39;');
+function renderRuleset(setKey){
+  const set=SETS[setKey];const cont=document.getElementById(set.cont);if(!cont)return;
+  cont.innerHTML=set.arr.map((r,idx)=>{
+    const dims=r.dims||{};
+    const dimBlocks=Object.keys(DIMS).map(dk=>{
+      if(!DIMS[dk].core && !(dk in dims))return'';
+      const sel=dims[dk]||[];
+      const chips=sel.map(v=>`<span class="badge" style="${DIMS[dk].chip}">${v} <button onclick="rmChip('${setKey}',${r.id},'${dk}','${esc(v)}')" class="ml-1 opacity-50 hover:opacity-100">×</button></span>`).join('<span class="text-[11px] text-neutral-900 font-bold px-0.5 mono">o</span>');
+      const remaining=DIMS[dk].opts.filter(o=>!sel.includes(o));
+      const adder=remaining.length?`<select onchange="addChip('${setKey}',${r.id},'${dk}',this.value);this.value=''" class="text-[12px] border border-neutral-200 rounded-md px-1.5 py-1 bg-white text-neutral-500"><option value="">+ ${DIMS[dk].label.toLowerCase()}</option>${remaining.map(o=>`<option>${o}</option>`).join('')}</select>`:'';
+      return `<div class="mb-2"><div class="text-[11px] font-semibold text-neutral-500 uppercase tracking-wide mb-1">${DIMS[dk].label}</div><div class="flex flex-wrap items-center gap-1.5">${chips||'<span class="text-[12px] text-neutral-300">cualquiera</span>'} ${adder}</div></div>`;
+    }).filter(Boolean).join('<div class="text-center text-[10.5px] font-bold text-brand-700 tracking-widest my-1">— Y —</div>');
+    const extras=['CATEGORIA','GENERO','PRODUCTO'].filter(dk=>!(dk in dims));
+    const addDim=extras.length?`<select onchange="addDimension('${setKey}',${r.id},this.value);this.value=''" class="text-[11.5px] border border-dashed border-neutral-300 rounded-md px-2 py-1 bg-white text-neutral-500 mt-1"><option value="">+ otra dimensión</option>${extras.map(dk=>`<option value="${dk}">${DIMS[dk].label}</option>`).join('')}</select>`:'';
+    const del=set.arr.length>1?`<button onclick="rmRule('${setKey}',${r.id})" class="text-neutral-300 hover:text-red-500 text-[16px]">×</button>`:'';
+    const orSep=idx>0?`<div class="text-center my-2"><span class="text-[13px] font-bold text-neutral-900 mono">O</span></div>`:'';
+    return `${orSep}<div style="border:1px solid #a7f3d0;background:#f0fdf9;border-radius:.5rem;padding:14px"><div class="flex items-center justify-between mb-2"><span class="text-[10.5px] font-bold uppercase tracking-widest text-brand-700 mono">Regla ${idx+1}</span>${del}</div>${dimBlocks}${addDim}</div>`;
+  }).join('') || '<div class="text-[12px] text-neutral-300 py-1">Sin reglas de requisito — agrega una solo si el regalo exige comprar un producto específico.</div>';
+  if(setKey==='obtiene' && !document.getElementById('preview').classList.contains('hidden'))renderMatrix();
+}
+function renderRules(){renderRuleset('obtiene');renderRuleset('requisito');}
+function addRule(setKey){const s=SETS[setKey];s.seq++;s.arr.push({id:s.seq,dims:{TIPO_PRENDA:[],MARCA:[]}});renderRuleset(setKey);}
+function rmRule(setKey,id){const a=SETS[setKey].arr;const i=a.findIndex(r=>r.id===id);if(i>=0)a.splice(i,1);renderRuleset(setKey);}
+function addChip(setKey,id,dk,val){if(!val)return;const r=SETS[setKey].arr.find(x=>x.id===id);if(!r.dims[dk])r.dims[dk]=[];if(!r.dims[dk].includes(val))r.dims[dk].push(val);renderRuleset(setKey);}
+function rmChip(setKey,id,dk,val){const r=SETS[setKey].arr.find(x=>x.id===id);r.dims[dk]=(r.dims[dk]||[]).filter(v=>v!==val);renderRuleset(setKey);}
+function addDimension(setKey,id,dk){if(!dk)return;const r=SETS[setKey].arr.find(x=>x.id===id);if(!r.dims[dk])r.dims[dk]=[];renderRuleset(setKey);}
+function loadEjemploCruce(){
+  const a=SETS.obtiene.arr;a.length=0;a.push({id:1,dims:{TIPO_PRENDA:['Gorra','Camiseta'],MARCA:['Adidas','Unser']}});SETS.obtiene.seq=1;
+  renderRuleset('obtiene');
+  document.getElementById('preview').classList.remove('hidden');renderMatrix();
+}
+
+// ============ ELEGIBILIDAD ============
+function matchesRules(tipo,marca,rulesArr){
+  return (rulesArr||[]).some(r=>{
+    const dims=r.dims||{};
+    const active=Object.keys(dims).filter(dk=>(dims[dk]||[]).length);
+    if(!active.length)return false;
+    return active.every(dk=>{
+      if(dk==='TIPO_PRENDA')return dims[dk].includes(tipo);
+      if(dk==='MARCA')return dims[dk].includes(marca);
+      return true; // categoría/género/producto: el carrito de prueba solo tiene tipo+marca (ilustrativo)
+    });
+  });
+}
+function itemMatches(tipo,marca){return matchesRules(tipo,marca,SETS.obtiene.arr);}
+function ruleToText(rr){const parts=[];Object.keys(DIMS).forEach(dk=>{if((rr.dims[dk]||[]).length)parts.push(DIMS[dk].label.split(' ')[0].toLowerCase()+' ∈ {'+rr.dims[dk].join(', ')+'}');});return '('+(parts.join(' Y ')||'cualquiera')+')';}
+function reqActivas(){return SETS.requisito.arr.filter(r=>Object.keys(r.dims||{}).some(dk=>(r.dims[dk]||[]).length));}
+function togglePreview(){const p=document.getElementById('preview');p.classList.toggle('hidden');if(!p.classList.contains('hidden'))renderMatrix();}
+function renderMatrix(){
+  const tipos=['Gorra','Camiseta','Zapato'],marcas=['Goorin','Nike','Adidas','Unser'];
+  let html=`<table style="border-collapse:separate;border-spacing:5px"><tr><td></td>${marcas.map(m=>`<td class="text-center text-[11.5px] font-semibold text-neutral-500 px-1">${m}</td>`).join('')}</tr>`;
+  tipos.forEach(t=>{html+=`<tr><td class="text-right text-[11.5px] font-semibold text-neutral-500 pr-2 whitespace-nowrap">${t}</td>`;
+    marcas.forEach(m=>{const y=itemMatches(t,m);html+=`<td><div class="${y?'cell-yes':'cell-no'}" style="width:66px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">${y?'✓':'·'}</div></td>`;});
+    html+=`</tr>`;});
+  html+=`</table><p class="text-[11.5px] text-neutral-400 mt-2">Cruce tipo × marca (ilustrativo). Verde = califica. Categoría, género y producto también son dimensiones válidas.</p>`;
+  document.getElementById('matrix').innerHTML=html;
+}
+
+// ============ MEDIOS DE PAGO ============
+const MEDIOS=['Tarjeta crédito','Tarjeta débito','PSE','Efectivo','QUAC crédito','Addi','Sistecrédito'];
+function toggleMedios(on){S.medioRestringido=on;document.getElementById('medios-wrap').classList.toggle('hidden',!on);if(!on)S.mediosSel=[];renderMedios();}
+function renderMedios(){
+  document.getElementById('medios-wrap').innerHTML=MEDIOS.map(m=>{const on=S.mediosSel.includes(m);
+    return `<span onclick="toggleMedio('${m}')" class="pay-chip ${on?'on':''}" style="border-radius:100px;padding:5px 12px;font-size:12.5px">${on?'✓ ':''}${m}</span>`;}).join('');
+}
+function toggleMedio(m){if(S.mediosSel.includes(m))S.mediosSel=S.mediosSel.filter(x=>x!==m);else S.mediosSel.push(m);renderMedios();}
+
+// ============ SIMULADOR DE CARRITO ============
+const PALETTE=[
+  {tipo:'Gorra',marca:'Goorin',precio:169900},
+  {tipo:'Gorra',marca:'Adidas',precio:99900,desc:true},
+  {tipo:'Camiseta',marca:'Unser',precio:89900},
+  {tipo:'Camiseta',marca:'Nike',precio:129900,desc:true},
+  {tipo:'Zapato',marca:'Adidas',precio:349900},
+  {tipo:'Pantalón',marca:'Derek',precio:159900},
+];
+const PRECIO_LABEL={full:'solo precio full',todos:'todos los precios',desc:'solo con descuento'};
+function precioElegible(c){return S.aplicaPrecio==='todos'?true:(S.aplicaPrecio==='desc'?!!c.desc:!c.desc);}
+const dtoTag='<span style="font-size:10px;background:#fef3c7;color:#b45309;border-radius:4px;padding:1px 5px;margin-left:5px;font-weight:600">dto</span>';
+let cart=[{tipo:'Zapato',marca:'Adidas',precio:349900,qty:1},{tipo:'Camiseta',marca:'Unser',precio:89900,qty:1},{tipo:'Gorra',marca:'Goorin',precio:169900,qty:2}];
+function renderPalette(){
+  document.getElementById('palette').innerHTML=PALETTE.map((p,i)=>`<button onclick="addToCart(${i})" class="flex items-center justify-between text-[12.5px] px-3 py-2 border border-neutral-200 rounded-md hover:bg-neutral-50 text-left"><span>${p.tipo} <span class="text-neutral-400">·</span> ${p.marca}${p.desc?dtoTag:''}</span><span class="text-sub tnum">${money(p.precio)} <span class="text-brand-700 font-bold ml-1">＋</span></span></button>`).join('');
+}
+function addToCart(i){const p=PALETTE[i];const ex=cart.find(c=>c.tipo===p.tipo&&c.marca===p.marca);if(ex)ex.qty++;else cart.push({...p,qty:1});renderSim();}
+function cartQty(idx,d){cart[idx].qty+=d;if(cart[idx].qty<=0)cart.splice(idx,1);renderSim();}
+function renderCart(){
+  document.getElementById('cart').innerHTML=cart.length?cart.map((c,i)=>`<div class="flex items-center justify-between text-[12.5px] bg-neutral-50 rounded-md px-2 py-1.5"><span class="${itemMatches(c.tipo,c.marca)?'text-brand-700 font-medium':'text-neutral-600'}">${itemMatches(c.tipo,c.marca)?'✓ ':''}${c.tipo} · ${c.marca}${c.desc?dtoTag:''}</span><span class="flex items-center gap-2"><button onclick="cartQty(${i},-1)" class="w-5 h-5 rounded bg-white border border-neutral-200 text-neutral-500">−</button><span class="w-4 text-center tnum">${c.qty}</span><button onclick="cartQty(${i},1)" class="w-5 h-5 rounded bg-white border border-neutral-200 text-neutral-500">＋</button><span class="w-20 text-right text-sub tnum">${money(c.precio*c.qty)}</span></span></div>`).join(''):'<div class="text-[12px] text-neutral-300 py-2">Carrito vacío</div>';
+}
+function renderMedioSelect(){
+  const sel=document.getElementById('sim-medio');
+  const prev=sel.value;
+  const opts = (S.medioRestringido&&S.mediosSel.length)?[...S.mediosSel,'Efectivo (no habilitado)']:MEDIOS;
+  const uniq=[...new Set(opts)];
+  sel.innerHTML=uniq.map(m=>`<option>${m}</option>`).join('');
+  if(uniq.includes(prev))sel.value=prev;
+}
+function compute(medio){
+  const medioReal=medio.replace(' (no habilitado)','');
+  const subtotal=cart.reduce((a,c)=>a+c.precio*c.qty,0);
+  const totalQty=cart.reduce((a,c)=>a+c.qty,0);
+  const cumpleUmbral=S.umbralTipo==='monto'?subtotal>=S.umbralValor:totalQty>=S.umbralValor;
+  const medioOk=!S.medioRestringido||S.mediosSel.includes(medioReal);
+  const elegibles=cart.filter(precioElegible);
+  const califican=elegibles.filter(c=>itemMatches(c.tipo,c.marca));
+  const baseCalifican=califican.reduce((a,c)=>a+c.precio*c.qty,0);
+  const baseCarrito=elegibles.reduce((a,c)=>a+c.precio*c.qty,0);
+  const base=S.aplicaSobre==='carrito'?baseCarrito:baseCalifican;
+  const reqRules=reqActivas();
+  const requisitoOk=(S.benefit!=='regalo'||reqRules.length===0)?true:cart.some(c=>matchesRules(c.tipo,c.marca,reqRules));
+  let descuento=0,detalle='',regalos=0;
+  const bloqueos=[];
+  if(!cumpleUmbral)bloqueos.push(S.umbralTipo==='monto'?`No llega al mínimo de ${money(S.umbralValor)} (lleva ${money(subtotal)})`:`No llega a ${S.umbralValor} artículos`);
+  if(!medioOk)bloqueos.push(`El pago con «${medioReal}» no está habilitado para esta promo`);
+  if(S.benefit==='regalo'&&reqRules.length&&!requisitoOk&&cumpleUmbral&&medioOk)bloqueos.push('El carrito no incluye el producto requerido: '+reqRules.map(ruleToText).join(' o '));
+  if(S.benefit!=='envio'&&S.aplicaSobre==='califican'&&califican.length===0&&cumpleUmbral&&medioOk)bloqueos.push('Ningún producto del carrito cumple las reglas');
+  if(S.benefit!=='envio'&&cumpleUmbral&&medioOk&&elegibles.length===0)bloqueos.push(`Ningún producto cumple el filtro de precio («${PRECIO_LABEL[S.aplicaPrecio]}»)`);
+  const gate=cumpleUmbral&&medioOk&&(S.benefit!=='regalo'||requisitoOk);
+  if(gate){
+    if(S.benefit==='pct'){descuento=base*S.pct/100;if(S.tope>0&&descuento>S.tope)descuento=S.tope;detalle=`${S.pct}% sobre ${money(base)}${S.tope?' (tope '+money(S.tope)+')':''}`;}
+    else if(S.benefit==='monto'){descuento=Math.min(S.montoFijo,base);detalle=`${money(S.montoFijo)} sobre ${money(base)}`;}
+    else if(S.benefit==='envio'){descuento=S.envioValor;detalle=`Envío ${money(S.envioValor)} → gratis`;}
+    else if(S.benefit==='regalo'){
+      const veces=S.multiplicativo?Math.floor(subtotal/S.umbralValor):(S.limiteN||1);
+      const cupos=veces*S.regaloUnidades;
+      let units=[];califican.forEach(c=>{for(let k=0;k<c.qty;k++)units.push(c.precio);});
+      units.sort((a,b)=>b-a);
+      const n=Math.min(cupos,units.length);regalos=n;
+      for(let k=0;k<n;k++)if(units[k]>S.regaloPrecio)descuento+=units[k]-S.regaloPrecio;
+      detalle=`${n} regalo(s) a ${money(S.regaloPrecio)} · ${S.multiplicativo?'×'+veces+' (por cada '+money(S.umbralValor)+')':'tope '+veces}`;
+      if(cupos>0&&units.length===0)bloqueos.push('El carrito no tiene el producto de regalo');
+    }
+  }
+  return {subtotal,cumpleUmbral,medioOk,califican:califican.length,descuento,detalle,regalos,bloqueos,total:subtotal-descuento};
+}
+function renderSim(){
+  renderPalette();renderCart();renderMedioSelect();
+  const medio=document.getElementById('sim-medio').value||MEDIOS[0];
+  const r=compute(medio);
+  const aplica=r.descuento>0;
+  const benLabel={pct:'Porcentaje',monto:'Monto fijo',envio:'Envío gratis',regalo:'Regalo'}[S.benefit];
+  document.getElementById('sim-result').innerHTML=`
+    <div class="space-y-2 text-[13px]">
+      <div class="flex justify-between"><span class="text-sub">Subtotal</span><span class="tnum">${money(r.subtotal)}</span></div>
+      <div class="flex justify-between"><span class="text-sub">¿Cumple mínimo?</span><span class="${r.cumpleUmbral?'text-brand-700 font-medium':'text-amber-600 font-medium'}">${r.cumpleUmbral?'Sí':'No'}</span></div>
+      <div class="flex justify-between"><span class="text-sub">Productos que califican</span><span class="tnum">${r.califican}</span></div>
+      <div class="flex justify-between"><span class="text-sub">Medio de pago</span><span class="${r.medioOk?'text-neutral-700':'text-amber-600 font-medium'}">${medio.replace(' (no habilitado)','')}${r.medioOk?'':' ✕'}</span></div>
+    </div>
+    <div class="border-t border-neutral-200 my-3"></div>
+    ${aplica?`
+      <div class="bg-brand-50 border border-brand-200 rounded-md p-3 mb-3">
+        <div class="text-brand-700 font-semibold text-[12.5px] mb-1">✓ Aplica ${benLabel}</div>
+        <div class="text-[12px] text-neutral-600">${r.detalle}</div>
+      </div>
+      <div class="flex justify-between text-[13px] text-neutral-600"><span>Descuento</span><span class="text-brand-700 font-semibold tnum">− ${money(r.descuento)}</span></div>
+      <div class="flex justify-between text-[18px] font-bold mt-2 text-neutral-900"><span>Total</span><span class="tnum">${money(r.total)}</span></div>
+    `:`
+      <div class="bg-amber-50 border border-amber-200 rounded-md p-3">
+        <div class="text-amber-700 font-semibold text-[12.5px] mb-1">No aplica descuento</div>
+        <ul class="text-[12px] text-neutral-600 list-disc pl-4 space-y-0.5">${r.bloqueos.map(b=>`<li>${b}</li>`).join('')||'<li>Sin condiciones activas</li>'}</ul>
+      </div>
+      <div class="flex justify-between text-[18px] font-bold mt-3 text-neutral-900"><span>Total</span><span class="tnum">${money(r.total)}</span></div>
+    `}`;
+  const umbralTxt=S.umbralTipo==='monto'?`compra ≥ ${money(S.umbralValor)}`:`≥ ${S.umbralValor} artículos`;
+  const reqRules=reqActivas();
+  const reqTxt=(S.benefit==='regalo'&&reqRules.length)?` · requisito: ${reqRules.map(ruleToText).join(' O ')}`:'';
+  const reglasTxt=SETS.obtiene.arr.map(ruleToText).join(' O ');
+  const objLabel=S.benefit==='regalo'?'regalo':'aplica a';
+  const precioTxt=` · ${PRECIO_LABEL[S.aplicaPrecio]}`;
+  const medioTxt=(S.medioRestringido&&S.mediosSel.length)?` · medios: ${S.mediosSel.join(', ')}`:' · cualquier medio de pago';
+  document.getElementById('sum-config').innerHTML=`<b>${benLabel}</b> · ${umbralTxt}${reqTxt} · ${objLabel}: ${reglasTxt}${precioTxt}${medioTxt}`;
+}
+
+// init
+renderRows();renderRules();renderMedios();syncReglasTitulo();
+</script>
+</body>
+</html>
