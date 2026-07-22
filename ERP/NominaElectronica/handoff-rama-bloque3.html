@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Handoff de implementación — rama feature/ERP-NE-VALIDACION-ENVIO (hasta Bloque 3)</title>
+<style>
+  :root{--navy:#2b3648;--blue:#3f8ac9;--red:#e8556d;--green:#1fae83;--orange:#f5a02e;--purple:#7a5ec4;--muted:#6b7a8d;--border:#e4e9ef;--paper:#f8fafc;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#eef1f5;color:#1a2230;line-height:1.62;font-size:14.5px;}
+  .container{max-width:980px;margin:0 auto;background:#fff;padding:40px 44px 90px;box-shadow:0 3px 22px rgba(20,30,50,.12);}
+  .doc-head{border-bottom:3px solid var(--navy);padding-bottom:18px;margin-bottom:10px;}
+  .doc-head h1{font-size:23px;color:var(--navy);line-height:1.28;}
+  .doc-head .sub{color:var(--muted);font-size:13px;margin-top:7px;}
+  .bdg{display:inline-block;font-size:11px;font-weight:700;padding:3px 11px;border-radius:11px;margin:9px 6px 0 0;}
+  .bdg.id{background:#e9eef5;color:var(--navy);} .bdg.ok{background:#e2f4ee;color:var(--green);} .bdg.br{background:#eef0fb;color:#5a5ec4;font-family:'SF Mono',Menlo,monospace;}
+  h2{font-size:19px;color:var(--navy);margin:38px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+  h2 .n{display:inline-flex;width:27px;height:27px;border-radius:50%;background:var(--navy);color:#fff;font-size:13px;align-items:center;justify-content:center;margin-right:10px;vertical-align:-4px;}
+  h3{font-size:15.5px;color:var(--navy);margin:22px 0 8px;}
+  p{margin:9px 0;} ul,ol{margin:9px 0 9px 24px;} li{margin:5px 0;}
+  code{background:#eef2f7;border-radius:4px;padding:1.5px 6px;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12.5px;color:#334;}
+  .path{color:#7a5ec4;}
+  pre{background:#1d2634;color:#c7d2e0;border-radius:9px;padding:15px 18px;overflow-x:auto;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12px;line-height:1.6;margin:13px 0;}
+  pre .c{color:#5c6e84;} pre .k{color:#c9a6f5;} pre .s{color:#7fe0b8;} pre .y{color:#f5c76e;} pre .b{color:#7fb8ef;}
+  table{width:100%;border-collapse:collapse;margin:13px 0;font-size:12.5px;}
+  th{background:var(--navy);color:#fff;text-align:left;padding:8px 11px;font-size:11px;letter-spacing:.3px;}
+  td{border:1px solid var(--border);padding:7px 11px;vertical-align:top;}
+  tr:nth-child(even) td{background:var(--paper);}
+  td.mono,.mono{font-family:'SF Mono',Menlo,monospace;font-size:11.5px;}
+  blockquote{border-left:4px solid var(--blue);background:#f6f9fc;padding:10px 16px;border-radius:0 8px 8px 0;margin:13px 0;font-size:13.5px;color:#41505f;}
+  .call{border-radius:10px;padding:13px 17px;margin:14px 0;font-size:13.5px;display:flex;gap:11px;}
+  .call.ok{background:#eef9f4;border:1px solid #bfe6d7;}
+  .call.warn{background:#fdf6e7;border:1px solid #f4dfae;}
+  .call.info{background:#eef5fc;border:1px solid #cfe2f4;}
+  .call.pri{background:#fdf0f2;border:1px solid #f0b6c2;}
+  .steps{counter-reset:s;margin:14px 0;}
+  .stp{position:relative;padding:12px 16px 12px 52px;border:1px solid var(--border);border-radius:9px;margin:9px 0;background:#fff;}
+  .stp::before{counter-increment:s;content:counter(s);position:absolute;left:14px;top:12px;width:26px;height:26px;border-radius:50%;background:var(--blue);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;}
+  .stp b{color:var(--navy);}
+  .tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:9px;margin-left:6px;}
+  .tag.web{background:#e3eefb;color:var(--blue);} .tag.wrk{background:#efe7fb;color:var(--purple);} .tag.db{background:#e2f4ee;color:var(--green);}
+  .legend{font-size:11.5px;color:var(--muted);margin-top:4px;}
+  .foot{margin-top:40px;padding-top:12px;border-top:1px solid var(--border);font-size:11.5px;color:var(--muted);}
+  .filerow td:first-child{font-family:'SF Mono',Menlo,monospace;font-size:11px;white-space:nowrap;}
+  /* ── Diagrama de flujo ─────────────────────────────── */
+  .flow{margin:16px 0 6px;}
+  .phase{border:1px solid var(--border);border-radius:11px;margin:14px 0;overflow:hidden;background:#fff;}
+  .phase-h{padding:8px 16px;font-size:12px;font-weight:700;letter-spacing:.4px;color:#fff;}
+  .phase-h .t{opacity:.9;font-weight:600;}
+  .ph-arr .phase-h{background:var(--blue);} .ph-env .phase-h{background:var(--purple);} .ph-seg .phase-h{background:var(--green);}
+  .phase-b{padding:15px 16px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:center;}
+  .fbox{border-radius:9px;padding:9px 13px;font-size:12px;min-width:118px;text-align:center;border:2px solid;background:#fff;}
+  .fbox .ftit{font-weight:700;font-size:12.5px;display:block;margin-bottom:2px;}
+  .fbox .fsub{font-size:10.8px;color:var(--muted);display:block;line-height:1.4;}
+  .fbox.nav{border-color:#bcdcf1;} .fbox.nav .ftit{color:var(--blue);}
+  .fbox.ctrl{border-color:#c3c9dd;} .fbox.ctrl .ftit{color:var(--navy);}
+  .fbox.wrk{border-color:#d6c6ee;} .fbox.wrk .ftit{color:var(--purple);}
+  .fbox.bd{border-color:#bfe6d7;background:#f1fbf6;} .fbox.bd .ftit{color:var(--green);}
+  .farr{color:#9aa7b6;font-size:17px;font-weight:700;flex:none;line-height:1.1;}
+  .farr .lbl{display:block;font-size:9px;font-weight:700;color:#9aa7b6;text-align:center;letter-spacing:.2px;}
+  .flanes{display:flex;gap:14px;flex-wrap:wrap;}
+  .flanes>.phase{flex:1;min-width:290px;margin:0;}
+  .fcol{flex-direction:column;align-items:stretch;gap:6px;}
+  .fcol .farr{text-align:center;}
+  .meet{text-align:center;font-size:11.5px;color:var(--muted);font-weight:700;margin:10px 0 2px;}
+  /* ── Capturas del flujo ────────────────────────────── */
+  .shot{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:16px 0;background:#fff;box-shadow:0 1px 4px rgba(30,45,70,.06);}
+  .shot img{width:100%;display:block;border-bottom:1px solid var(--border);}
+  .shot .cap{padding:10px 15px;font-size:12.5px;color:#41505f;}
+  .shot .cap b{color:var(--navy);}
+  .shot .cap .mono{font-family:'SF Mono',Menlo,monospace;font-size:11px;color:#7a5ec4;}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="doc-head">
+    <h1>Handoff de implementación — Nómina Electrónica: Validación y Envío<br>
+      <span style="font-size:15px;font-weight:400;color:var(--muted);">Lo que trae la rama hasta el Bloque 3 · guía para tomar el código con rapidez</span></h1>
+    <div class="sub">Repo: <code>BaguerSAS/ErpBaguer</code> · De: PM/Arquitectura · Para: dev que retoma</div>
+    <div>
+      <span class="bdg id">ERP-NE-VALIDACION-ENVIO</span>
+      <span class="bdg br">feature/ERP-NE-VALIDACION-ENVIO</span>
+      <span class="bdg ok">DISPAPELES END-TO-END EN SEGUNDO PLANO (H1)</span>
+    </div>
+  </div>
+
+  <!-- 1 -->
+  <h2><span class="n">1</span>Estado de la rama (verificado)</h2>
+  <p>La rama está pusheada: <b>4 commits adelante</b> y <b>15 detrás de <code>master</code></b> (habrá que rebasar antes de mezclar). Los 4 commits, en orden:</p>
+  <table>
+    <tr><th>SHA</th><th>Commit</th><th>Bloque</th></tr>
+    <tr><td class="mono">a4ef949</td><td>feat: fundaciones de proceso y worker Dispapeles en segundo plano</td><td>B1 + B2</td></tr>
+    <tr><td class="mono">1d1245d</td><td>feat: acciones de proceso V2 y front de Validación y Envío (B3)</td><td>B3</td></tr>
+    <tr><td class="mono">ed308eb</td><td>docs: scripts SQL del proceso (tablas + SPs) para ejecutar en BD dev</td><td>B1 (SQL)</td></tr>
+    <tr><td class="mono">de49ffe</td><td>fix: proyección del historial incluye año/mes/sucursal</td><td>B3</td></tr>
+  </table>
+  <div class="call ok"><span>🎯</span><div><b>Qué logra el incremento (hito H1):</b> un operador consulta un período, elige <b>Dispapeles</b>, procesa, y el envío corre <b>en segundo plano</b> (cierra el navegador y no se detiene), con un panel en vivo que muestra el avance. La numeración es idempotente: un recycle de IIS no duplica documentos ante la DIAN.</div></div>
+
+  <!-- 2 -->
+  <h2><span class="n">2</span>Puesta en marcha en 10 minutos</h2>
+  <ol>
+    <li><b>Compilar</b> la rama en Visual Studio (Windows). Los 11 archivos nuevos están registrados en <code class="path">Crm-Baguer/ERP - Baguer.csproj</code>.</li>
+    <li><b>Ejecutar los 2 SQL</b> (sección 3) en la BD <b>dev</b>: <code class="path">docs/sql/01-tablas-proceso.sql</code> y <code class="path">docs/sql/02-sps-proceso.sql</code>. <b>Sin esto el código no arranca</b> (el repositorio llama SPs que no existirían).</li>
+    <li><b>Probar el flujo</b>: pestaña "Validación y Envío" → consultar un período de PRUEBAS con pocas cédulas → Dispapeles → Iniciar → Confirmar → el panel se va llenando.</li>
+    <li><b>Probar resiliencia</b>: reciclar el app pool a mitad → el proceso queda <code>EN_PROCESO</code> y el siguiente poll lo reanuda solo, sin reenviar Nits ya registrados.</li>
+  </ol>
+  <div class="call info"><span>🗺️</span><div>El diseño (contrato de interfaz) es el mockup interactivo. Este documento explica <b>cómo el código lo implementa</b>, archivo por archivo.</div></div>
+
+  <!-- 3 -->
+  <h2><span class="n">3</span>Los 2 scripts SQL: qué hacen y por qué</h2>
+  <p>Toda la lógica SQL vive en <b>procedimientos almacenados</b> (convención <code>SBERP_GESTIONH*</code> del módulo). El código C# nunca escribe SQL: llama a estos SP. Por eso ejecutarlos es el <b>primer requisito</b> (OPS-1).</p>
+
+  <h3><code class="path">01-tablas-proceso.sql</code> — la estructura ("la libreta")</h3>
+  <p>Crea las 2 tablas que le dan memoria al procesamiento (hoy el resultado del envío se pierde) + sus índices:</p>
+  <ul>
+    <li><code>BERP_NominaElectronicaProceso</code> — <b>cabecera</b>: 1 fila por procesamiento (proveedor, estado, contadores <code>Aceptados/Rechazados/Pendientes</code>, <code>FechaUltimaConsulta</code> = latido, usuario, fechas).</li>
+    <li><code>BERP_NominaElectronicaProcesoDetalle</code> — <b>detalle</b>: 1 fila por empleado (Nit, Estado <code>PENDIENTE→ENVIANDO_DOC→ACEPTADO/RECHAZADO</code>, CUNE, prefijo/número, mensaje DIAN). FK a la cabecera + <code>UNIQUE(IdProceso, Nit)</code>.</li>
+  </ul>
+
+  <h3><code class="path">02-sps-proceso.sql</code> — las operaciones (12 SPs)</h3>
+  <table>
+    <tr><th>Grupo</th><th>SP</th><th>Qué hace</th></tr>
+    <tr><td rowspan="2"><b>Nacer</b></td><td class="mono">…ProcesoNeInsert</td><td>inserta la cabecera en <code>ENVIANDO</code></td></tr>
+    <tr><td class="mono">…ProcesoNeDetalleSeed</td><td>siembra las N filas del detalle en <code>PENDIENTE</code> (OPENJSON)</td></tr>
+    <tr><td rowspan="5"><b>Worker</b></td><td class="mono">…ProcesoNeTomar</td><td>candado: toma el proceso si nadie vivo lo tiene (latido)</td></tr>
+    <tr><td class="mono">…ProcesoNePendientes</td><td>trae los próximos N en <code>PENDIENTE</code> (una tanda)</td></tr>
+    <tr><td class="mono">…ProcesoNeDetalleEstado</td><td>actualiza el estado de un empleado (+ CUNE / mensaje)</td></tr>
+    <tr><td class="mono">…ProcesoNeContadores</td><td>recuenta la cabecera + toca el latido (<b>heartbeat por tanda</b>)</td></tr>
+    <tr><td class="mono">…ProcesoNeCerrar</td><td>si Pendientes=0 fija <code>COMPLETADO</code>/<code>CON_NOVEDADES</code></td></tr>
+    <tr><td><b>Cabecera</b></td><td class="mono">…ProcesoNeUpdate</td><td>estado / jobid / mensajeError (ej. marcar <code>FALLIDO</code>)</td></tr>
+    <tr><td rowspan="4"><b>Consultas</b></td><td class="mono">…ProcesoNePorId</td><td>cabecera por id (lo lee el <b>polling</b> y la reanudación)</td></tr>
+    <tr><td class="mono">…ProcesoNePorPeriodo</td><td>proceso más reciente del período (regla "ya procesado")</td></tr>
+    <tr><td class="mono">…ProcesoNeHistorial</td><td>lista de procesos con filtros (pantalla de B4)</td></tr>
+    <tr><td class="mono">…ProcesoNeDetalleSelect</td><td>filas de empleados de un proceso (detalle de B4/B6)</td></tr>
+  </table>
+  <div class="call warn"><span>⚠️</span><div><b>Requisitos al ejecutar:</b> SQL Server <b>2016+</b> (usan <code>OPENJSON</code> y <code>CREATE OR ALTER</code>). Son <b>idempotentes</b> (se re-ejecutan sin romper). Orden: primero <code>01</code>, luego <code>02</code>. El <code>02</code> trae al final un bloque comentado <b>"PRUEBA DEL CICLO"</b> (14 EXEC) para validar todo el ciclo con 3 empleados.</div></div>
+
+  <!-- 4 -->
+  <h2><span class="n">4</span>Arquitectura en capas (el patrón)</h2>
+<pre><span class="c">   NAVEGADOR                         SERVIDOR (ErpBaguer / ASP.NET MVC 5)                 BD (SQL Server)</span>
+   ┌───────────────┐   HTTP   ┌────────────────────────────┐   estático   ┌───────────────┐   SP
+   │ .cshtml + .js │────────► │ NominaElectronicaController │────────────► │ ...Repository │─────► SBERP_GESTIONHProcesoNe*
+   └───────────────┘          └────────────┬───────────────┘              └───────────────┘        │
+        ▲  polling                         │ Encolar()                                              ▼
+        │  cada ~15s                        ▼                                              BERP_NominaElectronicaProceso
+        │                     ┌────────────────────────────┐   usa         BERP_NominaElectronicaProcesoDetalle
+        └──── lee estado ◄────│  DispapelesEnvioWorker      │──────► DispapelesProveedor ──► API Dispapeles + log del dev
+                              │  (QueueBackgroundWorkItem)   │        (IProveedorNominaElectronica)
+                              └────────────────────────────┘</pre>
+  <ul>
+    <li><b>Controller → Repository (estático) → SP → tablas.</b> El repositorio abre sesión NHibernate y ejecuta cada SP con <code>CreateSQLQuery</code> (patrón del repo).</li>
+    <li><b>Capa proveedor</b> (<code>IProveedorNominaElectronica</code>): aísla las diferencias de cada proveedor. Hoy solo <code>DispapelesProveedor</code> (Dataico llega en B5).</li>
+    <li><b>Worker</b> (<code>QueueBackgroundWorkItem</code>): el bucle de ~1.012 envíos corre en el servidor, no en el navegador.</li>
+  </ul>
+
+  <!-- 5 -->
+  <h2><span class="n">5</span>Inventario de archivos (15)</h2>
+  <table class="filerow">
+    <tr><th>Archivo</th><th>Rol</th><th>Bloque</th></tr>
+    <tr><td>docs/sql/01-tablas-proceso.sql</td><td>➕ 2 tablas + índices (la libreta)</td><td>B1</td></tr>
+    <tr><td>docs/sql/02-sps-proceso.sql</td><td>➕ 12 SPs del ciclo de vida</td><td>B1</td></tr>
+    <tr><td>Entity/NominaElectronicaProcesoEntity.cs</td><td>➕ entidad cabecera</td><td>B1</td></tr>
+    <tr><td>Entity/NominaElectronicaProcesoDetalleEntity.cs</td><td>➕ entidad detalle</td><td>B1</td></tr>
+    <tr><td>Mapping/NominaElectronicaProcesoMapping.cs</td><td>➕ mapping NHibernate (contiene <b>los 2 ClassMap</b>, cabecera y detalle)</td><td>B1</td></tr>
+    <tr><td>Form/NominaProcesoForm.cs</td><td>➕ form de entrada de las acciones</td><td>B1</td></tr>
+    <tr><td>Repository/NominaElectronicaProcesoRepository.cs</td><td>➕ 12 métodos (1:1 con los SPs)</td><td>B1</td></tr>
+    <tr><td>helpers/NominaElectronica/IProveedorNominaElectronica.cs</td><td>➕ interfaz de proveedor</td><td>B2</td></tr>
+    <tr><td>helpers/NominaElectronica/ModelosProveedorNe.cs</td><td>➕ DTOs comunes (<code>ResultadoDocumentoNe</code>…)</td><td>B2</td></tr>
+    <tr><td>helpers/NominaElectronica/DispapelesProveedor.cs</td><td>➕ implementación Dispapeles (token + envío por documento)</td><td>B2</td></tr>
+    <tr><td>helpers/NominaElectronica/DispapelesEnvioWorker.cs</td><td>➕ worker en segundo plano (tandas + heartbeat + candado)</td><td>B2</td></tr>
+    <tr><td>Controllers/NominaElectronicaController.cs</td><td>✎ 5 acciones nuevas de proceso</td><td>B3</td></tr>
+    <tr><td>Views/RrHh/NominaElectronicaValidacion.cshtml</td><td>✎ front nuevo (pasos, radio-cards, modal, panel+polling) inline</td><td>B3</td></tr>
+    <tr><td>Content/views/js/rrhh/nominaelectronica.js</td><td>✎ hook: tras cargar indicadores, revela la selección de proveedor</td><td>B3</td></tr>
+    <tr><td>ERP - Baguer.csproj</td><td>✎ registro de los archivos nuevos</td><td>B1</td></tr>
+  </table>
+  <p class="legend">➕ agregado · ✎ modificado</p>
+
+  <!-- 6 -->
+  <h2><span class="n">6</span>El flujo pantalla → código</h2>
+
+  <h3>Diagrama del flujo</h3>
+  <div class="flow">
+
+    <!-- FASE 1 -->
+    <div class="phase ph-arr">
+      <div class="phase-h">FASE 1 · ARRANQUE <span class="t">— petición web, ~2 s</span></div>
+      <div class="phase-b">
+        <div class="fbox nav"><span class="ftit">👤 Navegador</span><span class="fsub">"Confirmar y enviar"</span></div>
+        <div class="farr">►<span class="lbl">POST</span></div>
+        <div class="fbox ctrl"><span class="ftit">⚙ Controller</span><span class="fsub">IniciarProcesamientoNomina<br>1. CrearProceso · 2. SeedDetalle</span></div>
+        <div class="farr">►<span class="lbl">escribe</span></div>
+        <div class="fbox bd"><span class="ftit">🗃 BD · Libreta</span><span class="fsub">cabecera ENVIANDO<br>+ 1.012 en PENDIENTE</span></div>
+      </div>
+      <div class="phase-b" style="padding-top:0;">
+        <div class="fbox ctrl"><span class="ftit">⚙ Controller</span><span class="fsub">3. Encolar(worker)</span></div>
+        <div class="farr">►<span class="lbl">responde { idProceso }</span></div>
+        <div class="fbox nav"><span class="ftit">👤 Navegador LIBRE</span><span class="fsub">la petición terminó</span></div>
+      </div>
+    </div>
+
+    <div class="meet">▼ desde aquí corren DOS lazos en paralelo — el navegador ya no espera ▼</div>
+
+    <!-- FASE 2 y 3 lado a lado -->
+    <div class="flanes">
+      <div class="phase ph-env">
+        <div class="phase-h">FASE 2 · ENVÍO <span class="t">— worker, segundo plano</span></div>
+        <div class="phase-b fcol">
+          <div class="fbox wrk"><span class="ftit">🔧 DispapelesEnvioWorker</span><span class="fsub">Tomar (candado)</span></div>
+          <div class="farr">▼<span class="lbl">bucle de tandas (85)</span></div>
+          <div class="fbox wrk"><span class="ftit">por cada empleado</span><span class="fsub">ENVIANDO_DOC → API Dispapeles → ACEPTADO/RECHAZADO</span></div>
+          <div class="farr">▼<span class="lbl">fin de tanda</span></div>
+          <div class="fbox wrk"><span class="ftit">Contadores + latido</span><span class="fsub">… → Cerrar (COMPLETADO / CON_NOVEDADES)</span></div>
+        </div>
+      </div>
+      <div class="phase ph-seg">
+        <div class="phase-h">FASE 3 · SEGUIMIENTO <span class="t">— polling, navegador</span></div>
+        <div class="phase-b fcol">
+          <div class="fbox nav"><span class="ftit">👤 Panel</span><span class="fsub">setInterval _pollNEP · cada ~15 s</span></div>
+          <div class="farr">▼</div>
+          <div class="fbox ctrl"><span class="ftit">ConsultarEstadoProcesoNomina</span><span class="fsub">→ repo.ConsultarProceso → SP …PorId</span></div>
+          <div class="farr">▼<span class="lbl">lee</span></div>
+          <div class="fbox nav"><span class="ftit">pinta la barra</span><span class="fsub">(aceptados+rechazados)/total · estado final → clearInterval</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BD como punto de encuentro -->
+    <div class="phase-b" style="justify-content:center;">
+      <div class="farr">↘<span class="lbl">escribe</span></div>
+      <div class="fbox bd" style="min-width:260px;"><span class="ftit">🗃 BD · Libreta (cabecera + detalle)</span><span class="fsub">el worker ESCRIBE · el panel LEE — nunca se hablan directo</span></div>
+      <div class="farr">↙<span class="lbl">lee</span></div>
+    </div>
+
+  </div>
+  <div class="call info"><span>🔑</span><div><b>La clave en una imagen:</b> la Fase 2 (worker) y la Fase 3 (polling) son <b>dos lazos independientes</b> que nunca se comunican directo — solo comparten <b>la libreta en la BD</b>. Por eso cerrar el navegador (mata la Fase 3) no detiene el envío (la Fase 2 sigue igual).</div></div>
+
+  <h3>Las pantallas del flujo</h3>
+  <p class="legend">Prototipo interactivo = contrato de interfaz. Cada captura corresponde a un paso del diagrama y al código que lo ejecuta.</p>
+
+  <div class="shot">
+    <img src="files/erp-ne-listar-proveedores-1.png" alt="Pasos 1 a 3: consulta, indicadores y selección de proveedor">
+    <div class="cap"><b>Pasos 1-3 · selección de proveedor.</b> Consulta del período → 4 indicadores + aviso de inválidos → radio-cards (<b>Dispapeles</b> activo, <b>Dataico</b> en fase 2). El botón "Iniciar procesamiento" abre el modal. <span class="mono">NominaElectronicaValidacion.cshtml · IDs 1805NEP-*</span></div>
+  </div>
+  <div class="shot">
+    <img src="files/erp-ne-listar-proveedores-modal-2.png" alt="Modal de confirmación con el resumen">
+    <div class="cap"><b>Modal de confirmación.</b> Resumen de lo que se transmitirá a la DIAN (período, sucursal, empleados, devengado, deducciones, proveedor, ambiente). <span class="mono">#1805NEP-Modal (cshtml:280)</span></div>
+  </div>
+  <div class="shot">
+    <img src="files/erp-ne-listar-proveedores-modal-clic-cta-3.png" alt="Botón Confirmar y enviar del modal">
+    <div class="cap"><b>Confirmar y enviar.</b> Dispara <code>IniciarProcesamientoNomina</code>: crea la cabecera, siembra los pendientes y encola el worker; responde en ~2 s. <span class="mono">#1805NEP-Confirmar (cshtml:309) → ctrl:1960</span></div>
+  </div>
+  <div class="shot">
+    <img src="files/erp-ne-listar-proveedores-progreso-4.png" alt="Panel de seguimiento con barra de progreso">
+    <div class="cap"><b>Panel de seguimiento.</b> Stepper, barra de % real, contadores, "última señal de vida" (latido) y polling. El panel <b>solo lee</b> lo que el worker escribe en la BD. <span class="mono">montarPanelPolling_1805NEP → ConsultarEstadoProcesoNomina (…PorId)</span></div>
+  </div>
+
+  <h3>Dónde vive la pantalla</h3>
+  <p>La pestaña "Validación y Envío" se arma en <code class="path">NominaElectronicaValidacion.cshtml</code> (754 líneas, con 2 bloques <code>&lt;script&gt;</code> inline) + <code class="path">nominaelectronica.js</code>. Conviven <b>dos flujos</b> por prefijo de ID:</p>
+  <ul>
+    <li><code>1805NEV-*</code> → el flujo <b>viejo</b> del dev (validaciones, selección de período). Se reutiliza.</li>
+    <li><code>1805NEP-*</code> → el flujo <b>nuevo del Bloque 3</b> (NEP = Nómina Electrónica Proceso): selección de proveedor, modal, panel y polling.</li>
+  </ul>
+
+  <h3>Paso a paso</h3>
+
+  <div class="steps">
+    <div class="stp"><b>Consultar período</b> <span class="tag web">navegador</span><br>
+      El JS externo (<code class="path">nominaelectronica.js</code>) llama <code>ConsultarNominaElectronicaValidaciones</code> <span class="mono">(ctrl:373)</span> → pinta los 4 indicadores. Además, la vista pregunta <code>ConsultarProcesoPorPeriodo</code> <span class="mono">(cshtml:375 → ctrl:2084 → repo.ConsultarPorPeriodo → SP …PorPeriodo)</span>: si el período <b>ya tiene proceso</b>, monta el panel en vez de los proveedores (regla R3). Si no, el JS llama <code>window.mostrarSeleccionProveedor_1805NEP()</code> <span class="mono">(cshtml:360)</span>.
+    </div>
+    <div class="stp"><b>Elegir proveedor</b> <span class="tag web">navegador</span><br>
+      Radio-cards <code>.1805NEP-card-proveedor</code> <span class="mono">(cshtml:164, handler:394)</span>. <b>Dispapeles</b> activo (<code>data-proveedor="DISPAPELES"</code>); <b>Dataico</b> "disponible en fase 2" (se activa en B5). Al elegir, se habilita "Iniciar procesamiento".
+    </div>
+    <div class="stp"><b>Modal de confirmación</b> <span class="tag web">navegador</span><br>
+      "Iniciar procesamiento" abre <code>#1805NEP-Modal</code> <span class="mono">(cshtml:280)</span> con el resumen (período, sucursal, empleados, devengado, deducciones, proveedor, ambiente). Botón <code>#1805NEP-Confirmar</code> <span class="mono">(cshtml:309)</span>.
+    </div>
+    <div class="stp"><b>Confirmar y enviar</b> → nace la libreta <span class="tag web">petición web</span> <span class="tag db">BD</span><br>
+      El click hace POST a <code>IniciarProcesamientoNomina(form)</code> <span class="mono">(cshtml:447 → ctrl:1960)</span>, que: <b>(1)</b> autoriza y valida; <b>(2)</b> <code>repo.CrearProceso</code> → SP <code>…Insert</code> (cabecera <code>ENVIANDO</code>); <b>(3)</b> trae las cédulas y <code>repo.SeedDetalle</code> → SP <code>…DetalleSeed</code> (siembra las 1.012 en <code>PENDIENTE</code>); <b>(4)</b> <code>DispapelesEnvioWorker.Encolar(idProceso)</code>; <b>(5)</b> responde <code>{ idProceso }</code> en ~2 s. El navegador queda libre.
+    </div>
+    <div class="stp"><b>El worker envía (segundo plano)</b> <span class="tag wrk">worker</span> <span class="tag db">BD</span><br>
+      <code>DispapelesEnvioWorker.Ejecutar</code> <span class="mono">(worker:62)</span>: <code>repo.TomarProceso</code> (candado) → bucle de tandas: <code>repo.TomarPendientes(85)</code> → <code>Parallel.ForEach</code> (3-5 en vuelo) por empleado: <code>ActualizarDetalleEstado(ENVIANDO_DOC)</code> → <code>DispapelesProveedor.EnviarDocumento</code> <span class="mono">(prov:154)</span> (asegura token, genera JSON, POST, extrae CUNE, escribe el log del dev) → <code>ActualizarDetalleEstado(ACEPTADO/RECHAZADO)</code> → al cerrar la tanda <code>ActualizarContadoresYLatido</code> (heartbeat). Al agotar pendientes: <code>repo.CerrarProceso</code> (<code>COMPLETADO</code>/<code>CON_NOVEDADES</code>).
+    </div>
+    <div class="stp"><b>La barra de progreso se actualiza</b> <span class="tag web">navegador</span> <span class="tag db">BD</span><br>
+      <code>montarPanelPolling_1805NEP(idProceso)</code> <span class="mono">(cshtml:382)</span> arranca un <code>setInterval</code> (<code>_pollNEP</code>, ~15 s) que llama <code>ConsultarEstadoProcesoNomina(idProceso)</code> <span class="mono">(cshtml:508/662 → ctrl:2037 → repo.ConsultarProceso → SP …PorId)</span>. Ese endpoint <b>lee la cabecera</b> (que el worker mantiene por tanda) y devuelve <code>{ estado, total, aceptados, rechazados, pendientes, workerActivo }</code>. El panel <b>solo pinta</b> — nunca calcula. Estado final → <code>clearInterval</code>.
+    </div>
+  </div>
+
+  <div class="call info"><span>🔁</span><div><b>Por qué se mueve la barra:</b> son dos lazos independientes que se encuentran en la BD. El <b>worker</b> escribe contadores + latido en la cabecera una vez por tanda (servidor); el <b>panel</b> lee esa cabecera cada ~15 s y repinta (navegador). Nadie calcula porcentajes: <code>avance = (aceptados+rechazados)/total</code> leído de la BD.</div></div>
+
+  <h3>Auto-reanudación (sin acción aparte)</h3>
+  <p>No hay endpoint "Reanudar" separado: la lógica vive <b>dentro de</b> <code>ConsultarEstadoProcesoNomina</code>. Si detecta el proceso <code>EN_PROCESO</code> con el latido vencido (<code>workerActivo:false</code>), <b>relanza el worker</b> (<code>Encolar</code> de nuevo) desde el primer pendiente. El panel muestra "interrumpido — reanudando".</p>
+
+  <!-- Tabla de referencia -->
+  <h3>Mapa de referencia: UI → endpoint → repositorio → SP</h3>
+  <table>
+    <tr><th>Acción de UI</th><th>Endpoint (Controller)</th><th>Método repo</th><th>SP</th></tr>
+    <tr><td>Consultar indicadores</td><td class="mono">ConsultarNominaElectronicaValidaciones</td><td>—</td><td>(SPs de validación existentes)</td></tr>
+    <tr><td>Regla "período ya procesado"</td><td class="mono">ConsultarProcesoPorPeriodo (2084)</td><td>ConsultarPorPeriodo</td><td class="mono">…PorPeriodo</td></tr>
+    <tr><td>Confirmar y enviar</td><td class="mono">IniciarProcesamientoNomina (1960)</td><td>CrearProceso + SeedDetalle</td><td class="mono">…Insert · …DetalleSeed</td></tr>
+    <tr><td>Polling del panel</td><td class="mono">ConsultarEstadoProcesoNomina (2037)</td><td>ConsultarProceso</td><td class="mono">…PorId</td></tr>
+    <tr><td>(worker, sin UI)</td><td>—</td><td>TomarProceso · TomarPendientes · ActualizarDetalleEstado · ActualizarContadoresYLatido · CerrarProceso</td><td class="mono">…Tomar · …Pendientes · …DetalleEstado · …Contadores · …Cerrar</td></tr>
+    <tr><td>Historial / detalle (pantalla en B4)</td><td class="mono">ConsultarHistorialProcesos (2120) · ConsultarDetalleProceso (2157)</td><td>ConsultarHistorial · ConsultarDetalle</td><td class="mono">…Historial · …DetalleSelect</td></tr>
+  </table>
+
+  <!-- 7 -->
+  <h2><span class="n">7</span>Lo que se reutiliza de la integración existente (ya en master)</h2>
+  <p><code>DispapelesProveedor</code> <b>no reinventa el envío</b>: envuelve la integración Dispapeles que ya vive en master.</p>
+  <ul>
+    <li><code>NominaElectronicaDispapelesHelper</code> — token auto-renovable (lo llama <code>AsegurarToken()</code> <span class="mono">prov:48</span>).</li>
+    <li><code>EnviarNominaAsync</code> — el POST del documento + respuesta <code>NominaElectronicaRtaServicio</code>.</li>
+    <li>SPs del dev: <code>…ListaPersonalNomina_Dispapeles</code>, <code>…GenerarJsonEmpleado_Dispapeles</code>, <code>…InsertarLog_Dispapeles</code>.</li>
+    <li>Tabla <code>BERP_NominaElectronica_LogEnvio_Dispapeles</code> — sigue recibiendo su fila por documento (<code>TipoOperacion = "ENVIO NOMINA WORKER"</code>). La libreta es el <b>estado</b>; tu log es la <b>auditoría</b>. Conviven.</li>
+  </ul>
+  <div class="call pri"><span>🚫</span><div><b>No debe modificarse</b> la acción vieja <code>EnviarNominaDispapeles</code> <span class="mono">(ctrl:1406)</span>: quedó intacta y será reemplazada por <code>IniciarProcesamientoNomina</code>. Se marcará <code>[Obsolete]</code> más adelante. No conviene evolucionarla en paralelo, para evitar conflictos.</div></div>
+
+  <!-- 8 -->
+  <h2><span class="n">8</span>Lo que NO trae esta rama (bloques siguientes)</h2>
+  <table>
+    <tr><th>Falta</th><th>Bloque</th><th>Nota</th></tr>
+    <tr><td>Pestaña "Estado Proceso" con historial real</td><td>B4</td><td>hoy sigue el mock; los endpoints <code>…Historial</code>/<code>…DetalleSelect</code> ya existen</td></tr>
+    <tr><td>Reintentar proceso <code>FALLIDO</code></td><td>B4</td><td>—</td></tr>
+    <tr><td>Dataico como proveedor real</td><td>B5</td><td><code>DataicoProveedor</code> + reconciliación <code>job-status</code></td></tr>
+    <tr><td>Detalle de empleados + corregir/reenviar rechazados</td><td>B6</td><td>depende de OPS-2 (mecánica de reemplazo Dispapeles)</td></tr>
+    <tr><td>Limpieza del flujo viejo + activar UI final</td><td>B7</td><td>—</td></tr>
+  </table>
+
+  <!-- 9 -->
+  <h2><span class="n">9</span>Pendientes para cerrar el incremento</h2>
+  <ul>
+    <li><b>OPS-1:</b> ejecutar <code>01</code> y <code>02</code> en dev y confirmar SQL Server 2016+.</li>
+    <li><b>OPS-2:</b> completar <code class="path">respuestas-dev.md</code> (cuerpos de los SPs de la integración, contenido del base64 del log, estructura de un rechazo real, tiempos/rate limit, mecánica de reemplazo, URL de producción). No bloquea B1-B3; sí bloquea B6.</li>
+    <li><b>Calibración</b> (ajustes finos, directo en la rama): <code>timeout HTTP</code> en <code>EnviarNominaAsync</code> (hoy sin timeout), tamaño de tanda (85) y paralelismo (3), URL de producción de Dispapeles.</li>
+    <li><b>Rebase</b>: la rama está 15 commits detrás de <code>master</code> — rebasar antes de integrar.</li>
+  </ul>
+
+  <div class="foot">
+    Handoff generado sobre el diff real <code>master...feature/ERP-NE-VALIDACION-ENVIO</code> (4 commits, 15 archivos) · líneas de código citadas verificadas contra la rama · Repo <code>BaguerSAS/ErpBaguer</code>.
+  </div>
+
+</div>
+</body>
+</html>
