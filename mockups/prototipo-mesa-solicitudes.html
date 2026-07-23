@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -5,13 +6,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Quac — Solicitud de crédito · Expediente</title>
 <!--
-  Propuesta v4.1 — expediente de un solo lienzo (sin tabs) con los 11 pasos del documento:
+  Propuesta v4.2 — expediente de un solo lienzo (sin tabs) con 8 pasos:
   1 Identificación del cliente · 2 Creación del cliente (incluye validación de contacto) ·
   3 Tipo de gestión (autogestión → enlace | asistida → asignar asesor con validación facial obligatoria) ·
-  4 Iniciar estudio — TyC y token · 5 Consulta de antecedentes · 6 Validación de viabilidad (Preselecta) ·
-  7 Validación de cotización (FOSYGA) · 8 Definición de cupo preliminar (aquí se lanza UBICA en 2º plano) ·
-  9 Registro de dirección · 10 Validación de identidad (fotos cédula + prueba de vida aquí o por enlace WhatsApp) ·
-  11 Activación de cupo (espera UBICA → resultado → token al correo → cupo express aprobado).
+  4 Aceptación y firma electrónica · 5 Iniciar estudio (fusiona antecedentes + Preselecta + FOSYGA + cupo
+    en un solo bloque; el asesor NO ve la mecánica interna, solo viabilidad y el monto; al asignar el cupo
+    se lanza UBICA en 2º plano y se habilitan dirección/identidad en paralelo) ·
+  6 Registro de dirección · 7 Validación de identidad (fotos cédula + prueba de vida aquí o por enlace WhatsApp) ·
+  8 Activación de cupo (espera UBICA → resultado → token al correo → cupo aprobado).
   Sin anotaciones instruccionales: la interfaz se muestra tal cual se vería implementada.
   Prototipo de validación — NO es código de producción.
 -->
@@ -237,6 +239,10 @@ table.tb{width:100%;border-collapse:collapse;background:var(--card);border:1px s
 .rail{width:290px;flex-shrink:0;position:sticky;top:0}
 .rcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px}
 .rcard h4{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--violet);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.rcard h4 .edit{margin-left:auto;border:1px solid var(--line);background:var(--card);color:var(--txt-2);border-radius:7px;padding:3px 9px;font-size:10px;font-weight:600;letter-spacing:0;text-transform:none;display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+.rcard h4 .edit:hover{border-color:var(--violet);color:var(--violet)}
+.redit{border:none;background:none;color:var(--txt-3);cursor:pointer;padding:0 2px;display:inline-flex;align-items:center}
+.redit:hover{color:var(--violet)}
 .rkv{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:5px 0;border-bottom:1px solid var(--line-2)}
 .rkv:last-child{border-bottom:none}
 .rkv .k{color:var(--txt-3)}
@@ -361,12 +367,16 @@ table.tb{width:100%;border-collapse:collapse;background:var(--card);border:1px s
 /* ════════ ÍCONOS (Lucide, monocromo) ════════ */
 const ICMAP={
  home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>',
+ store:'<path d="M3.5 8 5 3.5h14L20.5 8"/><path d="M3.5 8a2.5 2.5 0 0 0 4.25 1.75 2.5 2.5 0 0 0 4.25-1.75 2.5 2.5 0 0 0 4.25 1.75A2.5 2.5 0 0 0 20.5 8"/><path d="M5 10.5V20h14v-9.5"/><path d="M10 20v-4.5h4V20"/>',
  list:'<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>',
  grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
  user:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-3.5 3.8-5.5 7-5.5s6 2 7 5.5"/>',
+ pencil:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>',
  chat:'<path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.5L3 21l2-5.6A8.5 8.5 0 1 1 21 11.5z"/>',
  alert:'<path d="M12 3 2.5 20h19L12 3z"/><path d="M12 10v4M12 17.2h.01"/>',
  states:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/>',
+ zap:'<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/>',
+ idsearch:'<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M6 9.5h5M6 13h3"/><circle cx="16" cy="12" r="2.5"/><path d="m19.3 15.3 1.7 1.7"/>',
  layers:'<path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13.5 9 5 9-5"/>',
  hash:'<path d="M9 3 7 21M17 3l-2 18M4 8.5h17M3 15.5h17"/>',
  swap:'<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
@@ -395,16 +405,110 @@ const ICMAP={
 };
 function I(n,px){return `<svg class="isvg" style="width:${px||15}px;height:${px||15}px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICMAP[n]||''}</svg>`}
 
+/* ════════ BADGE MAP (REQ-MAP-02) ════════ */
+const BADGE_MAP={
+  BORRADOR:           {label:'Borrador',           cls:'b-gray'},
+  EN_PROGRESO:        {label:'En proceso',         cls:'b-gray'},
+  PAUSADO:            {label:'Pausado',             cls:'b-lav'},
+  EN_AUTOGESTION:     {label:'En autogestión',      cls:'b-blue'},
+  ESCALADO_FABRICA:   {label:'Escalado a fábrica',  cls:'b-amber'},
+  REVISION_FABRICA:   {label:'En revisión fábrica', cls:'b-amber'},
+  DEVUELTO_POR_FABRICA:{label:'Devuelto por fábrica',cls:'b-red'},
+  BLOQUEADO_FRAUDE:   {label:'Bloqueado',           cls:'b-red'},
+  PENDIENTE_FOTOS:    {label:'Pendiente fotos',     cls:'b-gray'},
+  FOTOS_EN_REVISION:  {label:'Revisando fotos',     cls:'b-amber'},
+  APROBADO:           {label:'Aprobado',            cls:'b-green'},
+  RECHAZADO:          {label:'Rechazado',           cls:'b-red'},
+};
+function badgeFromEstado(codigo){
+  const entry=BADGE_MAP[codigo];
+  if(!entry){
+    console.warn('Estado→Badge mapping missing for',codigo,'— using fallback');
+    return {label:codigo,cls:'b-gray'};
+  }
+  return entry;
+}
+function badgeHTML(codigo){const e=badgeFromEstado(codigo);return `<span class="badge ${e.cls}">${e.label}</span>`;}
+
+/* ════════ FILTROS Y PAGINACIÓN (REQ-MAP-03, PR2) ════════ */
+function filterMesa(data){
+  const f=S.filtros;
+  let r=[...data];
+  if(f.estado){r=r.filter(x=>x.codigo===f.estado)}
+  if(f.fechaDesde){r=r.filter(x=>{const m=x.ult.match(/^\d{4}-\d{2}-\d{2}/);const d=m?m[0]:new Date().toISOString().slice(0,10);return d>=f.fechaDesde})}
+  if(f.fechaHasta){r=r.filter(x=>{const m=x.ult.match(/^\d{4}-\d{2}-\d{2}/);const d=m?m[0]:new Date().toISOString().slice(0,10);return d<=f.fechaHasta})}
+  if(f.busqueda){const q=f.busqueda.toLowerCase();r=r.filter(x=>x.nombre.toLowerCase().includes(q)||x.cc.includes(q))}
+  const total=r.length;
+  const pg=f.pagina||1;
+  const tp=f.tamanoPagina||5;
+  const np=Math.max(1,Math.ceil(total/tp));
+  const st=(Math.min(pg,np)-1)*tp;
+  return {items:r.slice(st,st+tp),total,pagina:Math.min(pg,np),totalPaginas:np};
+}
+function applyFilters(){
+  S.filtros.estado=document.getElementById('filtro-estado').value;
+  S.filtros.fechaDesde=document.getElementById('filtro-fdesde').value;
+  S.filtros.fechaHasta=document.getElementById('filtro-fhasta').value;
+  S.filtros.busqueda=document.getElementById('filtro-busqueda').value;
+  S.filtros.pagina=1;
+  render();
+}
+function clearFilters(){
+  S.filtros={estado:'',fechaDesde:'',fechaHasta:'',busqueda:'',pagina:1,tamanoPagina:S.filtros.tamanoPagina||5};
+  render();
+}
+function setPage(n){
+  const tp=S.filtros.tamanoPagina||5;
+  const total=filterMesa(mesaRows()).total;
+  const np=Math.max(1,Math.ceil(total/tp));
+  if(n<1||n>np)return;
+  S.filtros.pagina=n;
+  render();
+}
+function setPageSize(s){
+  S.filtros.tamanoPagina=parseInt(s);
+  S.filtros.pagina=1;
+  render();
+}
+function renderPagination(total,pagina,totalPaginas){
+  if(total===0)return `<div class="pagination" style="display:flex;align-items:center;gap:16px;justify-content:center;margin-top:14px;padding:8px 4px;font-size:12.5px;color:var(--txt-3)">Sin resultados</div>`;
+  let pages='';
+  const sp=Math.max(1,pagina-1);
+  const ep=Math.min(totalPaginas,pagina+1);
+  for(let i=sp;i<=ep;i++){pages+=`<button class="btn ${i===pagina?'btn-primary':'btn-ghost'}" style="min-width:34px;padding:7px 0;font-size:12px;justify-content:center" onclick="setPage(${i})">${i}</button>`}
+  const si=(pagina-1)*S.filtros.tamanoPagina+1;
+  const ei=Math.min(pagina*S.filtros.tamanoPagina,total);
+  return `<div class="pagination" style="display:flex;align-items:center;gap:16px;justify-content:space-between;margin-top:14px;padding:8px 4px;font-size:12.5px;color:var(--txt-2)">
+    <span>Total: <b style="color:var(--txt)">${total}</b> registros</span>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button class="btn btn-ghost" onclick="setPage(${pagina-1})" ${pagina<=1?'disabled':''} style="padding:7px 12px;font-size:12px">← Anterior</button>
+      ${pages}
+      <button class="btn btn-ghost" onclick="setPage(${pagina+1})" ${pagina>=totalPaginas?'disabled':''} style="padding:7px 12px;font-size:12px">Siguiente →</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span>Mostrar</span>
+      <select onchange="setPageSize(this.value)" style="padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;background:var(--card)">
+        <option value="5" ${S.filtros.tamanoPagina===5?'selected':''}>5</option>
+        <option value="10" ${S.filtros.tamanoPagina===10?'selected':''}>10</option>
+        <option value="20" ${S.filtros.tamanoPagina===20?'selected':''}>20</option>
+      </select>
+      <span>por página</span>
+    </div>
+    <span>Mostrando ${total?si:0}–${total?ei:0} de ${total}</span>
+  </div>`;
+}
+
 /* ════════ ESCENARIOS ════════ */
 const ESCENARIOS=[
- {key:'feliz',chip:'1 · Flujo feliz (OCR)',desc:'Cliente nuevo por OCR, estudio limpio, cupo express activado'},
+ {key:'feliz',chip:'1 · Flujo feliz (OCR)',desc:'Cliente nuevo por OCR, estudio limpio, cupo activado'},
  {key:'t2',chip:'2 · Cliente existente',desc:'Existe sin cupo ni estudio vigente → verificar y actualizar datos'},
  {key:'t8',chip:'3 · Cierre reciente',desc:'Estudio reciente cerrado no viable → no puede aplicar aún'},
  {key:'difiere',chip:'4 · Nombre difiere',desc:'Diferencia documental → actualizar datos y re-evaluar'},
  {key:'fraude',chip:'5 · Número no coincide',desc:'Documento distinto al digitado → Fraude / inconsistencia'},
  {key:'abandono',chip:'6 · Se va sin tokenizar',desc:'Pausado → retoma re-digitando el documento'},
  {key:'fabrica',chip:'7 · Identidad a revisión',desc:'Escalado a fábrica de soporte'},
- {key:'ubica',chip:'8 · UBICA demorado',desc:'Llega a activación antes de que UBICA termine'},
+  {key:'ubica',chip:'8 · Requiere llamada',desc:'La validación de contacto no es OK → llamada de confirmación al cliente antes de asignar el cupo'},
+  {key:'retorno-fabrica',chip:'9 · Retorno de fábrica',desc:'Desatasque vs freno — fábrica devuelve estudio con motivo de rechazo'},
 ];
 
 /* ════════ 11 PASOS (nombres del documento) ════════ */
@@ -412,26 +516,45 @@ const STEPS=[
  {k:'ident',    cat:'Captura',  t:'Identificación del cliente',            sys:0},
  {k:'tercero',  cat:'Captura',  t:'Creación del cliente',                  sys:0},
  {k:'gestion',  cat:'Captura',  t:'Tipo de gestión y asesor',              sys:0},
- {k:'token',    cat:'Captura',  t:'Iniciar estudio — T&C y token',         sys:0},
- {k:'antec',    cat:'Estudio',  t:'Consulta de antecedentes',              sys:1},
- {k:'presel',   cat:'Estudio',  t:'Validación de viabilidad — Preselecta', sys:1},
- {k:'fosyga',   cat:'Estudio',  t:'Validación de cotización — FOSYGA',     sys:1},
- {k:'cupo',     cat:'Estudio',  t:'Definición de cupo preliminar',         sys:1},
+ {k:'token',    cat:'Captura',  t:'Aceptación y firma electrónica',         sys:0},
+ {k:'estudio',  cat:'Estudio',  t:'Iniciar estudio',                       sys:1},
  {k:'direccion',cat:'Estudio',  t:'Registro de dirección',                 sys:0},
  {k:'identidad',cat:'Biometría',t:'Validación de identidad',               sys:0},
  {k:'activa',   cat:'Cierre',   t:'Activación de cupo',                    sys:0},
 ];
 
 const CLIENTE={nombre:'María Alejandra',apellido:'Rodríguez López',cc:'1.098.765.432',cel:'314 567 8901',correo:'maria.rodriguez@gmail.com',
- nac:'1995-03-15',expCiudad:'Medellín',expFecha:'2013-04-02',depto:'Antioquia',ciudad:'Medellín',dir:'Cra 43A # 18-95 Apto 502',cupo:'$1,200,000'};
+ nac:'1995-03-15',deptoNac:'Antioquia',ciudadNac:'Medellín',daneNac:'05001',
+ expFecha:'2013-04-02',deptoExp:'Santander',ciudadExp:'Bucaramanga',daneExp:'68001',
+ depto:'Antioquia',ciudad:'Medellín',dir:'Cra 43A # 18-95 Apto 502',cupo:'$1,200,000'};
+
+/* catálogo DANE (muestra) — departamento → [ [código municipio, ciudad], ... ] */
+const DANE={
+ 'Antioquia':[['05001','Medellín'],['05088','Bello'],['05360','Itagüí'],['05266','Envigado'],['05615','Rionegro']],
+ 'Atlántico':[['08001','Barranquilla'],['08758','Soledad'],['08433','Malambo']],
+ 'Bogotá D.C.':[['11001','Bogotá']],
+ 'Bolívar':[['13001','Cartagena'],['13430','Magangué']],
+ 'Caldas':[['17001','Manizales'],['17873','Villamaría']],
+ 'Cundinamarca':[['25754','Soacha'],['25269','Facatativá'],['25286','Funza'],['25473','Mosquera']],
+ 'Norte de Santander':[['54001','Cúcuta'],['54405','Los Patios']],
+ 'Risaralda':[['66001','Pereira'],['66170','Dosquebradas']],
+ 'Santander':[['68001','Bucaramanga'],['68276','Floridablanca'],['68547','Piedecuesta'],['68307','Girón'],['68081','Barrancabermeja']],
+ 'Tolima':[['73001','Ibagué'],['73268','Espinal']],
+ 'Valle del Cauca':[['76001','Cali'],['76520','Palmira'],['76109','Buenaventura'],['76892','Yumbo']],
+};
+function optDeptos(sel){return `<option value="">— departamento —</option>`+
+ Object.keys(DANE).map(d=>`<option ${d===sel?'selected':''}>${d}</option>`).join('')}
+function optCiudades(depto,selCiudad){const l=DANE[depto]||[];
+ return `<option value="">— ciudad —</option>`+l.map(([c,n])=>`<option value="${c}" ${n===selCiudad?'selected':''}>${n} · ${c}</option>`).join('')}
+function onDepto(el,ciudadId){const box=document.getElementById(ciudadId);if(box)box.innerHTML=optCiudades(el.value,'')}
 
 const MESA=[
- {id:'#1048',nombre:'Jorge Ramírez',cc:'80.221.443',est:['Rechazado','b-red'],fase:'Cierre',paso:'Rechazado',asesor:'1015425789',cupo:'—',min:0,ult:'2026-07-20 10:20'},
- {id:'#1047',nombre:'Andrés Quintero',cc:'1.098.776.554',est:['Aprobado','b-green'],fase:'Cierre',paso:'Cupo activado',asesor:'52998477',cupo:'$4,900,000',min:0,ult:'2026-07-20 10:12'},
- {id:'#1046',nombre:'Laura Daniela Pérez',cc:'43.778.901',est:['Pausado','b-lav'],fase:'Biometría',paso:'Validación de identidad',asesor:'1015425789',cupo:'$2,700,000',min:9,ult:'2026-07-20 10:05'},
- {id:'#1045',nombre:'Carlos Martínez',cc:'79.554.120',est:['Escalado a fábrica','b-amber'],fase:'Fábrica',paso:'En revisión manual',asesor:'52998477',cupo:'$2,800,000',min:17,ult:'2026-07-20 09:58'},
- {id:'#1044',nombre:'—',cc:'1.022.334.556',est:['En proceso','b-gray'],fase:'Captura',paso:'Creación del cliente',asesor:'1015425789',cupo:'—',min:2,ult:'2026-07-20 10:21'},
- {id:'#1043',nombre:'Valentina Ortiz Pérez',cc:'1.005.321.789',est:['En autogestión','b-blue'],fase:'Biometría',paso:'Autogestión — flujo web',asesor:'1015425789',cupo:'$950,000',min:0,ult:'2026-07-20 09:47'},
+ {id:'#1048',nombre:'Jorge Ramírez',cc:'80.221.443',codigo:'RECHAZADO',fase:'Cierre',paso:'Rechazado',asesor:'1015425789',cupo:'—',min:0,ult:'2026-07-20 10:20'},
+ {id:'#1047',nombre:'Andrés Quintero',cc:'1.098.776.554',codigo:'APROBADO',fase:'Cierre',paso:'Cupo activado',asesor:'52998477',cupo:'$4,900,000',min:0,ult:'2026-07-20 10:12'},
+ {id:'#1046',nombre:'Laura Daniela Pérez',cc:'43.778.901',codigo:'PAUSADO',fase:'Biometría',paso:'Validación de identidad',asesor:'1015425789',cupo:'$2,700,000',min:9,ult:'2026-07-20 10:05'},
+ {id:'#1045',nombre:'Carlos Martínez',cc:'79.554.120',codigo:'ESCALADO_FABRICA',fase:'Fábrica',paso:'En revisión manual',asesor:'52998477',cupo:'$2,800,000',min:17,ult:'2026-07-20 09:58'},
+ {id:'#1044',nombre:'—',cc:'1.022.334.556',codigo:'EN_PROGRESO',fase:'Captura',paso:'Creación del cliente',asesor:'1015425789',cupo:'—',min:2,ult:'2026-07-20 10:21'},
+ {id:'#1043',nombre:'Valentina Ortiz Pérez',cc:'1.005.321.789',codigo:'EN_AUTOGESTION',fase:'Biometría',paso:'Autogestión — flujo web',asesor:'1015425789',cupo:'$950,000',min:0,ult:'2026-07-20 09:47'},
 ];
 
 /* ════════ ESTADO ════════ */
@@ -440,8 +563,8 @@ const S={
  fichaOpen:false,tabOpen:false,identificado:false,
  idx:0,ph:0,res:{},attn:false,
  log:[],envios:[],clock:14*3600+30*60,waitStart:null,waitTimer:null,
- ubica:'idle',ubicaT0:null,direccionOk:false,tercero:false,solicitud:false,asesorOk:false,
- abandono:false,retoma:false,fotosOCR:false,autogestion:false,cerrada:null,re:{sms:false,ivr:false},
+ estudio:'idle',direccionOk:false,tercero:false,solicitud:false,asesorOk:false,
+  abandono:false,retoma:false,fotosOCR:false,autogestion:false,cerrada:null,retornoFabrica:false,motivoRechazo:'',re:{sms:false,ivr:false},filtros:{estado:'',fechaDesde:'',fechaHasta:'',busqueda:'',pagina:1,tamanoPagina:5},
 };
 function esc(){return ESCENARIOS[S.esc]}
 function step(){return STEPS[S.idx]}
@@ -467,12 +590,13 @@ function quien(){
  return {t:'Nueva solicitud',corto:'Nueva solicitud',cc:'— sin identificar'};
 }
 function estadoActivo(){
- if(S.cerrada)return S.cerrada==='Cupo activado'?['Aprobado','b-green']:['Rechazado','b-red'];
- if(S.res.activa)return ['Aprobado','b-green'];
- if(S.attn)return ['Escalado a fábrica','b-amber'];
- if(S.autogestion)return ['En autogestión','b-blue'];
- if(S.abandono)return ['Pausado','b-lav'];
- return ['En proceso','b-gray'];
+  if(S.retornoFabrica)return {codigo:'DEVUELTO_POR_FABRICA',motivoRechazo:S.motivoRechazo};
+  if(S.cerrada)return {codigo:S.cerrada==='Cupo activado'?'APROBADO':'RECHAZADO'};
+  if(S.res.activa)return {codigo:'APROBADO'};
+  if(S.attn)return {codigo:'ESCALADO_FABRICA'};
+  if(S.autogestion)return {codigo:'EN_AUTOGESTION'};
+  if(S.abandono)return {codigo:'PAUSADO'};
+  return {codigo:'EN_PROGRESO'};
 }
 function fasePasoActivo(){
  if(S.attn)return ['Fábrica','En revisión manual'];
@@ -490,9 +614,9 @@ function openFicha(){S.view='ficha';S.fichaOpen=true;S.tabOpen=true;
 function closeTab(e){e.stopPropagation();S.tabOpen=false;S.view='mesa';render()}
 function nuevaSolicitud(){resetFicha();openFicha()}
 function resetFicha(){S.idx=0;S.ph=0;S.res={};S.attn=false;S.log=[];S.envios=[];S.clock=14*3600+30*60;
- clearInterval(S.waitTimer);S.waitStart=null;S.ubica='idle';S.ubicaT0=null;
- S.direccionOk=false;S.tercero=false;S.solicitud=false;S.asesorOk=false;S.abandono=false;S.retoma=false;
- S.fotosOCR=false;S.fF=false;S.fR=false;S.autogestion=false;S.cerrada=null;S.re={sms:false,ivr:false};S.fichaOpen=false;S.tabOpen=false;S.identificado=false}
+ clearInterval(S.waitTimer);S.waitStart=null;S.estudio='idle';estT0=null;
+  S.direccionOk=false;S.tercero=false;S.solicitud=false;S.asesorOk=false;S.abandono=false;S.retoma=false;
+   S.fotosOCR=false;S.fF=false;S.fR=false;S.autogestion=false;S.cerrada=null;S.retornoFabrica=false;S.motivoRechazo='';S.reFirma=false;S.re={sms:false,ivr:false};S.fichaOpen=false;S.tabOpen=false;S.identificado=false}
 function resetAll(){resetFicha();S.view='mesa';render()}
 function setEsc(i){S.esc=i;resetFicha();S.view='mesa';renderEscBar();render();toast('Escenario: '+ESCENARIOS[i].chip)}
 function setVista(v){S.vista=v;render()}
@@ -500,39 +624,57 @@ function setPh(p){S.ph=p;renderFicha()}
 function advance(k,resumen){S.res[k]=resumen;if(S.idx<STEPS.length-1){S.idx++;S.ph=0}
  if(S.view==='ficha')renderFicha();else if(S.view==='mesa')render();
  hooks()}
-/* pasos del sistema: se ejecutan solos al volverse actuales */
-const SYSFLOW={
- antec:{ms:1600,res:'Sin registros vigentes — judiciales · disciplinarios · fiscales',log:['ok','Antecedentes — sin registros vigentes']},
- presel:{ms:2000,res:'Viable · score 712 · riesgo bajo',log:['ok','Preselecta — viable · score 712 · riesgo bajo']},
- fosyga:{manual:true,res:'No aplica — CC, 31 años',log:['ok','FOSYGA — no aplica (CC, 31 años)']},
- cupo:{manual:true,res:'Cupo preliminar '+'$1,200,000',log:['ok','Cupo preliminar definido — $1,200,000']},
-};
-function sysResolve(){
- const k=step().k,f=SYSFLOW[k];
- if(!f||S.res[k])return;
- addLog(f.log[0],f.log[1]);
- if(k==='cupo'){startUbica();toast('Cupo preliminar definido — '+CLIENTE.cupo)}
- sysRunning=null;
- advance(k,f.res);
+/* estudio de crédito (paso 5): arranque manual con botón "Iniciar", luego
+   validación inicial de viabilidad y, si es viable, asignación del cupo (en 2º plano) */
+let estT0=null;
+function estElapsed(){if(!estT0)return '0 seg';const s=Math.floor((Date.now()-estT0)/1000);
+ return s<60?s+' seg':Math.floor(s/60)+' min '+s%60+' seg'}
+function iniciarEstudio(){
+ S.estudio='viabilidad';estT0=Date.now();
+ addLog('sys','Estudio iniciado — validación inicial de viabilidad');
+ renderFicha();
 }
-let sysRunning=null;
+function estudioViable(){
+ if(S.estudio!=='viabilidad')return;
+ S.estudio='contacto';estT0=Date.now();
+ addLog('ok','Validación de viabilidad — cliente viable');
+ toast('Cliente viable — validando datos del cliente');
+ renderFicha();
+}
+/* resuelve la consulta de contacto (UBICA): OK → cupo · no OK → llamada de confirmación.
+   forzar='ok'|'llamada' permite simular el resultado; sin argumento usa el escenario */
+function estudioContacto(forzar){
+ if(S.estudio!=='contacto')return;
+ const requiereLlamada=forzar?forzar==='llamada':esc().key==='ubica';
+ if(requiereLlamada){
+  S.estudio='llamada';
+  addLog('warn','Validación de contacto — requiere llamada de confirmación al cliente');
+  toast('Se lanzará una llamada al cliente para confirmar sus datos');
+ }else{
+  S.estudio='cupo';estT0=Date.now();
+  addLog('ok','Validación de contacto — datos consistentes, sin llamada');
+ }
+ renderFicha();
+}
+function estudioLlamada(){
+ if(S.estudio!=='llamada')return;
+ S.estudio='cupo';estT0=Date.now();
+ addLog('ok','Llamada de confirmación atendida — datos del cliente validados');
+ toast('Confirmado — validando asignación de cupo');
+ renderFicha();
+}
+function estudioCupo(){
+ if(S.estudio!=='cupo')return;
+ S.estudio='done';
+ addLog('ok','Asignación de cupo — el cliente aplica para '+CLIENTE.cupo);
+ toast('El cliente aplica para un cupo de '+CLIENTE.cupo);
+ advance('estudio','Viable · cupo preaprobado '+CLIENTE.cupo);
+}
 function hooks(){
- /* saltar pasos ya resueltos en paralelo (ej: dirección registrada durante FOSYGA/cupo) */
+ /* saltar pasos ya resueltos en paralelo (ej: dirección o identidad hechas durante el estudio) */
  let skipped=false;
  while(S.res[step().k]&&S.idx<STEPS.length-1){S.idx++;S.ph=0;skipped=true}
  if(skipped&&S.view==='ficha')renderFicha();
- const k=step().k;
- if(STEPS[S.idx].sys&&!S.res[k]&&!SYSFLOW[k].manual&&sysRunning!==k){
-  sysRunning=k;
-  setTimeout(()=>{
-   if(S.cerrada||step().k!==k)return;
-   const f=SYSFLOW[k];
-   addLog(f.log[0],f.log[1]);
-   sysRunning=null;
-   advance(k,f.res);
-  },SYSFLOW[k].ms);
- }
- if(k==='activa'&&S.ubica==='done'&&S.ph===0&&S.view==='ficha')renderFicha();
 }
 function updWait(){const el=document.getElementById('wait-t');if(!el||!S.waitStart)return;
  const s=Math.floor((Date.now()-S.waitStart)/1000)+7*60+42;
@@ -550,14 +692,14 @@ function toggleSucesos(){document.getElementById('suc-drawer').classList.toggle(
 function render(){renderNavTabs();renderTitle();
  if(S.view==='mesa')renderMesa();else renderFicha();renderGuia()}
 function renderNavTabs(){
- const est=estadoActivo();
- const dot={'b-green':'var(--green)','b-red':'var(--red)','b-amber':'var(--amber)','b-lav':'#6D5BD0','b-blue':'#0EA5E9','b-gray':'var(--violet)'}[est[1]];
- document.getElementById('tabs').innerHTML=
-  `<div class="ntab ${S.view==='mesa'?'active':''}" onclick="showMesa()">${I('list',14)} Mesa de estudios</div>`+
-  (S.tabOpen?`<div class="ntab ${S.view==='ficha'?'active':''}" onclick="openFicha()">
-    <span class="dot" style="background:${dot}"></span><span class="idm">#1049</span>
-    ${quien().corto} · ${fasePasoActivo()[0]}
-    <button class="cls" onclick="closeTab(event)">✕</button></div>`:'');
+  const est=badgeFromEstado(estadoActivo().codigo);
+  const dot={'b-green':'var(--green)','b-red':'var(--red)','b-amber':'var(--amber)','b-lav':'#6D5BD0','b-blue':'#0EA5E9','b-gray':'var(--violet)'}[est.cls];
+  document.getElementById('tabs').innerHTML=
+   `<div class="ntab ${S.view==='mesa'?'active':''}" onclick="showMesa()">${I('list',14)} Mesa de estudios</div>`+
+   (S.tabOpen?`<div class="ntab ${S.view==='ficha'?'active':''}" onclick="openFicha()">
+     <span class="dot" style="background:${dot}"></span><span class="idm">#1049</span>
+     ${quien().corto} · ${fasePasoActivo()[0]}
+     <button class="cls" onclick="closeTab(event)">✕</button></div>`:'');
 }
 function renderTitle(){
  document.getElementById('titlebar').innerHTML=S.view==='mesa'?
@@ -568,52 +710,69 @@ function renderTitle(){
 
 /* ════════ MESA ════════ */
 function mesaRows(){
- const act=S.fichaOpen?[{id:'#1049',nombre:S.tercero?CLIENTE.nombre+' '+CLIENTE.apellido:'—',cc:S.identificado?CLIENTE.cc:'—',
-  est:estadoActivo(),fase:fasePasoActivo()[0],paso:fasePasoActivo()[1],asesor:S.asesorOk?'1015425789':'—',
-  cupo:S.res.cupo?CLIENTE.cupo:'—',min:8,ult:'hace un momento',activa:true}]:[];
- return [...act,...MESA];
+  const act=S.fichaOpen?[{id:'#1049',nombre:S.tercero?CLIENTE.nombre+' '+CLIENTE.apellido:'—',cc:S.identificado?CLIENTE.cc:'—',
+   codigo:estadoActivo().codigo,fase:fasePasoActivo()[0],paso:fasePasoActivo()[1],asesor:S.asesorOk?'1015425789':'—',
+   cupo:S.estudio==='done'?CLIENTE.cupo:'—',min:8,ult:'hace un momento',activa:true}]:[];
+  return [...act,...MESA];
 }
 function renderMesa(){
- const rows=mesaRows();
- const n={tot:rows.length,pen:0,apr:0,rec:0,esca:0};
- rows.forEach(r=>{if(r.est[0]==='Aprobado')n.apr++;else if(r.est[0]==='Rechazado')n.rec++;
-  else if(r.est[0]==='Escalado a fábrica')n.esca++;else n.pen++});
- document.getElementById('content').innerHTML=`
-  <div class="stats">
-   <div class="stat"><div class="l">Total</div><div class="n">${n.tot}</div></div>
-   <div class="stat"><div class="l">Pendientes</div><div class="n v">${n.pen}</div></div>
-   <div class="stat"><div class="l">Aprobados</div><div class="n g">${n.apr}</div></div>
-   <div class="stat"><div class="l">Rechazados</div><div class="n r">${n.rec}</div></div>
-   <div class="stat"><div class="l">Escalados</div><div class="n a">${n.esca}</div></div>
-  </div>
-  <div class="toolbar">
-   <div class="search">${I('search',14)}<input placeholder="Buscar por cliente, NIT, estado..."></div>
-   <div class="grow"></div>
-   <div class="vtoggle"><button class="${S.vista==='tabla'?'on':''}" onclick="setVista('tabla')">${I('list',14)}</button><button class="${S.vista==='cards'?'on':''}" onclick="setVista('cards')">${I('grid',14)}</button></div>
-   <button class="btn btn-primary" onclick="nuevaSolicitud()">＋ Nueva solicitud</button>
-  </div>
-  ${S.vista==='tabla'?`
-  <table class="tb">
-   <thead><tr><th>ID <span class="ar">⇅</span></th><th>Cliente <span class="ar">⇅</span></th><th>Estado <span class="ar">⇅</span></th>
-   <th>Fase / Paso <span class="ar">⇅</span></th><th>Espera <span class="ar">⇅</span></th><th>Asesor <span class="ar">⇅</span></th>
-   <th>Cupo preap. <span class="ar">⇅</span></th><th>Última actividad <span class="ar">⇅</span></th></tr></thead>
-   <tbody>${rows.map(r=>`<tr class="row" onclick="openFicha()">
-    <td class="id">${r.id}</td>
-    <td class="cl"><b>${r.nombre}</b><span>${r.cc}</span></td>
-    <td><span class="badge ${r.est[1]}">${r.est[0]}</span></td>
-    <td class="fp"><b>${r.fase}</b><span>${r.paso}</span></td>
-    <td>${r.min>0?`<span class="esp ${r.min<5?'esp-g':r.min<15?'esp-a':'esp-r'}"><span class="d"></span>${r.min} min</span>`:'<span class="mono" style="color:var(--txt-3)">—</span>'}</td>
-    <td class="mono">${r.asesor}</td>
-    <td class="money">${r.cupo}</td>
-    <td class="dt">${r.ult}</td></tr>`).join('')}</tbody>
-  </table>`:`
-  <div class="mgrid">${rows.map(r=>`<div class="mcard" onclick="openFicha()">
-    <div class="top"><div><h3>${r.nombre}</h3><div class="cc">${r.id} · CC ${r.cc}</div></div>
-     <span class="badge ${r.est[1]}">${r.est[0]}</span></div>
-    <div class="fp"><b>${r.fase}</b> · ${r.paso}</div>
-    <div class="foot">${r.min>0?`<span class="esp ${r.min<5?'esp-g':r.min<15?'esp-a':'esp-r'}"><span class="d"></span>${r.min} min esperando</span>`:'<span></span>'}
-     <span class="money mono">${r.cupo}</span></div>
-   </div>`).join('')}</div>`}`;
+  const allRows=mesaRows();
+  const result=filterMesa(allRows);
+  const n={tot:allRows.length,pen:0,apr:0,rec:0,esca:0};
+  allRows.forEach(r=>{
+   if(r.codigo==='APROBADO')n.apr++;
+   else if(r.codigo==='RECHAZADO'||r.codigo==='DEVUELTO_POR_FABRICA'||r.codigo==='BLOQUEADO_FRAUDE')n.rec++;
+   else if(r.codigo==='ESCALADO_FABRICA'||r.codigo==='REVISION_FABRICA'||r.codigo==='FOTOS_EN_REVISION')n.esca++;
+   else n.pen++
+  });
+  const rows=result.items;
+  document.getElementById('content').innerHTML=`
+   <div class="stats">
+    <div class="stat"><div class="l">Total</div><div class="n">${n.tot}</div></div>
+    <div class="stat"><div class="l">Pendientes</div><div class="n v">${n.pen}</div></div>
+    <div class="stat"><div class="l">Aprobados</div><div class="n g">${n.apr}</div></div>
+    <div class="stat"><div class="l">Rechazados</div><div class="n r">${n.rec}</div></div>
+    <div class="stat"><div class="l">Escalados</div><div class="n a">${n.esca}</div></div>
+   </div>
+   <div class="toolbar">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+     <select id="filtro-estado" style="padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;background:var(--card);color:var(--txt);min-width:140px">
+      <option value="">Todos los estados</option>
+      ${Object.entries(BADGE_MAP).map(([k,v])=>`<option value="${k}" ${S.filtros.estado===k?'selected':''}>${v.label}</option>`).join('')}
+     </select>
+     <input type="date" id="filtro-fdesde" value="${S.filtros.fechaDesde}" style="padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;background:var(--card);color:var(--txt)">
+     <input type="date" id="filtro-fhasta" value="${S.filtros.fechaHasta}" style="padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;background:var(--card);color:var(--txt)">
+     <div class="search" style="width:200px">${I('search',14)}<input id="filtro-busqueda" placeholder="Buscar..." value="${S.filtros.busqueda}"></div>
+     <button class="btn btn-ghost" onclick="applyFilters()" style="white-space:nowrap">Aplicar</button>
+     <button class="btn btn-ghost" onclick="clearFilters()" style="white-space:nowrap">Limpiar</button>
+    </div>
+    <div class="grow"></div>
+    <div class="vtoggle"><button class="${S.vista==='tabla'?'on':''}" onclick="setVista('tabla')">${I('list',14)}</button><button class="${S.vista==='cards'?'on':''}" onclick="setVista('cards')">${I('grid',14)}</button></div>
+    <button class="btn btn-primary" onclick="nuevaSolicitud()">＋ Nueva solicitud</button>
+   </div>
+   ${S.vista==='tabla'?`
+   <table class="tb">
+    <thead><tr><th>ID <span class="ar">⇅</span></th><th>Cliente <span class="ar">⇅</span></th><th>Estado <span class="ar">⇅</span></th>
+    <th>Fase / Paso <span class="ar">⇅</span></th><th>Espera <span class="ar">⇅</span></th><th>Asesor <span class="ar">⇅</span></th>
+    <th>Cupo preap. <span class="ar">⇅</span></th><th>Última actividad <span class="ar">⇅</span></th></tr></thead>
+    <tbody>${rows.map(r=>`<tr class="row" onclick="openFicha()">
+     <td class="id">${r.id}</td>
+     <td class="cl"><b>${r.nombre}</b><span>${r.cc}</span></td>
+     <td>${badgeHTML(r.codigo)}</td>
+     <td class="fp"><b>${r.fase}</b><span>${r.paso}</span></td>
+     <td>${r.min>0?`<span class="esp ${r.min<5?'esp-g':r.min<15?'esp-a':'esp-r'}"><span class="d"></span>${r.min} min</span>`:'<span class="mono" style="color:var(--txt-3)">—</span>'}</td>
+     <td class="mono">${r.asesor}</td>
+     <td class="money">${r.cupo}</td>
+     <td class="dt">${r.ult}</td></tr>`).join('')}</tbody>
+   </table>`:`
+   <div class="mgrid">${rows.map(r=>`<div class="mcard" onclick="openFicha()">
+     <div class="top"><div><h3>${r.nombre}</h3><div class="cc">${r.id} · CC ${r.cc}</div></div>
+      ${badgeHTML(r.codigo)}</div>
+     <div class="fp"><b>${r.fase}</b> · ${r.paso}</div>
+     <div class="foot">${r.min>0?`<span class="esp ${r.min<5?'esp-g':r.min<15?'esp-a':'esp-r'}"><span class="d"></span>${r.min} min esperando</span>`:'<span></span>'}
+      <span class="money mono">${r.cupo}</span></div>
+    </div>`).join('')}</div>`}
+   ${renderPagination(result.total,result.pagina,result.totalPaginas)}`;
 }
 
 /* ════════ FICHA ════════ */
@@ -621,7 +780,7 @@ function renderFicha(){
  document.getElementById('content').innerHTML=`
   <div class="ficha-head">
    <div class="who"><h2>${quien().t}</h2><div class="m">#1049 · ${quien().cc} · Caja 01</div></div>
-   <div class="kv"><div class="k">Estado</div><div class="v"><span class="badge ${estadoActivo()[1]}">${estadoActivo()[0]}</span></div></div>
+    <div class="kv"><div class="k">Estado</div><div class="v">${badgeHTML(estadoActivo().codigo)}</div></div>
    <div class="kv"><div class="k">Espera en caja</div><div class="v" id="wait-t"><span class="esp esp-a"><span class="d"></span>7:42</span></div></div>
    <div class="grow"></div>
    <button class="btn btn-ghost" onclick="toggleSucesos()">${I('history',14)} Sucesos ${S.log.length?`<span style="font-size:10px;background:var(--violet-soft);color:var(--violet);border-radius:20px;padding:1px 7px;font-family:var(--mono)">${S.log.length}</span>`:''}</button>
@@ -635,23 +794,26 @@ function renderFicha(){
 }
 
 function turnoHTML(){
- const ub=S.ubica==='run'?`<span class="badge b-blue">☁ UBICA en 2º plano · <span class="ub-t">${ubElapsed()}</span></span>`:'';
- if(S.cerrada&&S.cerrada!=='Cupo activado')return `<div id="turno" class="tu-err">${I('alert',16)}<div>Solicitud cerrada — ${S.cerrada}</div></div>`;
- if(S.res.activa)return `<div id="turno" class="tu-ok">${I('states',16)}<div>Cupo express activado — el cliente ya puede pagar en caja<div class="sub-t">Notificado por SMS y correo.</div></div></div>`;
- if(S.attn)return `<div id="turno" class="tu-fab">${I('factory',16)}<div>En fábrica de soporte — en revisión manual<div class="sub-t">La solicitud retomará aquí cuando haya resolución.</div></div><div class="grow"></div>${ub}</div>`;
- if(S.autogestion)return `<div id="turno" class="tu-cli">${I('whatsapp',16)}<div>Autogestión — enlace enviado al cliente<div class="sub-t">La solicitud continúa en el flujo web.</div></div></div>`;
- if(S.abandono)return `<div id="turno" class="tu-cli">${I('user',16)}<div>Pausada — esperando que el cliente regrese</div></div>`;
+ if(S.cerrada&&S.cerrada!=='Cupo activado')return `<div id="turno" class="tu-err">${I('alert',18)}<div>Solicitud cerrada — ${S.cerrada}</div></div>`;
+ if(S.res.activa)return `<div id="turno" class="tu-ok">${I('states',18)}<div>Cupo activado — el cliente ya puede pagar en caja<div class="sub-t">Notificado por SMS y correo.</div></div></div>`;
+ if(S.attn)return `<div id="turno" class="tu-fab">${I('factory',18)}<div>En fábrica de soporte — en revisión manual<div class="sub-t">La solicitud retomará aquí cuando haya resolución.</div></div></div>`;
+ if(S.autogestion)return `<div id="turno" class="tu-cli">${I('whatsapp',18)}<div>Autogestión — enlace enviado al cliente<div class="sub-t">La solicitud continúa en el flujo web.</div></div></div>`;
+ if(S.abandono)return `<div id="turno" class="tu-cli">${I('user',18)}<div>Pausada — esperando que el cliente regrese</div></div>`;
  const k=step().k;
- if(k==='ident')return `<div id="turno" class="tu-asesor">${I('zap',16)}<div>Consulta el documento del cliente</div></div>`;
- if(k==='tercero')return `<div id="turno" class="tu-asesor">${I('zap',16)}<div>Captura los datos del cliente</div></div>`;
- if(k==='gestion')return `<div id="turno" class="tu-asesor">${I('zap',16)}<div>Define el tipo de gestión y valida tu identidad de asesor</div></div>`;
- if(k==='token')return `<div id="turno" class="tu-cli">${I('phone',16)}<div>Con el cliente — aceptación de T&C y firma con token</div></div>`;
- if(STEPS[S.idx].sys){const par=['fosyga','cupo'].includes(step().k)&&(!S.direccionOk||!S.res.identidad);
-  return `<div id="turno" class="tu-sis"><span class="spin-sm"></span><div>Turno del sistema — ${step().t.toLowerCase()}<div class="sub-t">${par?'Mientras el sistema termina, puedes registrar la dirección y lanzar la validación de identidad.':'Puedes volver a la mesa; te avisamos al terminar.'}</div></div><div class="grow"></div>${ub}</div>`}
- if(k==='direccion')return `<div id="turno" class="tu-asesor">${I('pin',16)}<div>Registra la dirección de residencia del cliente</div></div><div class="grow"></div>${ub}`;
- if(k==='identidad')return `<div id="turno" class="tu-cli">${I('camera',16)}<div>Con el cliente — validación de identidad y prueba de vida</div><div class="grow"></div>${ub}</div>`;
- if(S.ubica!=='done')return `<div id="turno" class="tu-sis"><span class="spin-sm"></span><div>Turno del sistema — terminando definición de UBICA<div class="sub-t">Puedes volver a la mesa; te avisamos al terminar.</div></div><div class="grow"></div>${ub}</div>`;
- return `<div id="turno" class="tu-cli">${I('mail',16)}<div>Con el cliente — token de correo para activar el cupo</div></div>`;
+ if(k==='ident')return `<div id="turno" class="tu-asesor">${I('idsearch',18)}<div>Consulta el documento del cliente</div></div>`;
+ if(k==='tercero')return `<div id="turno" class="tu-asesor">${I('idcard',18)}<div>Captura los datos del cliente</div></div>`;
+ if(k==='gestion')return `<div id="turno" class="tu-asesor">${I('store',18)}<div>Define el tipo de gestión y valida tu identidad de asesor</div></div>`;
+ if(k==='token')return `<div id="turno" class="tu-cli">${I('phone',18)}<div>Con el cliente — aceptación de T&C y firma con token</div></div>`;
+ if(k==='estudio'){
+  if(S.estudio==='idle')return `<div id="turno" class="tu-asesor">${I('zap',18)}<div>Inicia el estudio de crédito del cliente</div></div>`;
+  if(S.estudio==='llamada')return `<div id="turno" class="tu-cli">${I('phone',18)}<div>Avísele al cliente — recibirá una llamada para confirmar sus datos<div class="sub-t">El cupo se asigna en cuanto confirme la información en la llamada.</div></div></div>`;
+  const par=['contacto','cupo'].includes(S.estudio)&&(!S.direccionOk||!S.res.identidad);
+  const msg=S.estudio==='viabilidad'?'validando viabilidad inicial':S.estudio==='contacto'?'validando los datos del cliente':'validando asignación de cupo';
+  return `<div id="turno" class="tu-sis"><span class="spin-sm"></span><div>Turno del sistema — ${msg}<div class="sub-t">${par?'Mientras el sistema termina, puedes registrar la dirección y lanzar la validación de identidad.':'Puedes volver a la mesa; te avisamos al terminar.'}</div></div></div>`;
+ }
+ if(k==='direccion')return `<div id="turno" class="tu-asesor">${I('pin',18)}<div>Registra la dirección de residencia del cliente</div></div>`;
+ if(k==='identidad')return `<div id="turno" class="tu-cli">${I('camera',18)}<div>Con el cliente — validación de identidad y prueba de vida</div></div>`;
+ return `<div id="turno" class="tu-cli">${I('mail',18)}<div>Con el cliente — token de correo para activar el cupo</div></div>`;
 }
 
 /* ════════ STREAM ════════ */
@@ -665,12 +827,15 @@ function streamHTML(){
   if(done){html+=stWrap('sb-ok','✓',`<div class="st-row"><div class="tx"><div class="ti">${st.t}</div>
     <div class="re">${S.res[st.k]}</div></div></div>`);return}
   if(cur){
-   const cls=st.sys||((st.k==='activa')&&S.ubica!=='done')?'sb-sis pulse':'sb-run pulse';
+   const cls=(st.k==='estudio')?
+    (S.estudio==='idle'?'sb-run pulse':S.estudio==='llamada'?'sb-warn pulse':'sb-sis pulse'):
+    (st.sys?'sb-sis pulse':'sb-run pulse');
    html+=stWrap(cls,i+1,EXP[st.k]());return}
-  /* dirección e identidad disponibles en paralelo mientras FOSYGA o cupo preliminar procesan */
-  if(st.k==='direccion'&&['fosyga','cupo'].includes(step().k)&&!S.cerrada){
+  /* dirección e identidad disponibles en paralelo una vez pasada la viabilidad inicial */
+  const estPostViab=step().k==='estudio'&&['contacto','llamada','cupo'].includes(S.estudio);
+  if(st.k==='direccion'&&estPostViab&&!S.cerrada){
    html+=stWrap('sb-run pulse',i+1,EXP.direccion());return}
-  if(st.k==='identidad'&&['fosyga','cupo','direccion'].includes(step().k)&&!S.cerrada){
+  if(st.k==='identidad'&&(estPostViab||step().k==='direccion')&&!S.cerrada){
    html+=stWrap('sb-run pulse',i+1,EXP.identidad());return}
   html+=`<div class="st-item pend"><span class="st-badge sb-p">${i+1}</span>
    <div class="st-row"><div class="tx"><div class="ti">${st.t}</div></div></div></div>`;
@@ -678,12 +843,12 @@ function streamHTML(){
  if(S.cerrada&&S.cerrada!=='Cupo activado')html+=stWrap('sb-err','✕',`<div class="st-card warn" style="border-color:#FECACA">
   <h2>Solicitud cerrada</h2>
   <div class="result r-err"><h3>✕ ${S.cerrada}</h3><p>${esc().key==='t8'?
-   'Existe un estudio de los últimos 90 días cerrado como <b>No viable centrales</b>. El cliente podrá intentarlo de nuevo más adelante.':
+   'Existe un estudio de los últimos 90 días cerrado como <b>no viable</b>. El cliente podrá intentarlo de nuevo más adelante.':
    'El documento capturado no corresponde al digitado. La solicitud finaliza.'}</p></div>
   <div class="btn-row"><button class="btn btn-ghost" onclick="showMesa()">Volver a la mesa</button></div></div>`);
  if(S.res.activa)html+=stWrap('sb-ok','✓',`<div class="st-card" style="border-color:#BBF7D0;text-align:center">
   <div style="width:52px;height:52px;border-radius:50%;background:var(--green-bg);color:var(--green-tx);display:flex;align-items:center;justify-content:center;margin:4px auto 12px">${I('states',26)}</div>
-  <h2 style="justify-content:center">Cupo express aprobado</h2>
+  <h2 style="justify-content:center">Cupo aprobado</h2>
   <div style="font-family:var(--mono);font-size:30px;font-weight:700;color:var(--green-tx);margin:8px 0 4px">${CLIENTE.cupo}</div>
   <p style="font-size:12.5px;color:var(--txt-2)">Disponible de inmediato para pagar en caja · notificación enviada por SMS y correo</p>
   <div class="btn-row" style="justify-content:center;margin-top:18px"><button class="btn btn-primary" onclick="showMesa()">Volver a la mesa</button></div></div>`);
@@ -706,7 +871,7 @@ ident(){
   <div class="btn-row"><button class="btn btn-primary" onclick="const n=document.getElementById('doc-num');if(n&&!n.value)n.value='${CLIENTE.cc}';S.identificado=true;setPh(1);setTimeout(()=>{if(step().k==='ident'&&S.ph===1)setPh(2)},1400)">Consultar →</button></div></div>`;
  if(S.ph===1)return `<div class="st-card sis"><div class="wait-mini"><div class="spinner"></div><p>Consultando existencia y estado del cliente…</p></div></div>`;
  if(esc().key==='t8')return `<div class="st-card"><h2>Identificación del cliente</h2>
-  <div class="result r-err"><h3>✕ No puede aplicar por ahora</h3><p>Existe un estudio reciente cerrado como <b>No viable centrales</b> que no permite retomar.</p></div>
+  <div class="result r-err"><h3>✕ No puede aplicar por ahora</h3><p>Existe un estudio reciente cerrado como <b>no viable</b> que no permite retomar.</p></div>
   <div class="btn-row"><button class="btn btn-primary" onclick="S.tercero=true;S.cerrada='No aplica — cierre reciente';addLog('err','Identificación — estudio reciente no viable, no puede aplicar');renderFicha()">Ver detalle →</button></div></div>`;
  if(esc().key==='t2')return `<div class="st-card"><h2>Identificación del cliente</h2>
   <div class="result r-info"><h3>${I('user',13)} Cliente existente</h3><p>${CLIENTE.nombre} ${CLIENTE.apellido} ya está registrado, sin cupo vigente ni estudio en curso.</p></div>
@@ -744,18 +909,31 @@ tercero(){
   <div class="btn-row"><button class="btn btn-ghost" onclick="setPh(0)">← Cambiar método</button>
   <button class="btn btn-primary" ${S.fF&&S.fR?'':'disabled'}
    onclick="S.fotosOCR=true;setPh(2);addLog('sys','OCR en proceso — extrayendo datos del documento');setTimeout(()=>{if(step().k==='tercero'&&S.ph===2){setPh(3);addLog('sys','OCR completado — datos extraídos')}},1600)">Procesar con OCR ▶</button></div></div>`;
- if(S.ph===2)return `<div class="st-card sis"><div class="wait-mini"><div class="spinner"></div><p>Procesando imágenes del documento…</p></div></div>`;
+ if(S.ph===2)return `<div class="st-card sis"><div class="wait-mini"><div class="spinner"></div>
+  <p>Obteniendo datos de la imagen…</p>
+  <p style="font-size:11.5px;color:var(--txt-3);margin-top:4px">Leyendo nombres, fechas, lugar de nacimiento y de expedición · ubicando por código DANE</p></div></div>`;
  if(S.ph===9)return `<div class="st-card sis"><div class="wait-mini"><div class="spinner"></div><p>Validando contacto…</p></div></div>`;
+ const ocr=S.fotosOCR;
  return `<div class="st-card"><h2>${t2?'Verificar y actualizar datos':'Creación del cliente'}</h2>
-  ${S.fotosOCR?`<p class="sub">Datos extraídos del documento — permita la edición antes de guardar.</p>`:''}
+  ${ocr?`<div class="result r-info" style="padding:11px 15px;margin:2px 0 14px"><h3>${I('idcard',13)} Datos leídos del documento</h3>
+   <p>El OCR leyó <b>MEDELLÍN</b> (nacimiento) y <b>BUCARAMANGA</b> (expedición) y los ubicó por código DANE. Verifique y ajuste antes de guardar.</p></div>`:''}
   <div class="sec">Datos personales</div>
   <div class="f3">
    <div class="field"><label>Número de documento</label><input value="${CLIENTE.cc}"></div>
    <div class="field"><label>Nombres</label><input value="${CLIENTE.nombre}"></div>
    <div class="field"><label>Apellidos</label><input value="${CLIENTE.apellido}"></div>
+  </div>
+  <div class="sec">Lugar y fecha de nacimiento</div>
+  <div class="f3">
    <div class="field"><label>Fecha de nacimiento</label><input value="${CLIENTE.nac}"></div>
-   <div class="field"><label>Ciudad de expedición</label><input value="${CLIENTE.expCiudad}"></div>
+   <div class="field"><label>Departamento</label><select onchange="onDepto(this,'ciu-nac')">${optDeptos(ocr?CLIENTE.deptoNac:'')}</select></div>
+   <div class="field"><label>Ciudad</label><select id="ciu-nac">${optCiudades(ocr?CLIENTE.deptoNac:'',ocr?CLIENTE.ciudadNac:'')}</select></div>
+  </div>
+  <div class="sec">Expedición del documento</div>
+  <div class="f3">
    <div class="field"><label>Fecha de expedición</label><input value="${CLIENTE.expFecha}"></div>
+   <div class="field"><label>Departamento</label><select onchange="onDepto(this,'ciu-exp')">${optDeptos(ocr?CLIENTE.deptoExp:'')}</select></div>
+   <div class="field"><label>Ciudad</label><select id="ciu-exp">${optCiudades(ocr?CLIENTE.deptoExp:'',ocr?CLIENTE.ciudadExp:'')}</select></div>
   </div>
   <div class="sec">Contacto</div>
   <div class="f2">
@@ -770,7 +948,7 @@ gestion(){
  if(S.ph===0)return `<div class="st-card"><h2>Tipo de gestión</h2>
   <p class="sub">¿El cliente realizará autogestión?</p>
   <div class="choice2">
-   <div class="choice" onclick="setPh(1)"><div class="ic">${I('zap',24)}</div><h4>Gestión asistida en tienda</h4><p>El asesor acompaña todo el proceso</p></div>
+   <div class="choice" onclick="setPh(1)"><div class="ic">${I('store',24)}</div><h4>Gestión asistida en tienda</h4><p>El asesor acompaña todo el proceso</p></div>
    <div class="choice" onclick="S.autogestion=true;addLog('sys','Enlace de autogestión generado y enviado por WhatsApp — ••• ${CLIENTE.cel.slice(-4)}');renderFicha()"><div class="ic">${I('whatsapp',24)}</div><h4>Autogestión</h4><p>Generar y enviar enlace al cliente</p></div>
   </div>
   ${S.autogestion?`<div class="result r-info"><h3>${I('whatsapp',13)} Enlace enviado</h3><p>El cliente continúa el proceso desde su celular. La gestión en tienda finaliza.</p></div>
@@ -785,16 +963,18 @@ gestion(){
    onclick="advance('gestion','Asistida en tienda · asesor 1015425789 ✓')">Continuar →</button></div></div>`;
 }
 ,
-/* 4 · Iniciar estudio — T&C y token */
+/* 4 · Aceptación y firma electrónica */
 token(){
- if(S.abandono)return `<div class="st-card warn"><h2>Iniciar estudio — T&C y token</h2>
+ if(S.abandono)return `<div class="st-card warn"><h2>Aceptación y firma electrónica</h2>
   <div class="result r-info"><h3>${I('user',13)} Solicitud pausada</h3><p>El cliente se retiró antes de firmar. Al regresar, se retoma desde la identificación con los datos conservados.</p></div>
   <div class="btn-row"><button class="btn btn-ghost" onclick="showMesa()">Volver a la mesa</button>
   <button class="btn btn-primary" onclick="S.retoma=true;S.idx=0;S.ph=1;renderFicha();setTimeout(()=>{if(step().k==='ident')setPh(2)},1400)">El cliente regresó →</button></div></div>`;
  const waGate=S.re.sms&&S.re.ivr;
- if(S.ph===0)return `<div class="st-card"><h2>Iniciar estudio — T&C y token</h2>
-  <div class="chk"><input type="checkbox" checked><span>El cliente acepta los <b>Términos y Condiciones</b> del crédito QUAC</span></div>
-  <div class="chk"><input type="checkbox" checked><span>El cliente acepta la <b>Política de tratamiento de datos</b></span></div>
+ if(S.ph===0)return `<div class="st-card"><h2>Aceptación y firma electrónica</h2>
+  ${S.reFirma?`<div class="result r-warn"><h3>${I('refresh',13)} Nueva firma requerida</h3>
+  <p>Los datos del cliente cambiaron después de la firma anterior. Envía un nuevo token para que el cliente vuelva a firmar.</p></div>`:''}
+  <div class="result r-info"><h3>${I('shield',13)} El cliente debe aceptar para continuar</h3>
+  <p>Al recibir y validar el token, el cliente acepta los <b>Términos y Condiciones</b> del crédito QUAC y la <b>Política de tratamiento de datos</b>. El token funciona como su firma electrónica.</p></div>
   <div class="field" style="margin-top:8px"><label>Canal de envío del token</label>
    <div class="canales">
     <div class="canal ${canalSel==='SMS'?'sel':''}" onclick="selCanal('SMS')">SMS</div>
@@ -804,7 +984,7 @@ token(){
   ${enviosHTML()}
   <div class="btn-row"><button class="btn btn-primary" onclick="envioPush(canalSel);setPh(1)">Enviar token →</button>
   ${esc().key==='abandono'?`<button class="btn btn-ghost" onclick="S.abandono=true;addLog('warn','El cliente se retiró sin firmar — solicitud pausada');renderFicha()">El cliente se retiró</button>`:''}</div></div>`;
- return `<div class="st-card"><h2>Iniciar estudio — T&C y token</h2>
+ return `<div class="st-card"><h2>Aceptación y firma electrónica</h2>
   <div class="result r-tok"><h3>${I('phone',13)} Token enviado al celular ••• ${CLIENTE.cel.slice(-4)}</h3>
   <p>Se envió un código de 6 dígitos por ${canalSel}. Solicite el código al cliente y digítelo a continuación.</p></div>
   <div class="otp-row" id="otp-cel">${[0,1,2,3,4,5].map(()=>`<input class="otp" maxlength="1">`).join('')}</div>
@@ -815,15 +995,44 @@ token(){
    <button class="link" onclick="envioPush('IVR');renderFicha()">Llamada</button>
    <button class="link" ${waGate?'':'disabled style="opacity:.4"'} onclick="envioPush('WhatsApp');renderFicha()">WhatsApp</button></div>
   ${enviosHTML()}
-  <div class="btn-row"><button class="btn btn-primary" onclick="S.solicitud=true;addLog('ok','Token validado — solicitud #1049 creada · estudio iniciado');advance('token','Firmado vía ${canalSel} · solicitud creada')">Verificar token →</button></div></div>`;
+  <div class="btn-row"><button class="btn btn-primary" onclick="S.solicitud=true;const re=S.reFirma;S.reFirma=false;addLog('ok',re?'Token validado — nueva firma registrada tras el cambio de datos':'Token validado — solicitud #1049 creada · estudio iniciado');advance('token',re?'Re-firmado vía ${canalSel} tras editar datos':'Firmado vía ${canalSel} · solicitud creada')">Verificar token →</button></div></div>`;
 }
 ,
 /* 5–8 · pasos del sistema */
-antec(){return sysCard('Consulta de antecedentes','Antecedentes judiciales, disciplinarios y fiscales')},
-presel(){return sysCard('Validación de viabilidad — Preselecta','Evaluando viabilidad crediticia en centrales de riesgo')},
-fosyga(){return sysCard('Validación de cotización — FOSYGA','Consultando cotización reciente en seguridad social',true)},
-cupo(){return sysCard('Definición de cupo preliminar','Calculando el cupo según las variables del estudio',true)},
-/* 9 · Registro de dirección (disponible en paralelo desde FOSYGA) */
+/* 5 · Iniciar estudio (antecedentes + Preselecta + FOSYGA + cupo, en un solo bloque) */
+estudio(){
+ if(S.estudio==='idle')return `<div class="st-card"><h2>Iniciar estudio</h2>
+  <p class="sub">Con la firma electrónica registrada, el cliente autorizó el estudio de crédito. Al iniciar, el sistema evalúa automáticamente la <b>viabilidad</b> del cliente y —si resulta viable— define el <b>cupo preaprobado</b>. El proceso corre en segundo plano.</p>
+  <div class="btn-row"><button class="btn btn-primary" onclick="iniciarEstudio()">${I('zap',14)} Iniciar estudio →</button></div></div>`;
+ if(S.estudio==='viabilidad')return `<div class="st-card sis"><h2>${I('states',15)} Iniciar estudio</h2>
+  <div class="wait-mini"><div class="spinner"></div>
+   <p><b>Validación inicial de viabilidad</b></p>
+   <p style="font-size:11.5px;color:var(--txt-3);margin-top:4px">El sistema está evaluando si el cliente puede acceder al crédito.</p>
+   <div class="timer">⏱ <span class="est-t">${estElapsed()}</span></div></div>
+  <div class="btn-row" style="justify-content:center"><button class="btn btn-primary" onclick="estudioViable()">Simular respuesta</button></div></div>`;
+ if(S.estudio==='contacto')return `<div class="st-card sis"><h2>${I('states',15)} Iniciar estudio</h2>
+  <div class="result r-ok" style="padding:11px 15px;margin:2px 0 12px"><h3>✓ Cliente viable</h3><p>El cliente cumple las condiciones para acceder al crédito.</p></div>
+  <div class="wait-mini"><div class="spinner"></div>
+   <p><b>Validando los datos del cliente…</b></p>
+   <p style="font-size:11.5px;color:var(--txt-3);margin-top:4px">Un momento antes de asignar el cupo.</p>
+   <div class="timer">⏱ <span class="est-t">${estElapsed()}</span></div></div>
+  <div class="btn-row" style="justify-content:center"><button class="btn btn-primary" onclick="estudioContacto('ok')">Simular: contacto OK</button>
+   <button class="btn btn-outline" onclick="estudioContacto('llamada')">Simular: requiere llamada</button></div></div>`;
+ if(S.estudio==='llamada')return `<div class="st-card warn"><h2>${I('phone',15)} Iniciar estudio</h2>
+  <div class="result r-ok" style="padding:11px 15px;margin:2px 0 12px"><h3>✓ Cliente viable</h3><p>El cliente cumple las condiciones para acceder al crédito.</p></div>
+  <div class="result r-warn"><h3>${I('phone',13)} El cliente está a un paso de recibir su cupo</h3>
+   <p>Para continuar, el sistema realizará una <b>llamada automática al celular del cliente</b> (••• ${CLIENTE.cel.slice(-4)}) para confirmar sus datos. Por favor, <b>pídale que esté pendiente de la llamada</b> y confirme la información; en cuanto lo haga, se define el cupo.</p></div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="estudioLlamada()">${I('phone',14)} El cliente atendió la llamada →</button></div></div>`;
+ return `<div class="st-card sis"><h2>${I('states',15)} Iniciar estudio</h2>
+  <div class="result r-ok" style="padding:11px 15px;margin:2px 0 12px"><h3>✓ Cliente viable · datos confirmados</h3><p>El proceso continúa con la asignación del cupo.</p></div>
+  <div class="wait-mini"><div class="spinner"></div>
+   <p><b>Validando asignación de cupo…</b></p>
+   <p style="font-size:11.5px;color:var(--txt-3);margin-top:4px">El sistema está definiendo el monto del cupo preaprobado. Puedes registrar la dirección y lanzar la validación de identidad mientras tanto.</p>
+   <div class="timer">⏱ <span class="est-t">${estElapsed()}</span></div></div>
+  <div class="btn-row" style="justify-content:center"><button class="btn btn-primary" onclick="estudioCupo()">Simular respuesta</button></div></div>`;
+}
+,
+/* 6 · Registro de dirección (disponible en paralelo mientras el estudio valida el cupo) */
 direccion(){
  return `<div class="st-card"><h2>Registro de dirección</h2>
   <div class="f2"><div class="field"><label>Departamento</label><select><option>Antioquia</option></select></div>
@@ -834,10 +1043,27 @@ direccion(){
 ,
 /* 10 · Validación de identidad */
 identidad(){
- if(S.attn)return `<div class="st-card warn"><h2>Validación de identidad</h2>
-  <div class="result r-warn"><h3>${I('factory',13)} En revisión manual</h3><p>La verificación requiere revisión del equipo de soporte. La solicitud queda activa y retomará aquí.</p></div>
-  <div class="btn-row"><button class="btn btn-ghost" onclick="showMesa()">Volver a la mesa</button>
-   <button class="btn btn-outline" onclick="S.attn=false;addLog('ok','Fábrica de soporte — verificación aprobada');toast('Fábrica resolvió — la solicitud continúa');completarIdentidad('Soportes verificados · aprobada por soporte')">Revisión resuelta →</button></div></div>`;
+  /* DEVUELTO_POR_FÁBRICA — freno aplicado */
+  if(S.retornoFabrica)return `<div class="st-card warn"><h2>Validación de identidad</h2>
+   <div class="result r-err"><h3>${I('factory',13)} Devuelto por fábrica</h3><p>La fábrica rechazó la validación de identidad. Motivo:</p>
+   <p style="background:var(--red-bg);color:var(--red-tx);padding:12px;border-radius:8px;margin-top:8px;font-weight:600">${S.motivoRechazo||'Documento ilegible — solicitar nueva captura de fotos y prueba de vida'}</p></div>
+   <div class="btn-row"><button class="btn btn-ghost" onclick="showMesa()">Volver a la mesa</button>
+    <button class="btn btn-primary" onclick="S.retornoFabrica=false;S.attn=false;S.motivoRechazo='';addLog('info','Reintentando validación de identidad — nueva captura solicitada');renderFicha()">Reintentar validación →</button></div></div>`;
+  if(S.attn){
+   /* Escenario #9: dual outcome — desatasque vs freno */
+   if(esc().key==='retorno-fabrica')return `<div class="st-card warn"><h2>Validación de identidad</h2>
+    <div class="result r-warn"><h3>${I('factory',13)} En revisión manual — Fábrica de soporte</h3><p>La verificación está siendo revisada. Seleccione el resultado de la revisión:</p></div>
+    <div class="choice2">
+     <div class="choice" onclick="S.attn=false;addLog('ok','Fábrica de soporte — desatasque: verificación aprobada');toast('Desatasque — la solicitud continúa');completarIdentidad('Soportes verificados · aprobada por soporte')">
+      <div class="ic">${I('states',24)}</div><h4>Desatasque</h4><p>Fábrica resuelve — la solicitud avanza normalmente</p></div>
+     <div class="choice" onclick="S.retornoFabrica=true;S.motivoRechazo='Documento ilegible — solicitar nueva captura';addLog('warn','Fábrica de soporte — freno: estudio devuelto con motivo');toast('Freno — estudio devuelto por fábrica');renderFicha()">
+      <div class="ic">${I('alert',24)}</div><h4>Freno</h4><p>Fábrica rechaza con motivo — DEVUELTO_POR_FABRICA</p></div>
+    </div></div>`;
+  return `<div class="st-card warn"><h2>Validación de identidad</h2>
+   <div class="result r-warn"><h3>${I('factory',13)} En revisión manual</h3><p>La verificación requiere revisión del equipo de soporte. La solicitud queda activa y retomará aquí.</p></div>
+   <div class="btn-row"><button class="btn btn-ghost" onclick="showMesa()">Volver a la mesa</button>
+    <button class="btn btn-outline" onclick="S.attn=false;addLog('ok','Fábrica de soporte — verificación aprobada');toast('Fábrica resolvió — la solicitud continúa');completarIdentidad('Soportes verificados · aprobada por soporte')">Revisión resuelta →</button></div></div>`;
+  }
  if(S.ph===1)return `<div class="st-card"><h2>Validación de identidad</h2>
   <div class="result r-tok"><h3>${I('whatsapp',13)} Enlace enviado por WhatsApp al ••• ${CLIENTE.cel.slice(-4)}</h3>
   <p>El cliente realiza la prueba de vida y la captura desde su celular.</p></div>
@@ -868,43 +1094,24 @@ identidad(){
 ,
 /* 11 · Activación de cupo */
 activa(){
- if(S.ubica!=='done')return `<div class="st-card sis"><h2>${I('states',15)} Activación de cupo</h2>
-  <p class="sub">Esperando la definición de UBICA para activar. El estudio se lanzó desde la definición de cupo y continúa en segundo plano.</p>
-  <div class="wait-mini"><div class="spinner"></div>
-  <div class="timer">⏱ <span class="ub-t">${ubElapsed()}</span></div></div>
-  <div class="btn-row" style="justify-content:center"><button class="btn btn-ghost" onclick="showMesa()">Volver a la mesa</button>
-   <button class="btn btn-primary" onclick="ubicaDone()">Simular respuesta</button></div></div>`;
- if(S.ph===0)return `<div class="st-card"><h2>Definición de UBICA</h2>
-  <p class="sub">Decidir si el contacto actual es consistente con lo que UBICA conoce.</p>
-  <div class="result r-ok"><h3>Ok UBICA (cel y correo)</h3>
-  <p>Celular y correo tienen antigüedad mayor a 4 meses y actualización reciente. El flujo continúa sin intervención humana.</p></div>
-  <table class="kvt">
-   <tr><td>Celular</td><td><span class="badge b-green">Coincide</span><span class="mono">${CLIENTE.cel.replace(/ /g,'')}</span></td></tr>
-   <tr><td>Correo</td><td><span class="badge b-green">Coincide</span><span class="mono">${CLIENTE.correo}</span></td></tr>
-   <tr><td>Dirección</td><td><span class="badge b-green">Coincide</span></td></tr>
-  </table>
+ if(S.ph===0)return `<div class="st-card"><h2>Activación de cupo</h2>
+  <p class="sub">El contacto del cliente ya fue validado en el estudio. Para activar el cupo, se verifica el correo del cliente con un token.</p>
   <div class="result r-tok"><h3>${I('mail',13)} Tokenización de correo electrónico</h3>
-  <p>Para activar el cupo express se requiere verificar el correo electrónico del cliente. Se enviará un token de 6 dígitos a <b>${CLIENTE.correo}</b>.</p>
+  <p>Se enviará un token de 6 dígitos a <b>${CLIENTE.correo}</b>. El celular ya fue verificado con la firma del paso 4.</p>
   <div class="btn-row" style="margin-top:10px"><button class="btn btn-primary" onclick="addLog('sys','Token enviado al correo — ${CLIENTE.correo}');setPh(1)">Enviar token al correo ▶</button></div></div></div>`;
  if(S.ph===1)return `<div class="st-card"><h2 style="justify-content:center;text-align:center;display:block">
   <div style="width:46px;height:46px;border-radius:50%;background:var(--violet-soft);color:var(--violet);display:flex;align-items:center;justify-content:center;margin:0 auto 10px">${I('mail',20)}</div>
-  Tokenización de correo y activación de cupo express</h2>
-  <p class="sub" style="text-align:center">El celular ya fue tokenizado en el paso 4. Aquí solo falta tokenizar el correo.</p>
+  Confirmación de correo y activación de cupo</h2>
   <div class="result r-tok"><h3>Token enviado a ${CLIENTE.correo}</h3>
   <p>Se envió un código de 6 dígitos al correo del cliente. Solicite el código y digítelo a continuación.</p>
   <div class="otp-row" id="otp-mail" style="justify-content:center">${[0,1,2,3,4,5].map(()=>`<input class="otp" maxlength="1">`).join('')}</div></div>
   <div class="btn-row"><button class="btn btn-ghost" onclick="fillOtp('otp-mail','835172')">Llenar demo</button>
    <span style="font-size:12px;color:var(--txt-3)">¿No recibió el token?</span>
    <button class="link" onclick="addLog('sys','Token de correo reenviado — ${CLIENTE.correo}');toast('Token reenviado al correo')">Reenviar</button></div>
-  <div class="btn-row"><button class="btn btn-primary" onclick="setPh(2);setTimeout(()=>{if(step().k==='activa'){addLog('ok','Cupo express activado — ${CLIENTE.cupo}');S.res.activa='Cupo express aprobado · ${CLIENTE.cupo}';toast('Cupo express activado');renderFicha()}},1800)">Verificar token ▶</button></div></div>`;
+  <div class="btn-row"><button class="btn btn-primary" onclick="setPh(2);setTimeout(()=>{if(step().k==='activa'){addLog('ok','Cupo activado — ${CLIENTE.cupo}');S.res.activa='Cupo aprobado · ${CLIENTE.cupo}';toast('Cupo activado');renderFicha()}},1800)">Verificar token ▶</button></div></div>`;
  return `<div class="st-card sis"><div class="wait-mini"><div class="spinner"></div><p>Verificando token y activando el cupo…</p></div></div>`;
 }
 };
-function sysCard(titulo,desc,manual){
- return `<div class="st-card sis"><h2>${I('states',15)} ${titulo}</h2>
-  <div class="wait-mini"><div class="spinner"></div><p>${desc}…</p></div>
-  ${manual?`<div class="btn-row" style="justify-content:center"><button class="btn btn-primary" onclick="sysResolve()">Simular respuesta</button></div>`:''}</div>`;
-}
 
 /* ════════ RAIL ════════ */
 function railHTML(){
@@ -915,22 +1122,21 @@ function railHTML(){
    <div class="rkv"><span class="k">ID</span><span class="v mono">${S.solicitud?'#1049':'— preliminar'}</span></div>
    <div class="rkv"><span class="k">Canal</span><span class="v">Tienda · Caja 01</span></div>
    <div class="rkv"><span class="k">Asesor</span>${S.asesorOk?'<span class="v mono">1015425789</span>':emp}</div>
-   <div class="rkv"><span class="k">Estado</span><span class="v"><span class="badge ${estadoActivo()[1]}">${estadoActivo()[0]}</span></span></div>
+    <div class="rkv"><span class="k">Estado</span><span class="v">${badgeHTML(estadoActivo().codigo)}</span></div>
   </div>
-  <div class="rcard"><h4>${I('user',13)} Cliente</h4>
+  <div class="rcard"><h4>${I('user',13)} Cliente${S.tercero?`<button class="edit" onclick="modalEditarCliente()">${I('pencil',12)} Editar</button>`:''}</h4>
    <div class="rkv"><span class="k">Documento</span>${S.identificado?`<span class="v mono">CC ${CLIENTE.cc}</span>`:emp}</div>
    <div class="rkv"><span class="k">Nombre</span>${S.tercero?`<span class="v">${CLIENTE.nombre} ${CLIENTE.apellido.split(' ')[0]}.</span>`:emp}</div>
-   <div class="rkv"><span class="k">Nacimiento</span>${S.tercero?`<span class="v mono">${CLIENTE.nac}</span>`:emp}</div>
+   <div class="rkv"><span class="k">Nacimiento</span>${S.tercero?`<span class="v mono">${CLIENTE.nac} · ${CLIENTE.ciudadNac}</span>`:emp}</div>
+   <div class="rkv"><span class="k">Expedición</span>${S.tercero?`<span class="v mono">${CLIENTE.expFecha} · ${CLIENTE.ciudadExp}</span>`:emp}</div>
    <div class="rkv"><span class="k">Celular</span>${S.tercero?`<span class="v mono">${CLIENTE.cel}</span>`:emp}</div>
    <div class="rkv"><span class="k">Correo</span>${S.tercero?`<span class="v" style="font-size:11px">${CLIENTE.correo}</span>`:emp}</div>
-   <div class="rkv"><span class="k">Dirección</span>${S.direccionOk?`<span class="v" style="font-size:11px">${CLIENTE.dir}</span>`:emp}</div>
+   <div class="rkv"><span class="k">Dirección</span>${S.direccionOk?`<span class="v" style="font-size:11px;display:flex;align-items:center;gap:6px;justify-content:flex-end">${CLIENTE.dir}<button class="redit" onclick="modalEditarDireccion()" title="Editar dirección">${I('pencil',11)}</button></span>`:emp}</div>
   </div>
   <div class="rcard"><h4>${I('wallet',13)} Crédito</h4>
-   <div class="rkv"><span class="k">Antecedentes</span>${S.res.antec?'<span class="v">Sin registros ✓</span>':emp}</div>
-   <div class="rkv"><span class="k">Score</span>${S.res.presel?'<span class="v mono">712 · riesgo bajo</span>':emp}</div>
-   <div class="rkv"><span class="k">FOSYGA</span>${S.res.fosyga?'<span class="v">No aplica</span>':emp}</div>
-   <div class="rkv"><span class="k">Cupo preliminar</span>${S.res.cupo?`<span class="v mono">${CLIENTE.cupo}</span>`:emp}</div>
-   <div class="rkv"><span class="k">UBICA</span>${S.ubica==='done'?'<span class="v">Ok cel y correo ✓</span>':S.ubica==='run'?'<span class="v" style="color:var(--blue-tx)">En 2º plano…</span>':emp}</div>
+   <div class="rkv"><span class="k">Viabilidad</span>${['contacto','llamada','cupo','done'].includes(S.estudio)?'<span class="v">Viable ✓</span>':S.estudio==='viabilidad'?'<span class="v" style="color:var(--blue-tx)">Validando…</span>':emp}</div>
+   <div class="rkv"><span class="k">Validación de contacto</span>${['cupo','done'].includes(S.estudio)?(esc().key==='ubica'?'<span class="v">Confirmada por llamada ✓</span>':'<span class="v">Datos consistentes ✓</span>'):S.estudio==='contacto'?'<span class="v" style="color:var(--blue-tx)">Validando…</span>':S.estudio==='llamada'?'<span class="v" style="color:var(--amber-tx)">Esperando llamada</span>':emp}</div>
+   <div class="rkv"><span class="k">Cupo preaprobado</span>${S.estudio==='done'?`<span class="v mono">${CLIENTE.cupo}</span>`:S.estudio==='cupo'?'<span class="v" style="color:var(--blue-tx)">Validando…</span>':emp}</div>
   </div>
   <div class="rcard"><h4>${I('camera',13)} Soportes</h4>
    <div class="sop ${S.fotosOCR||up?'up':''}"><span class="th">${I('idcard',14)}</span>Doc. frontal<span class="st">${S.fotosOCR||up?'cargada':'—'}</span></div>
@@ -965,29 +1171,73 @@ function guardarDireccion(){
  if(step().k==='direccion'){advance('direccion',resumen)}
  else{S.res.direccion=resumen;renderFicha()}
 }
+/* la dirección de residencia NO forma parte de la firma electrónica:
+   se puede editar en cualquier momento sin volver a tokenizar */
+function modalEditarDireccion(){
+ modal(`<h2>Editar dirección de residencia</h2>
+  <p class="sub">La dirección no forma parte de la firma electrónica: puede editarse en cualquier momento sin volver a tokenizar.</p>
+  <div class="f2">
+   <div class="field"><label>Departamento</label><select><option>Antioquia</option><option>Santander</option><option>Cundinamarca</option><option>Valle del Cauca</option></select></div>
+   <div class="field"><label>Ciudad</label><input value="${CLIENTE.ciudad}"></div>
+  </div>
+  <div class="field"><label>Dirección de residencia</label><input value="${CLIENTE.dir}"></div>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+  <button class="btn btn-primary" onclick="closeModal();addLog('info','Dirección de residencia actualizada por el asesor');toast('Dirección actualizada');renderFicha()">Guardar dirección</button></div>`);
+}
 function completarIdentidad(resumen){
  if(step().k==='identidad'){advance('identidad',resumen)}
  else{S.res.identidad=resumen;renderFicha();hooks()}
 }
+/* edición de datos del cliente — si ya tokenizó, invalida la firma y obliga a re-tokenizar */
+function modalEditarCliente(){
+ const firmado=S.solicitud;
+ modal(`<h2>Editar datos del cliente</h2>
+  <p class="sub">Documento CC ${CLIENTE.cc}</p>
+  ${firmado?`<div class="result r-warn"><h3>${I('shield',13)} Requiere nueva firma</h3>
+   <p>Este cliente ya firmó con token. Si cambias sus datos, la firma electrónica queda invalidada y deberá <b>volver a tokenizar</b> para continuar.</p></div>`:''}
+  <div class="f2">
+   <div class="field"><label>Nombres</label><input value="${CLIENTE.nombre}"></div>
+   <div class="field"><label>Apellidos</label><input value="${CLIENTE.apellido}"></div>
+  </div>
+  <div class="sec" style="margin-top:6px">Nacimiento</div>
+  <div class="f3">
+   <div class="field"><label>Fecha</label><input value="${CLIENTE.nac}"></div>
+   <div class="field"><label>Departamento</label><select onchange="onDepto(this,'ciu-nac-m')">${optDeptos(CLIENTE.deptoNac)}</select></div>
+   <div class="field"><label>Ciudad</label><select id="ciu-nac-m">${optCiudades(CLIENTE.deptoNac,CLIENTE.ciudadNac)}</select></div>
+  </div>
+  <div class="sec">Expedición del documento</div>
+  <div class="f3">
+   <div class="field"><label>Fecha</label><input value="${CLIENTE.expFecha}"></div>
+   <div class="field"><label>Departamento</label><select onchange="onDepto(this,'ciu-exp-m')">${optDeptos(CLIENTE.deptoExp)}</select></div>
+   <div class="field"><label>Ciudad</label><select id="ciu-exp-m">${optCiudades(CLIENTE.deptoExp,CLIENTE.ciudadExp)}</select></div>
+  </div>
+  <div class="sec">Contacto</div>
+  <div class="f2">
+   <div class="field"><label>Celular</label><input value="${CLIENTE.cel}"></div>
+   <div class="field"><label>Correo electrónico</label><input value="${CLIENTE.correo}"></div>
+  </div>
+  <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+  <button class="btn btn-primary" onclick="guardarEdicionCliente()">${firmado?'Guardar y re-tokenizar →':'Guardar cambios'}</button></div>`);
+}
+function guardarEdicionCliente(){
+ closeModal();
+ addLog('info','Datos del cliente actualizados por el asesor');
+ if(S.solicitud){
+  /* invalida la firma: vuelve al paso de token, limpia lo firmado y los envíos previos */
+  S.solicitud=false;S.reFirma=true;S.re={sms:false,ivr:false};S.envios=[];
+  delete S.res.token;
+  S.idx=STEPS.findIndex(s=>s.k==='token');S.ph=0;
+  addLog('warn','Firma electrónica invalidada — se requiere nueva tokenización por cambio de datos');
+  toast('Datos actualizados — el cliente debe volver a tokenizar');
+ }else{
+  toast('Datos del cliente actualizados');
+ }
+ renderFicha();
+}
 
 let ubInt=null;
-function startUbica(){
- if(S.ubica!=='idle')return;
- S.ubica='run';S.ubicaT0=Date.now();
- addLog('sys','Definición de UBICA lanzada en 2º plano');
- if(esc().key!=='ubica')setTimeout(()=>ubicaDone(true),22000);
-}
-function ubicaDone(silent){
- if(S.ubica==='done')return;
- S.ubica='done';
- addLog('ok','Definición de UBICA — Ok UBICA (cel y correo)');
- if(!silent)toast('UBICA finalizó — resultado disponible');
- if(S.view==='ficha')renderFicha();else render();
-}
-function ubElapsed(){if(!S.ubicaT0)return '0 seg';const s=Math.floor((Date.now()-S.ubicaT0)/1000);
- return s<60?s+' seg':Math.floor(s/60)+' min '+s%60+' seg'}
 function startTimers(){clearInterval(ubInt);
- ubInt=setInterval(()=>{document.querySelectorAll('.ub-t').forEach(el=>el.textContent=ubElapsed())},1000)}
+ ubInt=setInterval(()=>{document.querySelectorAll('.est-t').forEach(el=>el.textContent=estElapsed())},1000)}
 
 /* modales de cámara */
 function modalAsesor(p){
@@ -1008,7 +1258,7 @@ function modalVida(p){
   <div class="cam"><div class="face">${I('refresh',44)}</div><div class="gesto">"Gira lentamente la cabeza a la derecha… ahora sonríe"</div></div>
   <div class="btn-row"><button class="btn btn-primary" onclick="addLog('sys','Prueba de vida capturada — gestos completados');modalVida(2);setTimeout(()=>modalVida(3),2400)">Gestos completados →</button></div>`);
  if(p===2)return modal(`<div class="wait-panel"><div class="spinner"></div><h3>Procesando…</h3><p>Enviando verificación al sistema${S.fotosOCR?'':' · capturando frontal y reverso'}</p></div>`);
- const falla=esc().key==='fabrica';
+  const falla=esc().key==='fabrica'||esc().key==='retorno-fabrica';
  modal(`<h2>Verificación enviada</h2>
   <div class="result ${falla?'r-warn':'r-ok'}"><h3>${falla?'! Requiere revisión adicional':'✓ Verificación procesada'}</h3>
   <p>${falla?'La verificación pasó a revisión del equipo de soporte.':'Soportes cargados y verificación procesada por el sistema.'}</p></div>
@@ -1032,14 +1282,27 @@ function vidaResult(falla){
 /* ════════ GUÍA ════════ */
 const GUIA={
  mesa:['Mesa de estudios',`<p>Tabla de solicitudes de la tienda con espera en caja (semáforo). Clic en una fila abre su pestaña.</p>`],
- ficha:['El expediente',`<p>Los 11 pasos del documento en un solo lienzo: <b>1</b> Identificación · <b>2</b> Creación del cliente (con validación de contacto) · <b>3</b> Tipo de gestión y asesor (facial obligatoria) · <b>4</b> T&C y token · <b>5–8</b> antecedentes, Preselecta, FOSYGA y cupo (el sistema los corre en cascada; en el paso 8 se suelta UBICA en 2º plano) · <b>9</b> dirección · <b>10</b> identidad (fotos cédula + prueba de vida aquí o por enlace WhatsApp) · <b>11</b> activación (espera UBICA → resultado → token al correo → cupo express).</p>
+ ficha:['El expediente',`<p>Los 8 pasos en un solo lienzo: <b>1</b> Identificación · <b>2</b> Creación del cliente (con validación de contacto) · <b>3</b> Tipo de gestión y asesor (facial obligatoria) · <b>4</b> Aceptación y firma electrónica · <b>5</b> Iniciar estudio (fusiona antecedentes, Preselecta, FOSYGA y cupo; al asesor solo se le muestra "viabilidad" y el resultado; al asignar el cupo se suelta UBICA en 2º plano) · <b>6</b> dirección · <b>7</b> identidad (fotos cédula + prueba de vida aquí o por enlace WhatsApp) · <b>8</b> activación (espera UBICA → resultado → token al correo → cupo).</p>
+ <p>Regla del equipo de crédito: <b>el asesor no ve la mecánica interna</b> del estudio (antecedentes, centrales, FOSYGA, score) — solo "validando viabilidad", "cliente viable" y el monto. Al retornar viable, dirección e identidad se habilitan en paralelo mientras se define el cupo.</p>
  <p>El banner superior dice de quién es el turno; el chip azul muestra UBICA mientras corre; el rail acumula el expediente.</p>
  <p><span class="g-cite">FLUJO_CREDITOS_V3</span> <span class="g-cite">API-ACTIVACION-V2</span></p>`],
 };
 function renderGuia(){
- const g=S.view==='mesa'?GUIA.mesa:GUIA.ficha;
- document.getElementById('g-title').textContent=g[0];
- document.getElementById('g-body').innerHTML=`<p style="font-size:11px;color:#8F86B8">Escenario: <b style="color:#fff">${esc().chip}</b> — ${esc().desc}</p><hr style="border-color:#2C2850;margin:10px 0">`+g[1];
+  const g=S.view==='mesa'?GUIA.mesa:GUIA.ficha;
+  document.getElementById('g-title').textContent=g[0];
+  let extra='';
+  if(esc().key==='retorno-fabrica'||S.attn||S.retornoFabrica){
+    extra=`<div style="margin-top:10px;padding:10px;background:#2C2850;border-radius:8px;font-size:11.5px">
+      <b style="color:#fff">Retorno de fábrica — REQ-MAP-05</b>
+      <hr style="border-color:#3A3560;margin:8px 0">
+      <p><b style="color:#fff">Desatasque:</b> fábrica resuelve → estado <span class="badge b-gray" style="font-size:10px">EN_PROGRESO</span> · paso avanza normalmente</p>
+      <p><b style="color:#fff">Freno:</b> fábrica rechaza con motivo → estado <span class="badge b-red" style="font-size:10px">DEVUELTO_POR_FABRICA</span></p>
+      <p>El campo <b>motivoRechazo</b> se expone en T-15 detalle y en la interfaz cuando el estudio está devuelto.</p>
+      <p>Transiciones: <span class="badge b-amber" style="font-size:10px">ESCALADO_FABRICA</span> → <span class="badge b-gray" style="font-size:10px">EN_PROGRESO</span> (desatasque) · <span class="badge b-amber" style="font-size:10px">ESCALADO_FABRICA</span> → <span class="badge b-red" style="font-size:10px">DEVUELTO_POR_FABRICA</span> (freno)</p>
+    </div>`;
+  }
+  document.getElementById('g-title').textContent=g[0];
+  document.getElementById('g-body').innerHTML=`<p style="font-size:11px;color:#8F86B8">Escenario: <b style="color:#fff">${esc().chip}</b> — ${esc().desc}</p><hr style="border-color:#2C2850;margin:10px 0">`+g[1]+extra;
 }
 
 /* ════════ INIT ════════ */
