@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="color-scheme" content="dark">
+<title>PIEDRA · PAPEL · TIJERA</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   PIEDRA · PAPEL · TIJERA — neón arcade, misma familia que el Snake.
+   Todo autocontenido, sin recursos externos.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root{
+  --bg:      #05070a;
+  --card:    #0a0e14;
+  --win:     #7CFFB2;   /* verde neón */
+  --cyan:    #00D9FF;   /* máquina */
+  --lose:    #FF2E9A;   /* magenta */
+  --tie:     #5d7089;
+  --ink:     #E6F1FF;
+  --ink-dim: #5d7089;
+  --edge:    rgba(0,217,255,.22);
+
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Code",
+          "Segoe UI Mono", Menlo, Consolas, monospace;
+
+  --accent: var(--tie);   /* color del desenlace actual; lo mueve el JS */
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ height:100%; }
+
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--mono);
+  font-variant-numeric:tabular-nums;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:clamp(.8rem,2.4vh,1.5rem);
+  padding:max(1rem,env(safe-area-inset-top)) 1rem max(1rem,env(safe-area-inset-bottom));
+  overflow:hidden;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+
+/* Atmósfera: dos focos difusos + grano, idéntico lenguaje que el Snake */
+body::before{
+  content:""; position:fixed; inset:-20%;
+  background:
+    radial-gradient(46% 38% at 10% 2%,  rgba(0,217,255,.15), transparent 70%),
+    radial-gradient(46% 40% at 92% 100%, rgba(255,46,154,.12), transparent 70%);
+  filter:blur(30px); pointer-events:none; z-index:0;
+}
+body::after{
+  content:""; position:fixed; inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.42'/%3E%3C/svg%3E"),
+    repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+  opacity:.5; mix-blend-mode:overlay; pointer-events:none; z-index:100;
+}
+
+.wrap{
+  position:relative; z-index:1;
+  width:min(94vw, 540px);
+  display:flex; flex-direction:column; align-items:center;
+  gap:clamp(.8rem,2.4vh,1.4rem);
+}
+
+/* ── Encabezado ───────────────────────────────────────────────── */
+header{ text-align:center; }
+h1{
+  font-size:clamp(.72rem,3vw,1.15rem);
+  font-weight:600; letter-spacing:.24em; text-indent:.24em;
+  white-space:nowrap;              /* que "TIJERA" no salte de línea */
+  color:var(--win);
+  text-shadow:0 0 16px rgba(124,255,178,.5), 0 0 42px rgba(0,217,255,.28);
+}
+h1 span{ display:inline-block; animation:drop .5s cubic-bezier(.2,.8,.3,1) backwards; }
+@keyframes drop{ from{ opacity:0; transform:translateY(-.5em); filter:blur(6px); } }
+.tag{
+  margin-top:.5rem; font-size:.58rem; letter-spacing:.3em; text-indent:.3em;
+  color:var(--ink-dim); text-transform:uppercase;
+}
+
+/* ── Marcador ─────────────────────────────────────────────────── */
+.score{
+  width:100%;
+  display:grid; grid-template-columns:repeat(3,1fr);
+  gap:.6rem;
+}
+.score div{
+  background:var(--card);
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:8px; padding:.6rem .4rem; text-align:center;
+}
+.score .lbl{
+  font-size:.56rem; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--ink-dim);
+}
+.score b{
+  display:block; margin-top:.25rem;
+  font-size:1.7rem; font-weight:600; letter-spacing:.02em;
+}
+.score .g b{ color:var(--win); }
+.score .e b{ color:var(--tie); }
+.score .p b{ color:var(--lose); }
+/* rebote al cambiar un contador */
+.bump{ animation:bump .32s cubic-bezier(.3,1.6,.4,1); }
+@keyframes bump{ 50%{ transform:scale(1.24); } }
+
+.streak{
+  font-size:.62rem; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-dim); text-align:center;
+}
+.streak b{ color:var(--cyan); font-size:.9rem; text-shadow:0 0 12px rgba(0,217,255,.45); }
+.streak .live{ color:var(--win); }
+.streak .live.hot{ text-shadow:0 0 12px rgba(124,255,178,.6); }
+
+/* ── Arena ────────────────────────────────────────────────────── */
+.arena{
+  width:100%;
+  background:var(--card);
+  border:1px solid var(--edge);
+  border-radius:14px;
+  box-shadow:0 0 0 1px rgba(0,0,0,.6), 0 0 50px rgba(0,217,255,.1),
+             inset 0 0 60px rgba(0,0,0,.5);
+  padding:clamp(1rem,4vw,1.6rem);
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  align-items:center;
+  gap:.4rem;
+  min-height:clamp(150px,30vh,210px);
+}
+.hand{ text-align:center; }
+.hand .who{
+  font-size:.56rem; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--ink-dim); margin-bottom:.5rem;
+}
+.hand.you .who{ color:var(--win); }
+.hand.cpu .who{ color:var(--cyan); }
+.hand .emoji{
+  font-size:clamp(3rem,15vw,4.6rem); line-height:1;
+  display:inline-block;
+  filter:drop-shadow(0 0 1px rgba(0,0,0,.4));
+}
+.hand.you .emoji{ text-shadow:0 0 26px rgba(124,255,178,.55); }
+.hand.cpu .emoji{ text-shadow:0 0 26px rgba(0,217,255,.5); }
+/* la mano de la máquina mira al espejo para "enfrentarse" */
+.hand.cpu .emoji{ transform:scaleX(-1); }
+
+.versus{
+  font-size:.8rem; font-weight:600; letter-spacing:.1em;
+  color:var(--ink-dim);
+}
+
+/* temblor durante la revelación */
+.shake{ animation:shake .16s linear infinite; }
+@keyframes shake{
+  0%,100%{ transform:translateY(0) }
+  25%{ transform:translateY(-18%) }
+  75%{ transform:translateY(12%) }
+}
+.hand.cpu .shake{ animation:shakecpu .16s linear infinite; }
+@keyframes shakecpu{     /* conserva el espejo mientras tiembla */
+  0%,100%{ transform:scaleX(-1) translateY(0) }
+  25%{ transform:scaleX(-1) translateY(-18%) }
+  75%{ transform:scaleX(-1) translateY(12%) }
+}
+/* latido de la mano ganadora */
+.pop{ animation:pop .42s cubic-bezier(.3,1.5,.4,1); }
+@keyframes pop{ 40%{ transform:scale(1.28) } }
+.hand.cpu .pop{ animation:popcpu .42s cubic-bezier(.3,1.5,.4,1); }
+@keyframes popcpu{ 0%,100%{ transform:scaleX(-1) } 40%{ transform:scaleX(-1) scale(1.28) } }
+
+/* ── Mensaje de resultado ─────────────────────────────────────── */
+.verdict{
+  width:100%; text-align:center; min-height:1.6em;
+  font-size:clamp(1rem,4.6vw,1.5rem); font-weight:600;
+  letter-spacing:.14em; text-indent:.14em;
+  color:var(--accent);
+  text-shadow:0 0 22px currentColor;
+  transition:color .18s ease;
+}
+.verdict.soft{
+  font-size:.72rem; font-weight:400; letter-spacing:.18em;
+  color:var(--ink-dim); text-shadow:none;
+}
+
+/* ── Botones de jugada ────────────────────────────────────────── */
+.choices{
+  width:100%;
+  display:grid; grid-template-columns:repeat(3,1fr); gap:.7rem;
+}
+.choice{
+  position:relative;
+  background:var(--card);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  padding:clamp(.7rem,3vw,1rem) .4rem;
+  color:var(--ink);
+  font-family:inherit; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:.35rem;
+  transition:transform .12s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.choice .ico{ font-size:clamp(1.7rem,8vw,2.4rem); line-height:1; }
+.choice .name{
+  font-size:.58rem; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-dim);
+}
+.choice .num{
+  position:absolute; top:.4rem; right:.5rem;
+  font-size:.6rem; color:var(--ink-dim); opacity:.7;
+}
+.choice:hover:not(:disabled),
+.choice:focus-visible{
+  outline:none;
+  border-color:var(--win);
+  box-shadow:0 0 0 1px var(--win), 0 0 26px rgba(124,255,178,.28);
+  transform:translateY(-3px);
+}
+.choice:hover:not(:disabled) .name,
+.choice:focus-visible .name{ color:var(--ink); }
+.choice:active:not(:disabled){ transform:translateY(0) scale(.97); }
+/* destello de la jugada elegida */
+.choice.picked{
+  border-color:var(--win);
+  box-shadow:0 0 0 1px var(--win), 0 0 30px rgba(124,255,178,.4);
+}
+.choices.locked .choice{ cursor:default; opacity:.5; }
+.choices.locked .choice.picked{ opacity:1; }
+
+/* ── Pie ──────────────────────────────────────────────────────── */
+footer{
+  width:100%;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:1rem; flex-wrap:wrap;
+  font-size:.62rem; letter-spacing:.08em; color:var(--ink-dim);
+}
+kbd{
+  display:inline-block; min-width:1.5em; padding:.14em .4em;
+  border:1px solid rgba(230,241,255,.2); border-radius:3px;
+  background:rgba(230,241,255,.05); font:inherit; font-size:.92em; color:var(--ink);
+}
+.reset{
+  background:none; border:1px solid rgba(255,255,255,.12); border-radius:6px;
+  color:var(--ink-dim); font-family:inherit; font-size:.62rem;
+  letter-spacing:.08em; padding:.4em .7em; cursor:pointer;
+  transition:color .18s, border-color .18s;
+}
+.reset:hover{ color:var(--lose); border-color:var(--lose); }
+
+.blink{ animation:blink 1.4s steps(1,end) infinite; }
+@keyframes blink{ 50%{ opacity:.3; } }
+
+/* ── Botón de silencio ────────────────────────────────────────── */
+.mute{
+  position:fixed; z-index:5;
+  top:max(.7rem,env(safe-area-inset-top)); right:.8rem;
+  width:2.3rem; height:2.3rem; border-radius:9px;
+  display:grid; place-content:center;
+  background:rgba(10,14,20,.72); backdrop-filter:blur(4px);
+  border:1px solid rgba(255,255,255,.12);
+  color:var(--ink); font-size:1.05rem; line-height:1; cursor:pointer;
+  transition:border-color .18s, box-shadow .18s, opacity .18s;
+}
+.mute:hover{ border-color:var(--win); box-shadow:0 0 16px rgba(124,255,178,.3); }
+.mute:focus-visible{ outline:none; border-color:var(--win); box-shadow:0 0 0 1px var(--win); }
+.mute.off{ opacity:.5; }
+
+@media (max-width:380px){
+  footer{ justify-content:center; }
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{ animation:none !important; transition:none !important; }
+}
+</style>
+</head>
+<body>
+
+<button class="mute" id="mute" aria-label="Silenciar" aria-pressed="false">🔊</button>
+
+<div class="wrap">
+  <header>
+    <h1 id="title" aria-label="Piedra Papel Tijera"></h1>
+    <p class="tag">tú contra la máquina</p>
+  </header>
+
+  <div class="score" aria-live="off">
+    <div class="g"><span class="lbl">Ganadas</span><b id="w">0</b></div>
+    <div class="e"><span class="lbl">Empates</span><b id="t">0</b></div>
+    <div class="p"><span class="lbl">Perdidas</span><b id="l">0</b></div>
+  </div>
+
+  <p class="streak">
+    racha <span class="live" id="streak">0</span>
+    · mejor <b id="best">0</b>
+  </p>
+
+  <div class="arena">
+    <div class="hand you">
+      <div class="who">Tú</div>
+      <div class="emoji" id="handYou">✊</div>
+    </div>
+    <div class="versus">VS</div>
+    <div class="hand cpu">
+      <div class="who">Máquina</div>
+      <div class="emoji" id="handCpu">✊</div>
+    </div>
+  </div>
+
+  <p class="verdict soft" id="verdict" aria-live="polite">elige tu jugada</p>
+
+  <div class="choices" id="choices">
+    <button class="choice" data-play="piedra" aria-label="Piedra">
+      <span class="ico">✊</span><span class="name">Piedra</span><span class="num">1</span>
+    </button>
+    <button class="choice" data-play="papel" aria-label="Papel">
+      <span class="ico">✋</span><span class="name">Papel</span><span class="num">2</span>
+    </button>
+    <button class="choice" data-play="tijera" aria-label="Tijera">
+      <span class="ico">✌️</span><span class="name">Tijera</span><span class="num">3</span>
+    </button>
+  </div>
+
+  <footer>
+    <span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> o toca para jugar</span>
+    <button class="reset" id="reset">reiniciar marcador</button>
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+/* ═══ 1. CONFIGURACIÓN ═══════════════════════════════════════════ */
+const PLAYS = ["piedra", "papel", "tijera"];
+const EMOJI = { piedra:"✊", papel:"✋", tijera:"✌️" };
+
+/* vence[a] === b  →  "a le gana a b". Las tres reglas del juego. */
+const VENCE = { piedra:"tijera", tijera:"papel", papel:"piedra" };
+
+const REVEAL_MS  = 520;   // duración del conteo "¡Pi-Pa-Pá!"
+const BEST_KEY   = "ppt.beststreak";
+
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ═══ AUDIO ══════════════════════════════════════════════════════
+   Chiptone sintetizado con la Web Audio API. Sin archivos: cada
+   efecto se genera al vuelo, así el juego sigue funcionando con
+   doble clic y sin internet. */
+const SND = (() => {
+  const KEY = "ppt.muted";
+  let ctx = null;
+  let muted = (() => { try{ return localStorage.getItem(KEY) === "1"; }catch(e){ return false; } })();
+  const save = () => { try{ localStorage.setItem(KEY, muted ? "1" : "0"); }catch(e){} };
+
+  /* El motor de audio se crea perezosamente y se reanuda: los
+     navegadores no dejan sonar sin un gesto previo del usuario. */
+  function ac(){
+    if(!ctx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return null;
+      try{ ctx = new AC(); }catch(e){ return null; }
+    }
+    if(ctx.state === "suspended") ctx.resume();
+    return ctx;
+  }
+
+  /* Una nota cuadrada con envolvente rápida (ataque y caída). */
+  function nota(freq, inicio, dur, vol, tipo){
+    const c = ac(); if(!c) return;
+    const t = c.currentTime + inicio;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = tipo || "square";
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+
+  /* Envuelve un efecto: si está silenciado, no suena nada. */
+  const fx = fn => () => { if(!muted) fn(); };
+
+  /* Armar el audio en el primer gesto real del usuario. */
+  ["keydown","pointerdown","touchstart"].forEach(ev =>
+    addEventListener(ev, () => ac(), { once:true, passive:true }));
+
+  return {
+    get muted(){ return muted; },
+    toggle(){ muted = !muted; save(); if(!muted) ac(); return muted; },
+    pick: fx(() => { nota(520, 0, .05, .15); nota(760, .04, .05, .13); }),
+    win:  fx(() => { [523,659,784,1047].forEach((f,i) => nota(f, i*.08, .13, .18)); }),
+    lose: fx(() => { [392,330,262,196].forEach((f,i) => nota(f, i*.1, .16, .19)); }),
+    tie:  fx(() => { nota(330, 0, .1, .14); nota(330, .12, .1, .14); })
+  };
+})();
+
+/* ═══ 2. ESTADO ══════════════════════════════════════════════════ */
+const S = { wins:0, ties:0, losses:0, streak:0, best:loadBest(), busy:false };
+
+function loadBest(){
+  try{ return parseInt(localStorage.getItem(BEST_KEY), 10) || 0; }
+  catch(e){ return 0; }
+}
+function saveBest(v){
+  try{ localStorage.setItem(BEST_KEY, String(v)); }catch(e){}
+}
+
+/* ═══ 3. LÓGICA ══════════════════════════════════════════════════
+   Función pura: dadas dos jugadas, ¿qué le pasa al jugador?
+   No toca el DOM ni el estado. */
+function resultado(jugador, maquina){
+  if(jugador === maquina) return "tie";
+  return VENCE[jugador] === maquina ? "win" : "lose";
+}
+
+function jugadaAzar(){
+  return PLAYS[Math.floor(Math.random() * PLAYS.length)];
+}
+
+/* ═══ 4. INTERFAZ ════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const elChoices = $("choices");
+const elVerdict = $("verdict");
+const elYou = $("handYou"), elCpu = $("handCpu");
+const buttons = [...elChoices.querySelectorAll(".choice")];
+
+const VERDICTS = {
+  win:  { txt:"¡GANASTE!",  color:"var(--win)"  },
+  lose: { txt:"PERDISTE",   color:"var(--lose)" },
+  tie:  { txt:"EMPATE",     color:"var(--tie)"  }
+};
+
+function bump(el){
+  if(reduceMotion) return;
+  el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump");
+}
+
+function paintScore(changed){
+  $("w").textContent = S.wins;
+  $("t").textContent = S.ties;
+  $("l").textContent = S.losses;
+
+  const live = $("streak");
+  live.textContent = S.streak;
+  live.classList.toggle("hot", S.streak >= 3);
+  $("best").textContent = S.best;
+
+  if(changed) bump($(changed));
+}
+
+/* ═══ 5. RONDA ═══════════════════════════════════════════════════
+   Orquesta una jugada de principio a fin. Es lo único que cambia el
+   estado del marcador. */
+function play(jugador){
+  if(S.busy) return;
+  const maquina = jugadaAzar();
+  const res = resultado(jugador, maquina);
+
+  S.busy = true;
+  SND.pick();
+  elChoices.classList.add("locked");
+  buttons.forEach(b => {
+    b.disabled = true;
+    b.classList.toggle("picked", b.dataset.play === jugador);
+  });
+
+  // Fase de revelación
+  elVerdict.className = "verdict soft";
+  elVerdict.textContent = "¡Pi · Pa · Pá!";
+  elYou.textContent = "✊"; elCpu.textContent = "✊";
+  elYou.classList.remove("pop"); elCpu.classList.remove("pop");
+
+  const finish = () => reveal(jugador, maquina, res);
+  if(reduceMotion){
+    finish();
+  }else{
+    elYou.classList.add("shake"); elCpu.classList.add("shake");
+    setTimeout(finish, REVEAL_MS);
+  }
+}
+
+function reveal(jugador, maquina, res){
+  elYou.classList.remove("shake"); elCpu.classList.remove("shake");
+  elYou.textContent = EMOJI[jugador];
+  elCpu.textContent = EMOJI[maquina];
+
+  // Actualizar marcador y racha
+  let changed;
+  if(res === "win"){
+    S.wins++; S.streak++;
+    if(S.streak > S.best){ S.best = S.streak; saveBest(S.best); }
+    changed = "w";
+  }else if(res === "tie"){
+    S.ties++; S.streak = 0; changed = "t";
+  }else{
+    S.losses++; S.streak = 0; changed = "l";
+  }
+  paintScore(changed);
+
+  // Veredicto
+  const v = VERDICTS[res];
+  document.documentElement.style.setProperty("--accent", v.color);
+  elVerdict.className = "verdict";
+  elVerdict.textContent = v.txt;
+  SND[res]();                        // win / lose / tie: cada desenlace suena distinto
+
+  // Latido de la mano ganadora
+  if(!reduceMotion){
+    if(res === "win") elYou.classList.add("pop");
+    else if(res === "lose") elCpu.classList.add("pop");
+  }
+
+  // Reabrir el juego
+  S.busy = false;
+  elChoices.classList.remove("locked");
+  buttons.forEach(b => { b.disabled = false; b.classList.remove("picked"); });
+}
+
+/* ═══ 6. ENTRADA ═════════════════════════════════════════════════ */
+elChoices.addEventListener("click", e => {
+  const btn = e.target.closest(".choice");
+  if(btn) play(btn.dataset.play);
+});
+
+/* Teclas 1/2/3, por code (fila y numpad) y por key, como en el Snake. */
+const KEYS = {
+  Digit1:"piedra", Numpad1:"piedra", "1":"piedra",
+  Digit2:"papel",  Numpad2:"papel",  "2":"papel",
+  Digit3:"tijera", Numpad3:"tijera", "3":"tijera"
+};
+addEventListener("keydown", e => {
+  if(e.repeat) return;
+  const p = KEYS[e.code] || KEYS[e.key];
+  if(p){ e.preventDefault(); play(p); }
+});
+
+$("reset").addEventListener("click", () => {
+  S.wins = S.ties = S.losses = S.streak = 0;   // la mejor racha histórica se conserva
+  paintScore();
+  elVerdict.className = "verdict soft";
+  elVerdict.textContent = "marcador a cero · elige tu jugada";
+  elYou.textContent = "✊"; elCpu.textContent = "✊";
+  elYou.classList.remove("pop"); elCpu.classList.remove("pop");
+  document.documentElement.style.setProperty("--accent", "var(--tie)");
+});
+
+/* ═══ 7. ARRANQUE ════════════════════════════════════════════════ */
+$("title").innerHTML = [..."PIEDRA·PAPEL·TIJERA"]
+  .map((c, i) => c === "·"
+    ? '<span style="animation-delay:' + (i*45) + 'ms;color:var(--ink-dim);margin:0 .15em">·</span>'
+    : '<span style="animation-delay:' + (i*45) + 'ms">' + c + '</span>').join("");
+
+paintScore();
+
+// Botón de silencio: refleja y guarda la preferencia
+const elMute = $("mute");
+function paintMute(){
+  elMute.textContent = SND.muted ? "🔇" : "🔊";
+  elMute.classList.toggle("off", SND.muted);
+  elMute.setAttribute("aria-pressed", SND.muted ? "true" : "false");
+  elMute.setAttribute("aria-label", SND.muted ? "Activar sonido" : "Silenciar");
+}
+elMute.addEventListener("click", () => { SND.toggle(); paintMute(); elMute.blur(); });
+paintMute();
+
+/* Expuesto para las pruebas del navegador (no afecta al juego). */
+window.__ppt = { resultado, jugadaAzar, play, S, PLAYS, VENCE, SND };
+</script>
+</body>
+</html>

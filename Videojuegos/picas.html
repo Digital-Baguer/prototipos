@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>PICAS Y PALAS</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   PICAS Y PALAS — deducción para dos, cada quien en su móvil.
+   Neón arcade, misma familia que Snake y PPT. Sin recursos externos.
+   ═══════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#05070a; --card:#0a0e14;
+  --pica:#7CFFB2;   /* posición exacta */
+  --pala:#00D9FF;   /* dígito movido */
+  --nada:#5d7089; --alert:#FF2E9A;
+  --ink:#E6F1FF; --dim:#5d7089; --edge:rgba(0,217,255,.2);
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,"Cascadia Code","Segoe UI Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{
+  background:var(--bg);color:var(--ink);font-family:var(--mono);
+  font-variant-numeric:tabular-nums;
+  min-height:100vh;padding:max(1.2rem,env(safe-area-inset-top)) 1rem max(1.4rem,env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;align-items:center;gap:1.1rem;
+  -webkit-tap-highlight-color:transparent;
+}
+body::before{content:"";position:fixed;inset:-20%;background:
+  radial-gradient(46% 38% at 8% 2%,rgba(0,217,255,.14),transparent 70%),
+  radial-gradient(46% 40% at 94% 100%,rgba(255,46,154,.11),transparent 70%);
+  filter:blur(30px);pointer-events:none;z-index:0}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:60;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.4'/%3E%3C/svg%3E");
+  opacity:.4;mix-blend-mode:overlay}
+
+.wrap{position:relative;z-index:1;width:min(96vw,900px);display:flex;flex-direction:column;gap:1.1rem}
+
+header{text-align:center}
+h1{font-size:clamp(1.1rem,4.4vw,1.7rem);font-weight:600;letter-spacing:.26em;text-indent:.26em;
+  color:var(--pica);text-shadow:0 0 16px rgba(124,255,178,.5),0 0 42px rgba(0,217,255,.28)}
+h1 span{display:inline-block;animation:drop .5s cubic-bezier(.2,.8,.3,1) backwards}
+@keyframes drop{from{opacity:0;transform:translateY(-.5em);filter:blur(6px)}}
+.tag{margin-top:.45rem;font-size:.6rem;letter-spacing:.24em;text-indent:.24em;color:var(--dim);text-transform:uppercase}
+
+/* ── Barra de configuración ───────────────────────────────────── */
+.setup{background:var(--card);border:1px solid rgba(255,255,255,.06);border-radius:12px;
+  padding:.8rem 1rem;display:flex;flex-wrap:wrap;align-items:center;gap:1rem 1.4rem}
+.grp{display:flex;align-items:center;gap:.55rem}
+.lbl{font-size:.56rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.seg{display:inline-flex;border:1px solid rgba(255,255,255,.14);border-radius:7px;overflow:hidden}
+.seg button{padding:.3rem .75rem;font:inherit;font-size:.82rem;background:none;border:none;color:var(--ink);cursor:pointer}
+.seg button.on{background:var(--pica);color:#04120b;font-weight:600}
+body:not([data-phase="setup"]) .seg{opacity:.5}
+body:not([data-phase="setup"]) .seg button{cursor:default}
+
+.only-setup,.only-play{display:none}
+body[data-phase="setup"] .only-setup{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap}
+body:not([data-phase="setup"]) .only-play{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap}
+
+.field{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.16);border-radius:8px;
+  color:var(--ink);font:inherit;letter-spacing:.3em;text-align:center;padding:.45rem .6rem;width:7.5rem}
+.field:focus{outline:none;border-color:var(--pica);box-shadow:0 0 0 1px var(--pica)}
+.field::placeholder{letter-spacing:.06em;color:var(--dim)}
+.code{letter-spacing:.35em;font-size:1.05rem;color:var(--ink)}
+.pill{border:1px solid rgba(255,255,255,.16);border-radius:7px;background:rgba(255,255,255,.03);
+  color:var(--ink);font:inherit;font-size:.66rem;letter-spacing:.06em;padding:.42em .7em;cursor:pointer;
+  transition:border-color .18s,color .18s}
+.pill:hover{border-color:var(--pica);color:var(--pica)}
+.pill.go-pill{border-color:var(--pica);color:var(--pica);background:rgba(124,255,178,.08)}
+.pill#newgame:hover{border-color:var(--alert);color:var(--alert)}
+
+.legend{display:flex;flex-wrap:wrap;gap:.5rem 1.4rem;font-size:.62rem;color:var(--dim);padding:0 .3rem}
+.legend b{font-weight:400}
+.dot{display:inline-block;width:.6em;height:.6em;border-radius:50%;margin-right:.4em;vertical-align:middle}
+.dot.p{background:var(--pica);box-shadow:0 0 8px var(--pica)}
+.dot.a{background:var(--pala);box-shadow:0 0 8px var(--pala)}
+
+/* ── Dos bloques ──────────────────────────────────────────────── */
+.blocks{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1.1rem}
+@media(max-width:680px){.blocks{grid-template-columns:minmax(0,1fr)}}
+.block{background:var(--card);border:1px solid var(--edge);border-radius:14px;
+  box-shadow:0 0 40px rgba(0,217,255,.07),inset 0 0 50px rgba(0,0,0,.4);
+  padding:1rem;display:flex;flex-direction:column;gap:.7rem;min-height:220px;min-width:0}
+.block.def{border-color:rgba(124,255,178,.26)}
+.block h2{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;display:flex;align-items:center;gap:.5rem}
+.block.def h2{color:var(--pica)} .block.atk h2{color:var(--pala)}
+.block .sub{font-size:.62rem;color:var(--dim);letter-spacing:.03em;line-height:1.5}
+.badge{font-size:.5rem;letter-spacing:.1em;text-transform:uppercase;padding:.2em .5em;border-radius:20px;border:1px solid currentColor;opacity:.85}
+
+.entry{display:flex;gap:.5rem;align-items:center}
+.entry .field{flex:1;min-width:0;width:auto;font-size:1.1rem}
+.go{border:1px solid var(--pica);color:var(--pica);background:rgba(124,255,178,.08);
+  border-radius:8px;font:inherit;font-size:.7rem;padding:.55rem .8rem;cursor:pointer;letter-spacing:.06em;white-space:nowrap;
+  transition:box-shadow .18s}
+.go:hover:not(:disabled){box-shadow:0 0 18px rgba(124,255,178,.3)}
+.block.atk .go{border-color:var(--pala);color:var(--pala);background:rgba(0,217,255,.08)}
+.block.atk .go:hover:not(:disabled){box-shadow:0 0 18px rgba(0,217,255,.3)}
+.field:disabled,.go:disabled{opacity:.4;cursor:not-allowed}
+
+.stepper{display:flex;align-items:center;gap:.5rem;font-size:.66rem;color:var(--dim);flex-wrap:wrap}
+.stepper .p{color:var(--pica)} .stepper .a{color:var(--pala)}
+.stepper .box{display:inline-flex;align-items:center;border:1px solid rgba(255,255,255,.16);border-radius:7px}
+.stepper .box button{width:1.6rem;height:1.6rem;background:none;border:none;color:var(--ink);cursor:pointer;font-size:1rem;line-height:1}
+.stepper .box button:disabled{opacity:.3;cursor:not-allowed}
+.stepper .box .n{width:1.5rem;text-align:center;font-size:.85rem;color:var(--ink)}
+
+.err{font-size:.62rem;color:var(--alert);min-height:1em;letter-spacing:.04em}
+.err:empty{min-height:0}
+
+.rows{display:flex;flex-direction:column;gap:.45rem}
+.rows:empty::after{content:"sin intentos todavía";color:var(--dim);font-size:.62rem;opacity:.6;padding:.3rem}
+.row{display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-radius:8px;background:rgba(255,255,255,.02);
+  animation:in .22s ease}
+@keyframes in{from{opacity:0;transform:translateY(-4px)}}
+.row .try{font-size:.55rem;color:var(--dim);width:1.6rem;flex:none}
+.num{display:flex;gap:.25rem}
+.num .d{width:1.5rem;height:1.8rem;border-radius:5px;display:grid;place-content:center;font-size:.95rem;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06)}
+.res{margin-left:auto;display:flex;gap:.35rem;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.chip{font-size:.6rem;letter-spacing:.03em;padding:.22em .5em;border-radius:20px;white-space:nowrap}
+.chip.p{color:var(--pica);border:1px solid rgba(124,255,178,.5);background:rgba(124,255,178,.08)}
+.chip.a{color:var(--pala);border:1px solid rgba(0,217,255,.5);background:rgba(0,217,255,.08)}
+.chip.n{color:var(--nada);border:1px solid rgba(93,112,137,.4)}
+.row.win{background:rgba(124,255,178,.12);border:1px solid var(--pica)}
+.block.def .row.win{background:rgba(255,46,154,.12);border-color:var(--alert)}
+
+/* ── Banner de fin ────────────────────────────────────────────── */
+.banner{position:fixed;inset:0;z-index:70;display:grid;place-content:center;padding:1.5rem;
+  background:radial-gradient(circle at center,rgba(5,7,10,.86),rgba(5,7,10,.95));backdrop-filter:blur(3px)}
+.banner[hidden]{display:none}
+.banner-card{text-align:center;display:grid;gap:1rem;max-width:24rem}
+.banner-card h2{font-size:clamp(1.4rem,6vw,2rem);font-weight:600;letter-spacing:.18em;text-indent:.18em;text-shadow:0 0 24px currentColor}
+.banner-card.win h2{color:var(--pica)} .banner-card.lose h2{color:var(--alert)}
+.banner-card p{font-size:.8rem;color:var(--ink);line-height:1.8}
+.banner-card .big{font-size:1.6rem;letter-spacing:.3em}
+.banner-card button{justify-self:center}
+
+footer{position:relative;z-index:1;font-size:.62rem;color:var(--dim);text-align:center;letter-spacing:.04em;line-height:1.9;max-width:38rem}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body data-phase="setup">
+<div class="wrap">
+  <header>
+    <h1 id="title" aria-label="Picas y Palas"></h1>
+    <p class="tag">adivina el número secreto del rival</p>
+  </header>
+
+  <div class="setup">
+    <div class="grp">
+      <span class="lbl">Cifras</span>
+      <span class="seg" id="seg"><button data-len="4">4</button><button data-len="5">5</button></span>
+    </div>
+    <div class="grp only-setup">
+      <span class="lbl">Tu número</span>
+      <input class="field" id="secretInput" inputmode="numeric" autocomplete="off" placeholder="tecléalo" aria-label="Tu número secreto">
+      <button class="pill" id="gen">🎲 generar</button>
+      <button class="pill go-pill" id="start">empezar ⏎</button>
+    </div>
+    <div class="grp only-play">
+      <span class="lbl">Tu número</span>
+      <span class="code" id="secretShow">••••</span>
+      <button class="pill" id="reveal">👁 ver</button>
+      <button class="pill" id="newgame">↻ nueva partida</button>
+    </div>
+    <div class="err" id="setupErr"></div>
+  </div>
+
+  <div class="legend">
+    <b><span class="dot p"></span>PICA · dígito en su posición exacta</b>
+    <b><span class="dot a"></span>PALA · dígito correcto, movido de sitio</b>
+  </div>
+
+  <div class="blocks">
+    <div class="block def">
+      <h2>🛡 Defensa <span class="badge">automático</span></h2>
+      <p class="sub">El rival te dicta su intento y el sistema calcula las picas y palas contra TU número.</p>
+      <div class="entry">
+        <input class="field" id="defInput" inputmode="numeric" autocomplete="off" placeholder="su intento" aria-label="Intento del rival">
+        <button class="go" id="defGo">calcular ⏎</button>
+      </div>
+      <div class="err" id="defErr"></div>
+      <div class="rows" id="defRows"></div>
+    </div>
+
+    <div class="block atk">
+      <h2>🎯 Ataque <span class="badge">tú anotas</span></h2>
+      <p class="sub">Tú tiras un número y anotas las picas/palas que te cantó el rival.</p>
+      <div class="entry">
+        <input class="field" id="atkInput" inputmode="numeric" autocomplete="off" placeholder="tu intento" aria-label="Tu intento">
+        <button class="go" id="atkGo">añadir ⏎</button>
+      </div>
+      <div class="stepper">
+        <span>anota:</span>
+        <span class="p">picas</span>
+        <span class="box"><button data-adj="picas" data-d="-1" aria-label="menos picas">–</button><span class="n" id="pN">0</span><button data-adj="picas" data-d="1" aria-label="más picas">+</button></span>
+        <span class="a">palas</span>
+        <span class="box"><button data-adj="palas" data-d="-1" aria-label="menos palas">–</button><span class="n" id="aN">0</span><button data-adj="palas" data-d="1" aria-label="más palas">+</button></span>
+      </div>
+      <div class="err" id="atkErr"></div>
+      <div class="rows" id="atkRows"></div>
+    </div>
+  </div>
+
+  <footer>
+    Cada jugador en su móvil · gana quien primero logre todas picas ·
+    si en Defensa te caen todas picas, el rival te adivinó
+  </footer>
+</div>
+
+<div class="banner" id="banner" hidden>
+  <div class="banner-card" id="bannerCard">
+    <h2 id="bannerTitle"></h2>
+    <p id="bannerText"></p>
+    <button class="pill go-pill" id="bannerNew">↻ nueva partida</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ═══ 1. CONFIGURACIÓN ═══════════════════════════════════════════ */
+const LENGTHS = [4, 5];
+const KEY = "picas.game";
+
+/* ═══ 2. ESTADO ══════════════════════════════════════════════════ */
+function fresh(len){ return { len, secret:null, phase:"setup", defense:[], attack:[] }; }
+
+function load(){
+  try{
+    const g = JSON.parse(localStorage.getItem(KEY));
+    if(!g || !LENGTHS.includes(g.len) || !Array.isArray(g.defense) || !Array.isArray(g.attack)) return null;
+    if(!["setup","playing","won","lost"].includes(g.phase)) return null;
+    return g;
+  }catch(e){ return null; }
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(game)); }catch(e){} }
+
+let game = load() || fresh(4);
+let pendingP = 0, pendingA = 0;   // anotación pendiente del bloque Ataque
+let revealed = false;             // ¿se muestra tu secreto?
+
+/* ═══ 3. LÓGICA (pura, sin tocar el DOM) ═════════════════════════ */
+
+/* Un intento válido: la longitud pedida, solo dígitos 0-9, sin repetir. */
+function valido(arr, len){
+  if(!Array.isArray(arr) || arr.length !== len) return false;
+  const vistos = new Set();
+  for(const d of arr){
+    if(!Number.isInteger(d) || d < 0 || d > 9) return false;
+    if(vistos.has(d)) return false;
+    vistos.add(d);
+  }
+  return true;
+}
+
+/* picas = dígitos en su posición exacta.
+   palas = dígitos correctos pero movidos = (dígitos en común) − picas. */
+function evaluar(secreto, intento){
+  let picas = 0;
+  for(let i = 0; i < secreto.length; i++) if(secreto[i] === intento[i]) picas++;
+  const set = new Set(secreto);
+  let comunes = 0;
+  for(const d of intento) if(set.has(d)) comunes++;
+  return { picas, palas: comunes - picas };
+}
+
+/* Un secreto al azar con dígitos distintos (Fisher–Yates parcial). */
+function generarSecreto(len){
+  const pool = [0,1,2,3,4,5,6,7,8,9];
+  for(let i = 0; i < len; i++){
+    const j = i + Math.floor(Math.random() * (pool.length - i));
+    const t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+  }
+  return pool.slice(0, len);
+}
+
+const parse = str => String(str).split("").filter(c => c >= "0" && c <= "9").map(Number);
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/* ═══ 4. TRANSICIONES ════════════════════════════════════════════ */
+function setLen(len){
+  if(game.phase !== "setup" || !LENGTHS.includes(len)) return;
+  game.len = len; save(); render();
+}
+
+function empezar(){
+  const arr = parse(secretInput.value);
+  if(!valido(arr, game.len)) return err("setupErr", motivo(arr));
+  game.secret = arr; game.phase = "playing";
+  game.defense = []; game.attack = [];
+  save(); render();
+  defInput.focus();
+}
+
+function registrarDefensa(){
+  if(game.phase !== "playing") return;
+  const arr = parse(defInput.value);
+  if(!valido(arr, game.len)) return err("defErr", motivo(arr));
+  const { picas, palas } = evaluar(game.secret, arr);
+  game.defense.unshift({ guess: arr, picas, palas });
+  defInput.value = "";
+  if(picas === game.len) game.phase = "lost";
+  save(); render();
+}
+
+function registrarAtaque(){
+  if(game.phase !== "playing") return;
+  const arr = parse(atkInput.value);
+  if(!valido(arr, game.len)) return err("atkErr", motivo(arr));
+  const picas = pendingP, palas = pendingA;
+  game.attack.unshift({ guess: arr, picas, palas });
+  atkInput.value = ""; pendingP = 0; pendingA = 0;
+  if(picas === game.len) game.phase = "won";
+  save(); render();
+}
+
+function ajustar(cual, d){
+  if(cual === "picas") pendingP = clamp(pendingP + d, 0, game.len);
+  else                 pendingA = clamp(pendingA + d, 0, game.len);
+  // picas + palas nunca puede pasar de la longitud
+  if(pendingP + pendingA > game.len){
+    if(cual === "picas") pendingA = game.len - pendingP;
+    else                 pendingP = game.len - pendingA;
+  }
+  renderStepper();
+}
+
+function nuevaPartida(){
+  const len = game.len;
+  game = fresh(len);
+  pendingP = 0; pendingA = 0; revealed = false;
+  try{ localStorage.removeItem(KEY); }catch(e){}
+  render();
+  secretInput.value = ""; secretInput.focus();
+}
+
+function motivo(arr){
+  if(arr.length !== game.len) return `deben ser ${game.len} cifras`;
+  return "no repitas dígitos";
+}
+
+/* ═══ 5. INTERFAZ ════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const secretInput = $("secretInput"), secretShow = $("secretShow");
+const defInput = $("defInput"), atkInput = $("atkInput");
+const banner = $("banner");
+
+let errTimers = {};
+function err(id, msg){
+  const el = $(id);
+  el.textContent = msg;
+  clearTimeout(errTimers[id]);
+  errTimers[id] = setTimeout(() => { el.textContent = ""; }, 2600);
+}
+
+function cellsHTML(arr){
+  return `<div class="num">${arr.map(d => `<div class="d">${d}</div>`).join("")}</div>`;
+}
+function chipsHTML(picas, palas){
+  if(picas === 0 && palas === 0) return `<span class="chip n">nada</span>`;
+  let h = "";
+  if(picas > 0) h += `<span class="chip p">${picas} ${picas === 1 ? "pica" : "picas"}</span>`;
+  if(palas > 0) h += `<span class="chip a">${palas} ${palas === 1 ? "pala" : "palas"}</span>`;
+  return h;
+}
+function renderRows(container, rows){
+  container.innerHTML = rows.map((r, idx) => {
+    const n = rows.length - idx;                 // el más nuevo arriba, con el número más alto
+    const win = r.picas === game.len;
+    return `<div class="row${win ? " win" : ""}"><span class="try">#${n}</span>${cellsHTML(r.guess)}<div class="res">${chipsHTML(r.picas, r.palas)}</div></div>`;
+  }).join("");
+}
+
+function renderSeg(){
+  for(const b of $("seg").children) b.classList.toggle("on", Number(b.dataset.len) === game.len);
+}
+function renderStepper(){
+  $("pN").textContent = pendingP;
+  $("aN").textContent = pendingA;
+}
+
+function renderBanner(){
+  const card = $("bannerCard");
+  if(game.phase === "won"){
+    banner.hidden = false;
+    card.className = "banner-card win";
+    $("bannerTitle").textContent = "¡GANASTE!";
+    $("bannerText").innerHTML = `Adivinaste su número en <b>${game.attack.length}</b> ${game.attack.length === 1 ? "intento" : "intentos"}. 🎉`;
+  }else if(game.phase === "lost"){
+    banner.hidden = false;
+    card.className = "banner-card lose";
+    $("bannerTitle").textContent = "TE ADIVINARON";
+    $("bannerText").innerHTML = `El rival dio con tu número <span class="big">${game.secret.join(" ")}</span> en <b>${game.defense.length}</b> ${game.defense.length === 1 ? "intento" : "intentos"}.`;
+  }else{
+    banner.hidden = true;
+  }
+}
+
+function render(){
+  document.body.dataset.phase = game.phase;
+  renderSeg();
+
+  // Tu número en la barra (solo en juego)
+  if(game.secret) secretShow.textContent = revealed ? game.secret.join(" ") : "•".repeat(game.len);
+
+  // Longitud máxima de las entradas
+  secretInput.maxLength = game.len;
+  defInput.maxLength = game.len;
+  atkInput.maxLength = game.len;
+
+  renderRows($("defRows"), game.defense);
+  renderRows($("atkRows"), game.attack);
+  renderStepper();
+
+  // Bloquear la entrada cuando la partida terminó o aún no empieza
+  const jugando = game.phase === "playing";
+  [defInput, $("defGo"), atkInput, $("atkGo")].forEach(el => el.disabled = !jugando);
+  for(const b of document.querySelectorAll('.stepper .box button')) b.disabled = !jugando;
+
+  renderBanner();
+}
+
+/* ═══ 6. ENTRADA ═════════════════════════════════════════════════ */
+// Solo dígitos en las tres entradas
+[secretInput, defInput, atkInput].forEach(inp => {
+  inp.addEventListener("input", () => {
+    inp.value = inp.value.replace(/[^0-9]/g, "").slice(0, game.len);
+  });
+});
+
+$("seg").addEventListener("click", e => {
+  const b = e.target.closest("button"); if(b) setLen(Number(b.dataset.len));
+});
+$("gen").addEventListener("click", () => { secretInput.value = generarSecreto(game.len).join(""); secretInput.focus(); });
+$("start").addEventListener("click", empezar);
+secretInput.addEventListener("keydown", e => { if(e.key === "Enter") empezar(); });
+
+$("defGo").addEventListener("click", registrarDefensa);
+defInput.addEventListener("keydown", e => { if(e.key === "Enter") registrarDefensa(); });
+$("atkGo").addEventListener("click", registrarAtaque);
+atkInput.addEventListener("keydown", e => { if(e.key === "Enter") registrarAtaque(); });
+
+document.querySelector(".stepper").addEventListener("click", e => {
+  const b = e.target.closest("button[data-adj]"); if(b) ajustar(b.dataset.adj, Number(b.dataset.d));
+});
+
+$("reveal").addEventListener("click", () => {
+  revealed = !revealed;
+  $("reveal").textContent = revealed ? "🙈 ocultar" : "👁 ver";
+  render();
+});
+$("newgame").addEventListener("click", () => {
+  if(game.defense.length || game.attack.length){
+    if(!confirm("¿Empezar de nuevo? Se borrará esta partida.")) return;
+  }
+  nuevaPartida();
+});
+$("bannerNew").addEventListener("click", nuevaPartida);
+banner.addEventListener("click", e => { if(e.target === banner) banner.hidden = true; });  // clic fuera: revisar historial
+
+/* ═══ 7. ARRANQUE ════════════════════════════════════════════════ */
+$("title").innerHTML = [..."PICAS Y PALAS"]
+  .map((c, i) => c === " "
+    ? '<span style="width:.5em">&nbsp;</span>'
+    : `<span style="animation-delay:${i * 55}ms">${c}</span>`).join("");
+
+render();
+if(game.phase === "setup") secretInput.focus();
+
+/* Expuesto para las pruebas del navegador (no afecta al juego). */
+window.__picas = { evaluar, valido, generarSecreto, parse,
+  get game(){ return game; }, empezar, registrarDefensa, registrarAtaque, ajustar, nuevaPartida,
+  get pending(){ return { p: pendingP, a: pendingA }; } };
+</script>
+</body>
+</html>
