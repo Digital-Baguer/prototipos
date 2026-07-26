@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup · Análisis Presupuesto vs Gasto 2026</title>
+<style>
+  .viz-root{
+    color-scheme: light;
+    --surface-1:#fcfcfb; --page:#f9f9f7;
+    --ink-1:#0b0b0b; --ink-2:#52514e; --ink-3:#898781;
+    --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --ppto:#2a78d6; --gasto:#eb6834;
+    --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+    --good-text:#006300;
+    --ppto-track:#cde2fb;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])) .viz-root{
+      color-scheme: dark;
+      --surface-1:#1a1a19; --page:#0d0d0d;
+      --ink-1:#ffffff; --ink-2:#c3c2b7; --ink-3:#898781;
+      --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+      --ppto:#3987e5; --gasto:#d95926;
+      --good-text:#0ca30c;
+      --ppto-track:#184f95;
+    }
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;}
+  .viz-root{background:var(--page); color:var(--ink-1); min-height:100vh; padding:28px 32px 48px;}
+  .wrap{max-width:1180px; margin:0 auto;}
+
+  .badge{display:inline-block; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    background:var(--warning); color:#0b0b0b; padding:4px 10px; border-radius:999px; margin-bottom:10px;}
+  h1{font-size:26px; font-weight:700; letter-spacing:-.01em;}
+  .subtitle{color:var(--ink-2); font-size:14px; margin-top:6px; max-width:820px;}
+
+  .filters{display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; margin:22px 0 20px;
+    padding:14px 16px; background:var(--surface-1); border:1px solid var(--border); border-radius:12px;}
+  .filter label{display:block; font-size:11px; font-weight:600; color:var(--ink-3); text-transform:uppercase; letter-spacing:.06em; margin-bottom:5px;}
+  .filter select{font:inherit; font-size:14px; padding:7px 10px; border-radius:8px; border:1px solid var(--axis);
+    background:var(--surface-1); color:var(--ink-1); min-width:200px;}
+  .filters .hint{font-size:12px; color:var(--ink-3); margin-left:auto; max-width:340px;}
+
+  section{margin-top:30px;}
+  h2{font-size:16px; font-weight:700; margin-bottom:3px;}
+  .sec-desc{font-size:13px; color:var(--ink-2); margin-bottom:14px;}
+
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px;}
+  .tile{background:var(--surface-1); border:1px solid var(--border); border-radius:12px; padding:14px 16px;}
+  .tile .lab{font-size:12px; color:var(--ink-2); margin-bottom:6px;}
+  .tile .val{font-size:26px; font-weight:600;}
+  .tile .sub{font-size:12px; color:var(--ink-3); margin-top:4px;}
+  .tile .delta-neg{color:var(--critical); font-weight:600;}
+  .tile .delta-pos{color:var(--good-text); font-weight:600;}
+  .meter{height:8px; border-radius:4px; background:var(--ppto-track); margin-top:10px; overflow:hidden;}
+  .meter > div{height:100%; border-radius:4px; background:var(--ppto);}
+
+  .card{background:var(--surface-1); border:1px solid var(--border); border-radius:12px; padding:18px;}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-3); font-weight:600;
+     text-align:right; padding:8px 10px; border-bottom:1px solid var(--axis);}
+  th:first-child{text-align:left;}
+  td{padding:7px 10px; border-bottom:1px solid var(--grid); text-align:right; font-variant-numeric:tabular-nums; color:var(--ink-1);}
+  td:first-child{text-align:left; font-variant-numeric:normal;}
+  tr.subcat td{font-weight:700; background:color-mix(in srgb, var(--grid) 38%, var(--surface-1));}
+  tr.fase td:first-child{padding-left:26px; color:var(--ink-2);}
+  tr.total-row td{font-weight:700; border-top:2px solid var(--axis); border-bottom:none;}
+  .pctcell{display:flex; align-items:center; gap:8px; justify-content:flex-end;}
+  .pbar{width:76px; height:7px; border-radius:4px; background:var(--ppto-track); overflow:hidden; flex:none;}
+  .pbar > div{height:100%; border-radius:4px;}
+  .flag{font-size:11px; color:var(--serious); font-weight:600;}
+  .neg{color:var(--critical);}
+
+  .legend{display:flex; gap:18px; align-items:center; font-size:12.5px; color:var(--ink-2); margin-bottom:10px;}
+  .legend .key{display:inline-flex; align-items:center; gap:6px;}
+  .swatch{width:11px; height:11px; border-radius:3px; display:inline-block;}
+
+  .chart-wrap{position:relative;}
+  .tooltip{position:absolute; pointer-events:none; background:var(--ink-1); color:var(--surface-1);
+    font-size:12px; padding:7px 10px; border-radius:8px; opacity:0; transition:opacity .1s; white-space:nowrap; z-index:5;}
+  .tooltip b{font-weight:700;}
+
+  .note{background:var(--surface-1); border:1px solid var(--border); border-left:4px solid var(--ppto);
+    border-radius:10px; padding:14px 18px; font-size:13.5px; color:var(--ink-2); line-height:1.55;}
+  .note b{color:var(--ink-1);}
+  .note ul{margin:8px 0 0 18px;}
+  .note li{margin-bottom:5px;}
+  .warn-note{border-left-color:var(--serious);}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  @media (max-width:900px){ .grid-2{grid-template-columns:1fr;} }
+  .demo-tag{font-size:10px; font-weight:700; color:var(--serious); letter-spacing:.06em; vertical-align:2px;}
+</style>
+</head>
+<body>
+<div class="viz-root">
+<div class="wrap">
+
+  <span class="badge">Propuesta · Mockup con datos demo</span>
+  <h1>Análisis de Ejecución — Presupuesto vs Gasto 2026</h1>
+  <p class="subtitle">Así se vería la hoja <b>ANALISIS PRESUPUESTO_GASTO</b> en el Excel. Los valores provienen de un corte demo basado en tus datos reales (ene–jun 2026); las cantidades proyectadas de cursos son <span class="demo-tag">DEMO</span> pendientes de confirmar la regla de la columna CANTIDAD.</p>
+
+  <div class="filters">
+    <div class="filter">
+      <label for="selAl">Consulta por alianza</label>
+      <select id="selAl"></select>
+    </div>
+    <div class="filter">
+      <label for="selMes">Mes de análisis (corte)</label>
+      <select id="selMes"></select>
+    </div>
+    <div class="hint">En Excel estos filtros serán <b>segmentadores (slicers)</b> conectados a las tablas dinámicas de presupuesto y gasto a la vez.</div>
+  </div>
+
+  <!-- KPIs -->
+  <section>
+    <div class="kpis" id="kpis"></div>
+  </section>
+
+  <!-- Resumen comparativo -->
+  <section>
+    <h2>1 · Resumen comparativo por subcategoría y fase</h2>
+    <p class="sec-desc">Mismas variables y mismo orden en presupuesto y gasto. Presupuesto total, gasto acumulado, saldo y % de ejecución — anual y contra lo proyectado al corte seleccionado.</p>
+    <div class="card" style="overflow-x:auto;">
+      <table id="tblResumen"></table>
+    </div>
+  </section>
+
+  <!-- Análisis mensual -->
+  <section>
+    <h2>2 · Análisis mensual — proyección vs gasto real</h2>
+    <p class="sec-desc">Comportamiento mes a mes del presupuesto proyectado contra el gasto ejecutado, con % de ejecución mensual y acumulado.</p>
+    <div class="card">
+      <div class="legend">
+        <span class="key"><span class="swatch" style="background:var(--ppto)"></span> Presupuesto proyectado</span>
+        <span class="key"><span class="swatch" style="background:var(--gasto)"></span> Gasto real</span>
+      </div>
+      <div class="chart-wrap"><div id="chartMensual"></div><div class="tooltip" id="tt1"></div></div>
+      <div style="margin-top:16px; overflow-x:auto;"><table id="tblMensual"></table></div>
+    </div>
+  </section>
+
+  <!-- Cursos -->
+  <section>
+    <h2>3 · Cursos: cantidad proyectada vs producción real</h2>
+    <p class="sec-desc">El presupuesto contra la cantidad de cursos proyectados, y en paralelo el gasto contra los cursos producidos en el mes (hoja PRODUCCIÓN MENSUAL). Incluye costo por curso presupuestado vs real.</p>
+    <div class="grid-2">
+      <div class="card">
+        <div class="legend">
+          <span class="key"><span class="swatch" style="background:var(--ppto)"></span> Cursos proyectados <span class="demo-tag">DEMO</span></span>
+          <span class="key"><span class="swatch" style="background:var(--gasto)"></span> Cursos producidos (real)</span>
+        </div>
+        <div class="chart-wrap"><div id="chartCursos"></div><div class="tooltip" id="tt2"></div></div>
+      </div>
+      <div class="card">
+        <div class="kpis" id="kpisCursos" style="grid-template-columns:1fr 1fr;"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Detalle mes -->
+  <section>
+    <h2 id="hDetalle">4 · Detalle de ejecución del mes seleccionado</h2>
+    <p class="sec-desc">Al cambiar el "Mes de análisis" arriba, esta tabla muestra el detalle de ese mes por subcategoría y fase: lo presupuestado ese mes, lo gastado, el saldo y su % de ejecución.</p>
+    <div class="card" style="overflow-x:auto;">
+      <table id="tblDetalle"></table>
+    </div>
+  </section>
+
+  <!-- Notas -->
+  <section class="grid-2">
+    <div class="note">
+      <b>Si apruebas este diseño, en el Excel se implementará:</b>
+      <ul>
+        <li>Hoja <b>ANALISIS PRESUPUESTO_GASTO</b> con <b>tablas dinámicas</b> de presupuesto y de gasto con las mismas variables (subcategoría → fase) en el mismo orden.</li>
+        <li><b>Segmentadores por alianza y por mes</b> que filtran todo el tablero a la vez.</li>
+        <li>Tabla resumen comparativa con fórmulas: presupuesto total, gasto total, saldo y % de ejecución por subcategoría y fase.</li>
+        <li>Análisis mensual proyección vs real con % de ejecución mensual y acumulado, y el comparativo de cursos proyectados vs producidos.</li>
+        <li>Todo conectado a tus hojas actuales — se actualiza con <i>Actualizar todo</i> cuando registres nuevos gastos.</li>
+      </ul>
+    </div>
+    <div class="note warn-note">
+      <b>Hallazgos de homologación a confirmar contigo:</b>
+      <ul>
+        <li>El gasto registra subcategorías <b>sin presupuesto asignado</b>: Actualizaciones Canvas, Personal (IT + APM), Iniciativas y Licenciamiento Admin (marcadas ⚠ en la tabla).</li>
+        <li>Alianzas en gasto que no existen en presupuesto: UCSS, UP CANVAS, IA SMART, UIN.</li>
+        <li>Fases presupuestadas aún sin gasto: Experto, Syllabus y Reg. Calificados, Implementación.</li>
+        <li>Los nombres difieren en mayúsculas/tildes entre hojas (p. ej. "MIGRACION" vs "Migración") — se homologarán automáticamente.</li>
+        <li>La cantidad proyectada de cursos por alianza es <b>demo</b>: confirmar qué valor de la columna CANTIDAD usar (¿solo Creación de Cursos?).</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+</div>
+
+<script>
+const DATA = {"rows": [{"sc": "Costo Actualizaciones Canvas", "fase": "Diseño Gráfico", "al": "UP CANVAS", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [348.1, 288.1, 384.1, 360.1, 944.6, 372.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 2697.3}, {"sc": "Costo Actualizaciones Canvas", "fase": "Diseño Instruccional", "al": "UP CANVAS", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [532.9, 651.4, 1030.3, 911.9, 907.9, 769.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 4804.2}, {"sc": "Costo Actualizaciones Canvas", "fase": "Migración", "al": "UP CANVAS", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 0.0, 0.0, 2212.2, 56.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 2268.2}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Gráfico", "al": "CENTRAL", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [317.9, 3460.9, 942.2, 1676.2, 70.6, 976.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 7444.5}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Gráfico", "al": "EAFIT", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [33.1, 32.8, 286.2, 32.9, 66.2, 78.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 529.5}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Gráfico", "al": "FORMACION DOCENTE", "p": [40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0, 40.0], "g": [429.2, 477.0, 2331.1, 201.0, 186.3, 32.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 479.8, "tg": 3657.5}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Gráfico", "al": "UCSS", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 324.0, 141.3, 1652.0, 327.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 2445.1}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Gráfico", "al": "UIN", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 253.3, 205.3, 158.3, 45.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 662.3}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Gráfico", "al": "UNAB", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 47.1, 42.4, 982.1, 0.0, 1203.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 2274.7}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Gráfico", "al": "UNIS", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [12.0, 0.0, 0.0, 12.0, 84.0, 300.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 408.1}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Gráfico", "al": "UP", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [12.0, 72.0, 180.1, 12.0, 0.0, 84.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 360.1}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Instruccional", "al": "CENTRAL", "p": [4971.6, 4971.6, 4971.6, 4971.6, 4971.6, 4971.6, 4971.6, 4971.6, 4971.6, 4971.6, 4971.6, 4971.6], "g": [92.9, 2305.8, 2289.9, 4048.9, 92.9, 7217.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 59659.2, "tg": 16048.4}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Instruccional", "al": "EAFIT", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 0.0, 0.0, 262.6, 262.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 525.1}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Instruccional", "al": "FORMACION DOCENTE", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [177.6, 1804.0, 94.7, 94.7, 23.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 2194.8}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Instruccional", "al": "UCSS", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 0.0, 92.9, 46.5, 46.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 185.9}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Instruccional", "al": "UNAB", "p": [728.9, 728.9, 728.9, 728.9, 728.9, 728.9, 728.9, 728.9, 728.9, 728.9, 728.9, 728.9], "g": [92.9, 92.9, 92.9, 92.9, 1712.9, 92.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 8746.8, "tg": 2177.6}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Instruccional", "al": "UNINORTE", "p": [2083.7, 2083.7, 2083.7, 2083.7, 2083.7, 2083.7, 2083.7, 2083.7, 2083.7, 2083.7, 2083.7, 2083.7], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 25004.1, "tg": 0}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Instruccional", "al": "UNIS", "p": [335.2, 335.2, 335.2, 335.2, 335.2, 335.2, 335.2, 335.2, 335.2, 335.2, 335.2, 335.2], "g": [59.2, 177.6, 0.0, 0.0, 0.0, 367.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 4022.8, "tg": 604.0}, {"sc": "Costo Actualizaciones Cursos", "fase": "Diseño Instruccional", "al": "UP", "p": [7218.3, 7218.3, 7218.3, 7218.3, 7218.3, 7218.3, 7218.3, 7218.3, 7218.3, 7218.3, 7218.3, 7218.3], "g": [0.0, 118.4, 118.4, 94.7, 177.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 86619.3, "tg": 509.2}, {"sc": "Costo Actualizaciones Cursos", "fase": "Implementación", "al": "CENTRAL", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 7668.0, "tg": 0}, {"sc": "Costo Actualizaciones Cursos", "fase": "Migración", "al": "CENTRAL", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [111.5, 473.0, 72.7, 77.6, 64.6, 43.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 843.0}, {"sc": "Costo Actualizaciones Cursos", "fase": "Migración", "al": "EAFIT", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 0.0, 0.0, 69.6, 9.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 79.6}, {"sc": "Costo Actualizaciones Cursos", "fase": "Migración", "al": "FORMACION DOCENTE", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [274.2, 285.2, 66.5, 61.6, 52.9, 4.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 745.1}, {"sc": "Costo Actualizaciones Cursos", "fase": "Migración", "al": "UCSS", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 64.4, 12.8, 39.1, 7.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 124.2}, {"sc": "Costo Actualizaciones Cursos", "fase": "Migración", "al": "UP", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [637.5, 570.9, 818.4, 733.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 2759.8}, {"sc": "Costo Creación Cursos", "fase": "Corrección de Estilo", "al": "ANDINA", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 484.2, 484.2, 484.2, 484.2, 484.2, 484.2], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 2905.2, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Corrección de Estilo", "al": "CENTRAL", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 125.0, 0.0, 0.0, 1170.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 1295.0}, {"sc": "Costo Creación Cursos", "fase": "Corrección de Estilo", "al": "NUEVA ALIANZA 1", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 2905.2, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Corrección de Estilo", "al": "NUEVA ALIANZA 2", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 4547.4, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Corrección de Estilo", "al": "UNAB", "p": [255.5, 255.5, 255.5, 255.5, 255.5, 255.5, 255.5, 255.5, 255.5, 255.5, 255.5, 255.5], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 3066.6, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Corrección de Estilo", "al": "UNINORTE", "p": [894.7, 894.7, 894.7, 894.7, 894.7, 894.7, 894.7, 894.7, 894.7, 894.7, 894.7, 894.7], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 10736.8, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Corrección de Estilo", "al": "UNIS", "p": [336.8, 336.8, 336.8, 336.8, 336.8, 336.8, 336.8, 336.8, 336.8, 336.8, 336.8, 336.8], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 4042.1, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Corrección de Estilo", "al": "UP", "p": [531.6, 531.6, 531.6, 531.6, 531.6, 531.6, 531.6, 531.6, 531.6, 531.6, 531.6, 531.6], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 6378.9, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Diseño Gráfico", "al": "ANDINA", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 14634.8, 14634.8, 14634.8, 14634.8, 14634.8, 14634.8], "g": [439.0, 0.0, 0.0, 94.2, 47.1, 94.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 87808.5, "tg": 674.5}, {"sc": "Costo Creación Cursos", "fase": "Diseño Gráfico", "al": "CENTRAL", "p": [23611.1, 23611.1, 23611.1, 23611.1, 23611.1, 23611.1, 23611.1, 23611.1, 23611.1, 23611.1, 23611.1, 23611.1], "g": [4429.6, 16749.4, 11180.4, 5297.1, 6123.3, 15188.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 283333.1, "tg": 58968.2}, {"sc": "Costo Creación Cursos", "fase": "Diseño Gráfico", "al": "FORMACION DOCENTE", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 253.3, 331.5, 125.0, 45.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 755.2}, {"sc": "Costo Creación Cursos", "fase": "Diseño Gráfico", "al": "IA SMART", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [204.1, 1905.4, 252.1, 11.1, 60.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 2432.7}, {"sc": "Costo Creación Cursos", "fase": "Diseño Gráfico", "al": "NUEVA ALIANZA 1", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 87808.5, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Diseño Gráfico", "al": "NUEVA ALIANZA 2", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 82140.4, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Diseño Gráfico", "al": "UNAB", "p": [8256.9, 8256.9, 8256.9, 8256.9, 8256.9, 8256.9, 8256.9, 8256.9, 8256.9, 8256.9, 8256.9, 8256.9], "g": [2382.6, 2944.3, 3629.2, 1696.4, 3391.7, 1570.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 99083.1, "tg": 15614.2}, {"sc": "Costo Creación Cursos", "fase": "Diseño Gráfico", "al": "UNINORTE", "p": [18508.4, 18508.4, 18508.4, 18508.4, 18508.4, 18508.4, 18508.4, 18508.4, 18508.4, 18508.4, 18508.4, 18508.4], "g": [33.1, 127.8, 1230.9, 465.1, 6170.5, 7872.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 222100.5, "tg": 15899.8}, {"sc": "Costo Creación Cursos", "fase": "Diseño Gráfico", "al": "UNIS", "p": [6117.6, 6117.6, 6117.6, 6117.6, 6117.6, 6117.6, 6117.6, 6117.6, 6117.6, 6117.6, 6117.6, 6117.6], "g": [3897.2, 2489.8, 3085.4, 3478.3, 3064.6, 7051.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 73411.4, "tg": 23067.3}, {"sc": "Costo Creación Cursos", "fase": "Diseño Gráfico", "al": "UP", "p": [11358.5, 11358.5, 11358.5, 11358.5, 11358.5, 11358.5, 11358.5, 11358.5, 11358.5, 11358.5, 11358.5, 11358.5], "g": [33.1, 817.8, 286.2, 32.9, 66.2, 435.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 136302.2, "tg": 1672.1}, {"sc": "Costo Creación Cursos", "fase": "Diseño Instruccional", "al": "ANDINA", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 20181.0, 20181.0, 20181.0, 20181.0, 20181.0, 20181.0], "g": [0.0, 0.0, 0.0, 185.9, 185.9, 92.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 121086.0, "tg": 464.7}, {"sc": "Costo Creación Cursos", "fase": "Diseño Instruccional", "al": "CENTRAL", "p": [30256.2, 30256.2, 30256.2, 30256.2, 30256.2, 30256.2, 30256.2, 30256.2, 30256.2, 30256.2, 30256.2, 30256.2], "g": [9939.4, 16023.5, 11218.6, 17395.1, 16818.3, 21319.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 363074.1, "tg": 92714.3}, {"sc": "Costo Creación Cursos", "fase": "Diseño Instruccional", "al": "IA SMART", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [59.2, 11.8, 59.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 130.3}, {"sc": "Costo Creación Cursos", "fase": "Diseño Instruccional", "al": "NUEVA ALIANZA 1", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 121086.0, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Diseño Instruccional", "al": "NUEVA ALIANZA 2", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 77631.2, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Diseño Instruccional", "al": "UNAB", "p": [10081.5, 10081.5, 10081.5, 10081.5, 10081.5, 10081.5, 10081.5, 10081.5, 10081.5, 10081.5, 10081.5, 10081.5], "g": [3641.4, 5732.3, 4226.7, 1953.3, 2961.8, 3054.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 120978.2, "tg": 21570.2}, {"sc": "Costo Creación Cursos", "fase": "Diseño Instruccional", "al": "UNINORTE", "p": [24544.9, 24544.9, 24544.9, 24544.9, 24544.9, 24544.9, 24544.9, 24544.9, 24544.9, 24544.9, 24544.9, 24544.9], "g": [355.3, 355.3, 3138.9, 2601.4, 3558.0, 7289.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 294538.4, "tg": 17298.2}, {"sc": "Costo Creación Cursos", "fase": "Diseño Instruccional", "al": "UNIS", "p": [5750.5, 5750.5, 5750.5, 5750.5, 5750.5, 5750.5, 5750.5, 5750.5, 5750.5, 5750.5, 5750.5, 5750.5], "g": [2394.8, 6458.2, 236.9, 438.2, 3233.0, 3892.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 69005.5, "tg": 16653.3}, {"sc": "Costo Creación Cursos", "fase": "Diseño Instruccional", "al": "UP", "p": [9685.4, 9685.4, 9685.4, 9685.4, 9685.4, 9685.4, 9685.4, 9685.4, 9685.4, 9685.4, 9685.4, 9685.4], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 116224.4, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Experto", "al": "UP", "p": [14618.4, 14618.4, 14618.4, 14618.4, 14618.4, 14618.4, 14618.4, 14618.4, 14618.4, 14618.4, 14618.4, 14618.4], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 175421.1, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Migración", "al": "ANDINA", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1000.8, 1000.8, 1000.8, 1000.8, 1000.8, 1000.8], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 6004.8, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Migración", "al": "CENTRAL", "p": [1417.8, 1417.8, 1417.8, 1417.8, 1417.8, 1417.8, 1417.8, 1417.8, 1417.8, 1417.8, 1417.8, 1417.8], "g": [1200.0, 1200.0, 1200.0, 1200.0, 1200.0, 1200.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 17013.6, "tg": 7200.0}, {"sc": "Costo Creación Cursos", "fase": "Migración", "al": "IA SMART", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 172.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 172.5}, {"sc": "Costo Creación Cursos", "fase": "Migración", "al": "NUEVA ALIANZA 1", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 6004.8, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Migración", "al": "NUEVA ALIANZA 2", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 7579.0, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Migración", "al": "UNAB", "p": [495.2, 495.2, 495.2, 495.2, 495.2, 495.2, 495.2, 495.2, 495.2, 495.2, 495.2, 495.2], "g": [350.5, 413.1, 259.4, 163.2, 478.0, 382.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 5942.2, "tg": 2047.0}, {"sc": "Costo Creación Cursos", "fase": "Migración", "al": "UNINORTE", "p": [1491.2, 1491.2, 1491.2, 1491.2, 1491.2, 1491.2, 1491.2, 1491.2, 1491.2, 1491.2, 1491.2, 1491.2], "g": [122.3, 35.3, 51.1, 385.3, 526.2, 133.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 17894.7, "tg": 1253.5}, {"sc": "Costo Creación Cursos", "fase": "Migración", "al": "UNIS", "p": [561.4, 561.4, 561.4, 561.4, 561.4, 561.4, 561.4, 561.4, 561.4, 561.4, 561.4, 561.4], "g": [136.9, 281.5, 89.0, 199.4, 241.4, 132.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 6736.8, "tg": 1080.5}, {"sc": "Costo Creación Cursos", "fase": "Migración", "al": "UP", "p": [886.0, 886.0, 886.0, 886.0, 886.0, 886.0, 886.0, 886.0, 886.0, 886.0, 886.0, 886.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 10631.6, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "QA", "al": "ANDINA", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1000.8, 1000.8, 1000.8, 1000.8, 1000.8, 1000.8], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 6004.8, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "QA", "al": "CENTRAL", "p": [1417.8, 1417.8, 1417.8, 1417.8, 1417.8, 1417.8, 1417.8, 1417.8, 1417.8, 1417.8, 1417.8, 1417.8], "g": [0.0, 0.0, 0.0, 0.0, 0.0, 769.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 17013.6, "tg": 769.0}, {"sc": "Costo Creación Cursos", "fase": "QA", "al": "NUEVA ALIANZA 1", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 6004.8, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "QA", "al": "NUEVA ALIANZA 2", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 5305.3, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "QA", "al": "UNAB", "p": [396.2, 396.2, 396.2, 396.2, 396.2, 396.2, 396.2, 396.2, 396.2, 396.2, 396.2, 396.2], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 4753.8, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "QA", "al": "UNINORTE", "p": [1043.9, 1043.9, 1043.9, 1043.9, 1043.9, 1043.9, 1043.9, 1043.9, 1043.9, 1043.9, 1043.9, 1043.9], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 12526.3, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "QA", "al": "UNIS", "p": [393.0, 393.0, 393.0, 393.0, 393.0, 393.0, 393.0, 393.0, 393.0, 393.0, 393.0, 393.0], "g": [0.0, 0.0, 589.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 4715.8, "tg": 589.5}, {"sc": "Costo Creación Cursos", "fase": "QA", "al": "UP", "p": [620.2, 620.2, 620.2, 620.2, 620.2, 620.2, 620.2, 620.2, 620.2, 620.2, 620.2, 620.2], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 7442.1, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Syllabus y Reg. Calificados", "al": "ANDINA", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 30000.0, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Syllabus y Reg. Calificados", "al": "CENTRAL", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 35875.0, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Syllabus y Reg. Calificados", "al": "EAFIT", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 17500.0, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Syllabus y Reg. Calificados", "al": "UNAB", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 2500.0, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Syllabus y Reg. Calificados", "al": "UNINORTE", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 27000.0, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Syllabus y Reg. Calificados", "al": "UNIS", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 12500.0, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Syllabus y Reg. Calificados", "al": "UP", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 54000.0, "tg": 0}, {"sc": "Costo Creación Cursos", "fase": "Sin fase", "al": "CENTRAL", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [15701.6, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 15701.6}, {"sc": "Costo Creación Cursos", "fase": "Sin fase", "al": "IA SMART", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 0.0, 1735.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 1735.0}, {"sc": "Costo Creación Cursos", "fase": "Sin fase", "al": "UNINORTE", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 2794.7, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 2794.7}, {"sc": "Costo Incidencias", "fase": "Diseño Instruccional", "al": "UP", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 0.0, 0.0, 0.0, 1117.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 1117.9}, {"sc": "Costo Incidencias", "fase": "QA", "al": "CENTRAL", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [1144.8, 1526.7, 736.3, 7662.2, 1412.5, 534.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 13016.9}, {"sc": "Costo Incidencias", "fase": "QA", "al": "EAFIT", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [129.6, 43.9, 214.6, 301.6, 70.2, 146.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 906.4}, {"sc": "Costo Incidencias", "fase": "QA", "al": "UCSS", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [55.7, 8.8, 55.7, 353.9, 17.6, 24.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 516.1}, {"sc": "Costo Incidencias", "fase": "QA", "al": "UIN", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [35.1, 105.3, 120.1, 247.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 507.8}, {"sc": "Costo Incidencias", "fase": "QA", "al": "UNAB", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [118.6, 43.9, 120.5, 1339.2, 61.4, 84.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 1768.5}, {"sc": "Costo Incidencias", "fase": "QA", "al": "UNINORTE", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [26.3, 26.3, 55.7, 238.2, 17.6, 178.4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 542.5}, {"sc": "Costo Incidencias", "fase": "QA", "al": "UNIS", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [207.9, 87.8, 173.8, 2483.8, 87.1, 772.9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 3813.2}, {"sc": "Costo Incidencias", "fase": "QA", "al": "UP", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [886.5, 175.6, 1027.9, 7825.1, 438.9, 2177.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 12531.0}, {"sc": "Costo Licenciamiento Admin", "fase": "Sin fase", "al": "OTROS", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 600.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 600.0}, {"sc": "Costo Otros", "fase": "Implementación", "al": "OTROS", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 10000.0, "tg": 0}, {"sc": "Costo Otros", "fase": "QA", "al": "EAFIT", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 4188.0, "tg": 0}, {"sc": "Costo Personal (IT + APM)", "fase": "Sin fase", "al": "OTROS", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [19865.0, 16292.0, 16292.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 52449.0}, {"sc": "Costo Viabilidad", "fase": "Sin fase", "al": "VIABILIDAD", "p": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "g": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "tp": 37000.0, "tg": 0}, {"sc": "Iniciativas", "fase": "Sin fase", "al": "OTROS", "p": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "g": [0.0, 0.0, 7710.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "tp": 0, "tg": 7710.0}], "prod": {"UNINORTE": [0.0, 2.0, 4.0, 3.0, 1.0, 0.0, 0, 0, 0, 0, 0, 0], "UNIS": [2.0, 4.0, 2.0, 4.0, 4.0, 4.0, 0, 0, 0, 0, 0, 0], "CENTRAL": [12.0, 12.0, 4.0, 7.0, 12.0, 16.0, 0, 0, 0, 0, 0, 0], "UNAB": [1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 0, 0, 0, 0, 0, 0], "FORMACION DOCENTE": [2.0, 2.0, 1.0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0], "IA SMART": [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0], "UP": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0]}};
+const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+const MES_LARGO = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const SC_ORDER = ['Costo Creación Cursos','Costo Actualizaciones Cursos','Costo Actualizaciones Canvas','Costo Incidencias','Costo Viabilidad','Costo Otros','Costo Personal (IT + APM)','Costo Licenciamiento Admin','Iniciativas'];
+const FASE_ORDER = ['Migración','Diseño Instruccional','Diseño Gráfico','QA','Corrección de Estilo','Syllabus y Reg. Calificados','Experto','Implementación','Sin fase'];
+
+// Cursos proyectados por alianza (DEMO — anual repartido uniforme)
+const CURSOS_PROY_ANUAL = {'CENTRAL':204,'UNINORTE':24,'UNIS':64,'UNAB':25,'FORMACION DOCENTE':20,'IA SMART':6,'UP':43};
+
+const fmt$ = v => '$' + Math.round(v).toLocaleString('es-CO');
+const fmtPct = v => isFinite(v) ? (v*100).toFixed(1).replace('.',',') + '%' : '—';
+const sum = a => a.reduce((x,y)=>x+y,0);
+const cssVar = n => getComputedStyle(document.querySelector('.viz-root')).getPropertyValue(n).trim();
+
+const selAl = document.getElementById('selAl');
+const selMes = document.getElementById('selMes');
+const alianzas = [...new Set(DATA.rows.map(r=>r.al))].sort();
+selAl.innerHTML = '<option value="__ALL__">Todas las alianzas</option>' + alianzas.map(a=>`<option>${a}</option>`).join('');
+selMes.innerHTML = MES_LARGO.map((m,i)=>`<option value="${i}" ${i===5?'selected':''}>${m} 2026</option>`).join('');
+selAl.onchange = render; selMes.onchange = render;
+
+function filtered(){
+  const al = selAl.value;
+  return al==='__ALL__' ? DATA.rows : DATA.rows.filter(r=>r.al===al);
+}
+function pctColor(p){
+  if(!isFinite(p)) return cssVar('--ink-3');
+  if(p>1.10) return cssVar('--critical');
+  if(p>1.00) return cssVar('--serious');
+  return cssVar('--ppto');
+}
+function pctBar(p){
+  const w = isFinite(p)? Math.min(p,1.25)/1.25*100 : 0;
+  return `<span class="pctcell"><span class="pbar"><div style="width:${w}%;background:${pctColor(p)}"></div></span><span style="min-width:52px;display:inline-block">${fmtPct(p)}</span></span>`;
+}
+
+function render(){
+  const rows = filtered();
+  const cut = +selMes.value; // índice del mes de corte (incluido)
+  const mIdx = [...Array(cut+1).keys()];
+
+  const pptoAnual = sum(rows.map(r=>r.tp));
+  const pptoCorte = sum(rows.map(r=>sum(mIdx.map(i=>r.p[i]))));
+  const gasto = sum(rows.map(r=>sum(mIdx.map(i=>r.g[i]))));
+  const saldoCorte = pptoCorte - gasto;
+  const pctCorte = gasto/pptoCorte, pctAnual = gasto/pptoAnual;
+
+  // KPIs
+  document.getElementById('kpis').innerHTML = `
+    <div class="tile"><div class="lab">Presupuesto anual 2026</div><div class="val">${fmt$(pptoAnual)}</div><div class="sub">${selAl.value==='__ALL__'?'todas las alianzas':selAl.value}</div></div>
+    <div class="tile"><div class="lab">Presupuesto proyectado a ${MES_LARGO[cut].toLowerCase()}</div><div class="val">${fmt$(pptoCorte)}</div><div class="sub">${fmtPct(pptoCorte/pptoAnual)} del anual</div></div>
+    <div class="tile"><div class="lab">Gasto real acumulado</div><div class="val">${fmt$(gasto)}</div><div class="sub">ene – ${MES_LARGO[cut].toLowerCase()}</div></div>
+    <div class="tile"><div class="lab">Saldo vs proyectado</div><div class="val ${saldoCorte<0?'delta-neg':''}">${fmt$(saldoCorte)}</div><div class="sub">${saldoCorte>=0?'disponible al corte':'sobre-ejecutado'}</div></div>
+    <div class="tile"><div class="lab">% ejecución al corte</div><div class="val">${fmtPct(pctCorte)}</div><div class="meter"><div style="width:${Math.min(pctCorte,1)*100}%"></div></div><div class="sub">${fmtPct(pctAnual)} del presupuesto anual</div></div>`;
+
+  renderResumen(rows, mIdx);
+  renderMensual(rows, cut);
+  renderCursos(cut);
+  renderDetalle(rows, cut);
+}
+
+function groupBy(rows, mIdx){
+  const g = {};
+  for(const r of rows){
+    const k1 = r.sc, k2 = r.fase;
+    g[k1] ??= {tp:0, pC:0, g:0, gC:0, fases:{}};
+    const o = g[k1];
+    o.tp += r.tp; o.g += sum(r.g);
+    o.pC += sum(mIdx.map(i=>r.p[i])); o.gC += sum(mIdx.map(i=>r.g[i]));
+    o.fases[k2] ??= {tp:0, pC:0, g:0, gC:0};
+    const f = o.fases[k2];
+    f.tp += r.tp; f.g += sum(r.g);
+    f.pC += sum(mIdx.map(i=>r.p[i])); f.gC += sum(mIdx.map(i=>r.g[i]));
+  }
+  return g;
+}
+
+function renderResumen(rows, mIdx){
+  const g = groupBy(rows, mIdx);
+  const scs = SC_ORDER.filter(s=>g[s]);
+  let h = `<thead><tr><th>Subcategoría / Fase</th><th>Presupuesto 2026</th><th>Gasto acumulado</th><th>Saldo</th><th>% Ejec. anual</th><th>% Ejec. vs corte</th></tr></thead><tbody>`;
+  let T = {tp:0,gC:0,pC:0};
+  for(const sc of scs){
+    const o = g[sc]; T.tp+=o.tp; T.gC+=o.gC; T.pC+=o.pC;
+    const flag = o.tp===0 && o.gC>0 ? ' <span class="flag">⚠ sin ppto</span>' : '';
+    h += `<tr class="subcat"><td>${sc}${flag}</td><td>${fmt$(o.tp)}</td><td>${fmt$(o.gC)}</td>
+      <td class="${o.tp-o.gC<0?'neg':''}">${fmt$(o.tp-o.gC)}</td><td>${pctBar(o.gC/o.tp)}</td><td>${pctBar(o.gC/o.pC)}</td></tr>`;
+    for(const fa of FASE_ORDER.filter(f=>o.fases[f])){
+      const f = o.fases[fa];
+      if(f.tp===0 && f.gC===0) continue;
+      h += `<tr class="fase"><td>${fa}</td><td>${fmt$(f.tp)}</td><td>${fmt$(f.gC)}</td>
+        <td class="${f.tp-f.gC<0?'neg':''}">${fmt$(f.tp-f.gC)}</td><td>${pctBar(f.gC/f.tp)}</td><td>${pctBar(f.gC/f.pC)}</td></tr>`;
+    }
+  }
+  h += `<tr class="total-row"><td>TOTAL</td><td>${fmt$(T.tp)}</td><td>${fmt$(T.gC)}</td>
+    <td class="${T.tp-T.gC<0?'neg':''}">${fmt$(T.tp-T.gC)}</td><td>${pctBar(T.gC/T.tp)}</td><td>${pctBar(T.gC/T.pC)}</td></tr></tbody>`;
+  document.getElementById('tblResumen').innerHTML = h;
+}
+
+// ---- gráfico de barras agrupadas (SVG) ----
+function groupedBars(elId, ttId, labels, s1, s2, name1, name2, fmt){
+  const el = document.getElementById(elId), tt = document.getElementById(ttId);
+  const W = el.clientWidth || 640, H = 240, padL = 46, padB = 24, padT = 12, padR = 6;
+  const maxV = Math.max(...s1, ...s2, 1) * 1.08;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const n = labels.length, band = iw/n;
+  const bw = Math.min(24, (band-10)/2);
+  const y = v => padT + ih - (v/maxV)*ih;
+  // ticks limpios
+  const step = niceStep(maxV/4);
+  let grid = '', ticks='';
+  for(let v=0; v<=maxV; v+=step){
+    grid += `<line x1="${padL}" x2="${W-padR}" y1="${y(v)}" y2="${y(v)}" stroke="${cssVar('--grid')}" stroke-width="1"/>`;
+    ticks += `<text x="${padL-6}" y="${y(v)+3.5}" text-anchor="end" font-size="10" fill="${cssVar('--ink-3')}">${compact(v)}</text>`;
+  }
+  let bars='', hits='';
+  const c1 = cssVar('--ppto'), c2 = cssVar('--gasto');
+  for(let i=0;i<n;i++){
+    const cx = padL + band*i + band/2;
+    const x1 = cx - bw - 1, x2 = cx + 1;
+    bars += roundBar(x1, y(s1[i]), bw, padT+ih, c1) + roundBar(x2, y(s2[i]), bw, padT+ih, c2);
+    hits += `<rect x="${padL+band*i}" y="${padT}" width="${band}" height="${ih}" fill="transparent"
+      data-i="${i}"/>`;
+  }
+  let xlabels='';
+  for(let i=0;i<n;i++){
+    const cx = padL + band*i + band/2;
+    xlabels += `<text x="${cx}" y="${H-7}" text-anchor="middle" font-size="10" fill="${cssVar('--ink-3')}">${labels[i]}</text>`;
+  }
+  el.innerHTML = `<svg width="100%" viewBox="0 0 ${W} ${H}" style="display:block">
+    ${grid}<line x1="${padL}" x2="${W-padR}" y1="${padT+ih}" y2="${padT+ih}" stroke="${cssVar('--axis')}" stroke-width="1"/>
+    ${ticks}${bars}${xlabels}<g class="hits">${hits}</g></svg>`;
+  el.querySelectorAll('.hits rect').forEach(r=>{
+    r.addEventListener('mousemove', e=>{
+      const i = +r.dataset.i;
+      tt.innerHTML = `<b>${labels[i]}</b><br>${name1}: <b>${fmt(s1[i])}</b><br>${name2}: <b>${fmt(s2[i])}</b>`;
+      const bb = el.parentElement.getBoundingClientRect();
+      tt.style.left = Math.min(e.clientX-bb.x+14, bb.width-170)+'px';
+      tt.style.top = (e.clientY-bb.y-14)+'px'; tt.style.opacity = 1;
+    });
+    r.addEventListener('mouseleave', ()=> tt.style.opacity=0);
+  });
+}
+function roundBar(x,yTop,w,yBase,color){
+  const h = Math.max(yBase-yTop, 0);
+  if(h<=0) return '';
+  const r = Math.min(4, h);
+  return `<path d="M${x},${yBase} V${yTop+r} Q${x},${yTop} ${x+r},${yTop} H${x+w-r} Q${x+w},${yTop} ${x+w},${yTop+r} V${yBase} Z" fill="${color}"/>`;
+}
+function niceStep(raw){
+  const p = Math.pow(10, Math.floor(Math.log10(raw)));
+  for(const m of [1,2,2.5,5,10]) if(m*p>=raw) return m*p;
+  return 10*p;
+}
+function compact(v){
+  if(v>=1e6) return (v/1e6).toFixed(1).replace(/\.0$/,'')+'M';
+  if(v>=1e3) return (v/1e3).toFixed(0)+'K';
+  return Math.round(v);
+}
+
+function renderMensual(rows, cut){
+  const p = MESES.map((_,i)=> sum(rows.map(r=>r.p[i])));
+  const g = MESES.map((_,i)=> sum(rows.map(r=>r.g[i])));
+  groupedBars('chartMensual','tt1',MESES,p,g,'Presupuesto','Gasto',fmt$);
+  let h = `<thead><tr><th>Mes</th><th>Presupuesto</th><th>Gasto real</th><th>Saldo</th><th>% Ejec. mes</th><th>% Ejec. acumulado</th></tr></thead><tbody>`;
+  let ap=0, ag=0;
+  for(let i=0;i<12;i++){
+    ap+=p[i]; ag+=g[i];
+    const conDatos = i<=cut;
+    h += `<tr ${i===cut?'style="outline:2px solid var(--ppto); outline-offset:-2px"':''}>
+      <td>${MES_LARGO[i]}</td><td>${fmt$(p[i])}</td><td>${conDatos?fmt$(g[i]):'<span style="color:var(--ink-3)">—</span>'}</td>
+      <td class="${p[i]-g[i]<0?'neg':''}">${conDatos?fmt$(p[i]-g[i]):'—'}</td>
+      <td>${conDatos?pctBar(g[i]/p[i]):'—'}</td><td>${conDatos?pctBar(ag/ap):'—'}</td></tr>`;
+  }
+  h += `<tr class="total-row"><td>TOTAL AÑO</td><td>${fmt$(sum(p))}</td><td>${fmt$(sum(g))}</td><td>${fmt$(sum(p)-sum(g))}</td><td>${pctBar(sum(g)/sum(p))}</td><td></td></tr></tbody>`;
+  document.getElementById('tblMensual').innerHTML = h;
+}
+
+function renderCursos(cut){
+  const al = selAl.value;
+  const proyAnual = al==='__ALL__' ? Object.values(CURSOS_PROY_ANUAL).reduce((a,b)=>a+b,0) : (CURSOS_PROY_ANUAL[al]||0);
+  const proyMes = MESES.map(()=> proyAnual/12);
+  const prodKeys = al==='__ALL__' ? Object.keys(DATA.prod) : (DATA.prod[al]?[al]:[]);
+  const prodMes = MESES.map((_,i)=> sum(prodKeys.map(k=>DATA.prod[k][i])));
+  groupedBars('chartCursos','tt2',MESES, proyMes.map(v=>+v.toFixed(1)), prodMes,'Proyectados (demo)','Producidos', v=>v.toLocaleString('es-CO'));
+
+  const mIdx=[...Array(cut+1).keys()];
+  const proyCorte = proyAnual/12*(cut+1);
+  const prodCorte = sum(mIdx.map(i=>prodMes[i]));
+  const rows = filtered();
+  const pptoCorte = sum(rows.map(r=>sum(mIdx.map(i=>r.p[i]))));
+  const gastoCorte = sum(rows.map(r=>sum(mIdx.map(i=>r.g[i]))));
+  const pct = prodCorte/proyCorte;
+  document.getElementById('kpisCursos').innerHTML = `
+    <div class="tile"><div class="lab">Cursos proyectados al corte <span class="demo-tag">DEMO</span></div><div class="val">${Math.round(proyCorte)}</div><div class="sub">de ${proyAnual} en el año</div></div>
+    <div class="tile"><div class="lab">Cursos producidos al corte</div><div class="val">${prodCorte}</div><div class="sub">${fmtPct(pct)} de cumplimiento</div><div class="meter"><div style="width:${Math.min(pct,1)*100}%"></div></div></div>
+    <div class="tile"><div class="lab">Costo presupuestado por curso</div><div class="val">${proyCorte?fmt$(pptoCorte/proyCorte):'—'}</div><div class="sub">ppto al corte ÷ cursos proyectados</div></div>
+    <div class="tile"><div class="lab">Costo real por curso producido</div><div class="val">${prodCorte?fmt$(gastoCorte/prodCorte):'—'}</div><div class="sub">gasto al corte ÷ cursos producidos</div></div>`;
+}
+
+function renderDetalle(rows, cut){
+  document.getElementById('hDetalle').textContent = `4 · Detalle de ejecución — ${MES_LARGO[cut]} 2026`;
+  const g = groupBy(rows, [cut]); // solo el mes
+  const scs = SC_ORDER.filter(s=>g[s] && (g[s].pC>0 || g[s].gC>0));
+  let h = `<thead><tr><th>Subcategoría / Fase</th><th>Ppto ${MESES[cut]}</th><th>Gasto ${MESES[cut]}</th><th>Saldo mes</th><th>% Ejec. mes</th></tr></thead><tbody>`;
+  let T={pC:0,gC:0};
+  for(const sc of scs){
+    const o = g[sc]; T.pC+=o.pC; T.gC+=o.gC;
+    h += `<tr class="subcat"><td>${sc}${o.pC===0&&o.gC>0?' <span class="flag">⚠ sin ppto</span>':''}</td><td>${fmt$(o.pC)}</td><td>${fmt$(o.gC)}</td>
+      <td class="${o.pC-o.gC<0?'neg':''}">${fmt$(o.pC-o.gC)}</td><td>${pctBar(o.gC/o.pC)}</td></tr>`;
+    for(const fa of FASE_ORDER.filter(f=>o.fases[f])){
+      const f = o.fases[fa];
+      if(f.pC===0 && f.gC===0) continue;
+      h += `<tr class="fase"><td>${fa}</td><td>${fmt$(f.pC)}</td><td>${fmt$(f.gC)}</td>
+        <td class="${f.pC-f.gC<0?'neg':''}">${fmt$(f.pC-f.gC)}</td><td>${pctBar(f.gC/f.pC)}</td></tr>`;
+    }
+  }
+  h += `<tr class="total-row"><td>TOTAL ${MES_LARGO[cut].toUpperCase()}</td><td>${fmt$(T.pC)}</td><td>${fmt$(T.gC)}</td>
+    <td class="${T.pC-T.gC<0?'neg':''}">${fmt$(T.pC-T.gC)}</td><td>${pctBar(T.gC/T.pC)}</td></tr></tbody>`;
+  document.getElementById('tblDetalle').innerHTML = h;
+}
+
+render();
+window.addEventListener('resize', ()=>{ render(); });
+</script>
+</body>
+</html>
