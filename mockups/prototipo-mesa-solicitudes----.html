@@ -307,7 +307,7 @@ table.tb{width:100%;border-collapse:collapse;background:var(--card);border:1px s
 <body>
 
 <div id="esc-bar">
-  <span class="lbl">Escenarios de simulación · activar antes de iniciar</span>
+  <span class="lbl">Simulación · activar antes de iniciar</span>
   <div id="esc-chips" style="display:flex;gap:6px"></div>
   <span class="sep"></span>
   <button class="esc-tool" onclick="resetAll()">↺ Reiniciar</button>
@@ -501,7 +501,7 @@ function renderPagination(total,pagina,totalPaginas){
 /* ════════ ESCENARIOS ════════ */
 const ESCENARIOS=[
  {key:'feliz',chip:'1 · Flujo feliz (OCR)',desc:'Cliente nuevo por OCR, estudio limpio, cupo activado'},
- {key:'t2',chip:'2 · Existente → nuevo estudio',desc:'Cliente existente sin nada vigente (ni cupo aplicable ni estudio en 90 días) → verificar y actualizar datos y flujo completo'},
+ {key:'t2',chip:'2 · Cliente existente',desc:'Existe sin cupo ni estudio vigente → verificar y actualizar datos'},
  {key:'t8',chip:'3 · Cierre reciente',desc:'Estudio reciente cerrado no viable → no puede aplicar aún'},
  {key:'difiere',chip:'4 · Nombre difiere',desc:'Diferencia documental → actualizar datos y re-evaluar'},
  {key:'fraude',chip:'5 · Número no coincide',desc:'Documento distinto al digitado → Fraude / inconsistencia'},
@@ -509,14 +509,6 @@ const ESCENARIOS=[
  {key:'fabrica',chip:'7 · Identidad a revisión',desc:'Escalado a fábrica de soporte'},
   {key:'ubica',chip:'8 · Requiere llamada',desc:'La validación de contacto no es OK → llamada de confirmación al cliente antes de asignar el cupo'},
   {key:'retorno-fabrica',chip:'9 · Retorno de fábrica',desc:'Desatasque vs freno — fábrica devuelve estudio con motivo de rechazo'},
-  {key:'cupo-activo',chip:'10 · Cupo ya activo',desc:'Cliente existente con cupo activo y sin bloqueos → no requiere solicitud'},
-  {key:'mora',chip:'11 · No aplica por mora',desc:'Cupo bloqueado con mora vigente → fin del proceso'},
-  {key:'desbloqueo',chip:'12 · Desbloqueo de cupo',desc:'Bloqueado por inactividad, soportes vigentes → validación simplificada + prueba de vida'},
-  {key:'reactivacion',chip:'13 · Reactivación de cupo',desc:'Cupo eliminado hace poco, sin cambios de datos → token de identidad + prueba de vida'},
-  {key:'no-viable-antecedentes',chip:'14 · No viable antecedentes',desc:'Las validaciones iniciales encuentran antecedentes negativos → la solicitud finaliza'},
-  {key:'no-viable-centrales',chip:'15 · No viable centrales',desc:'La evaluación en Preselecta no aprueba → la solicitud finaliza'},
-  {key:'no-aplica-cupo',chip:'16 · No aplica para cupo',desc:'Condición especial (PPT/CE/CC>75) sin cotización ni historial → finaliza'},
-  {key:'expirada',chip:'17 · Retoma tras 90 días',desc:'La gestión pausada no se retomó a tiempo → Expirada; puede iniciar de nuevo'},
 ];
 
 /* ════════ 11 PASOS (nombres del documento) ════════ */
@@ -535,8 +527,6 @@ const CLIENTE={nombre:'María Alejandra',apellido:'Rodríguez López',cc:'1.098.
  nac:'1995-03-15',deptoNac:'Antioquia',ciudadNac:'Medellín',daneNac:'05001',
  expFecha:'2013-04-02',deptoExp:'Santander',ciudadExp:'Bucaramanga',daneExp:'68001',
  depto:'Antioquia',ciudad:'Medellín',dir:'Cra 43A # 18-95 Apto 502',cupo:'$1,200,000'};
-/* cupo previo del cliente en los escenarios de cupo existente (10–13) */
-const CUPO_PREVIO='$2,500,000';
 
 /* catálogo DANE (muestra) — departamento → [ [código municipio, ciudad], ... ] */
 const DANE={
@@ -597,7 +587,7 @@ function sucesosHTML(){
 function quien(){
  if(S.tercero)return {t:CLIENTE.nombre+' '+CLIENTE.apellido,corto:CLIENTE.nombre.split(' ')[0]+' '+CLIENTE.apellido.split(' ')[0],cc:'CC '+CLIENTE.cc};
  if(S.identificado)return {t:'CC '+CLIENTE.cc,corto:'CC '+CLIENTE.cc,cc:'CC '+CLIENTE.cc};
- return {t:'Atención de cliente',corto:'Atención',cc:'— sin identificar'};
+ return {t:'Nueva solicitud',corto:'Nueva solicitud',cc:'— sin identificar'};
 }
 function estadoActivo(){
   if(S.retornoFabrica)return {codigo:'DEVUELTO_POR_FABRICA',motivoRechazo:S.motivoRechazo};
@@ -622,20 +612,15 @@ function openFicha(){S.view='ficha';S.fichaOpen=true;S.tabOpen=true;
  if(!S.waitStart){S.waitStart=Date.now();S.waitTimer=setInterval(updWait,1000)}
  render()}
 function closeTab(e){e.stopPropagation();S.tabOpen=false;S.view='mesa';render()}
-/* la entrada desde la mesa es "Atender cliente": la evaluación del cliente ocurre en su
-   propia pantalla (vista consulta), FUERA del árbol de pasos; el detalle de la solicitud
-   solo se abre cuando el escenario lo amerita (crear/retomar) */
-function atenderCliente(){resetFicha();S.view='consulta';render()}
+function nuevaSolicitud(){resetFicha();openFicha()}
 function resetFicha(){S.idx=0;S.ph=0;S.res={};S.attn=false;S.log=[];S.envios=[];S.clock=14*3600+30*60;
  clearInterval(S.waitTimer);S.waitStart=null;S.estudio='idle';estT0=null;
   S.direccionOk=false;S.tercero=false;S.solicitud=false;S.asesorOk=false;S.abandono=false;S.retoma=false;
    S.fotosOCR=false;S.fF=false;S.fR=false;S.autogestion=false;S.cerrada=null;S.retornoFabrica=false;S.motivoRechazo='';S.reFirma=false;S.re={sms:false,ivr:false};S.fichaOpen=false;S.tabOpen=false;S.identificado=false}
 function resetAll(){resetFicha();S.view='mesa';render()}
-/* cierre de una consulta pre-solicitud (escenarios 10–13): no queda nada en la mesa */
-function cerrarConsulta(msg){if(msg)toast(msg);resetFicha();S.view='mesa';render()}
 function setEsc(i){S.esc=i;resetFicha();S.view='mesa';renderEscBar();render();toast('Escenario: '+ESCENARIOS[i].chip)}
 function setVista(v){S.vista=v;render()}
-function setPh(p){S.ph=p;if(S.view==='consulta')renderConsulta();else if(S.view==='ficha')renderFicha()}
+function setPh(p){S.ph=p;renderFicha()}
 function advance(k,resumen){S.res[k]=resumen;if(S.idx<STEPS.length-1){S.idx++;S.ph=0}
  if(S.view==='ficha')renderFicha();else if(S.view==='mesa')render();
  hooks()}
@@ -651,11 +636,6 @@ function iniciarEstudio(){
 }
 function estudioViable(){
  if(S.estudio!=='viabilidad')return;
- /* cierres del estudio (escenarios 14–16): la simulación devuelve el final según el escenario */
- const k=esc().key;
- if(k==='no-viable-antecedentes'){S.estudio='idle';S.cerrada='No viable antecedentes';addLog('err','Validaciones iniciales — antecedentes negativos; la solicitud finaliza');toast('La solicitud finaliza — no viable');renderFicha();return}
- if(k==='no-viable-centrales'){S.estudio='idle';S.cerrada='No viable centrales';addLog('err','Evaluación en Preselecta — no viable por centrales; la solicitud finaliza');toast('La solicitud finaliza — no viable');renderFicha();return}
- if(k==='no-aplica-cupo'){S.estudio='idle';S.cerrada='No aplica para cupo';addLog('err','Condición especial sin soporte financiero — no aplica para cupo');toast('La solicitud finaliza — no aplica para cupo');renderFicha();return}
  S.estudio='contacto';estT0=Date.now();
  addLog('ok','Validación de viabilidad — cliente viable');
  toast('Cliente viable — validando datos del cliente');
@@ -705,69 +685,32 @@ function modal(html){document.getElementById('modal').innerHTML=html;document.ge
 function closeModal(){document.getElementById('modal-bg').style.display='none'}
 function toggleGuia(){document.getElementById('guia').classList.toggle('open')}
 function toggleSucesos(){document.getElementById('suc-drawer').classList.toggle('open');
- document.getElementById('sd-sub').textContent=(S.solicitud?'Solicitud #1049':'Atención de cliente')+' · '+quien().t.toLowerCase();
+ document.getElementById('sd-sub').textContent='Solicitud #1049 · '+quien().t.toLowerCase();
  const sd=document.getElementById('sd-body');if(sd)sd.innerHTML=sucesosHTML()}
 
 /* ════════ RENDER ════════ */
 function render(){renderNavTabs();renderTitle();
- if(S.view==='mesa')renderMesa();else if(S.view==='consulta')renderConsulta();else renderFicha();renderGuia()}
+ if(S.view==='mesa')renderMesa();else renderFicha();renderGuia()}
 function renderNavTabs(){
   const est=badgeFromEstado(estadoActivo().codigo);
   const dot={'b-green':'var(--green)','b-red':'var(--red)','b-amber':'var(--amber)','b-lav':'#6D5BD0','b-blue':'#0EA5E9','b-gray':'var(--violet)'}[est.cls];
   document.getElementById('tabs').innerHTML=
    `<div class="ntab ${S.view==='mesa'?'active':''}" onclick="showMesa()">${I('list',14)} Mesa de estudios</div>`+
    (S.tabOpen?`<div class="ntab ${S.view==='ficha'?'active':''}" onclick="openFicha()">
-     <span class="dot" style="background:${dot}"></span>${S.solicitud?`<span class="idm">#1049</span>`:''}
+     <span class="dot" style="background:${dot}"></span><span class="idm">#1049</span>
      ${quien().corto} · ${fasePasoActivo()[0]}
      <button class="cls" onclick="closeTab(event)">✕</button></div>`:'');
 }
 function renderTitle(){
- const tb=document.getElementById('titlebar');
- if(S.view==='mesa'){tb.innerHTML=`<h1>Mesa de estudios</h1>`;return}
- if(S.view==='consulta'){tb.innerHTML=`<span class="crumb" onclick="showMesa()">Mesa de estudios</span><span class="sepc">/</span>
-   <h1>Atención de cliente</h1>`;return}
- tb.innerHTML=`<span class="crumb" onclick="showMesa()">Mesa de estudios</span><span class="sepc">/</span>
-   <h1>${S.solicitud?'#1049 — ':''}${quien().t}</h1>`;
-}
-
-/* ════════ CONSULTA — Atención de cliente (evaluación fuera del árbol de pasos) ════════ */
-function turnoConsulta(){
-  const kx=esc().key;
-  if(S.ph>=2&&kx==='cupo-activo')return `<div id="turno" class="tu-ok">${I('states',18)}<div>Cupo ya activo — el cliente puede pagar en caja con su cupo</div></div>`;
-  if(S.ph>=2&&kx==='mora')return `<div id="turno" class="tu-err">${I('alert',18)}<div>No aplica por mora — informa al cliente el resultado</div></div>`;
-  if(S.ph>=2&&kx==='desbloqueo'){
-   if(S.ph===3)return `<div id="turno" class="tu-sis"><span class="spin-sm"></span><div>Turno del sistema — validación simplificada en curso</div></div>`;
-   if(S.ph===4)return `<div id="turno" class="tu-cli">${I('camera',18)}<div>Con el cliente — prueba de vida para desbloquear el cupo</div></div>`;
-   if(S.ph===5)return `<div id="turno" class="tu-ok">${I('states',18)}<div>Cupo desbloqueado — disponible de inmediato</div></div>`;
-   if(S.ph===6)return `<div id="turno" class="tu-fab">${I('factory',18)}<div>En fábrica de soporte — prueba de vida en revisión manual</div></div>`;
-   if(S.ph===7)return `<div id="turno" class="tu-err">${I('alert',18)}<div>No viable por antecedentes — el proceso finaliza</div></div>`;
-   return `<div id="turno" class="tu-asesor">${I('zap',18)}<div>El cliente aplica a desbloqueo express — inícialo</div></div>`;
-  }
-  if(S.ph>=2&&kx==='reactivacion'){
-   if(S.ph===3||S.ph===8)return `<div id="turno" class="tu-cli">${I('phone',18)}<div>Con el cliente — token de identidad para reactivar el cupo</div></div>`;
-   if(S.ph===4)return `<div id="turno" class="tu-cli">${I('camera',18)}<div>Con el cliente — prueba de vida para reactivar el cupo</div></div>`;
-   if(S.ph===5)return `<div id="turno" class="tu-ok">${I('states',18)}<div>Cupo reactivado — disponible de inmediato</div></div>`;
-   if(S.ph===6)return `<div id="turno" class="tu-fab">${I('factory',18)}<div>En fábrica de soporte — prueba de vida en revisión manual</div></div>`;
-   return `<div id="turno" class="tu-asesor">${I('phone',18)}<div>El cliente aplica a reactivación — envía el token de identidad</div></div>`;
-  }
-  if(S.ph>=2&&kx==='expirada')return `<div id="turno" class="tu-asesor">${I('refresh',18)}<div>Gestión anterior expirada — puedes iniciar una solicitud nueva</div></div>`;
-  return `<div id="turno" class="tu-asesor">${I('idsearch',18)}<div>Consulta el documento del cliente</div></div>`;
-}
-function renderConsulta(){
- document.getElementById('content').innerHTML=`
-  <div class="ficha-head">
-   <div class="who"><h2>${quien().t}</h2><div class="m">${quien().cc} · Caja 01</div></div>
-   <div class="grow"></div>
-   <button class="btn btn-ghost" onclick="toggleSucesos()">${I('history',14)} Sucesos ${S.log.length?`<span style="font-size:10px;background:var(--violet-soft);color:var(--violet);border-radius:20px;padding:1px 7px;font-family:var(--mono)">${S.log.length}</span>`:''}</button>
-  </div>
-  ${turnoConsulta()}
-  <div style="max-width:720px;margin:18px auto 0">${EXP.ident()}</div>`;
- renderNavTabs();renderTitle();
+ document.getElementById('titlebar').innerHTML=S.view==='mesa'?
+  `<h1>Mesa de estudios</h1>`:
+  `<span class="crumb" onclick="showMesa()">Mesa de estudios</span><span class="sepc">/</span>
+   <h1>#1049 — ${quien().t}</h1>`;
 }
 
 /* ════════ MESA ════════ */
 function mesaRows(){
-  const act=S.fichaOpen?[{id:S.solicitud?'#1049':'—',nombre:S.tercero?CLIENTE.nombre+' '+CLIENTE.apellido:'—',cc:S.identificado?CLIENTE.cc:'—',
+  const act=S.fichaOpen?[{id:'#1049',nombre:S.tercero?CLIENTE.nombre+' '+CLIENTE.apellido:'—',cc:S.identificado?CLIENTE.cc:'—',
    codigo:estadoActivo().codigo,fase:fasePasoActivo()[0],paso:fasePasoActivo()[1],asesor:S.asesorOk?'1015425789':'—',
    cupo:S.estudio==='done'?CLIENTE.cupo:'—',min:8,ult:'hace un momento',activa:true}]:[];
   return [...act,...MESA];
@@ -805,7 +748,7 @@ function renderMesa(){
     </div>
     <div class="grow"></div>
     <div class="vtoggle"><button class="${S.vista==='tabla'?'on':''}" onclick="setVista('tabla')">${I('list',14)}</button><button class="${S.vista==='cards'?'on':''}" onclick="setVista('cards')">${I('grid',14)}</button></div>
-    <button class="btn btn-primary" onclick="atenderCliente()">＋ Atender cliente</button>
+    <button class="btn btn-primary" onclick="nuevaSolicitud()">＋ Nueva solicitud</button>
    </div>
    ${S.vista==='tabla'?`
    <table class="tb">
@@ -836,7 +779,7 @@ function renderMesa(){
 function renderFicha(){
  document.getElementById('content').innerHTML=`
   <div class="ficha-head">
-   <div class="who"><h2>${quien().t}</h2><div class="m">${S.solicitud?'#1049 · ':''}${quien().cc} · Caja 01</div></div>
+   <div class="who"><h2>${quien().t}</h2><div class="m">#1049 · ${quien().cc} · Caja 01</div></div>
     <div class="kv"><div class="k">Estado</div><div class="v">${badgeHTML(estadoActivo().codigo)}</div></div>
    <div class="kv"><div class="k">Espera en caja</div><div class="v" id="wait-t"><span class="esp esp-a"><span class="d"></span>7:42</span></div></div>
    <div class="grow"></div>
@@ -857,7 +800,7 @@ function turnoHTML(){
  if(S.autogestion)return `<div id="turno" class="tu-cli">${I('whatsapp',18)}<div>Autogestión — enlace enviado al cliente<div class="sub-t">La solicitud continúa en el flujo web.</div></div></div>`;
  if(S.abandono)return `<div id="turno" class="tu-cli">${I('user',18)}<div>Pausada — esperando que el cliente regrese</div></div>`;
  const k=step().k;
- if(k==='ident')return turnoConsulta();
+ if(k==='ident')return `<div id="turno" class="tu-asesor">${I('idsearch',18)}<div>Consulta el documento del cliente</div></div>`;
  if(k==='tercero')return `<div id="turno" class="tu-asesor">${I('idcard',18)}<div>Captura los datos del cliente</div></div>`;
  if(k==='gestion')return `<div id="turno" class="tu-asesor">${I('store',18)}<div>Define el tipo de gestión y valida tu identidad de asesor</div></div>`;
  if(k==='token')return `<div id="turno" class="tu-cli">${I('phone',18)}<div>Con el cliente — aceptación de T&C y firma con token</div></div>`;
@@ -874,15 +817,6 @@ function turnoHTML(){
 }
 
 /* ════════ STREAM ════════ */
-/* detalle del cierre según el escenario simulado — al asesor nunca se le muestra la mecánica interna */
-function cierreDetalle(){
- const k=esc().key;
- if(k==='t8')return 'Existe un estudio de los últimos 90 días cerrado como <b>no viable</b>. El cliente podrá intentarlo de nuevo más adelante.';
- if(k==='no-viable-antecedentes')return 'Las validaciones iniciales encontraron <b>antecedentes negativos</b>. El detalle no se muestra en tienda.';
- if(k==='no-viable-centrales')return 'La evaluación inicial de viabilidad no fue aprobada. El detalle de centrales no se muestra en tienda.';
- if(k==='no-aplica-cupo')return 'El cliente pertenece a una condición especial (PPT, CE o CC mayor de 75 años) y <b>no registra cotización ni historial crediticio</b> que soporte el cupo.';
- return 'El documento capturado no corresponde al digitado. La solicitud finaliza.';
-}
 function streamHTML(){
  let html='';
  STEPS.forEach((st,i)=>{
@@ -908,7 +842,9 @@ function streamHTML(){
  });
  if(S.cerrada&&S.cerrada!=='Cupo activado')html+=stWrap('sb-err','✕',`<div class="st-card warn" style="border-color:#FECACA">
   <h2>Solicitud cerrada</h2>
-  <div class="result r-err"><h3>✕ ${S.cerrada}</h3><p>${cierreDetalle()}</p></div>
+  <div class="result r-err"><h3>✕ ${S.cerrada}</h3><p>${esc().key==='t8'?
+   'Existe un estudio de los últimos 90 días cerrado como <b>no viable</b>. El cliente podrá intentarlo de nuevo más adelante.':
+   'El documento capturado no corresponde al digitado. La solicitud finaliza.'}</p></div>
   <div class="btn-row"><button class="btn btn-ghost" onclick="showMesa()">Volver a la mesa</button></div></div>`);
  if(S.res.activa)html+=stWrap('sb-ok','✓',`<div class="st-card" style="border-color:#BBF7D0;text-align:center">
   <div style="width:52px;height:52px;border-radius:50%;background:var(--green-bg);color:var(--green-tx);display:flex;align-items:center;justify-content:center;margin:4px auto 12px">${I('states',26)}</div>
@@ -926,7 +862,7 @@ const EXP={
 ident(){
  if(S.retoma&&S.ph===2)return `<div class="st-card"><h2>Identificación del cliente</h2>
   <div class="result r-info"><h3>${I('refresh',13)} Solicitud recuperada</h3><p>El cliente tenía un registro en curso. La información capturada se conserva — continúa en la firma con token.</p></div>
-  <div class="btn-row"><button class="btn btn-primary" onclick="S.retoma=false;S.abandono=false;S.res.ident='CC ${CLIENTE.cc} · registro recuperado';S.res.tercero='${CLIENTE.nombre} ${CLIENTE.apellido.split(' ')[0]} · datos conservados';S.res.gestion='Asistida en tienda · asesor 1015425789';S.idx=3;S.ph=0;addLog('info','Registro recuperado — retoma en T&C y token');openFicha()">Retomar donde quedó →</button></div></div>`;
+  <div class="btn-row"><button class="btn btn-primary" onclick="S.retoma=false;S.abandono=false;S.res.ident='CC ${CLIENTE.cc} · registro recuperado';S.res.tercero='${CLIENTE.nombre} ${CLIENTE.apellido.split(' ')[0]} · datos conservados';S.res.gestion='Asistida en tienda · asesor 1015425789';S.idx=3;S.ph=0;addLog('info','Registro recuperado — retoma en T&C y token');renderFicha()">Retomar donde quedó →</button></div></div>`;
  if(S.ph===0)return `<div class="st-card"><h2>Identificación del cliente</h2>
   <div class="f2">
    <div class="field"><label>Tipo de documento</label><select><option>CC — Cédula de ciudadanía</option><option>CE</option><option>PPT</option></select></div>
@@ -934,86 +870,15 @@ ident(){
   </div>
   <div class="btn-row"><button class="btn btn-primary" onclick="const n=document.getElementById('doc-num');if(n&&!n.value)n.value='${CLIENTE.cc}';S.identificado=true;setPh(1);setTimeout(()=>{if(step().k==='ident'&&S.ph===1)setPh(2)},1400)">Consultar →</button></div></div>`;
  if(S.ph===1)return `<div class="st-card sis"><div class="wait-mini"><div class="spinner"></div><p>Consultando existencia y estado del cliente…</p></div></div>`;
- /* ── escenarios de cliente existente resueltos por la validación de cupo (bloque 2) ── */
- if(esc().key==='cupo-activo')return `<div class="st-card"><h2>Identificación del cliente</h2>
-  <div class="result r-ok"><h3>✓ Cupo ya activo</h3><p><b>${CLIENTE.nombre} ${CLIENTE.apellido}</b> ya tiene un cupo activo y disponible de <b>${CUPO_PREVIO}</b>. No requiere una nueva solicitud: puede pagar en caja con su cupo QUAC.</p></div>
-  <div class="btn-row"><button class="btn btn-primary" onclick="addLog('ok','Identificación — cliente con cupo activo, no requiere solicitud');cerrarConsulta('Cupo ya activo — el cliente puede comprar con su cupo')">Finalizar consulta</button></div></div>`;
- if(esc().key==='mora')return `<div class="st-card"><h2>Identificación del cliente</h2>
-  <div class="result r-err"><h3>✕ No aplica por mora</h3><p>El cliente tiene el cupo bloqueado y presenta <b>mora vigente</b>. El proceso finaliza: no puede solicitar, desbloquear ni reactivar cupo mientras la mora persista.</p>
-  <p style="font-size:11.5px;color:var(--txt-3);margin-top:6px">El detalle de la mora no se muestra en tienda; el cliente puede consultarlo en los canales de atención QUAC.</p></div>
-  <div class="btn-row"><button class="btn btn-primary" onclick="addLog('err','Identificación — no aplica por mora vigente');cerrarConsulta('No aplica por mora')">Finalizar consulta</button></div></div>`;
- if(esc().key==='desbloqueo'){
-  if(S.ph===3)return `<div class="st-card sis"><h2>${I('states',15)} Desbloqueo de cupo</h2>
-   <div class="wait-mini"><div class="spinner"></div>
-    <p><b>Validación simplificada en curso…</b></p>
-    <p style="font-size:11.5px;color:var(--txt-3);margin-top:4px">El sistema revisa antecedentes y reportes negativos. El detalle no se muestra al asesor.</p></div>
-   <div class="btn-row" style="justify-content:center"><button class="btn btn-primary" onclick="addLog('ok','Validación simplificada superada');setPh(4)">Simular: supera</button>
-    <button class="btn btn-outline" onclick="addLog('err','Validación simplificada no superada — no viable antecedentes');setPh(7)">Simular: no supera</button></div></div>`;
-  if(S.ph===4)return `<div class="st-card"><h2>Desbloqueo de cupo — Prueba de vida</h2>
-   <div class="result r-ok" style="padding:11px 15px;margin:2px 0 12px"><h3>✓ Validación simplificada superada</h3><p>Para desbloquear el cupo, el cliente realiza una prueba de vida que el sistema compara con la selfie almacenada.</p></div>
-   <p style="font-size:11.5px;color:var(--txt-3);margin:0 0 10px">No se requieren nuevas fotos del documento: las almacenadas siguen vigentes.</p>
-   <div class="btn-row"><button class="btn btn-primary" onclick="modalVidaX(0,'desbloqueo')">${I('camera',14)} Iniciar prueba de vida ▶</button></div></div>`;
-  if(S.ph===5)return `<div class="st-card" style="border-color:#BBF7D0;text-align:center">
-   <div style="width:52px;height:52px;border-radius:50%;background:var(--green-bg);color:var(--green-tx);display:flex;align-items:center;justify-content:center;margin:4px auto 12px">${I('states',26)}</div>
-   <h2 style="justify-content:center">Cupo desbloqueado</h2>
-   <div style="font-family:var(--mono);font-size:30px;font-weight:700;color:var(--green-tx);margin:8px 0 4px">${CUPO_PREVIO}</div>
-   <p style="font-size:12.5px;color:var(--txt-2)">Disponible de inmediato para pagar en caja · sin nuevo estudio de crédito</p>
-   <div class="btn-row" style="justify-content:center;margin-top:18px"><button class="btn btn-primary" onclick="cerrarConsulta('Cupo desbloqueado')">Volver a la mesa</button></div></div>`;
-  if(S.ph===6)return `<div class="st-card warn"><h2>Desbloqueo de cupo</h2>
-   <div class="result r-warn"><h3>${I('factory',13)} En fábrica de soporte</h3><p>La prueba de vida no fue concluyente. El equipo de soporte revisará el caso y el cliente será notificado con la resolución.</p></div>
-   <div class="btn-row"><button class="btn btn-ghost" onclick="cerrarConsulta('Desbloqueo en revisión — fábrica de soporte')">Volver a la mesa</button></div></div>`;
-  if(S.ph===7)return `<div class="st-card"><h2>Desbloqueo de cupo</h2>
-   <div class="result r-err"><h3>✕ No viable antecedentes</h3><p>La validación simplificada no fue superada. El proceso finaliza y el cupo permanece bloqueado.</p></div>
-   <div class="btn-row"><button class="btn btn-primary" onclick="cerrarConsulta('No viable antecedentes')">Finalizar consulta</button></div></div>`;
-  return `<div class="st-card"><h2>Identificación del cliente</h2>
-   <div class="result r-info"><h3>${I('user',13)} Cupo bloqueado por inactividad — aplica desbloqueo express</h3>
-   <p><b>${CLIENTE.nombre} ${CLIENTE.apellido}</b> tiene un cupo de <b>${CUPO_PREVIO}</b> bloqueado por inactividad, sin mora vigente. Sus documentos y selfie están vigentes y no ha cambiado celular ni correo: puede desbloquear <b>sin nuevo estudio</b>.</p></div>
-   <div class="btn-row"><button class="btn btn-primary" onclick="S.tercero=true;addLog('sys','Desbloqueo express iniciado — validación simplificada (antecedentes y reportes)');setPh(3)">Iniciar desbloqueo →</button></div></div>`;
- }
- if(esc().key==='reactivacion'){
-  if(S.ph===3)return `<div class="st-card"><h2>Reactivación de cupo — Token de identidad</h2>
-   <div class="result r-tok"><h3>${I('phone',13)} Token enviado al celular ••• ${CLIENTE.cel.slice(-4)}</h3>
-   <p>Se envió un código de 6 dígitos al celular registrado del cliente. Solicite el código y digítelo a continuación.</p></div>
-   <div class="otp-row" id="otp-react">${[0,1,2,3,4,5].map(()=>`<input class="otp" maxlength="1">`).join('')}</div>
-   <div class="btn-row" style="margin-top:4px"><button class="btn btn-ghost" onclick="fillOtp('otp-react','619042')">Llenar demo</button>
-    <button class="link" onclick="addLog('sys','Token de identidad reenviado');toast('Token reenviado')">Reenviar</button>
-    <button class="link" onclick="addLog('warn','Token inválido — estado Pendiente cliente previo');setPh(8)">Simular: token inválido</button></div>
-   <div class="btn-row"><button class="btn btn-primary" onclick="addLog('ok','Token de identidad validado');setPh(4)">Verificar token →</button></div></div>`;
-  if(S.ph===8)return `<div class="st-card warn"><h2>Reactivación de cupo</h2>
-   <div class="result r-warn"><h3>! Pendiente cliente previo</h3><p>El token no fue válido. La gestión queda en estado <b>Pendiente cliente previo</b> y puede reintentarse según la política definida.</p></div>
-   <div class="btn-row"><button class="btn btn-primary" onclick="addLog('sys','Reintento de token de identidad');setPh(3)">Reintentar envío →</button>
-    <button class="btn btn-ghost" onclick="cerrarConsulta('Reactivación pendiente — cliente previo')">Volver a la mesa</button></div></div>`;
-  if(S.ph===4)return `<div class="st-card"><h2>Reactivación de cupo — Prueba de vida</h2>
-   <div class="result r-ok" style="padding:11px 15px;margin:2px 0 12px"><h3>✓ Token validado</h3><p>Para reactivar el cupo, el cliente realiza una prueba de vida.</p></div>
-   <p style="font-size:11.5px;color:var(--txt-3);margin:0 0 10px">No se requieren nuevas fotos del documento: la prueba se compara con la selfie almacenada.</p>
-   <div class="btn-row"><button class="btn btn-primary" onclick="modalVidaX(0,'reactivacion')">${I('camera',14)} Iniciar prueba de vida ▶</button></div></div>`;
-  if(S.ph===5)return `<div class="st-card" style="border-color:#BBF7D0;text-align:center">
-   <div style="width:52px;height:52px;border-radius:50%;background:var(--green-bg);color:var(--green-tx);display:flex;align-items:center;justify-content:center;margin:4px auto 12px">${I('states',26)}</div>
-   <h2 style="justify-content:center">Cupo reactivado</h2>
-   <div style="font-family:var(--mono);font-size:30px;font-weight:700;color:var(--green-tx);margin:8px 0 4px">${CUPO_PREVIO}</div>
-   <p style="font-size:12.5px;color:var(--txt-2)">Disponible de inmediato para pagar en caja · sin nuevo estudio de crédito</p>
-   <div class="btn-row" style="justify-content:center;margin-top:18px"><button class="btn btn-primary" onclick="cerrarConsulta('Cupo reactivado')">Volver a la mesa</button></div></div>`;
-  if(S.ph===6)return `<div class="st-card warn"><h2>Reactivación de cupo</h2>
-   <div class="result r-warn"><h3>${I('factory',13)} En fábrica de soporte</h3><p>La prueba de vida no fue concluyente. El equipo de soporte revisará el caso y el cliente será notificado con la resolución.</p></div>
-   <div class="btn-row"><button class="btn btn-ghost" onclick="cerrarConsulta('Reactivación en revisión — fábrica de soporte')">Volver a la mesa</button></div></div>`;
-  return `<div class="st-card"><h2>Identificación del cliente</h2>
-   <div class="result r-info"><h3>${I('refresh',13)} Cupo eliminado recientemente — aplica reactivación</h3>
-   <p>El cupo de <b>${CLIENTE.nombre} ${CLIENTE.apellido}</b> fue eliminado hace 12 días, sin mora histórica relevante y sin cambios en sus datos: puede reactivarse con <b>token de identidad + prueba de vida</b>, sin nuevo estudio.</p></div>
-   <div class="btn-row"><button class="btn btn-primary" onclick="S.tercero=true;addLog('sys','Reactivación iniciada — token de identidad enviado al celular ••• ${CLIENTE.cel.slice(-4)}');setPh(3)">Enviar token de identidad →</button></div></div>`;
- }
- if(esc().key==='expirada')return `<div class="st-card"><h2>Identificación del cliente</h2>
-  <div class="result r-err"><h3>✕ Gestión expirada</h3><p>El cliente tenía una gestión pausada que <b>no se retomó dentro de los 90 días</b>: quedó <b>Expirada</b> y no se puede recuperar. Puede iniciar una solicitud nueva desde cero.</p></div>
-  <div class="btn-row"><button class="btn btn-primary" onclick="addLog('warn','Gestión anterior expirada — se inicia una solicitud nueva');S.res.ident='CC ${CLIENTE.cc} · gestión previa expirada';S.idx=1;S.ph=0;openFicha()">Iniciar solicitud nueva →</button>
-  <button class="btn btn-ghost" onclick="cerrarConsulta('Gestión expirada')">Finalizar consulta</button></div></div>`;
  if(esc().key==='t8')return `<div class="st-card"><h2>Identificación del cliente</h2>
   <div class="result r-err"><h3>✕ No puede aplicar por ahora</h3><p>Existe un estudio reciente cerrado como <b>no viable</b> que no permite retomar.</p></div>
-  <div class="btn-row"><button class="btn btn-primary" onclick="addLog('err','Identificación — estudio reciente no viable, no puede aplicar');cerrarConsulta('No puede aplicar por ahora — cierre reciente')">Finalizar consulta</button></div></div>`;
+  <div class="btn-row"><button class="btn btn-primary" onclick="S.tercero=true;S.cerrada='No aplica — cierre reciente';addLog('err','Identificación — estudio reciente no viable, no puede aplicar');renderFicha()">Ver detalle →</button></div></div>`;
  if(esc().key==='t2')return `<div class="st-card"><h2>Identificación del cliente</h2>
   <div class="result r-info"><h3>${I('user',13)} Cliente existente</h3><p>${CLIENTE.nombre} ${CLIENTE.apellido} ya está registrado, sin cupo vigente ni estudio en curso.</p></div>
-  <div class="btn-row"><button class="btn btn-primary" onclick="S.tercero=true;addLog('ok','Identificación — cliente existente, sin novedades');S.res.ident='CC ${CLIENTE.cc} · cliente existente';S.idx=1;S.ph=0;openFicha()">Verificar y actualizar datos →</button></div></div>`;
+  <div class="btn-row"><button class="btn btn-primary" onclick="S.tercero=true;addLog('ok','Identificación — cliente existente, sin novedades');advance('ident','CC ${CLIENTE.cc} · cliente existente')">Verificar y actualizar datos →</button></div></div>`;
  return `<div class="st-card"><h2>Identificación del cliente</h2>
   <div class="result r-ok"><h3>✓ Cliente nuevo</h3><p>El documento no está registrado. Puede continuar con la creación del cliente.</p></div>
-  <div class="btn-row"><button class="btn btn-primary" onclick="addLog('ok','Identificación — cliente nuevo');S.res.ident='CC ${CLIENTE.cc} · cliente nuevo';S.idx=1;S.ph=0;openFicha()">Crear cliente →</button></div></div>`;
+  <div class="btn-row"><button class="btn btn-primary" onclick="addLog('ok','Identificación — cliente nuevo');advance('ident','CC ${CLIENTE.cc} · cliente nuevo')">Crear cliente →</button></div></div>`;
 }
 ,
 /* 2 · Creación del cliente (incluye validación de contacto) */
@@ -1103,7 +968,7 @@ token(){
  if(S.abandono)return `<div class="st-card warn"><h2>Aceptación y firma electrónica</h2>
   <div class="result r-info"><h3>${I('user',13)} Solicitud pausada</h3><p>El cliente se retiró antes de firmar. Al regresar, se retoma desde la identificación con los datos conservados.</p></div>
   <div class="btn-row"><button class="btn btn-ghost" onclick="showMesa()">Volver a la mesa</button>
-  <button class="btn btn-primary" onclick="S.retoma=true;S.tabOpen=false;S.view='consulta';S.idx=0;S.ph=1;render();setTimeout(()=>{if(S.view==='consulta'&&S.ph===1)setPh(2)},1400)">El cliente regresó →</button></div></div>`;
+  <button class="btn btn-primary" onclick="S.retoma=true;S.idx=0;S.ph=1;renderFicha();setTimeout(()=>{if(step().k==='ident')setPh(2)},1400)">El cliente regresó →</button></div></div>`;
  const waGate=S.re.sms&&S.re.ivr;
  if(S.ph===0)return `<div class="st-card"><h2>Aceptación y firma electrónica</h2>
   ${S.reFirma?`<div class="result r-warn"><h3>${I('refresh',13)} Nueva firma requerida</h3>
@@ -1130,7 +995,7 @@ token(){
    <button class="link" onclick="envioPush('IVR');renderFicha()">Llamada</button>
    <button class="link" ${waGate?'':'disabled style="opacity:.4"'} onclick="envioPush('WhatsApp');renderFicha()">WhatsApp</button></div>
   ${enviosHTML()}
-  <div class="btn-row"><button class="btn btn-primary" onclick="S.solicitud=true;const re=S.reFirma;S.reFirma=false;addLog('ok',re?'Token validado — nueva firma registrada tras el cambio de datos':'Token validado — solicitud #1049 creada');advance('token',re?'Re-firmado vía ${canalSel} tras editar datos':'Firmado vía ${canalSel} · solicitud creada')">Verificar token →</button></div></div>`;
+  <div class="btn-row"><button class="btn btn-primary" onclick="S.solicitud=true;const re=S.reFirma;S.reFirma=false;addLog('ok',re?'Token validado — nueva firma registrada tras el cambio de datos':'Token validado — solicitud #1049 creada · estudio iniciado');advance('token',re?'Re-firmado vía ${canalSel} tras editar datos':'Firmado vía ${canalSel} · solicitud creada')">Verificar token →</button></div></div>`;
 }
 ,
 /* 5–8 · pasos del sistema */
@@ -1384,23 +1249,6 @@ function modalAsesor(p){
   <div class="result r-ok"><h3>✓ 1015425789 · Carlos Mejía</h3><p>Validación facial superada.</p></div>
   <div class="btn-row"><button class="btn btn-primary" onclick="closeModal();S.asesorOk=true;addLog('ok','Asesor 1015425789 validado — código + rostro');renderFicha()">Continuar</button></div>`);
 }
-/* prueba de vida de los flujos exprés (desbloqueo/reactivación): reutiliza la misma
-   pantalla del paso 7, pero solo liveness — se compara contra la selfie almacenada */
-function modalVidaX(p,tipo){
- const accion=tipo==='desbloqueo'?'desbloquear':'reactivar';
- if(p===0)return modal(`<h2>Prueba de vida</h2><p class="sub">Gira la pantalla o la cámara hacia el cliente</p>
-  <div class="cam"><div class="face">${I('user',44)}</div><div class="gesto">Cliente: mira a la cámara y sigue las instrucciones</div></div>
-  <div class="btn-row"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-  <button class="btn btn-primary" onclick="modalVidaX(1,'${tipo}')">Iniciar captura →</button></div>`);
- if(p===1)return modal(`<h2>Prueba de vida</h2><p class="sub">Siguiendo gestos…</p>
-  <div class="cam"><div class="face">${I('refresh',44)}</div><div class="gesto">"Gira lentamente la cabeza a la derecha… ahora sonríe"</div></div>
-  <div class="btn-row"><button class="btn btn-primary" onclick="addLog('sys','Prueba de vida capturada — comparando con la selfie almacenada');modalVidaX(2,'${tipo}');setTimeout(()=>modalVidaX(3,'${tipo}'),2000)">Gestos completados →</button></div>`);
- if(p===2)return modal(`<div class="wait-panel"><div class="spinner"></div><h3>Procesando…</h3><p>Comparando con la selfie almacenada del cliente</p></div>`);
- modal(`<h2>Resultado de la prueba de vida</h2>
-  <p class="sub">Simulación — elige el resultado para ${accion} el cupo</p>
-  <div class="btn-row"><button class="btn btn-primary" onclick="closeModal();addLog('ok','Prueba de vida superada — cupo ${tipo==='desbloqueo'?'desbloqueado':'reactivado'}');setPh(5)">✓ Superada — ${accion} cupo</button>
-  <button class="btn btn-outline" onclick="closeModal();addLog('warn','Prueba de vida no concluyente — escalado a fábrica de soporte');setPh(6)">No concluyente — a fábrica</button></div>`);
-}
 function modalVida(p){
  if(p===0)return modal(`<h2>${S.fotosOCR?'Prueba de vida':'Verificación de fotos y prueba de vida'}</h2><p class="sub">Gira la pantalla o la cámara hacia el cliente</p>
   <div class="cam"><div class="face">${I('user',44)}</div><div class="gesto">Cliente: mira a la cámara y sigue las instrucciones</div></div>
@@ -1432,153 +1280,15 @@ function vidaResult(falla){
 }
 
 /* ════════ GUÍA ════════ */
-/* Camino de preguntas del PDF (FLUJO_CREDITOS_V3) que lleva al escenario simulado.
-   a: 'SI' | 'NO' respuesta fija del escenario · 'ELIGE' cuando el simulador ofrece
-   ambas ramas · '' fila de contexto sin pregunta */
-const GUIA_PDF={
- feliz:{src:'Bloques 1 y 3–9 · el camino donde todo responde bien',qs:[
-  ['¿El cliente ya existe?','NO','creación de cliente — captura del documento con lectura automática (OCR)'],
-  ['¿Los datos obligatorios están completos?','SI','validación de contacto'],
-  ['¿Correo o celular asociados a otro cliente?','NO','cliente listo'],
-  ['¿El cliente realizará autogestión?','NO','continúa la gestión asistida en tienda'],
-  ['¿Código de asesor válido y validación facial exitosa?','SI','se crea la solicitud preliminar y se envía el token'],
-  ['¿El token es válido y vigente?','SI','solicitud formal creada · estado: En proceso'],
-  ['¿Presenta antecedentes negativos?','NO','evaluación inicial de viabilidad (Preselecta)'],
-  ['¿El cliente es viable?','SI','estado preaprobado + cupo preliminar · se registra la dirección'],
-  ['¿Identidad consistente y biometría exitosa?','SI','definición UBICA'],
-  ['¿UBICA valida el contacto del cliente?','SI','activación de cupo — token al correo'],
-  ['¿Token de correo válido?','SI','finaliza proceso · estado final: Cupo activado'],
- ]},
- t2:{src:'Bloques 2–3 · págs. 3–8',qs:[
-  ['¿El cliente ya existe?','SI','pasa a la validación de cupo (Bloque 2)'],
-  ['¿El cliente tiene cupo?','NO','se valida si fue eliminado previamente'],
-  ['¿Fue eliminado en los últimos X días?','NO','validación de estudio vigente'],
-  ['¿Existe estudio en los últimos 90 días?','NO','continúa al Bloque 3: inicio de estudio de crédito'],
-  ['Inicia estudio — ¿El cliente requiere actualización?','SI','primer paso del Bloque 3 («Verificar y actualizar datos», pág. 8): se permite actualizar según reglas y continúa el flujo normal de estudio (los 8 pasos)'],
- ]},
- t8:{src:'Bloque 2 · pág. 7',qs:[
-  ['¿El cliente ya existe?','SI','pasa a la validación de cupo (Bloque 2)'],
-  ['¿El cliente tiene cupo?','NO','se valida si fue eliminado previamente'],
-  ['¿Fue eliminado en los últimos X días?','NO','validación de estudio vigente'],
-  ['¿Existe estudio en los últimos 90 días?','SI','se valida el estado final de la solicitud existente'],
-  ['¿El estudio permite retomar?','NO','finaliza con el estado final registrado en la solicitud previa — no puede aplicar por ahora'],
- ]},
- difiere:{src:'Bloque 5 · «Validación de identidad» · pág. 14',qs:[
-  ['¿El cliente ya existe?','NO','flujo de cliente nuevo hasta la validación de identidad'],
-  ['¿Tipo y número del documento coinciden?','SI','continúa la validación de consistencia'],
-  ['¿Nombre, apellido o fecha presentan diferencias relevantes?','SI','se actualizan los datos con la información documental y retorna al bloque 4'],
-  ['(re-evaluación de viabilidad con los datos corregidos)','','si la supera, el flujo continúa normal'],
- ]},
- fraude:{src:'Bloque 5 · pág. 14',qs:[
-  ['¿El cliente ya existe?','NO','flujo de cliente nuevo hasta la validación de identidad'],
-  ['¿El documento capturado es válido?','SI','continúa la validación de consistencia'],
-  ['¿Tipo y número coinciden con lo digitado?','NO','finaliza el proceso · estado final: Fraude / inconsistencia'],
- ]},
- abandono:{src:'Bloque 3 · pág. 9 · retoma: Bloque 2 · pág. 7',qs:[
-  ['¿El cliente ya existe?','NO','captura completa hasta la aceptación y firma'],
-  ['¿El token fue validado?','NO','el cliente se retiró — estado: Pendiente cliente previo · la gestión queda pausada'],
-  ['(cuando regresa) ¿Existe estudio en los últimos 90 días?','SI','se valida el estado de la solicitud existente'],
-  ['¿El estudio permite retomar?','SI','retorna al punto exacto donde quedó, con el mismo ID'],
- ]},
- fabrica:{src:'Bloque 5 · págs. 15–16 · Bloque 7 · págs. 19–21',qs:[
-  ['¿El cliente ya existe?','NO','flujo de cliente nuevo hasta la validación de identidad'],
-  ['¿El cliente realizó la biometría?','SI','se valida el resultado biométrico'],
-  ['¿Biometría exitosa?','NO','permite reintento'],
-  ['¿Agotó los intentos?','SI','estado: En fábrica de soporte — la solicitud queda activa esperando resolución (ver escenario 9)'],
-  ['(también se escala por: base de suplantadores, biometría anterior inconsistente, UBICA no concluyente)','','Bloques 5–6'],
- ]},
- ubica:{src:'Bloque 6 · «Definición UBICA» · págs. 16–19',qs:[
-  ['¿Existe información del cliente en UBICA?','SI','validación automática de celular y correo'],
-  ['¿Celular y correo con antigüedad mayor a 4 meses?','NO','se evalúa el celular por separado'],
-  ['¿Celular con antigüedad mayor a 4 meses?','NO','continúa la validación adicional'],
-  ['¿Alguna línea fue contestada?','SI','se valida posible suplantación'],
-  ['¿Existe posible suplantación?','NO','llamada automática de confirmación al cliente'],
-  ['¿El cliente confirma la información?','ELIGE','SÍ → continúa y se define el cupo · NO → En fábrica de soporte'],
- ]},
- 'retorno-fabrica':{src:'Bloque 7 · «Fábrica de soporte» · págs. 19–21',qs:[
-  ['(la solicitud está En fábrica de soporte — un operador gestiona la novedad)','',''],
-  ['¿La novedad fue resuelta?','ELIGE','SÍ → desatasque: retorna al punto exacto del flujo · NO → se define continuidad o cierre'],
-  ['¿Requiere más gestión?','NO','finaliza según causal — freno: DEVUELTO_POR_FABRICA con motivo de rechazo'],
- ]},
- 'cupo-activo':{src:'Bloque 2 · pág. 3',qs:[
-  ['¿El cliente ya existe?','SI','pasa a la validación de cupo (Bloque 2)'],
-  ['¿El cliente tiene cupo?','SI','se valida el estado del cupo'],
-  ['¿El cupo está bloqueado?','NO','finaliza proceso · estado final: Cupo ya activo'],
- ]},
- mora:{src:'Bloque 2 · págs. 3–4',qs:[
-  ['¿El cliente ya existe?','SI','pasa a la validación de cupo (Bloque 2)'],
-  ['¿El cliente tiene cupo?','SI','se valida el estado del cupo'],
-  ['¿El cupo está bloqueado?','SI','se revisa la cartera en mora'],
-  ['¿Tiene mora vigente?','SI','finaliza proceso · estado final: No aplica por mora'],
- ]},
- desbloqueo:{src:'Bloque 2 · «Validación de cupo» · págs. 3–5',qs:[
-  ['¿El cliente ya existe?','SI','pasa a la validación de cupo (Bloque 2)'],
-  ['¿El cliente tiene cupo?','SI','se valida el estado del cupo'],
-  ['¿El cupo está bloqueado?','SI','se revisa la cartera en mora'],
-  ['¿Tiene mora vigente?','NO','continúa a las validaciones de desbloqueo'],
-  ['¿Fue bloqueado por inactividad?','SI','se validan los soportes almacenados'],
-  ['¿Tiene documentos y selfie almacenados?','SI','se validan cambios recientes en datos'],
-  ['¿Ha cambiado correo o celular?','NO','ejecuta la validación simplificada: antecedentes + reportes negativos'],
-  ['¿Supera la validación simplificada?','ELIGE','SÍ → prueba de vida · NO → estado final: No viable antecedentes'],
-  ['¿La prueba de vida fue exitosa?','ELIGE','SÍ → estado final: Desbloqueado · NO → En fábrica de soporte'],
- ]},
- reactivacion:{src:'Bloque 2 · «Reactivación de cupo eliminado» · págs. 5–6',qs:[
-  ['¿El cliente ya existe?','SI','pasa a la validación de cupo (Bloque 2)'],
-  ['¿El cliente tiene cupo?','NO','se valida si fue eliminado previamente'],
-  ['¿Fue eliminado en los últimos X días?','SI','se valida la mora histórica'],
-  ['¿Presentó mora histórica superior a Y días?','NO','flujo normal de reactivación'],
-  ['¿Los datos del cliente cambiaron?','NO','se envía token de validación de identidad'],
-  ['¿El token es válido?','ELIGE','SÍ → prueba de vida · NO → estado: Pendiente cliente previo (permite reintento)'],
-  ['¿La prueba de vida fue exitosa?','ELIGE','SÍ → estado final: Reactivado · NO → En fábrica de soporte'],
- ]},
- 'no-viable-antecedentes':{src:'Bloque 3 · pág. 10',qs:[
-  ['¿El cliente ya existe?','NO','captura completa y firma con token'],
-  ['¿El token es válido y vigente?','SI','solicitud formal creada · corren las validaciones iniciales'],
-  ['¿Presenta antecedentes negativos?','SI','finaliza proceso · estado final: No viable antecedentes'],
- ]},
- 'no-viable-centrales':{src:'Bloque 4 · págs. 10–11',qs:[
-  ['¿El cliente ya existe?','NO','captura, firma y validaciones iniciales superadas'],
-  ['¿Presenta antecedentes negativos?','NO','evaluación inicial de viabilidad (Preselecta)'],
-  ['¿El cliente es viable?','NO','finaliza proceso · estado final: No viable centrales'],
- ]},
- 'no-aplica-cupo':{src:'Bloque 4 · pág. 11',qs:[
-  ['¿El cliente ya existe?','NO','captura, firma y Preselecta viable'],
-  ['¿Pertenece a un caso especial (PPT, CE o CC mayor a 75 años)?','SI','se valida el soporte financiero'],
-  ['¿Es cotizante o tiene historial en centrales?','NO','finaliza proceso · estado final: No aplica para cupo'],
- ]},
- expirada:{src:'Bloques 4/5/9 · págs. 12, 13 y 24',qs:[
-  ['(una gestión anterior quedó pausada: estado Pendiente cliente)','',''],
-  ['¿Retoma antes de 90 días?','NO','finaliza proceso · estado final: Expirada'],
-  ['(cuando el cliente vuelve, la atención lo informa)','','la gestión expirada no se recupera — se ofrece iniciar una solicitud nueva desde cero'],
- ]},
-};
-function guiaPdfHTML(){
- const gp=GUIA_PDF[esc().key];if(!gp)return '';
- return `<div style="margin:10px 0;padding:10px;background:#2C2850;border-radius:8px;font-size:11.5px">
-  <b style="color:#fff">El camino en el PDF — ${gp.src}</b>
-  <hr style="border-color:#3A3560;margin:8px 0">
-  ${gp.qs.map(([q,a,c])=>`<div style="margin-bottom:9px"><b style="color:${a?'#fff':'#B7AEDC'}">${q}</b>
-   ${a==='SI'?`<span class="badge b-green" style="font-size:10px">SÍ</span>`
-    :a==='NO'?`<span class="badge b-red" style="font-size:10px">NO</span>`
-    :a==='ELIGE'?`<span class="badge b-green" style="font-size:10px">SÍ</span> <span class="badge b-red" style="font-size:10px">NO</span> <span style="font-size:10px;color:#E0B252;font-weight:700">← en el simulador eliges</span>`
-    :''}
-   ${c?`<br><span style="font-size:11px;color:#8F86B8">→ ${c}</span>`:''}</div>`).join('')}
- </div>`;
-}
 const GUIA={
- mesa:['Mesa de estudios',`<p>Tabla de solicitudes de la tienda con espera en caja (semáforo). Clic en una fila abre su pestaña.</p>
- <p>El botón <b>«Atender cliente»</b> abre la consulta del documento: el sistema clasifica el caso (escenarios 1–17) y <b>solo se crea una solicitud cuando corresponde</b> — la solicitud nace con la firma del paso 4. Por eso la atención no muestra número # hasta que el cliente firma.</p>`],
- consulta:['Atención de cliente',`<p>La evaluación del cliente vive <b>fuera del árbol de pasos</b>: en esta pantalla el sistema clasifica el caso (escenarios 1–17) y decide el camino. El detalle de la solicitud —con su stepper de 8 pasos— solo se abre cuando la solicitud existe o va a crearse: <b>crear</b> (escenarios 1–2, con la identificación ya resuelta como primer paso hecho) o <b>retomar</b> (escenario 6, en el paso exacto). Los resultados finales (escenarios 3, 10, 11 y 17) y los flujos exprés (escenarios 12–13) transcurren completos aquí, sin esqueleto de pasos que no aplican.</p>`],
+ mesa:['Mesa de estudios',`<p>Tabla de solicitudes de la tienda con espera en caja (semáforo). Clic en una fila abre su pestaña.</p>`],
  ficha:['El expediente',`<p>Los 8 pasos en un solo lienzo: <b>1</b> Identificación · <b>2</b> Creación del cliente (con validación de contacto) · <b>3</b> Tipo de gestión y asesor (facial obligatoria) · <b>4</b> Aceptación y firma electrónica · <b>5</b> Iniciar estudio (fusiona antecedentes, Preselecta, FOSYGA y cupo; al asesor solo se le muestra "viabilidad" y el resultado; al asignar el cupo se suelta UBICA en 2º plano) · <b>6</b> dirección · <b>7</b> identidad (fotos cédula + prueba de vida aquí o por enlace WhatsApp) · <b>8</b> activación (espera UBICA → resultado → token al correo → cupo).</p>
  <p>Regla del equipo de crédito: <b>el asesor no ve la mecánica interna</b> del estudio (antecedentes, centrales, FOSYGA, score) — solo "validando viabilidad", "cliente viable" y el monto. Al retornar viable, dirección e identidad se habilitan en paralelo mientras se define el cupo.</p>
- <p>El banner superior dice de quién es el turno; el indicador azul muestra UBICA mientras corre; el rail acumula el expediente.</p>
- <p><b>Cliente existente (escenarios 10–13):</b> el paso 1 clasifica el caso según la validación de cupo (bloque 2 del flujo V3) — cupo ya activo · no aplica por mora · desbloqueo express (validación simplificada + prueba de vida) · reactivación (token de identidad + prueba de vida). Los demás casos de cliente existente ya estaban: re-estudio (escenario 2), cierre reciente (escenario 3) y retoma de solicitud abierta (escenario 6). Detalle: docs/playbook/REQ-C02-CLIENTE-EXISTENTE.md</p>
- <p><b>Cierres del estudio (escenarios 14–16):</b> con estos escenarios, el «Simular respuesta» de la validación de viabilidad (paso 5) devuelve el final correspondiente — No viable antecedentes · No viable centrales · No aplica para cupo — y la solicitud se cierra sin exponer el detalle al asesor.</p>
- <p><b>Reúso de pantallas en los flujos exprés:</b> desbloqueo y reactivación NO activan el árbol de 8 pasos (no existe solicitud). Reutilizan los mismos componentes dentro de su mini-flujo: la pantalla de token del paso 4 (casillas + reenvío — aquí valida identidad, no firma T&C; duda D8) y el modal de prueba de vida del paso 7 (solo liveness, contra la selfie almacenada; el envío del token lo inicia el asesor, no es automático). Contraste: la retoma (escenario 6) sí cae en el paso 4 real porque la solicitud existe.</p>
+ <p>El banner superior dice de quién es el turno; el chip azul muestra UBICA mientras corre; el rail acumula el expediente.</p>
  <p><span class="g-cite">FLUJO_CREDITOS_V3</span> <span class="g-cite">API-ACTIVACION-V2</span></p>`],
 };
 function renderGuia(){
-  const g=GUIA[S.view]||GUIA.ficha;
+  const g=S.view==='mesa'?GUIA.mesa:GUIA.ficha;
   document.getElementById('g-title').textContent=g[0];
   let extra='';
   if(esc().key==='retorno-fabrica'||S.attn||S.retornoFabrica){
@@ -1592,15 +1302,12 @@ function renderGuia(){
     </div>`;
   }
   document.getElementById('g-title').textContent=g[0];
-  document.getElementById('g-body').innerHTML=`<p style="font-size:11px;color:#8F86B8">Escenario: <b style="color:#fff">${esc().chip}</b> — ${esc().desc}</p><hr style="border-color:#2C2850;margin:10px 0">`+guiaPdfHTML()+g[1]+extra;
+  document.getElementById('g-body').innerHTML=`<p style="font-size:11px;color:#8F86B8">Escenario: <b style="color:#fff">${esc().chip}</b> — ${esc().desc}</p><hr style="border-color:#2C2850;margin:10px 0">`+g[1]+extra;
 }
 
 /* ════════ INIT ════════ */
 function renderEscBar(){document.getElementById('esc-chips').innerHTML=ESCENARIOS.map((e,i)=>
  `<button class="esc-chip ${i===S.esc?'on':''}" onclick="setEsc(${i})">${e.chip}</button>`).join('')}
-/* enlace directo a un escenario: ?esc=N o #esc=N (1–17) — lo usa el calculador de escenarios */
-const escParam=parseInt(new URLSearchParams(location.search).get('esc')||(location.hash.match(/esc=(\d+)/)||[])[1],10);
-if(escParam>=1&&escParam<=ESCENARIOS.length)S.esc=escParam-1;
 renderEscBar();
 document.querySelectorAll('[data-ic]').forEach(el=>{el.innerHTML=I(el.dataset.ic,el.classList.contains('sd-ic')?18:15)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();document.getElementById('suc-drawer').classList.remove('open')}});
