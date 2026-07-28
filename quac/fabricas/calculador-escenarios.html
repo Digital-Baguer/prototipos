@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calculador de escenarios — Solicitud de crédito QUAC</title>
+<style>
+:root{
+ --violet:#7C3AED;--violet-soft:#F1EBFE;--bg:#F6F5FA;--card:#FFFFFF;--line:#E8E5F0;
+ --txt:#1F1B2E;--txt-2:#5B5470;--txt-3:#9A93AD;
+ --green:#16A34A;--green-bg:#EAF9F0;--green-tx:#15803D;
+ --red:#DC2626;--red-bg:#FDECEC;--red-tx:#B91C1C;
+ --amber:#D97706;--amber-bg:#FEF5E7;--amber-tx:#B45309;
+ --blue:#0EA5E9;--blue-bg:#EAF6FD;--blue-tx:#0369A1;
+ --mono:'SF Mono',ui-monospace,Menlo,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Inter,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--txt);font-size:14px;line-height:1.55}
+.wrap{max-width:680px;margin:0 auto;padding:34px 22px 80px}
+.hero h1{font-size:22px;font-weight:800;letter-spacing:-.3px}
+.hero .sub{color:var(--txt-2);margin:8px 0 0}
+.hero .meta{font-size:11.5px;color:var(--txt-3);margin-top:8px}
+.hero .meta a{color:var(--violet)}
+/* migas de respuestas */
+#trail{margin:22px 0 0}
+.mig{display:flex;gap:8px;align-items:baseline;font-size:12.5px;color:var(--txt-2);padding:7px 0;border-bottom:1px dashed var(--line)}
+.mig .q{flex:1}
+.mig .a{font-size:10.5px;font-weight:800;border-radius:12px;padding:2px 9px;white-space:nowrap}
+.a-si{background:var(--green-bg);color:var(--green-tx)}
+.a-no{background:var(--red-bg);color:var(--red-tx)}
+/* tarjeta de pregunta */
+#card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px;margin-top:18px}
+.qnum{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:var(--txt-3)}
+.qtxt{font-size:18px;font-weight:800;margin:8px 0 4px;line-height:1.35}
+.qref{font-size:11.5px;color:var(--txt-3);margin-bottom:18px}
+.qref b{color:var(--txt-2)}
+.btns{display:flex;gap:10px;flex-wrap:wrap}
+.btn{border:none;border-radius:10px;padding:12px 26px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.b-si{background:var(--violet);color:#fff}
+.b-si:hover{background:#6D28D9}
+.b-no{background:#fff;color:var(--txt);border:1.5px solid var(--line)}
+.b-no:hover{border-color:var(--violet);color:var(--violet)}
+.nav2{display:flex;gap:14px;margin-top:18px}
+.lnk{background:none;border:none;color:var(--violet);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;padding:0}
+.lnk:hover{text-decoration:underline}
+/* resultado */
+.res-badge{display:inline-block;font-family:var(--mono);font-size:12px;font-weight:700;border-radius:8px;padding:4px 12px;margin-bottom:10px}
+.rb-ok{background:var(--green-bg);color:var(--green-tx)}
+.rb-err{background:var(--red-bg);color:var(--red-tx)}
+.rb-warn{background:var(--amber-bg);color:var(--amber-tx)}
+.rb-info{background:var(--blue-bg);color:var(--blue-tx)}
+.rb-vio{background:var(--violet-soft);color:var(--violet)}
+.res-t{font-size:21px;font-weight:800;line-height:1.3}
+.res-d{color:var(--txt-2);margin:10px 0 4px}
+.res-n{font-size:12.5px;color:var(--txt-3);margin-top:6px}
+.res-acts{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.res-acts a{display:inline-block;border-radius:10px;padding:11px 20px;font-size:13px;font-weight:700;text-decoration:none}
+.a-sim{background:var(--violet);color:#fff}
+.a-pres{background:#fff;color:var(--violet);border:1.5px solid var(--violet)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+ <h1>Calculador de escenarios</h1>
+ <p class="sub">Responde las preguntas del flujo <b>tal como están en el PDF</b> y descubre en qué <b>escenario del simulador</b> cae el caso.</p>
+ <p class="meta">Fuente: FLUJO_CREDITOS_V3 · resultado: escenarios 1–17 del <a href="prototipo-mesa-solicitudes.html">simulador</a></p>
+</header>
+<div id="trail"></div>
+<div id="card"></div>
+</div>
+<script>
+/* Árbol de decisión: cada nodo = pregunta del PDF con su referencia.
+   yes/no apuntan a otro nodo (Q_) o a un resultado (número de escenario). */
+const NODOS={
+ /* ── raíz ── */
+ Q_EXISTE:{q:'¿El cliente ya existe en el sistema?',ref:'Bloque 1 · pág. 1',yes:'Q_ABIERTA',no:'Q_FIRMA'},
+
+ /* ── rama CLIENTE NUEVO: el flujo transcurre; cada pregunta es un posible desvío ── */
+ Q_FIRMA:{q:'¿El cliente completa la firma con el token, sin retirarse de la tienda?',ref:'Bloque 3 · pág. 9',yes:'Q_ANT',no:6},
+ Q_ANT:{q:'¿Las validaciones iniciales encuentran antecedentes negativos?',ref:'Bloque 3 · pág. 10',yes:14,no:'Q_PRE'},
+ Q_PRE:{q:'¿La evaluación en Preselecta lo aprueba (cliente viable)?',ref:'Bloque 4 · págs. 10–11',yes:'Q_ESP',no:15},
+ Q_ESP:{q:'¿Es un caso especial (PPT · CE · CC mayor de 75 años) SIN cotización ni historial en centrales?',ref:'Bloque 4 · pág. 11 + Bloque 8',yes:16,no:'Q_UBICA'},
+ Q_UBICA:{q:'¿La validación de contacto (UBICA) es concluyente, sin necesitar llamada al cliente?',ref:'Bloque 6 · págs. 16–19',yes:'Q_CONS',no:8},
+ Q_CONS:{q:'En la validación de identidad: ¿el tipo y número del documento capturado coinciden con lo digitado?',ref:'Bloque 5 · pág. 14',yes:'Q_DIF',no:5},
+ Q_DIF:{q:'¿Nombre, apellido o fecha de nacimiento presentan diferencias relevantes frente al documento?',ref:'Bloque 5 · pág. 14',yes:4,no:'Q_BIO'},
+ Q_BIO:{q:'¿La biometría (prueba de vida) es concluyente?',ref:'Bloque 5 · págs. 15–16',yes:1,no:'Q_FAB'},
+ Q_FAB:{q:'¿La fábrica de soporte ya resolvió el caso escalado?',ref:'Bloque 7 · pág. 21',yes:9,no:7},
+
+ /* ── rama CLIENTE EXISTENTE: el árbol de clasificación de la atención (C-02) ── */
+ Q_ABIERTA:{q:'¿Tiene una solicitud ABIERTA (en curso · pausada · en fábrica · en autogestión)?',ref:'Bloque 2 · pág. 7 — se evalúa de primero (regla 1 de C-02)',yes:6,no:'Q_EXP'},
+ Q_EXP:{q:'¿Tenía una gestión pausada que NO se retomó dentro de los 90 días?',ref:'Bloque 4 · pág. 12',yes:17,no:'Q_CUPO'},
+ Q_CUPO:{q:'¿El cliente tiene cupo?',ref:'Bloque 2 · pág. 3',yes:'Q_BLOQ',no:'Q_ELIM'},
+ Q_BLOQ:{q:'¿El cupo está bloqueado?',ref:'Bloque 2 · pág. 3',yes:'Q_MORA',no:10},
+ Q_MORA:{q:'¿Tiene mora vigente?',ref:'Bloque 2 · págs. 3–4',yes:11,no:'Q_INAC'},
+ Q_INAC:{q:'¿El cupo fue bloqueado por inactividad?',ref:'Bloque 2 · pág. 4',yes:'Q_DOCS',no:2},
+ Q_DOCS:{q:'¿Tiene documentos y selfie almacenados vigentes?',ref:'Bloque 2 · pág. 4',yes:'Q_CAMBIO',no:2},
+ Q_CAMBIO:{q:'¿Ha cambiado correo o celular?',ref:'Bloque 2 · pág. 4',yes:2,no:12},
+ Q_ELIM:{q:'¿El cupo fue eliminado en los últimos X días?',ref:'Bloque 2 · pág. 5',yes:'Q_DATOS',no:'Q_EST'},
+ Q_DATOS:{q:'¿Los datos del cliente cambiaron?',ref:'Bloque 2 · págs. 5–6',yes:'Q_EST',no:13},
+ Q_EST:{q:'¿Existe un estudio en los últimos 90 días?',ref:'Bloque 2 · pág. 7',yes:'Q_RET',no:2},
+ Q_RET:{q:'¿Ese estudio permite retomar?',ref:'Bloque 2 · pág. 7',yes:6,no:3},
+};
+
+const SIM='prototipo-mesa-solicitudes.html#esc=';
+const NUEVO='escenarios-cliente-nuevo.html';
+const EXIST='escenarios-cliente-existente.html';
+/* n: nombre del escenario en el simulador · tono · qué pasa · nota · presentación */
+const RESULTADOS={
+ 1:{n:'Flujo feliz (OCR)',tono:'ok',d:'Cliente nuevo con todo limpio: crea, firma, estudio viable, identidad verificada y cupo activado.',pres:NUEVO+'#n1'},
+ 2:{n:'Existente → nuevo estudio',tono:'vio',d:'Existe pero no tiene nada aprovechable (o su caso exprés se degradó): verifica y actualiza datos y arranca el flujo completo de 8 pasos.',pres:EXIST+'#e7'},
+ 3:{n:'Cierre reciente',tono:'err',d:'Un estudio de los últimos 90 días cerró con un estado que no permite reintentar. La atención termina informando.',pres:EXIST+'#e6'},
+ 4:{n:'Nombre difiere',tono:'info',d:'El documento trae nombre/apellido/fecha distintos a lo digitado: el sistema corrige con el documento y re-evalúa la viabilidad. El flujo continúa.',pres:NUEVO+'#n5'},
+ 5:{n:'Fraude / número no coincide',tono:'err',d:'El tipo o número del documento capturado no corresponde al digitado. La solicitud se cierra.',pres:NUEVO+'#n8'},
+ 6:{n:'Se va sin tokenizar (pausa / retoma)',tono:'info',d:'Hay una gestión abierta que se retoma en el punto exacto donde quedó, con el mismo número.',nota:'Cubre las dos caras: la pausa (el cliente se retiró sin firmar) y la retoma (la atención detecta el registro en curso).',pres:NUEVO+'#n3'},
+ 7:{n:'Identidad a revisión',tono:'warn',d:'La biometría no fue concluyente: el caso se escala a la fábrica de soporte y la solicitud queda activa esperando resolución.',pres:NUEVO+'#n6'},
+ 8:{n:'Requiere llamada',tono:'warn',d:'La validación de contacto no es concluyente: el sistema llama al cliente para confirmar sus datos antes de asignar el cupo.',pres:NUEVO+'#n4'},
+ 9:{n:'Retorno de fábrica',tono:'warn',d:'La fábrica resolvió: desatasque (la solicitud continúa) o freno (devuelta con motivo de rechazo para reintentar).',pres:NUEVO+'#n7'},
+ 10:{n:'Cupo ya activo',tono:'ok',d:'Ya tiene un cupo activo y disponible. No hay nada que solicitar: puede pagar en caja hoy mismo.',pres:EXIST+'#e1'},
+ 11:{n:'No aplica por mora',tono:'err',d:'Cupo bloqueado con mora vigente. El proceso no avanza por ningún camino mientras la mora persista.',pres:EXIST+'#e2'},
+ 12:{n:'Desbloqueo de cupo',tono:'ok',d:'Bloqueado por inactividad con todo vigente: se recupera sin nuevo estudio — validación simplificada + prueba de vida.',pres:EXIST+'#e3'},
+ 13:{n:'Reactivación de cupo',tono:'ok',d:'Cupo eliminado hace poco y datos sin cambios: se recupera con token de identidad + prueba de vida, sin nuevo estudio.',nota:'Si tuvo mora histórica superior a Y días, corre primero la validación simplificada.',pres:EXIST+'#e4'},
+ 14:{n:'No viable antecedentes',tono:'err',d:'Las validaciones iniciales encontraron antecedentes negativos. La solicitud finaliza.',pres:NUEVO+'#cierres'},
+ 15:{n:'No viable centrales',tono:'err',d:'La Preselecta no aprueba. La solicitud finaliza; el detalle no se muestra en tienda.',pres:NUEVO+'#cierres'},
+ 16:{n:'No aplica para cupo',tono:'err',d:'Caso especial (PPT · CE · CC > 75) sin cotización ni historial que soporte el cupo. La solicitud finaliza.',pres:NUEVO+'#cierres'},
+ 17:{n:'Retoma tras 90 días (Expirada)',tono:'err',d:'La gestión pausada expiró: no se recupera. Se ofrece iniciar una solicitud nueva desde cero.',pres:NUEVO+'#cierres'},
+};
+
+let pila=[];           /* [{nodo, resp}] */
+let actual='Q_EXISTE';
+
+function render(){
+ /* migas */
+ document.getElementById('trail').innerHTML=pila.map(p=>`
+  <div class="mig"><span class="q">${NODOS[p.nodo].q}</span>
+  <span class="a ${p.resp?'a-si':'a-no'}">${p.resp?'SÍ':'NO'}</span></div>`).join('');
+ const card=document.getElementById('card');
+ if(typeof actual==='number'){
+  const r=RESULTADOS[actual];
+  const tono={ok:'rb-ok',err:'rb-err',warn:'rb-warn',info:'rb-info',vio:'rb-vio'}[r.tono];
+  card.innerHTML=`
+   <span class="res-badge ${tono}">ESCENARIO ${actual}</span>
+   <div class="res-t">${r.n}</div>
+   <p class="res-d">${r.d}</p>
+   ${r.nota?`<p class="res-n">${r.nota}</p>`:''}
+   <div class="res-acts">
+    <a class="a-sim" href="${SIM+actual}">▶ Verlo en el simulador</a>
+    <a class="a-pres" href="${r.pres}">Ver la presentación</a>
+   </div>
+   <div class="nav2">
+    <button class="lnk" onclick="atras()">← Cambiar la última respuesta</button>
+    <button class="lnk" onclick="reiniciar()">↺ Empezar de nuevo</button>
+   </div>`;
+  return;
+ }
+ const n=NODOS[actual];
+ card.innerHTML=`
+  <div class="qnum">Pregunta ${pila.length+1}</div>
+  <div class="qtxt">${n.q}</div>
+  <div class="qref">En el PDF: <b>${n.ref}</b></div>
+  <div class="btns">
+   <button class="btn b-si" onclick="responder(true)">SÍ</button>
+   <button class="btn b-no" onclick="responder(false)">NO</button>
+  </div>
+  ${pila.length?`<div class="nav2">
+   <button class="lnk" onclick="atras()">← Atrás</button>
+   <button class="lnk" onclick="reiniciar()">↺ Empezar de nuevo</button>
+  </div>`:''}`;
+}
+function responder(resp){
+ pila.push({nodo:actual,resp});
+ actual=resp?NODOS[actual].yes:NODOS[actual].no;
+ render();
+}
+function atras(){
+ if(!pila.length)return;
+ actual=pila.pop().nodo;
+ render();
+}
+function reiniciar(){pila=[];actual='Q_EXISTE';render()}
+render();
+</script>
+</body>
+</html>
