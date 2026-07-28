@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GW-102 · Configuración de horarios de mensajería (mockup)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Base tipográfica aprobada (GW-77/GW-79): sans del sistema, cifras tabulares */
+  body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; font-size: 16px; }
+  h1, h2, h3, h4 { font-weight: 700; color: #0f172a; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  @keyframes pulse-sk { 0%,100%{opacity:1} 50%{opacity:.45} }
+  .sk { animation: pulse-sk 1.2s ease-in-out infinite; }
+  /* Switch */
+  .sw { position:relative; width:40px; height:22px; border-radius:9999px; transition:background .15s; cursor:pointer; }
+  .sw::after { content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:9999px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.2); transition:left .15s; }
+  .sw.on { background:#059669; } .sw.on::after { left:20px; }
+  .sw.off { background:#d1d5db; }
+</style>
+</head>
+<body class="bg-[#fafafa] text-gray-800 antialiased">
+
+<!-- ====== BARRA DE MOCKUP (control de estado · NO es parte de la app) ====== -->
+<div class="sticky top-0 z-40 flex flex-wrap items-center gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm">
+  <span class="font-semibold text-amber-900">Mockup GW-102</span>
+  <label class="text-amber-800">estado de la pantalla:</label>
+  <select id="stateSel" onchange="renderEstado()" class="rounded-md border border-amber-300 bg-white px-2 py-1 text-xs">
+    <option value="ok">normal</option>
+    <option value="load">cargando</option>
+    <option value="err">error</option>
+  </select>
+  <span class="text-xs text-amber-800/70">Los switches y botones son interactivos: prueba apagar un día o guardar una franja.</span>
+</div>
+
+<div class="flex min-h-screen">
+
+  <!-- ============ SIDEBAR (chrome de la app) ============ -->
+  <aside class="hidden xl:flex w-[250px] shrink-0 flex-col">
+    <div class="flex min-h-16 items-center justify-between border-b border-[#e8e8e8] px-4 py-5">
+      <div class="flex items-center gap-2.5">
+        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-900 text-lg font-bold text-white">g</div>
+        <span class="text-xl font-bold text-slate-900">get</span>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </div>
+    <nav class="flex-1 space-y-0.5 p-2 text-sm text-[#3f3f46]">
+      <a href="#" class="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-[#f0f0f0]">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        Dashboard
+      </a>
+      <div class="flex items-center gap-2.5 rounded-md px-2 py-1.5">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+        <span class="flex-1">Venta Asistida</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+      <a href="#" class="block rounded-md py-1.5 pl-9 pr-2 hover:bg-[#f0f0f0]">Gestión de Ventas</a>
+      <a href="#" class="block rounded-md py-1.5 pl-9 pr-2 hover:bg-[#f0f0f0]">Gestión de Entregas</a>
+      <a href="#" class="block rounded-md bg-[#ececec] py-1.5 pl-9 pr-2 font-medium text-gray-900">Configuración de entregas</a>
+      <a href="#" class="block rounded-md py-1.5 pl-9 pr-2 hover:bg-[#f0f0f0]">Metas de Venta</a>
+      <a href="#" class="block rounded-md py-1.5 pl-9 pr-2 hover:bg-[#f0f0f0]">Comisiones</a>
+      <a href="#" class="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-[#f0f0f0]">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 8.7 5 8.7-5"/></svg>
+        Pedidos
+      </a>
+      <a href="#" class="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-[#f0f0f0]">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clientes
+      </a>
+    </nav>
+  </aside>
+
+  <!-- ============ PANEL PRINCIPAL ============ -->
+  <main class="flex min-w-0 flex-1 flex-col overflow-hidden bg-white xl:m-2 xl:ml-0 xl:rounded-xl xl:border xl:border-gray-200 xl:shadow-sm">
+
+    <header class="flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-[#e8e8e8] px-4 py-4 md:px-8">
+      <div class="relative hidden w-80 md:block">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input class="h-9 w-full rounded-md border border-gray-300 bg-white pl-9 pr-3 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10" placeholder="Filtrar menú..." />
+      </div>
+      <div class="flex items-center gap-2.5">
+        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-900 text-xs font-semibold text-white">FL</div>
+        <span class="text-sm text-gray-700">Francisco</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+    </header>
+
+    <div class="flex items-center gap-1.5 border-b bg-white px-4 py-2 text-sm md:px-8">
+      <span class="text-gray-500">Venta Asistida</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-gray-500">Gestión de Entregas</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="font-medium text-gray-900">Configuración</span>
+    </div>
+
+    <section class="border-b border-gray-200 bg-white px-4 py-4 md:px-8 md:py-6">
+      <h1 class="!mb-0 text-3xl">Configuración de entregas</h1>
+      <p class="text-sm text-gray-600 md:text-base">Días de atención y franjas horarias de la mensajería interna</p>
+    </section>
+
+    <!-- ============ CONTENIDO ============ -->
+    <div class="flex-1 space-y-4 bg-gray-50 px-4 py-4 pb-24 md:px-6">
+
+      <!-- ---- Estado: error (solo alert, sin bloques) ---- -->
+      <div id="viewError" class="hidden rounded-lg border border-rose-200 bg-rose-50 p-4">
+        <div class="flex items-start gap-3">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e11d48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+          <div>
+            <p class="text-sm font-semibold text-rose-900">No se pudo cargar la configuración</p>
+            <p class="text-sm text-rose-700">Intenta de nuevo. Si el problema persiste, contacta a soporte.</p>
+            <button onclick="document.getElementById('stateSel').value='ok'; renderEstado();" class="mt-2 rounded-md border border-rose-300 bg-white px-3 py-1.5 text-sm font-medium text-rose-800 hover:bg-rose-100">Reintentar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- Estado: cargando (skeleton) ---- -->
+      <div id="viewLoad" class="hidden space-y-4">
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-[380px_1fr]">
+          <div class="sk h-[380px] rounded-lg bg-gray-200/70"></div>
+          <div class="sk h-[380px] rounded-lg bg-gray-200/70"></div>
+        </div>
+        <div class="sk h-48 rounded-lg bg-gray-200/70"></div>
+      </div>
+
+      <!-- ---- Estado: normal ---- -->
+      <div id="viewOk">
+        <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-[380px_1fr]">
+
+          <!-- ============ CARD: DÍAS DE ATENCIÓN ============ -->
+          <div class="rounded-lg border bg-white">
+            <div class="flex items-center gap-2 border-b border-gray-100 px-5 py-4">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+              <h2 class="text-base">Días de atención</h2>
+            </div>
+            <div class="px-5 py-2" id="listaDias"></div>
+            <div class="border-t border-gray-100 px-5 py-3 text-xs text-gray-400">
+              La fila <span class="font-medium text-gray-500">Festivos</span> manda sobre el día de la semana: si el 20 de julio cae lunes, se rige por Festivos. El calendario de festivos es el oficial de Colombia (ya cargado en el sistema).
+            </div>
+          </div>
+
+          <!-- ============ CARD: FRANJAS HORARIAS ============ -->
+          <div class="rounded-lg border bg-white">
+            <div class="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <div class="flex items-center gap-2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                <h2 class="text-base">Franjas horarias</h2>
+              </div>
+              <span class="text-xs text-gray-400">Capacidad = entregas máximas por franja · 0 cierra la franja</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-400">
+                    <th class="px-5 py-2.5 font-medium">Franja</th>
+                    <th class="px-3 py-2.5 font-medium">Hora inicio</th>
+                    <th class="px-3 py-2.5 font-medium">Hora fin</th>
+                    <th class="px-3 py-2.5 font-medium">Capacidad</th>
+                    <th class="px-3 py-2.5 font-medium">Estado</th>
+                    <th class="px-5 py-2.5"></th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyFranjas"></tbody>
+              </table>
+            </div>
+            <div id="franjaError" class="hidden border-t border-rose-100 bg-rose-50 px-5 py-2.5 text-sm text-rose-700"></div>
+          </div>
+        </div>
+
+        <!-- ============ CARD: HISTORIAL ============ -->
+        <div class="mt-4 rounded-lg border bg-white">
+          <div class="flex items-center gap-2 border-b border-gray-100 px-5 py-4">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111827" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+            <h2 class="text-base">Historial de cambios</h2>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-400">
+                  <th class="px-5 py-2.5 font-medium">Fecha</th>
+                  <th class="px-3 py-2.5 font-medium">Usuario</th>
+                  <th class="px-3 py-2.5 font-medium">Elemento</th>
+                  <th class="px-5 py-2.5 font-medium">Cambio</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyLog"></tbody>
+            </table>
+          </div>
+          <div class="border-t border-gray-100 px-5 py-3 text-center text-xs text-gray-400">Se muestran los últimos 20 cambios</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- ============ MODAL CONFIRMACIÓN (apagar día) ============ -->
+<div id="modalDia" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+  <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+    <div class="flex items-start gap-3">
+      <div id="mIconWarn" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+      </div>
+      <div class="min-w-0">
+        <h3 id="mTitulo" class="text-base">—</h3>
+        <p id="mTexto" class="mt-1 text-sm text-gray-600">—</p>
+        <div id="mTextoFuerte" class="mt-2 hidden rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-800"></div>
+      </div>
+    </div>
+    <div class="mt-5 flex justify-end gap-2">
+      <button onclick="cerrarModalDia()" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>
+      <button id="mConfirmBtn" onclick="confirmarDia()" class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div id="toast" class="fixed bottom-5 right-5 z-50 hidden items-center gap-2.5 rounded-lg bg-gray-900 px-4 py-3 text-sm font-medium text-white shadow-xl">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+  <span id="toastText">Guardado</span>
+</div>
+
+<script>
+// ===================== DATOS (semilla GW-96 + capacidades reales) =====================
+const DIAS = [
+  { tipo:'lunes',    label:'Lunes',    atiende:true },
+  { tipo:'martes',   label:'Martes',   atiende:true },
+  { tipo:'miercoles',label:'Miércoles',atiende:true },
+  { tipo:'jueves',   label:'Jueves',   atiende:true },
+  { tipo:'viernes',  label:'Viernes',  atiende:true },
+  { tipo:'sabado',   label:'Sábado',   atiende:true },
+  { tipo:'domingo',  label:'Domingo',  atiende:false },
+  { tipo:'festivo',  label:'Festivos', atiende:false, especial:true },
+];
+const FRANJAS = [
+  { id:1, ini:'09:00', fin:'10:00', cap:3 },
+  { id:2, ini:'10:00', fin:'11:00', cap:3 },
+  { id:3, ini:'11:00', fin:'12:00', cap:3 },
+  { id:4, ini:'12:00', fin:'13:00', cap:7 },
+  { id:5, ini:'13:00', fin:'14:00', cap:4 },
+  { id:6, ini:'14:00', fin:'15:00', cap:5 },
+  { id:7, ini:'15:00', fin:'16:00', cap:5 },
+  { id:8, ini:'16:00', fin:'17:00', cap:4 },
+  { id:9, ini:'17:00', fin:'18:00', cap:4 },
+];
+const LOG = [
+  { fecha:'27/07/2026 10:42', usuario:'Francisco Lizcano', elemento:'Día · Domingo',      cambio:'Atención: Sí → No' },
+  { fecha:'27/07/2026 10:41', usuario:'Francisco Lizcano', elemento:'Franja · 12:00-13:00', cambio:'Capacidad: 5 → 7' },
+  { fecha:'26/07/2026 16:03', usuario:'Sandra Vera',       elemento:'Franja · 09:00-10:00', cambio:'Capacidad: 4 → 3' },
+  { fecha:'26/07/2026 16:02', usuario:'Sandra Vera',       elemento:'Franja · 17:00-18:00', cambio:'Hora fin: 17:30 → 18:00' },
+];
+
+let diaPendiente = null;
+
+// ===================== RENDER =====================
+function renderDias(){
+  const c = document.getElementById('listaDias'); c.innerHTML='';
+  DIAS.forEach((d,i)=>{
+    c.insertAdjacentHTML('beforeend', `
+      <div class="flex items-center justify-between ${i<DIAS.length-1?'border-b border-gray-50':''} py-2.5 ${d.especial?'mt-1 rounded-md bg-violet-50/60 px-2 -mx-2':''}">
+        <div class="flex items-center gap-2">
+          <span class="text-sm ${d.especial?'font-semibold text-violet-900':'text-gray-700'}">${d.label}</span>
+          ${d.especial?'<span class="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-violet-700">manda sobre el día</span>':''}
+        </div>
+        <div class="flex items-center gap-2.5">
+          <span class="text-xs ${d.atiende?'text-emerald-600':'text-gray-400'}">${d.atiende?'Atiende':'No atiende'}</span>
+          <div class="sw ${d.atiende?'on':'off'}" onclick="toggleDia(${i})"></div>
+        </div>
+      </div>`);
+  });
+}
+
+function renderFranjas(){
+  const tb = document.getElementById('tbodyFranjas'); tb.innerHTML='';
+  FRANJAS.forEach((f,i)=>{
+    const cerrada = f.cap === 0;
+    tb.insertAdjacentHTML('beforeend', `
+      <tr class="border-b border-gray-50 ${cerrada?'bg-gray-50/60':''}">
+        <td class="px-5 py-2 text-xs font-medium text-gray-400">#${f.id}</td>
+        <td class="px-3 py-2"><input type="time" value="${f.ini}" onchange="marcarDirty(${i})" class="tnum h-9 rounded-md border border-gray-300 bg-white px-2 text-sm shadow-sm" id="ini${i}" /></td>
+        <td class="px-3 py-2"><input type="time" value="${f.fin}" onchange="marcarDirty(${i})" class="tnum h-9 rounded-md border border-gray-300 bg-white px-2 text-sm shadow-sm" id="fin${i}" /></td>
+        <td class="px-3 py-2"><input type="number" min="0" max="50" value="${f.cap}" onchange="marcarDirty(${i})" class="tnum h-9 w-20 rounded-md border border-gray-300 bg-white px-2 text-sm shadow-sm" id="cap${i}" /></td>
+        <td class="px-3 py-2">${cerrada
+          ? '<span class="rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-semibold text-gray-500">Cerrada</span>'
+          : '<span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Activa</span>'}</td>
+        <td class="px-5 py-2 text-right">
+          <button id="btn${i}" onclick="guardarFranja(${i})" disabled class="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-300">Guardar</button>
+        </td>
+      </tr>`);
+  });
+}
+
+function renderLog(){
+  const tb = document.getElementById('tbodyLog'); tb.innerHTML='';
+  LOG.forEach(l=>{
+    tb.insertAdjacentHTML('beforeend', `
+      <tr class="border-b border-gray-50">
+        <td class="tnum whitespace-nowrap px-5 py-2.5 text-xs text-gray-500">${l.fecha}</td>
+        <td class="px-3 py-2.5 text-sm text-gray-700">${l.usuario}</td>
+        <td class="px-3 py-2.5 text-sm text-gray-500">${l.elemento}</td>
+        <td class="px-5 py-2.5 text-sm font-medium text-gray-800">${l.cambio}</td>
+      </tr>`);
+  });
+}
+
+// ===================== DÍAS: toggle + confirmación =====================
+function toggleDia(i){
+  const d = DIAS[i];
+  if(!d.atiende){ d.atiende = true; registrarLog(`Día · ${d.label}`, 'Atención: No → Sí'); renderDias(); toast(`${d.label}: atención activada`); return; }
+  diaPendiente = i;
+  const activosSemana = DIAS.filter(x=>!x.especial && x.atiende).length;
+  const esUltimo = !d.especial && d.atiende && activosSemana === 1;
+  document.getElementById('mTitulo').textContent = `¿Apagar la atención de ${d.label}?`;
+  document.getElementById('mTexto').textContent = d.especial
+    ? 'Los días festivos dejarán de aparecer disponibles en la agenda y nadie podrá programar entregas en esas fechas.'
+    : `Los ${d.label.toLowerCase()} dejarán de aparecer disponibles en la agenda y nadie podrá programar entregas ese día.`;
+  const fuerte = document.getElementById('mTextoFuerte');
+  if(esUltimo){
+    fuerte.textContent = '⚠ Es el último día de la semana con atención activa. Si lo apagas, la mensajería queda CERRADA por completo y ningún asesor podrá agendar entregas.';
+    fuerte.classList.remove('hidden');
+  } else { fuerte.classList.add('hidden'); }
+  document.getElementById('modalDia').style.display='flex';
+}
+function cerrarModalDia(){ document.getElementById('modalDia').style.display='none'; diaPendiente=null; }
+function confirmarDia(){
+  const d = DIAS[diaPendiente];
+  d.atiende = false;
+  registrarLog(`Día · ${d.label}`, 'Atención: Sí → No');
+  cerrarModalDia(); renderDias(); toast(`${d.label}: atención desactivada`);
+}
+
+// ===================== FRANJAS: dirty + guardar con validación =====================
+function marcarDirty(i){
+  const b = document.getElementById('btn'+i);
+  b.disabled = false;
+  b.className = 'rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800';
+}
+function guardarFranja(i){
+  const ini = document.getElementById('ini'+i).value;
+  const fin = document.getElementById('fin'+i).value;
+  const cap = parseInt(document.getElementById('cap'+i).value || '0', 10);
+  const err = document.getElementById('franjaError');
+  // hora_fin > hora_inicio
+  if(fin <= ini){ err.textContent = `Franja #${FRANJAS[i].id}: la hora fin (${fin}) debe ser mayor que la hora inicio (${ini}).`; err.classList.remove('hidden'); return; }
+  // sin solapamiento con las demás
+  for(let j=0;j<FRANJAS.length;j++){
+    if(j===i) continue;
+    if(ini < FRANJAS[j].fin && FRANJAS[j].ini < fin){
+      err.textContent = `Franja #${FRANJAS[i].id}: se solapa con la franja #${FRANJAS[j].id} (${FRANJAS[j].ini}–${FRANJAS[j].fin}).`;
+      err.classList.remove('hidden'); return;
+    }
+  }
+  err.classList.add('hidden');
+  const f = FRANJAS[i];
+  if(f.cap !== cap) registrarLog(`Franja · ${ini}-${fin}`, `Capacidad: ${f.cap} → ${cap}`);
+  if(f.ini !== ini) registrarLog(`Franja · ${ini}-${fin}`, `Hora inicio: ${f.ini} → ${ini}`);
+  if(f.fin !== fin) registrarLog(`Franja · ${ini}-${fin}`, `Hora fin: ${f.fin} → ${fin}`);
+  f.ini=ini; f.fin=fin; f.cap=cap;
+  renderFranjas(); toast(`Franja ${ini}–${fin} guardada`);
+}
+
+// ===================== LOG + TOAST + ESTADOS =====================
+function registrarLog(elemento, cambio){
+  LOG.unshift({ fecha:'27/07/2026 '+new Date().toTimeString().slice(0,5), usuario:'Francisco Lizcano', elemento, cambio });
+  renderLog();
+}
+let toastTimer=null;
+function toast(txt){
+  document.getElementById('toastText').textContent = txt;
+  const t = document.getElementById('toast'); t.style.display='flex';
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ t.style.display='none'; }, 2200);
+}
+function renderEstado(){
+  const s = document.getElementById('stateSel').value;
+  document.getElementById('viewOk').style.display   = s==='ok'  ? 'block':'none';
+  document.getElementById('viewLoad').style.display = s==='load'? 'block':'none';
+  document.getElementById('viewError').style.display= s==='err' ? 'block':'none';
+}
+
+// init
+renderDias(); renderFranjas(); renderLog(); renderEstado();
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') cerrarModalDia(); });
+document.getElementById('modalDia').addEventListener('click', e=>{ if(e.target.id==='modalDia') cerrarModalDia(); });
+</script>
+</body>
+</html>
