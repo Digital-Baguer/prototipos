@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>App QUAC — Alerta de mantenimiento en login</title>
+<style>
+  :root{
+    --morado:#7633FF;
+    --morado-osc:#321185;
+    --tinta:#140F26;
+    --fondo:#0E0A1C;
+    --panel:#181231;
+    --panel-2:#211843;
+    --borde:#2E2455;
+    --texto:#C9C3E4;
+    --texto-tenue:#8B83AD;
+    --ok:#2ED3A7;
+    --alerta:#FF9F45;
+    --error:#FF5C6E;
+    --ios:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;background:var(--fondo);color:var(--texto);
+    font-family:"Nunito Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.55;
+  }
+
+  .envoltorio{max-width:1180px;margin:0 auto;padding:48px 24px 80px;}
+
+  /* --- Encabezado --- */
+  .cabecera{border-bottom:1px solid var(--borde);padding-bottom:28px;margin-bottom:44px;}
+  .etiqueta{
+    display:inline-block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    font-weight:800;color:var(--morado);background:rgba(118,51,255,.12);
+    border:1px solid rgba(118,51,255,.3);border-radius:20px;padding:5px 14px;margin-bottom:16px;
+  }
+  h1{font-size:31px;line-height:1.2;margin:0 0 10px;color:#fff;font-weight:800;letter-spacing:-.02em;}
+  .subtitulo{margin:0;font-size:16px;color:var(--texto-tenue);max-width:70ch;}
+
+  h2{
+    font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--morado);
+    font-weight:800;margin:56px 0 20px;display:flex;align-items:center;gap:12px;
+  }
+  h2::after{content:"";flex:1;height:1px;background:var(--borde);}
+
+  /* --- Rejilla de comparación --- */
+  .comparacion{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+  @media(max-width:900px){.comparacion{grid-template-columns:1fr;}}
+
+  .caso{
+    background:var(--panel);border:1px solid var(--borde);border-radius:18px;
+    padding:26px 24px 30px;position:relative;overflow:hidden;
+  }
+  .caso::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;}
+  .caso--bien::before{background:var(--ok);}
+  .caso--mal::before{background:var(--error);}
+
+  .caso-titulo{display:flex;align-items:center;gap:10px;margin:0 0 6px;font-size:17px;font-weight:800;color:#fff;}
+  .insignia{
+    font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    padding:3px 9px;border-radius:5px;
+  }
+  .insignia--ok{background:rgba(46,211,167,.14);color:var(--ok);}
+  .insignia--mal{background:rgba(255,92,110,.14);color:var(--error);}
+  .caso-nota{font-size:14px;color:var(--texto-tenue);margin:0 0 24px;min-height:44px;}
+
+  /* --- Teléfono --- */
+  .telefono{
+    width:300px;margin:0 auto;background:#000;border-radius:40px;padding:9px;
+    box-shadow:0 22px 50px rgba(0,0,0,.55);
+  }
+  .pantalla{
+    background:#F8F8F8;border-radius:32px;overflow:hidden;position:relative;
+    height:560px;display:flex;flex-direction:column;
+  }
+  .isla{
+    position:absolute;top:9px;left:50%;transform:translateX(-50%);
+    width:88px;height:24px;background:#000;border-radius:14px;z-index:6;
+  }
+  .barra-estado{
+    height:44px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+    padding:0 22px;font-family:var(--ios);font-size:13px;font-weight:700;color:var(--tinta);
+  }
+  .senal{display:flex;gap:4px;align-items:center;}
+  .senal i{display:block;width:3px;background:var(--tinta);border-radius:1px;}
+  .senal i:nth-child(1){height:5px;} .senal i:nth-child(2){height:7px;}
+  .senal i:nth-child(3){height:9px;} .senal i:nth-child(4){height:11px;}
+  .bateria{width:22px;height:11px;border:1px solid var(--tinta);border-radius:3px;position:relative;}
+  .bateria::after{content:"";position:absolute;inset:1.5px;width:70%;background:var(--tinta);border-radius:1px;}
+
+  /* Pantalla de login de fondo */
+  .login{flex:1;padding:26px 26px 0;filter:blur(2.5px);opacity:.5;}
+  .logo-quac{display:flex;align-items:center;gap:7px;margin-bottom:34px;}
+  .logo-quac svg{width:74px;height:auto;}
+  .titulo-login{font-size:20px;font-weight:800;color:var(--tinta);margin:0 0 22px;}
+  .campo{
+    background:#fff;border:1px solid #E2E0EA;border-radius:11px;
+    padding:13px 15px;margin-bottom:13px;font-size:13px;color:#A19EB5;
+  }
+  .campo strong{color:var(--tinta);font-weight:700;}
+  .boton-login{
+    background:var(--morado);color:#fff;text-align:center;border-radius:26px;
+    padding:14px;font-size:14px;font-weight:800;margin-top:8px;
+  }
+  .velo{position:absolute;inset:0;background:rgba(0,0,0,.32);z-index:2;}
+
+  /* --- Diálogo Cupertino --- */
+  .dialogo{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:238px;background:rgba(250,250,250,.94);backdrop-filter:blur(22px);
+    border-radius:14px;overflow:hidden;z-index:5;font-family:var(--ios);
+    box-shadow:0 10px 40px rgba(0,0,0,.3);
+  }
+  .dialogo-cuerpo{padding:19px 16px 17px;text-align:center;}
+  .dialogo-titulo{font-size:17px;font-weight:600;color:#000;margin:0 0 5px;line-height:1.3;}
+  .dialogo-texto{font-size:13px;color:#000;margin:0;line-height:1.35;}
+  .dialogo-acciones{display:flex;border-top:.5px solid rgba(0,0,0,.22);}
+  .dialogo-acciones--apiladas{flex-direction:column;}
+  .accion{
+    flex:1;text-align:center;padding:11px 6px;font-size:16px;font-weight:600;
+    color:var(--morado);
+  }
+  .dialogo-acciones--apiladas .accion + .accion{border-top:.5px solid rgba(0,0,0,.22);}
+  .dialogo-acciones:not(.dialogo-acciones--apiladas) .accion + .accion{border-left:.5px solid rgba(0,0,0,.22);}
+  .accion--peligro{color:var(--error);}
+
+  .pie-caso{
+    margin-top:22px;font-size:13px;line-height:1.6;padding:14px 16px;border-radius:10px;
+  }
+  .pie-caso--bien{background:rgba(46,211,167,.09);border:1px solid rgba(46,211,167,.25);}
+  .pie-caso--mal{background:rgba(255,92,110,.08);border:1px solid rgba(255,92,110,.25);}
+  .pie-caso strong{color:#fff;}
+
+  /* --- Código --- */
+  .codigo{
+    background:#0A0716;border:1px solid var(--borde);border-radius:14px;
+    padding:22px 24px;overflow-x:auto;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    font-size:13px;line-height:1.75;color:#D8D2F0;
+  }
+  .codigo .cadena{color:#9BE8C0;}
+  .codigo .clave{color:#B99CFF;}
+  .codigo .num{color:#FFB86B;}
+  .codigo .coment{color:#6B6390;font-style:italic;}
+  .codigo .resalte{background:rgba(118,51,255,.18);border-radius:3px;padding:1px 3px;}
+
+  .encabezado-http{
+    display:inline-flex;align-items:center;gap:9px;background:var(--panel-2);
+    border:1px solid var(--borde);border-radius:8px;padding:7px 14px;margin-bottom:14px;
+    font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12px;color:#fff;font-weight:700;
+  }
+  .punto{width:7px;height:7px;border-radius:50%;background:var(--alerta);}
+
+  /* --- Tabla de contrato --- */
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th{
+    text-align:left;font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--texto-tenue);font-weight:800;padding:0 14px 11px;border-bottom:1px solid var(--borde);
+  }
+  td{padding:14px;border-bottom:1px solid rgba(46,36,85,.5);vertical-align:top;}
+  td code{
+    font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;
+    background:var(--panel-2);border-radius:4px;padding:2px 7px;color:#C5A9FF;white-space:nowrap;
+  }
+  tr:last-child td{border-bottom:none;}
+
+  /* --- Aviso --- */
+  .aviso{
+    display:flex;gap:15px;background:rgba(255,159,69,.07);border:1px solid rgba(255,159,69,.28);
+    border-left:3px solid var(--alerta);border-radius:12px;padding:20px 22px;margin-top:22px;
+  }
+  .aviso-icono{
+    flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--alerta);
+    color:#1A1208;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;
+  }
+  .aviso p{margin:0;font-size:14px;}
+  .aviso strong{color:#fff;}
+  .aviso p + p{margin-top:9px;}
+
+  .ruta{
+    font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12px;
+    color:var(--texto-tenue);
+  }
+</style>
+</head>
+<body>
+<div class="envoltorio">
+
+  <header class="cabecera">
+    <span class="etiqueta">Mockup · App QUAC · Inicio de sesión</span>
+    <h1>Alerta de mantenimiento al iniciar sesión</h1>
+    <p class="subtitulo">
+      La app ya tiene el mecanismo: el API devuelve <code style="color:#C5A9FF">titulo</code> y
+      <code style="color:#C5A9FF">message</code>, y Flutter arma un <em>CupertinoAlertDialog</em>.
+      No requiere publicar una versión nueva en las tiendas — solo cambia la respuesta del API.
+    </p>
+  </header>
+
+  <h2>Cómo se ve</h2>
+
+  <div class="comparacion">
+
+    <!-- CASO CORRECTO -->
+    <article class="caso caso--bien">
+      <p class="caso-titulo">
+        Correcto
+        <span class="insignia insignia--ok">escenario ≠ 500</span>
+      </p>
+      <p class="caso-nota">
+        Cae al <em>helper</em> genérico <code style="color:#C5A9FF">error422()</code>: título,
+        mensaje y un solo botón. Es el diálogo limpio.
+      </p>
+
+      <div class="telefono">
+        <div class="pantalla">
+          <div class="isla"></div>
+          <div class="barra-estado">
+            <span>21:58</span>
+            <span style="display:flex;gap:6px;align-items:center;">
+              <span class="senal"><i></i><i></i><i></i><i></i></span>
+              <span class="bateria"></span>
+            </span>
+          </div>
+
+          <div class="login">
+            <div class="logo-quac">
+              <svg viewBox="0 0 54.365 18.905" xmlns="http://www.w3.org/2000/svg" aria-label="QUAC">
+                <g transform="translate(-601.477 -349.297)">
+                  <g transform="translate(601.477 349.297)">
+                    <path d="M8.665,15.632a7.812,7.812,0,0,1-4.848-3.481l-.011-.017A8,8,0,0,1,2.7,6.676c0-.012,0-.027,0-.038a.369.369,0,0,0-.366-.371H.978A.988.988,0,0,1,.838,4.3a7.648,7.648,0,0,0,2.2-.7L2.022,3.242A.99.99,0,0,1,1.413,1.99a.972.972,0,0,1,1.108-.651A7.718,7.718,0,0,0,6.992.8q.164-.079.345-.157A7.589,7.589,0,0,1,10.418,0a7.8,7.8,0,0,1,6.955,4.313.363.363,0,0,0,.322.2.247.247,0,0,0,.1-.02,5.747,5.747,0,0,0,1.339-.874,1.008,1.008,0,0,1,.889-.311.99.99,0,0,1,.55,1.638L18.623,6.928a1.445,1.445,0,0,0,0,1.982l1.948,1.979a.99.99,0,0,1-.55,1.637,1.007,1.007,0,0,1-.89-.311,5.746,5.746,0,0,0-1.339-.874.251.251,0,0,0-.1-.02.363.363,0,0,0-.322.2v0a7.942,7.942,0,0,1-1.533,2.093.023.023,0,0,1,0,.009v0a7.726,7.726,0,0,1-7.171,2.013Zm1.753-2.768a4.823,4.823,0,0,0,1.421-.213l.008,0,.009,0A4.977,4.977,0,0,0,13.273,3.9l-.011-.008,0,0a4.874,4.874,0,0,0-2.443-.906q-.2-.016-.4-.016-.221,0-.436.02H9.964A4.917,4.917,0,0,0,5.6,7.1V7.1a5,5,0,0,0,.607,3.321l0,.005,0,.005a4.924,4.924,0,0,0,2.22,2l.006,0,.012.006q.183.081.376.149.159.056.32.1a4.826,4.826,0,0,0,1.269.169" fill="#7633ff"/>
+                    <path d="M48.6,26.226a1.224,1.224,0,0,0,.919-.353,1.293,1.293,0,0,0,.34-.938,1.319,1.319,0,0,0-.34-.944,1.246,1.246,0,0,0-.919-.346,1.22,1.22,0,0,0-.912.347,1.3,1.3,0,0,0-.347.944,1.271,1.271,0,0,0,.347.938,1.2,1.2,0,0,0,.912.353" transform="translate(-36.601 -18.206)" fill="#7633ff"/>
+                  </g>
+                  <g transform="translate(626.462 353.941)">
+                    <path d="M9.117,82.71,7.612,84.2,6.545,83.123a5.1,5.1,0,0,1-2.113.413,4.474,4.474,0,0,1-3.226-1.148,4.53,4.53,0,0,1,0-6.154,4.476,4.476,0,0,1,3.226-1.148,4.476,4.476,0,0,1,3.226,1.148,4.056,4.056,0,0,1,1.205,3.077,4.391,4.391,0,0,1-.677,2.446ZM4.432,81.619a2.188,2.188,0,0,0,1.642-.632,2.311,2.311,0,0,0,.609-1.676,2.359,2.359,0,0,0-.609-1.688A2.227,2.227,0,0,0,4.432,77a2.181,2.181,0,0,0-1.63.62,2.318,2.318,0,0,0-.62,1.688,2.271,2.271,0,0,0,.62,1.676,2.144,2.144,0,0,0,1.63.632" transform="translate(0 -75.086)" fill="#7633ff"/>
+                    <path d="M28.123,79.328h2.09V85H28.4l-.115-.666a2.153,2.153,0,0,1-1.768.792c-1.378,0-2.216-.942-2.216-2.549V79.328h2.09v3.135c0,.586.3.941.8.941.563,0,.93-.436.93-1.091Z" transform="translate(-14.579 -77.727)" fill="#7633ff"/>
+                    <path d="M45.529,79.139h1.814v5.672H45.529l-.115-.666a2.389,2.389,0,0,1-1.814.781,2.461,2.461,0,0,1-1.918-.827,3.4,3.4,0,0,1,0-4.248,2.461,2.461,0,0,1,1.918-.827,2.379,2.379,0,0,1,1.814.769ZM44.139,83.2a1.092,1.092,0,0,0,.827-.344,1.24,1.24,0,0,0,.31-.884,1.288,1.288,0,0,0-.31-.9,1.125,1.125,0,0,0-.827-.333,1.08,1.08,0,0,0-.815.333,1.243,1.243,0,0,0-.322.9,1.2,1.2,0,0,0,.322.884,1.05,1.05,0,0,0,.815.344" transform="translate(-24.389 -77.537)" fill="#7633ff"/>
+                    <path d="M59.741,84.126a3.121,3.121,0,0,1,.011-4.317,3.2,3.2,0,0,1,2.285-.815,3.1,3.1,0,0,1,2.25.9l-1.114,1.229a1.462,1.462,0,0,0-1.01-.4,1.24,1.24,0,0,0,0,2.48,1.5,1.5,0,0,0,1.079-.448l1.148,1.205a3.231,3.231,0,0,1-2.319.964,3.316,3.316,0,0,1-2.331-.792" transform="translate(-35.011 -77.518)" fill="#7633ff"/>
+                  </g>
+                </g>
+              </svg>
+            </div>
+            <p class="titulo-login">Ingresa a tu cuenta</p>
+            <div class="campo"><strong>C.C. 1.024.583.117</strong></div>
+            <div class="campo">Contraseña</div>
+            <div class="boton-login">Ingresar</div>
+          </div>
+
+          <div class="velo"></div>
+
+          <div class="dialogo">
+            <div class="dialogo-cuerpo">
+              <p class="dialogo-titulo">Estamos en mantenimiento</p>
+              <p class="dialogo-texto">
+                No podrás iniciar sesión hasta las 7:15 a.&nbsp;m. del jueves 30 de julio.
+                Si ya realizaste un pago, quedó registrado.
+              </p>
+            </div>
+            <div class="dialogo-acciones">
+              <div class="accion">Aceptar</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pie-caso pie-caso--bien">
+        <strong>El usuario entiende qué pasa y cuándo vuelve.</strong> Cierra la alerta y no
+        tiene nada más que hacer.
+      </div>
+    </article>
+
+    <!-- CASO INCORRECTO -->
+    <article class="caso caso--mal">
+      <p class="caso-titulo">
+        La trampa
+        <span class="insignia insignia--mal">escenario = 500</span>
+      </p>
+      <p class="caso-nota">
+        En login, <code style="color:#C5A9FF">escenario: 500</code> está reservado para
+        contraseña incorrecta: dispara un diálogo con botón de restablecer clave.
+      </p>
+
+      <div class="telefono">
+        <div class="pantalla">
+          <div class="isla"></div>
+          <div class="barra-estado">
+            <span>21:58</span>
+            <span style="display:flex;gap:6px;align-items:center;">
+              <span class="senal"><i></i><i></i><i></i><i></i></span>
+              <span class="bateria"></span>
+            </span>
+          </div>
+
+          <div class="login">
+            <div class="logo-quac">
+              <svg viewBox="0 0 54.365 18.905" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <g transform="translate(-601.477 -349.297)">
+                  <g transform="translate(601.477 349.297)">
+                    <path d="M8.665,15.632a7.812,7.812,0,0,1-4.848-3.481l-.011-.017A8,8,0,0,1,2.7,6.676c0-.012,0-.027,0-.038a.369.369,0,0,0-.366-.371H.978A.988.988,0,0,1,.838,4.3a7.648,7.648,0,0,0,2.2-.7L2.022,3.242A.99.99,0,0,1,1.413,1.99a.972.972,0,0,1,1.108-.651A7.718,7.718,0,0,0,6.992.8q.164-.079.345-.157A7.589,7.589,0,0,1,10.418,0a7.8,7.8,0,0,1,6.955,4.313.363.363,0,0,0,.322.2.247.247,0,0,0,.1-.02,5.747,5.747,0,0,0,1.339-.874,1.008,1.008,0,0,1,.889-.311.99.99,0,0,1,.55,1.638L18.623,6.928a1.445,1.445,0,0,0,0,1.982l1.948,1.979a.99.99,0,0,1-.55,1.637,1.007,1.007,0,0,1-.89-.311,5.746,5.746,0,0,0-1.339-.874.251.251,0,0,0-.1-.02.363.363,0,0,0-.322.2v0a7.942,7.942,0,0,1-1.533,2.093.023.023,0,0,1,0,.009v0a7.726,7.726,0,0,1-7.171,2.013Zm1.753-2.768a4.823,4.823,0,0,0,1.421-.213l.008,0,.009,0A4.977,4.977,0,0,0,13.273,3.9l-.011-.008,0,0a4.874,4.874,0,0,0-2.443-.906q-.2-.016-.4-.016-.221,0-.436.02H9.964A4.917,4.917,0,0,0,5.6,7.1V7.1a5,5,0,0,0,.607,3.321l0,.005,0,.005a4.924,4.924,0,0,0,2.22,2l.006,0,.012.006q.183.081.376.149.159.056.32.1a4.826,4.826,0,0,0,1.269.169" fill="#7633ff"/>
+                  </g>
+                  <g transform="translate(626.462 353.941)">
+                    <path d="M9.117,82.71,7.612,84.2,6.545,83.123a5.1,5.1,0,0,1-2.113.413,4.474,4.474,0,0,1-3.226-1.148,4.53,4.53,0,0,1,0-6.154,4.476,4.476,0,0,1,3.226-1.148,4.476,4.476,0,0,1,3.226,1.148,4.056,4.056,0,0,1,1.205,3.077,4.391,4.391,0,0,1-.677,2.446ZM4.432,81.619a2.188,2.188,0,0,0,1.642-.632,2.311,2.311,0,0,0,.609-1.676,2.359,2.359,0,0,0-.609-1.688A2.227,2.227,0,0,0,4.432,77a2.181,2.181,0,0,0-1.63.62,2.318,2.318,0,0,0-.62,1.688,2.271,2.271,0,0,0,.62,1.676,2.144,2.144,0,0,0,1.63.632" transform="translate(0 -75.086)" fill="#7633ff"/>
+                    <path d="M28.123,79.328h2.09V85H28.4l-.115-.666a2.153,2.153,0,0,1-1.768.792c-1.378,0-2.216-.942-2.216-2.549V79.328h2.09v3.135c0,.586.3.941.8.941.563,0,.93-.436.93-1.091Z" transform="translate(-14.579 -77.727)" fill="#7633ff"/>
+                    <path d="M45.529,79.139h1.814v5.672H45.529l-.115-.666a2.389,2.389,0,0,1-1.814.781,2.461,2.461,0,0,1-1.918-.827,3.4,3.4,0,0,1,0-4.248,2.461,2.461,0,0,1,1.918-.827,2.379,2.379,0,0,1,1.814.769ZM44.139,83.2a1.092,1.092,0,0,0,.827-.344,1.24,1.24,0,0,0,.31-.884,1.288,1.288,0,0,0-.31-.9,1.125,1.125,0,0,0-.827-.333,1.08,1.08,0,0,0-.815.333,1.243,1.243,0,0,0-.322.9,1.2,1.2,0,0,0,.322.884,1.05,1.05,0,0,0,.815.344" transform="translate(-24.389 -77.537)" fill="#7633ff"/>
+                    <path d="M59.741,84.126a3.121,3.121,0,0,1,.011-4.317,3.2,3.2,0,0,1,2.285-.815,3.1,3.1,0,0,1,2.25.9l-1.114,1.229a1.462,1.462,0,0,0-1.01-.4,1.24,1.24,0,0,0,0,2.48,1.5,1.5,0,0,0,1.079-.448l1.148,1.205a3.231,3.231,0,0,1-2.319.964,3.316,3.316,0,0,1-2.331-.792" transform="translate(-35.011 -77.518)" fill="#7633ff"/>
+                  </g>
+                </g>
+              </svg>
+            </div>
+            <p class="titulo-login">Ingresa a tu cuenta</p>
+            <div class="campo"><strong>C.C. 1.024.583.117</strong></div>
+            <div class="campo">Contraseña</div>
+            <div class="boton-login">Ingresar</div>
+          </div>
+
+          <div class="velo"></div>
+
+          <div class="dialogo">
+            <div class="dialogo-cuerpo">
+              <p class="dialogo-titulo">Estamos en mantenimiento</p>
+              <p class="dialogo-texto">
+                No podrás iniciar sesión hasta las 7:15 a.&nbsp;m. del jueves 30 de julio.
+                Si ya realizaste un pago, quedó registrado.
+              </p>
+            </div>
+            <div class="dialogo-acciones dialogo-acciones--apiladas">
+              <div class="accion accion--peligro">Restablecer contraseña</div>
+              <div class="accion">Cancelar</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pie-caso pie-caso--mal">
+        <strong>El usuario cree que su clave falló</strong> y entra al flujo de restablecimiento
+        — que durante el mantenimiento también falla. Se genera el reclamo que queríamos evitar.
+      </div>
+    </article>
+
+  </div>
+
+  <h2>El JSON que lo genera</h2>
+
+  <div class="encabezado-http">
+    <span class="punto"></span>
+    POST /api/auth/iniciar_sesion → HTTP 422
+  </div>
+
+<pre class="codigo">{
+  <span class="clave">"titulo"</span>:    <span class="cadena">"Estamos en mantenimiento"</span>,
+  <span class="clave">"message"</span>:   <span class="cadena">"No podrás iniciar sesión hasta las 7:15 a. m. del jueves 30 de julio. Si ya realizaste un pago, quedó registrado."</span>,
+  <span class="clave">"escenario"</span>: <span class="num resalte">200</span>   <span class="coment">// ← cualquier valor MENOS 500</span>
+}</pre>
+
+  <div class="aviso">
+    <span class="aviso-icono">!</span>
+    <div>
+      <p>
+        <strong>El valor de <code style="color:#C5A9FF">escenario</code> es lo único delicado.</strong>
+        Ambas pantallas de login evalúan <code style="color:#C5A9FF">escenario == '500'</code> y, si
+        coincide, arman a mano un diálogo con el botón <em>“Restablecer contraseña”</em>. Cualquier
+        otro valor cae al <em>helper</em> genérico, que es el que queremos.
+      </p>
+      <p>
+        Se usa <code style="color:#C5A9FF">200</code> por consistencia: es el mismo valor que ya
+        devuelve el middleware para el bloqueo <em>“Aún no cuentas con cupo”</em>.
+      </p>
+    </div>
+  </div>
+
+  <h2>Contrato de campos</h2>
+
+  <table>
+    <thead>
+      <tr><th style="width:140px">Campo</th><th style="width:120px">Obligatorio</th><th>Qué hace en la app</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>titulo</code></td>
+        <td>Sí</td>
+        <td>Título del diálogo. Se muestra tal cual, sin transformar. Mantenerlo corto: una línea.</td>
+      </tr>
+      <tr>
+        <td><code>message</code></td>
+        <td>Sí</td>
+        <td>Cuerpo del diálogo. Si se alarga demasiado el diálogo se vuelve <em>scrollable</em> y pierde legibilidad; 2 o 3 líneas es el punto justo.</td>
+      </tr>
+      <tr>
+        <td><code>escenario</code></td>
+        <td>Sí</td>
+        <td>Enruta el tipo de diálogo. <strong>Debe ser distinto de 500.</strong> Si se omite, Flutter evalúa <code>null</code> y también funciona, pero conviene enviarlo explícito.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Dónde vive esto en el código</h2>
+
+  <table>
+    <tbody>
+      <tr>
+        <td style="width:46%"><span class="ruta">lib/global/globalMethods.dart:93</span></td>
+        <td><code>error422()</code> — el <em>helper</em> genérico que arma el diálogo de un solo botón. Lo usan más de 10 pantallas.</td>
+      </tr>
+      <tr>
+        <td><span class="ruta">lib/screens/registerPerson/login_doc_screen.dart:460</span></td>
+        <td>Login con documento y contraseña. Aquí está la bifurcación por <code>escenario</code>.</td>
+      </tr>
+      <tr>
+        <td><span class="ruta">lib/screens/validate_user_screen.dart:452</span></td>
+        <td>Login del usuario ya reconocido en el dispositivo, incluido Face&nbsp;ID. Misma bifurcación.</td>
+      </tr>
+      <tr>
+        <td><span class="ruta">lib/screens/validate_user_screen.dart:441</span></td>
+        <td>Canal <code>info</code> / <code>info_titulo</code> / <code>info_message</code>: muestra la alerta <strong>y deja continuar</strong>. Sirve para el aviso previo, no para el bloqueo. Existe solo en esta pantalla.</td>
+      </tr>
+    </tbody>
+  </table>
+
+</div>
+</body>
+</html>
