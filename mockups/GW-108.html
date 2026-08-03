@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GW-108 · Mis Ventas — Dashboard cumplimiento / Consultar ventas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .cifra { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  /* Tramo PROYECTADO: rayado. Tramo OFICIAL / realizado: sólido. Es la distinción de D1. */
+  .rayado-proy { background-image: repeating-linear-gradient(45deg,
+      rgba(16,185,129,.30) 0, rgba(16,185,129,.30) 6px,
+      rgba(16,185,129,.12) 6px, rgba(16,185,129,.12) 12px); }
+
+  .tip { position: relative; display: inline-flex; align-items: center; cursor: help; }
+  .tip-box { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+    width: 300px; white-space: normal; background: #111827; color: #fff; font-size: 11px;
+    line-height: 1.45; padding: 9px 11px; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.22);
+    opacity: 0; visibility: hidden; transition: opacity .12s ease; z-index: 40; text-align: left; }
+  .tip:hover .tip-box { opacity: 1; visibility: visible; }
+  .tip-box::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    border: 5px solid transparent; border-top-color: #111827; }
+
+  @keyframes pulso { 0%,100% { opacity: 1 } 50% { opacity: .45 } }
+  .skeleton { animation: pulso 1.4s ease-in-out infinite; }
+
+  .estado-proy { display: none; }
+  .estado-proy.activa { display: block; }
+  .tab-panel { display: none; }
+  .tab-panel.activa { display: block; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     CONTROLES DEL MOCKUP — no forman parte de la interfaz real
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="sticky top-0 z-50 border-b border-gray-700 bg-gray-900 text-gray-200">
+  <div class="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-5 gap-y-2 px-5 py-2.5">
+    <span class="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">Mockup GW-108</span>
+    <span class="text-[11px] text-gray-500">Estado de la proyección:</span>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <button data-estado="e1" class="btn-estado rounded-md px-2.5 py-1 text-xs font-medium">1 · Normal</button>
+      <button data-estado="e2" class="btn-estado rounded-md px-2.5 py-1 text-xs font-medium">2 · Bajo el piso (GW-98)</button>
+      <button data-estado="e3" class="btn-estado rounded-md px-2.5 py-1 text-xs font-medium">3 · Sin meta repartida (D7)</button>
+      <button data-estado="e4" class="btn-estado rounded-md px-2.5 py-1 text-xs font-medium">4 · Agosto real (PROD)</button>
+      <button data-estado="e5" class="btn-estado rounded-md px-2.5 py-1 text-xs font-medium">5 · Cargando</button>
+      <button data-estado="e6" class="btn-estado rounded-md px-2.5 py-1 text-xs font-medium">6 · Falla</button>
+    </div>
+    <div class="ml-auto flex items-center gap-2">
+      <span class="text-[11px] text-gray-500">Base del mes:</span>
+      <button id="btn-base" class="rounded-md border border-gray-600 px-2.5 py-1 text-xs font-medium text-gray-200">con IVA</button>
+      <span class="text-[10px] text-gray-600">(el asesor NO alterna — GW-107 D12)</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     CHROME DE get-web
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="mx-auto flex max-w-[1500px]">
+
+  <aside class="hidden w-56 shrink-0 border-r border-gray-200 bg-white lg:block">
+    <div class="flex h-14 items-center gap-2 border-b border-gray-200 px-4">
+      <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-900 text-xs font-bold text-white">G</div>
+      <span class="text-sm font-semibold">GET</span>
+    </div>
+    <nav class="p-3 text-sm">
+      <p class="px-2 pt-1 pb-2 text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Venta asistida</p>
+      <a class="mb-0.5 flex items-center gap-2 rounded-lg bg-gray-900 px-2.5 py-2 font-medium text-white"><span class="text-xs">▦</span> Mis ventas</a>
+      <a class="mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-600"><span class="text-xs">▤</span> Mis entregas</a>
+      <a class="mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-600"><span class="text-xs">☺</span> Asignar clientes</a>
+      <a class="mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-600"><span class="text-xs">☷</span> Productos visitados</a>
+      <p class="px-2 pt-4 pb-2 text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Pedidos</p>
+      <a class="mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-600"><span class="text-xs">▣</span> Consultar pedidos</a>
+    </nav>
+  </aside>
+
+  <div class="min-w-0 flex-1">
+
+    <header class="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-5">
+      <div class="flex items-center gap-2 text-sm text-gray-500">
+        <span>Dashboard</span><span class="text-gray-300">/</span><span>Venta Asistida</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="hidden text-xs text-gray-500 sm:inline">STIRPE QEC</span>
+        <div class="flex items-center gap-2">
+          <div class="flex h-7 w-7 items-center justify-center rounded-full bg-gray-200 text-[11px] font-semibold text-gray-600">LR</div>
+          <span class="hidden text-sm text-gray-700 md:inline">Laura Restrepo</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- HeaderLayout + acción rápida (se conserva) -->
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-5 py-4">
+      <div>
+        <h1 class="text-xl font-bold">Mis Ventas</h1>
+        <p class="text-sm text-gray-500">Gestiona tus ventas asistidas · Laura Restrepo · código 347</p>
+      </div>
+      <button class="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm">
+        <span class="text-base leading-none">＋</span> Nueva venta
+      </button>
+    </div>
+
+    <main class="space-y-4 px-5 py-4">
+
+      <!-- TABS DE LA PÁGINA -->
+      <div class="flex w-fit gap-1 rounded-lg bg-gray-100 p-1">
+        <button data-tab="dashboard" class="btn-tab rounded-md px-4 py-1.5 text-sm font-medium">Dashboard cumplimiento</button>
+        <button data-tab="consultar" class="btn-tab rounded-md px-4 py-1.5 text-sm font-medium">Consultar ventas</button>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           TAB 1 · DASHBOARD CUMPLIMIENTO
+           ══════════════════════════════════════════════════════════════ -->
+      <section id="tab-dashboard" class="tab-panel activa space-y-4">
+
+        <!-- Selectores de período + etiqueta de base -->
+        <div class="flex flex-wrap items-end gap-4 rounded-xl border border-gray-200 bg-white p-4">
+          <div>
+            <label class="text-xs tracking-wide text-gray-500 uppercase">Año</label>
+            <select class="mt-1 block w-32 rounded-lg border border-gray-300 px-3 py-2 text-sm"><option>2026</option></select>
+          </div>
+          <div>
+            <label class="text-xs tracking-wide text-gray-500 uppercase">Mes</label>
+            <select class="mt-1 block w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm"><option>Agosto</option></select>
+          </div>
+          <div>
+            <label class="text-xs tracking-wide text-gray-500 uppercase">Quincena</label>
+            <select class="mt-1 block w-36 rounded-lg border border-gray-300 px-3 py-2 text-sm"><option>Q1 (1-15)</option></select>
+          </div>
+          <span class="mb-1 ml-auto rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs text-gray-600">
+            Cumplimiento medido <span class="base-label font-semibold text-gray-800">con IVA incluido</span>
+          </span>
+        </div>
+
+        <!-- ══════ ESTADO 1 · NORMAL ══════ -->
+        <div data-estado-panel="e1" class="estado-proy activa space-y-4">
+
+          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+
+            <!-- BLOQUE HOY -->
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div class="mb-3 flex items-center justify-between gap-2">
+                <h2 class="text-sm font-semibold text-gray-700">Hoy · miércoles 12 de agosto</h2>
+                <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">Proyección</span>
+              </div>
+              <div class="mb-3 flex items-end gap-3">
+                <span class="text-4xl leading-none font-bold text-emerald-600">93,0%</span>
+                <span class="mb-1 text-sm text-gray-500">de tu meta del día</span>
+              </div>
+              <div class="relative mb-1.5 h-5 overflow-hidden rounded-full bg-gray-200">
+                <div class="flex h-full"><div class="h-full bg-emerald-500" style="width:63.7%"></div><div class="rayado-proy h-full" style="width:29.3%"></div></div>
+                <div class="absolute top-[-3px] right-0 bottom-[-3px] w-[2px] bg-gray-900"></div>
+              </div>
+              <div class="mb-4 flex items-center justify-between text-xs text-gray-500">
+                <span><span class="inline-block h-2 w-2 rounded-sm bg-emerald-500 align-middle"></span> Ya realizado &nbsp;·&nbsp;
+                  <span class="rayado-proy inline-block h-2 w-2 rounded-sm align-middle"></span> Por cerrar</span>
+                <span>Meta ▏ <span class="cifra font-medium text-gray-700">$ 4.020.000</span></span>
+              </div>
+
+              <p class="mb-2 text-[11px] font-semibold tracking-wide text-gray-400 uppercase">Tu venta de hoy, por estado</p>
+              <!-- "Facturado" no se pinta cuando es $0: en coordinadora y servientrega la factura
+                   llega a los 1-3 días, así que en el mismo día sería una casilla muerta. -->
+              <div class="grid grid-cols-2 gap-2">
+                <div class="rounded-xl bg-amber-50 p-3"><p class="text-[10px] tracking-wide text-amber-700 uppercase">Confirmado</p><p class="cifra text-lg font-bold text-amber-800">$ 1.180.000</p><p class="text-[10px] text-gray-500">aún sin pedido</p></div>
+                <div class="rounded-xl bg-sky-50 p-3"><p class="text-[10px] tracking-wide text-sky-700 uppercase">Pagado</p><p class="cifra text-lg font-bold text-sky-800">$ 2.560.000</p><p class="text-[10px] text-gray-500">pedido con pago recibido</p></div>
+              </div>
+
+              <!-- Las otras 3 métricas de las tarjetas GW-9, que ya no tienen tira propia -->
+              <div class="mt-4 grid grid-cols-3 gap-2 border-t border-gray-100 pt-3.5">
+                <div><p class="text-[10px] tracking-wide text-gray-400 uppercase">Pedidos</p><p class="text-sm font-bold">7 <span class="text-xs font-normal text-gray-400">de 8</span></p><p class="text-[10px] text-blue-600">87,5%</p></div>
+                <div><p class="text-[10px] tracking-wide text-gray-400 uppercase">Ticket promedio</p><p class="cifra text-sm font-bold">$ 534.286</p><p class="text-[10px] text-emerald-600">122,5% de $ 436.000</p></div>
+                <div><p class="text-[10px] tracking-wide text-gray-400 uppercase">Unidades × ticket</p><p class="text-sm font-bold">2,1</p><p class="text-[10px] text-emerald-600">105,0% de 2,0</p></div>
+              </div>
+            </div>
+
+            <!-- BLOQUE QUINCENA -->
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div class="mb-3 flex items-center justify-between gap-2">
+                <h2 class="text-sm font-semibold text-gray-700">Quincena Q1 · 1 al 15 de agosto</h2>
+                <div class="flex gap-1.5">
+                  <span class="rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-700">Oficial</span>
+                  <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">+ Proyección</span>
+                </div>
+              </div>
+              <div class="mb-3 flex items-end gap-3">
+                <span class="text-4xl leading-none font-bold text-emerald-600">90,9%</span>
+                <span class="mb-1 text-sm text-gray-500">acumulado de la quincena</span>
+              </div>
+              <div class="relative mb-1.5 h-5 overflow-hidden rounded-full bg-gray-200">
+                <div class="flex h-full"><div class="h-full bg-slate-700" style="width:73.9%"></div><div class="rayado-proy h-full" style="width:17.0%"></div></div>
+                <div class="absolute top-[-3px] right-0 bottom-[-3px] w-[2px] bg-gray-900"></div>
+              </div>
+              <div class="mb-4 flex items-center justify-between text-xs text-gray-500">
+                <span><span class="inline-block h-2 w-2 rounded-sm bg-slate-700 align-middle"></span> Oficial &nbsp;·&nbsp;
+                  <span class="rayado-proy inline-block h-2 w-2 rounded-sm align-middle"></span> Proyectado</span>
+                <span>Meta ▏ <span class="cifra font-medium text-gray-700">$ 42.600.000</span></span>
+              </div>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                  <div><p class="text-sm font-medium text-slate-800">Oficial · 1 al 10 de agosto</p><p class="text-[11px] text-gray-500">Liquidado con las facturas del ERP</p></div>
+                  <span class="cifra text-lg font-bold text-slate-800">$ 31.480.000</span>
+                </div>
+                <div class="flex items-center justify-between rounded-xl bg-emerald-50/60 px-4 py-3">
+                  <div><p class="text-sm font-medium text-emerald-800">Proyectado · 11 y 12 de agosto</p><p class="text-[11px] text-gray-500">Desde tus carritos, aún sin facturar</p></div>
+                  <span class="cifra text-lg font-bold text-emerald-800">$ 7.240.000</span>
+                </div>
+              </div>
+              <div class="mt-3 grid grid-cols-3 gap-2 border-t border-gray-100 pt-3.5">
+                <div><p class="text-[10px] tracking-wide text-gray-400 uppercase">Pedidos Q</p><p class="text-sm font-bold">68 <span class="text-xs font-normal text-gray-400">de 74</span></p></div>
+                <div><p class="text-[10px] tracking-wide text-gray-400 uppercase">Falta</p><p class="cifra text-sm font-bold">$ 3.880.000</p></div>
+                <div><p class="text-[10px] tracking-wide text-gray-400 uppercase">Diaria necesaria</p><p class="cifra text-sm font-bold">$ 1.293.333</p><p class="text-[10px] text-gray-400">3 días restantes</p></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- BLOQUE COMISIÓN PROYECTADA -->
+          <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="mb-4 flex items-center justify-between gap-2">
+              <h2 class="text-sm font-semibold text-gray-700">Comisión proyectada de la quincena</h2>
+              <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">Proyección</span>
+            </div>
+            <div class="grid grid-cols-1 gap-5 lg:grid-cols-5">
+              <div class="lg:col-span-2">
+                <p class="text-[11px] tracking-wide text-gray-400 uppercase">Comisión que llevarías</p>
+                <p class="cifra mt-1 text-4xl leading-none font-bold text-emerald-700">$ 379.456</p>
+                <p class="mt-2 text-xs text-gray-500">Escalón actual <span class="font-semibold text-gray-700">90% → 0,88%</span> sobre <span class="cifra font-medium text-gray-700">$ 38.720.000</span> de venta neta</p>
+              </div>
+              <div class="lg:col-span-3">
+                <div class="mb-1.5 flex items-center justify-between text-xs">
+                  <span class="text-gray-500">Progreso al siguiente escalón</span>
+                  <span class="font-medium text-gray-700">91% → 0,90%</span>
+                </div>
+                <div class="mb-2 h-3 overflow-hidden rounded-full bg-gray-200"><div class="h-full bg-emerald-500" style="width:89%"></div></div>
+                <p class="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Te faltan <span class="cifra font-bold">$ 46.000</span> de venta para subir al escalón de 91%.</p>
+              </div>
+            </div>
+
+            <div class="mt-5 border-t border-gray-100 pt-4">
+              <p class="mb-2.5 text-[11px] font-semibold tracking-wide text-gray-400 uppercase">Comisión adicional</p>
+              <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <div class="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+                  <div><p class="text-sm font-medium text-emerald-900">VPT · venta por pedido</p><p class="text-[11px] text-gray-600">$ 569.412 vs meta $ 436.000 · 130,6%</p></div>
+                  <span class="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white">+0,10%</span>
+                </div>
+                <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                  <div><p class="text-sm font-medium text-gray-700">TCV · tasa de conversión</p><p class="text-[11px] text-gray-500">Se confirma cuando entre el archivo de Infobip</p></div>
+                  <span class="rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-500">⏳ Pendiente</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4 flex items-start gap-2 border-t border-gray-100 pt-3.5">
+              <span class="mt-px text-gray-400">ⓘ</span>
+              <p class="text-xs leading-relaxed text-gray-500">
+                Proyección sobre carritos confirmados. La comisión que se paga se calcula con las facturas del ERP e incluye devoluciones,
+                <span class="font-medium text-gray-700">por lo que puede quedar por debajo</span>.
+                <span class="tip ml-1 font-medium text-gray-700 underline decoration-dotted">Cómo se calcula
+                  <span class="tip-box">
+                    <b>Base del mes:</b> <span class="base-tooltip">agosto está declarado con IVA, así que tu venta se mide tal como la paga el cliente.</span><br><br>
+                    <b>Días oficiales:</b> del 1 al 10 de agosto ya fueron liquidados con las facturas del ERP.<br><br>
+                    <b>Días proyectados:</b> 11 y 12 de agosto salen de tus carritos confirmados, netos de envío. Las devoluciones solo aparecen en el archivo del ERP y por eso no entran en la proyección.
+                  </span>
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <!-- BLOQUE BONO DE HOY -->
+          <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="mb-3 flex items-center justify-between gap-2">
+              <h2 class="text-sm font-semibold text-gray-700">Bono de hoy · <span class="cifra">$ 20.000</span></h2>
+              <span class="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-medium text-white">Lo estás ganando</span>
+            </div>
+            <span class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-800"><span class="font-bold">✓</span> Venta ≥ 10% de la meta del día</span>
+            <p class="mt-2.5 text-xs text-gray-500">Es la única condición vigente hoy. Se evalúa al cierre del día con las cifras oficiales.</p>
+          </div>
+
+          <!-- BLOQUE DETALLE DIARIO (existente + columna Fuente) -->
+          <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-100 bg-gray-50 px-5 py-3.5">
+              <h3 class="text-sm font-semibold tracking-wide text-gray-700 uppercase">Detalle diario</h3>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead class="border-b bg-gray-50 text-xs text-gray-500 uppercase">
+                  <tr>
+                    <th class="px-5 py-3 font-medium">Fecha</th>
+                    <th class="px-5 py-3 text-right font-medium">Meta venta</th>
+                    <th class="px-5 py-3 text-right font-medium">Venta real</th>
+                    <th class="px-5 py-3 text-right font-medium">% cump.</th>
+                    <th class="px-5 py-3 text-center font-medium">Pedidos</th>
+                    <th class="px-5 py-3 text-right font-medium">VPT</th>
+                    <th class="px-5 py-3 text-right font-medium">UPT</th>
+                    <th class="px-5 py-3 font-medium">Fuente</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                  <tr><td class="px-5 py-3 font-medium">jue 6 ago</td><td class="cifra px-5 py-3 text-right text-gray-500">$ 3.740.000</td><td class="cifra px-5 py-3 text-right font-medium">$ 3.520.000</td><td class="px-5 py-3 text-right"><span class="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">94,1%</span></td><td class="px-5 py-3 text-center">7 <span class="text-xs text-gray-400">/ 8</span></td><td class="cifra px-5 py-3 text-right">$ 502.857</td><td class="px-5 py-3 text-right">2,0</td><td class="px-5 py-3"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">Oficial</span></td></tr>
+                  <tr><td class="px-5 py-3 font-medium">vie 7 ago</td><td class="cifra px-5 py-3 text-right text-gray-500">$ 3.900.000</td><td class="cifra px-5 py-3 text-right font-medium text-emerald-600">$ 4.290.000</td><td class="px-5 py-3 text-right"><span class="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">110,0%</span></td><td class="px-5 py-3 text-center">9 <span class="text-xs text-gray-400">/ 8</span></td><td class="cifra px-5 py-3 text-right">$ 476.667</td><td class="px-5 py-3 text-right">2,3</td><td class="px-5 py-3"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">Oficial</span></td></tr>
+                  <tr><td class="px-5 py-3 font-medium">lun 10 ago</td><td class="cifra px-5 py-3 text-right text-gray-500">$ 3.860.000</td><td class="cifra px-5 py-3 text-right font-medium text-emerald-600">$ 4.120.000</td><td class="px-5 py-3 text-right"><span class="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">106,7%</span></td><td class="px-5 py-3 text-center">8 <span class="text-xs text-gray-400">/ 8</span></td><td class="cifra px-5 py-3 text-right">$ 515.000</td><td class="px-5 py-3 text-right">2,2</td><td class="px-5 py-3"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">Oficial</span></td></tr>
+                  <tr><td class="px-5 py-3 font-medium">mar 11 ago</td><td class="cifra px-5 py-3 text-right text-gray-500">$ 3.980.000</td><td class="cifra px-5 py-3 text-right font-medium">$ 3.500.000</td><td class="px-5 py-3 text-right"><span class="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">87,9%</span></td><td class="px-5 py-3 text-center">7 <span class="text-xs text-gray-400">/ 8</span></td><td class="cifra px-5 py-3 text-right">$ 500.000</td><td class="px-5 py-3 text-right">2,0</td><td class="px-5 py-3"><span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">Proyección</span></td></tr>
+                  <tr class="bg-emerald-50/30"><td class="px-5 py-3 font-medium">mié 12 ago · hoy</td><td class="cifra px-5 py-3 text-right text-gray-500">$ 4.020.000</td><td class="cifra px-5 py-3 text-right font-medium">$ 3.740.000</td><td class="px-5 py-3 text-right"><span class="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">93,0%</span></td><td class="px-5 py-3 text-center">7 <span class="text-xs text-gray-400">/ 8</span></td><td class="cifra px-5 py-3 text-right">$ 534.286</td><td class="px-5 py-3 text-right">2,1</td><td class="px-5 py-3"><span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">Proyección</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══════ ESTADO 2 · BAJO EL PISO (gate GW-98) ══════ -->
+        <div data-estado-panel="e2" class="estado-proy space-y-4">
+          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div class="mb-3 flex items-center justify-between gap-2">
+                <h2 class="text-sm font-semibold text-gray-700">Hoy · miércoles 12 de agosto</h2>
+                <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">Proyección</span>
+              </div>
+              <div class="mb-3 flex items-end gap-3"><span class="text-4xl leading-none font-bold text-red-600">41,2%</span><span class="mb-1 text-sm text-gray-500">de tu meta del día</span></div>
+              <div class="relative mb-1.5 h-5 overflow-hidden rounded-full bg-gray-200">
+                <div class="flex h-full"><div class="h-full bg-emerald-500" style="width:24.1%"></div><div class="rayado-proy h-full" style="width:17.1%"></div></div>
+                <div class="absolute top-[-3px] right-0 bottom-[-3px] w-[2px] bg-gray-900"></div>
+              </div>
+              <div class="mb-4 flex items-center justify-between text-xs text-gray-500">
+                <span><span class="inline-block h-2 w-2 rounded-sm bg-emerald-500 align-middle"></span> Ya realizado &nbsp;·&nbsp; <span class="rayado-proy inline-block h-2 w-2 rounded-sm align-middle"></span> Por cerrar</span>
+                <span>Meta ▏ <span class="cifra font-medium text-gray-700">$ 4.020.000</span></span>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div class="rounded-xl bg-amber-50 p-3"><p class="text-[10px] tracking-wide text-amber-700 uppercase">Confirmado</p><p class="cifra text-lg font-bold text-amber-800">$ 688.000</p><p class="text-[10px] text-gray-500">aún sin pedido</p></div>
+                <div class="rounded-xl bg-sky-50 p-3"><p class="text-[10px] tracking-wide text-sky-700 uppercase">Pagado</p><p class="cifra text-lg font-bold text-sky-800">$ 969.000</p><p class="text-[10px] text-gray-500">pedido con pago recibido</p></div>
+              </div>
+              <div class="mt-4 grid grid-cols-3 gap-2 border-t border-gray-100 pt-3.5">
+                <div><p class="text-[10px] tracking-wide text-gray-400 uppercase">Pedidos</p><p class="text-sm font-bold">3 <span class="text-xs font-normal text-gray-400">de 8</span></p></div>
+                <div><p class="text-[10px] tracking-wide text-gray-400 uppercase">Ticket promedio</p><p class="cifra text-sm font-bold">$ 552.333</p></div>
+                <div><p class="text-[10px] tracking-wide text-gray-400 uppercase">Unidades × ticket</p><p class="text-sm font-bold">1,7</p></div>
+              </div>
+            </div>
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div class="mb-3 flex items-center justify-between gap-2">
+                <h2 class="text-sm font-semibold text-gray-700">Quincena Q1 · 1 al 15 de agosto</h2>
+                <div class="flex gap-1.5"><span class="rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-700">Oficial</span><span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">+ Proyección</span></div>
+              </div>
+              <div class="mb-3 flex items-end gap-3"><span class="text-4xl leading-none font-bold text-red-600">71,4%</span><span class="mb-1 text-sm text-gray-500">acumulado de la quincena</span></div>
+              <div class="relative mb-1.5 h-5 overflow-hidden rounded-full bg-gray-200">
+                <div class="flex h-full"><div class="h-full bg-slate-700" style="width:57.5%"></div><div class="rayado-proy h-full" style="width:13.9%"></div></div>
+                <div class="absolute top-[-3px] right-0 bottom-[-3px] w-[2px] bg-gray-900"></div>
+              </div>
+              <div class="mb-4 flex items-center justify-between text-xs text-gray-500"><span>Oficial · Proyectado</span><span>Meta ▏ <span class="cifra font-medium text-gray-700">$ 42.600.000</span></span></div>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><div><p class="text-sm font-medium text-slate-800">Oficial · 1 al 10 de agosto</p></div><span class="cifra text-lg font-bold text-slate-800">$ 24.495.000</span></div>
+                <div class="flex items-center justify-between rounded-xl bg-emerald-50/60 px-4 py-3"><div><p class="text-sm font-medium text-emerald-800">Proyectado · 11 y 12 de agosto</p></div><span class="cifra text-lg font-bold text-emerald-800">$ 5.925.000</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-amber-300 bg-white p-5 shadow-sm">
+            <div class="mb-4 flex items-center justify-between gap-2">
+              <h2 class="text-sm font-semibold text-gray-700">Comisión proyectada de la quincena</h2>
+              <span class="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-800">Aún sin comisión</span>
+            </div>
+            <div class="grid grid-cols-1 gap-5 lg:grid-cols-5">
+              <div class="lg:col-span-2">
+                <p class="text-[11px] tracking-wide text-gray-400 uppercase">Comisión que llevarías</p>
+                <p class="cifra mt-1 text-4xl leading-none font-bold text-gray-400">$ 0</p>
+                <p class="mt-2 text-xs text-gray-500">La comisión arranca al llegar al 80% de la meta.</p>
+              </div>
+              <div class="lg:col-span-3">
+                <div class="mb-1.5 flex items-center justify-between text-xs"><span class="text-gray-500">Progreso al primer escalón</span><span class="font-medium text-gray-700">80% → 0,67%</span></div>
+                <div class="mb-2 h-3 overflow-hidden rounded-full bg-gray-200"><div class="h-full bg-amber-500" style="width:89.2%"></div></div>
+                <p class="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Te faltan <span class="cifra font-bold">$ 3.660.000</span> de venta para entrar a comisión.</p>
+              </div>
+            </div>
+            <div class="mt-5 border-t border-gray-100 pt-4">
+              <p class="mb-2.5 text-[11px] font-semibold tracking-wide text-gray-400 uppercase">Comisión adicional</p>
+              <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 opacity-70">
+                  <div><p class="text-sm font-medium text-gray-600">VPT · venta por pedido</p><p class="text-[11px] text-gray-500">$ 561.000 vs meta $ 436.000 · 128,7%</p></div>
+                  <span class="rounded-full border border-gray-300 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-500">No aplica sin comisión de venta</span>
+                </div>
+                <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 opacity-70">
+                  <div><p class="text-sm font-medium text-gray-600">TCV · tasa de conversión</p><p class="text-[11px] text-gray-500">Se confirma cuando entre el archivo de Infobip</p></div>
+                  <span class="rounded-full border border-gray-300 bg-white px-2.5 py-1 text-[11px] font-medium text-gray-500">No aplica sin comisión de venta</span>
+                </div>
+              </div>
+              <p class="mt-2.5 text-xs text-gray-500">El VPT y el TCV son comisión <span class="font-medium text-gray-700">adicional</span>: solo suman si ya estás ganando comisión por venta.</p>
+            </div>
+            <div class="mt-4 flex items-start gap-2 border-t border-gray-100 pt-3.5">
+              <span class="mt-px text-gray-400">ⓘ</span>
+              <p class="text-xs leading-relaxed text-gray-500">Proyección sobre carritos confirmados. La comisión que se paga se calcula con las facturas del ERP e incluye devoluciones, <span class="font-medium text-gray-700">por lo que puede quedar por debajo</span>.</p>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="mb-3 flex items-center justify-between gap-2">
+              <h2 class="text-sm font-semibold text-gray-700">Bono de hoy · <span class="cifra">$ 20.000</span></h2>
+              <span class="rounded-full bg-emerald-600 px-2.5 py-0.5 text-[11px] font-medium text-white">Lo estás ganando</span>
+            </div>
+            <span class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-800"><span class="font-bold">✓</span> Venta ≥ 10% de la meta del día</span>
+            <p class="mt-2.5 text-xs text-gray-500">El bono diario es independiente de la comisión por escalón.</p>
+          </div>
+
+          <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-100 bg-gray-50 px-5 py-3.5"><h3 class="text-sm font-semibold tracking-wide text-gray-700 uppercase">Detalle diario</h3></div>
+            <table class="w-full text-left text-sm">
+              <thead class="border-b bg-gray-50 text-xs text-gray-500 uppercase">
+                <tr><th class="px-5 py-3 font-medium">Fecha</th><th class="px-5 py-3 text-right font-medium">Meta venta</th><th class="px-5 py-3 text-right font-medium">Venta real</th><th class="px-5 py-3 text-right font-medium">% cump.</th><th class="px-5 py-3 font-medium">Fuente</th></tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr><td class="px-5 py-3 font-medium">lun 10 ago</td><td class="cifra px-5 py-3 text-right text-gray-500">$ 3.860.000</td><td class="cifra px-5 py-3 text-right">$ 2.780.000</td><td class="px-5 py-3 text-right"><span class="rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">72,0%</span></td><td class="px-5 py-3"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">Oficial</span></td></tr>
+                <tr class="bg-emerald-50/30"><td class="px-5 py-3 font-medium">mié 12 ago · hoy</td><td class="cifra px-5 py-3 text-right text-gray-500">$ 4.020.000</td><td class="cifra px-5 py-3 text-right">$ 1.657.000</td><td class="px-5 py-3 text-right"><span class="rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">41,2%</span></td><td class="px-5 py-3"><span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">Proyección</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ══════ ESTADO 3 · SIN META REPARTIDA (D7) ══════ -->
+        <div data-estado-panel="e3" class="estado-proy space-y-4">
+          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div class="mb-3 flex items-center justify-between gap-2">
+                <h2 class="text-sm font-semibold text-gray-700">Hoy · miércoles 12 de agosto</h2>
+                <span class="rounded-full border border-gray-300 bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-600">Sin meta</span>
+              </div>
+              <div class="mb-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center">
+                <p class="text-3xl leading-none font-bold text-gray-300">—</p>
+                <p class="mt-2 text-sm font-medium text-gray-700">Tu coordinador aún no ha repartido la meta de este día</p>
+                <p class="mt-1 text-xs text-gray-500">Tu venta se sigue registrando; el cumplimiento aparecerá cuando cargue tu meta.</p>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div class="rounded-xl bg-amber-50 p-3"><p class="text-[10px] tracking-wide text-amber-700 uppercase">Confirmado</p><p class="cifra text-lg font-bold text-amber-800">$ 1.180.000</p><p class="text-[10px] text-gray-500">aún sin pedido</p></div>
+                <div class="rounded-xl bg-sky-50 p-3"><p class="text-[10px] tracking-wide text-sky-700 uppercase">Pagado</p><p class="cifra text-lg font-bold text-sky-800">$ 2.560.000</p><p class="text-[10px] text-gray-500">pedido con pago recibido</p></div>
+              </div>
+              <p class="mt-2.5 text-sm text-gray-600">Total del día: <span class="cifra font-bold text-gray-900">$ 3.740.000</span></p>
+            </div>
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div class="mb-3 flex items-center justify-between gap-2">
+                <h2 class="text-sm font-semibold text-gray-700">Quincena Q1 · 1 al 15 de agosto</h2>
+                <div class="flex gap-1.5"><span class="rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-700">Oficial</span><span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">+ Proyección</span></div>
+              </div>
+              <div class="mb-3 flex items-end gap-3"><span class="text-4xl leading-none font-bold text-emerald-600">94,1%</span><span class="mb-1 text-sm text-gray-500">sobre los 7 días que sí tienen meta</span></div>
+              <div class="relative mb-1.5 h-5 overflow-hidden rounded-full bg-gray-200">
+                <div class="flex h-full"><div class="h-full bg-slate-700" style="width:81.5%"></div><div class="rayado-proy h-full" style="width:12.6%"></div></div>
+                <div class="absolute top-[-3px] right-0 bottom-[-3px] w-[2px] bg-gray-900"></div>
+              </div>
+              <div class="mb-3 flex items-center justify-between text-xs text-gray-500"><span>Oficial · Proyectado</span><span>Meta ▏ <span class="cifra font-medium text-gray-700">$ 21.300.000</span></span></div>
+              <div class="mb-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5">
+                <span class="mt-px text-amber-600">⚠</span>
+                <p class="text-xs leading-relaxed text-amber-900"><span class="font-semibold">5 de los 12 días de la quincena no tienen meta repartida.</span> Su venta —<span class="cifra font-medium">$ 14.180.000</span>— sí cuenta para tu comisión, pero no entra en este porcentaje.</p>
+              </div>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"><div><p class="text-sm font-medium text-slate-800">Oficial · 1 al 10 de agosto</p></div><span class="cifra text-lg font-bold text-slate-800">$ 17.360.000</span></div>
+                <div class="flex items-center justify-between rounded-xl bg-emerald-50/60 px-4 py-3"><div><p class="text-sm font-medium text-emerald-800">Proyectado · 11 y 12 de agosto</p></div><span class="cifra text-lg font-bold text-emerald-800">$ 2.680.000</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="mb-4 flex items-center justify-between gap-2">
+              <h2 class="text-sm font-semibold text-gray-700">Comisión proyectada de la quincena</h2>
+              <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">Proyección parcial</span>
+            </div>
+            <div class="grid grid-cols-1 gap-5 lg:grid-cols-5">
+              <div class="lg:col-span-2">
+                <p class="text-[11px] tracking-wide text-gray-400 uppercase">Comisión que llevarías</p>
+                <p class="cifra mt-1 text-4xl leading-none font-bold text-emerald-700">$ 356.240</p>
+                <p class="mt-2 text-xs text-gray-500">Escalón actual <span class="font-semibold text-gray-700">94% → 0,96%</span> sobre <span class="cifra font-medium text-gray-700">$ 34.220.000</span> de venta neta</p>
+              </div>
+              <div class="lg:col-span-3">
+                <p class="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm leading-relaxed text-amber-900">El escalón se calculó solo con los 7 días que tienen meta. Si tu coordinador reparte los 5 días restantes, <span class="font-semibold">tu porcentaje va a cambiar</span> — en cualquiera de las dos direcciones.</p>
+              </div>
+            </div>
+            <div class="mt-4 flex items-start gap-2 border-t border-gray-100 pt-3.5">
+              <span class="mt-px text-gray-400">ⓘ</span>
+              <p class="text-xs leading-relaxed text-gray-500">Proyección sobre carritos confirmados. La comisión que se paga se calcula con las facturas del ERP e incluye devoluciones, <span class="font-medium text-gray-700">por lo que puede quedar por debajo</span>.</p>
+            </div>
+          </div>
+
+          <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-100 bg-gray-50 px-5 py-3.5"><h3 class="text-sm font-semibold tracking-wide text-gray-700 uppercase">Detalle diario</h3></div>
+            <table class="w-full text-left text-sm">
+              <thead class="border-b bg-gray-50 text-xs text-gray-500 uppercase">
+                <tr><th class="px-5 py-3 font-medium">Fecha</th><th class="px-5 py-3 text-right font-medium">Meta venta</th><th class="px-5 py-3 text-right font-medium">Venta real</th><th class="px-5 py-3 text-right font-medium">% cump.</th><th class="px-5 py-3 font-medium">Fuente</th></tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr><td class="px-5 py-3 font-medium">lun 10 ago</td><td class="cifra px-5 py-3 text-right text-gray-500">$ 3.860.000</td><td class="cifra px-5 py-3 text-right text-emerald-600">$ 4.120.000</td><td class="px-5 py-3 text-right"><span class="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">106,7%</span></td><td class="px-5 py-3"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">Oficial</span></td></tr>
+                <tr class="bg-amber-50/40"><td class="px-5 py-3 font-medium">mar 11 ago</td><td class="px-5 py-3 text-right text-gray-400">—</td><td class="cifra px-5 py-3 text-right">$ 3.500.000</td><td class="px-5 py-3 text-right"><span class="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">Sin meta</span></td><td class="px-5 py-3"><span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">Oficial</span></td></tr>
+                <tr class="bg-amber-50/40"><td class="px-5 py-3 font-medium">mié 12 ago · hoy</td><td class="px-5 py-3 text-right text-gray-400">—</td><td class="cifra px-5 py-3 text-right">$ 3.740.000</td><td class="px-5 py-3 text-right"><span class="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">Sin meta</span></td><td class="px-5 py-3"><span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">Proyección</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ══════ ESTADO 4 · AGOSTO REAL (PROD hoy) ══════ -->
+        <div data-estado-panel="e4" class="estado-proy space-y-4">
+          <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <p class="text-sm font-semibold text-red-900">Esta pantalla no es un diseño: es lo que el dashboard renderizaría hoy</p>
+            <p class="mt-1 text-xs leading-relaxed text-red-800">Con la configuración verificada en PROD el 2026-08-02: agosto cargado desde el archivo de julio, declarado <b>con IVA</b> con las metas sin escalar, sin metas de UPT/VPT/TCV, sin reparto por asesor y sin monto de bono configurado.</p>
+          </div>
+          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div class="mb-3 flex items-center justify-between gap-2">
+                <h2 class="text-sm font-semibold text-gray-700">Hoy · domingo 2 de agosto</h2>
+                <span class="rounded-full border border-gray-300 bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-600">Sin meta</span>
+              </div>
+              <div class="mb-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center">
+                <p class="text-3xl leading-none font-bold text-gray-300">—</p>
+                <p class="mt-2 text-sm font-medium text-gray-700">Tu coordinador aún no ha repartido la meta de este día</p>
+                <p class="mt-1 text-xs text-gray-500">Ningún día de agosto tiene reparto por asesor.</p>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div class="rounded-xl bg-amber-50 p-3"><p class="text-[10px] tracking-wide text-amber-700 uppercase">Confirmado</p><p class="cifra text-lg font-bold text-amber-800">$ 1.420.000</p><p class="text-[10px] text-gray-500">aún sin pedido</p></div>
+                <div class="rounded-xl bg-sky-50 p-3"><p class="text-[10px] tracking-wide text-sky-700 uppercase">Pagado</p><p class="cifra text-lg font-bold text-sky-800">$ 2.310.000</p><p class="text-[10px] text-gray-500">pedido con pago recibido</p></div>
+              </div>
+            </div>
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div class="mb-3 flex items-center justify-between gap-2">
+                <h2 class="text-sm font-semibold text-gray-700">Quincena Q1 · 1 al 15 de agosto</h2>
+                <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">Proyección</span>
+              </div>
+              <div class="mb-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center">
+                <p class="text-3xl leading-none font-bold text-gray-300">—</p>
+                <p class="mt-2 text-sm font-medium text-gray-700">Ninguno de los días de la quincena tiene meta repartida</p>
+              </div>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3"><div><p class="text-sm font-medium text-gray-700">Oficial</p><p class="text-[11px] text-gray-500">El cron aún no ha liquidado ningún día de agosto</p></div><span class="cifra text-lg font-bold text-gray-400">$ 0</span></div>
+                <div class="flex items-center justify-between rounded-xl bg-emerald-50/60 px-4 py-3"><div><p class="text-sm font-medium text-emerald-800">Proyectado · 1 y 2 de agosto</p></div><span class="cifra text-lg font-bold text-emerald-800">$ 6.980.000</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="mb-4 flex items-center justify-between gap-2">
+              <h2 class="text-sm font-semibold text-gray-700">Comisión proyectada de la quincena</h2>
+              <span class="rounded-full border border-gray-300 bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-600">Sin datos suficientes</span>
+            </div>
+            <div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center">
+              <p class="cifra text-3xl leading-none font-bold text-gray-300">—</p>
+              <p class="mt-2 text-sm font-medium text-gray-700">No podemos proyectar tu comisión todavía</p>
+              <p class="mt-1 text-xs text-gray-500">Falta que tu coordinador reparta la meta de estos días.</p>
+            </div>
+            <div class="mt-5 border-t border-gray-100 pt-4">
+              <p class="mb-2.5 text-[11px] font-semibold tracking-wide text-gray-400 uppercase">Comisión adicional</p>
+              <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
+                  <div><p class="text-sm font-medium text-gray-600">VPT · venta por pedido</p><p class="text-[11px] text-gray-500">Tu VPT del mes: $ 596.000</p></div>
+                  <span class="rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-[11px] font-medium text-gray-500">— Sin meta del mes</span>
+                </div>
+                <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
+                  <div><p class="text-sm font-medium text-gray-600">TCV · tasa de conversión</p><p class="text-[11px] text-gray-500">Sin meta y sin archivo de Infobip</p></div>
+                  <span class="rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-[11px] font-medium text-gray-500">— Sin meta del mes</span>
+                </div>
+              </div>
+              <p class="mt-2.5 text-xs text-gray-500"><span class="font-medium text-gray-700">Sin meta del mes</span> no es lo mismo que <span class="font-medium text-gray-700">⏳ pendiente</span>: aquí el dato no va a llegar, porque el presupuesto de agosto no declaró estas metas.</p>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="mb-3 flex items-center justify-between gap-2">
+              <h2 class="text-sm font-semibold text-gray-700">Bono de hoy</h2>
+              <span class="rounded-full border border-gray-300 bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-600">Sin bono configurado</span>
+            </div>
+            <p class="text-xs text-gray-500">No hay monto de bono vigente para esta tienda en agosto, así que la tarjeta no muestra condiciones.</p>
+          </div>
+
+          <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-100 bg-gray-50 px-5 py-3.5"><h3 class="text-sm font-semibold tracking-wide text-gray-700 uppercase">Detalle diario</h3></div>
+            <table class="w-full text-left text-sm">
+              <thead class="border-b bg-gray-50 text-xs text-gray-500 uppercase">
+                <tr><th class="px-5 py-3 font-medium">Fecha</th><th class="px-5 py-3 text-right font-medium">Meta venta</th><th class="px-5 py-3 text-right font-medium">Venta real</th><th class="px-5 py-3 text-right font-medium">% cump.</th><th class="px-5 py-3 font-medium">Fuente</th></tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr class="bg-amber-50/40"><td class="px-5 py-3 font-medium">sáb 1 ago</td><td class="px-5 py-3 text-right text-gray-400">—</td><td class="cifra px-5 py-3 text-right">$ 3.250.000</td><td class="px-5 py-3 text-right"><span class="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">Sin meta</span></td><td class="px-5 py-3"><span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">Proyección</span></td></tr>
+                <tr class="bg-amber-50/40"><td class="px-5 py-3 font-medium">dom 2 ago · hoy</td><td class="px-5 py-3 text-right text-gray-400">—</td><td class="cifra px-5 py-3 text-right">$ 3.730.000</td><td class="px-5 py-3 text-right"><span class="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">Sin meta</span></td><td class="px-5 py-3"><span class="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">Proyección</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ══════ ESTADO 5 · CARGANDO ══════ -->
+        <div data-estado-panel="e5" class="estado-proy space-y-4">
+          <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div class="skeleton rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div class="mb-4 h-4 w-48 rounded bg-gray-200"></div><div class="mb-3 h-10 w-32 rounded bg-gray-200"></div><div class="mb-4 h-5 w-full rounded-full bg-gray-200"></div>
+              <div class="grid grid-cols-3 gap-2"><div class="h-20 rounded-xl bg-gray-100"></div><div class="h-20 rounded-xl bg-gray-100"></div><div class="h-20 rounded-xl bg-gray-100"></div></div>
+            </div>
+            <div class="skeleton rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div class="mb-4 h-4 w-56 rounded bg-gray-200"></div><div class="mb-3 h-10 w-32 rounded bg-gray-200"></div><div class="mb-4 h-5 w-full rounded-full bg-gray-200"></div>
+              <div class="mb-2 h-14 rounded-xl bg-gray-100"></div><div class="h-14 rounded-xl bg-gray-100"></div>
+            </div>
+          </div>
+          <div class="skeleton rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div class="mb-4 h-4 w-64 rounded bg-gray-200"></div>
+            <div class="grid grid-cols-1 gap-5 lg:grid-cols-5">
+              <div class="lg:col-span-2"><div class="mb-2 h-3 w-32 rounded bg-gray-200"></div><div class="h-10 w-40 rounded bg-gray-200"></div></div>
+              <div class="lg:col-span-3"><div class="mb-2 h-3 rounded bg-gray-200"></div><div class="mb-3 h-3 rounded-full bg-gray-200"></div><div class="h-9 rounded-lg bg-gray-100"></div></div>
+            </div>
+          </div>
+          <div class="skeleton rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"><div class="mb-4 h-4 w-40 rounded bg-gray-200"></div><div class="h-32 rounded-xl bg-gray-100"></div></div>
+          <p class="text-center text-xs text-gray-400">Los bloques cargan por separado (props lazy de Inertia): la pestaña Consultar ventas ya es usable mientras tanto.</p>
+        </div>
+
+        <!-- ══════ ESTADO 6 · FALLA ══════ -->
+        <div data-estado-panel="e6" class="estado-proy space-y-4">
+          <div class="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5">
+            <span class="mt-px text-red-600">⚠</span>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold text-red-900">No pudimos calcular tu proyección</p>
+              <p class="mt-0.5 text-xs leading-relaxed text-red-800">Vuelve a intentarlo en un momento. Tus carritos y tus ventas del día no se ven afectados.</p>
+            </div>
+            <button class="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-800">Reintentar</button>
+          </div>
+          <p class="text-center text-xs text-gray-400">La falla degrada solo esta pestaña: Consultar ventas y el botón Nueva venta siguen funcionando.</p>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           TAB 2 · CONSULTAR VENTAS — solo filtros y tabla, sin indicadores
+           ══════════════════════════════════════════════════════════════ -->
+      <section id="tab-consultar" class="tab-panel space-y-3">
+
+        <!-- BLOQUE DE FILTROS (patrón de gestion-ventas → ConsultaVentas.vue) -->
+        <div class="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+
+          <!-- Fila 1: período -->
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="mr-1 text-xs font-medium text-gray-500">Período:</span>
+            <button class="rounded-md bg-gray-900 px-3 py-1 text-xs font-medium text-white">Quincena actual</button>
+            <button class="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600">Quincena anterior</button>
+            <button class="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600">Hoy</button>
+            <button class="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600">Personalizado</button>
+            <div class="ml-1 flex items-center gap-1">
+              <input type="date" value="2026-08-01" class="rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-700" />
+              <span class="text-xs text-gray-400">→</span>
+              <input type="date" value="2026-08-12" class="rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-700" />
+            </div>
+          </div>
+
+          <!-- Fila 2: mensajería + buscador inteligente -->
+          <div class="flex flex-wrap items-center gap-2">
+            <select class="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700">
+              <option>Mensajería: todas</option>
+              <option>Coordinadora</option>
+              <option>Servientrega</option>
+              <option>Mensajería interna</option>
+            </select>
+            <input type="text" placeholder="Documento, nombre del cliente o #carrito…"
+              class="min-w-[240px] flex-1 rounded-md border border-gray-200 px-3 py-1.5 text-xs text-gray-700 placeholder:text-gray-400" />
+            <button class="rounded-md bg-gray-900 px-4 py-1.5 text-xs font-medium text-white">Buscar</button>
+          </div>
+        </div>
+
+        <!-- Navegación por tipo de origen -->
+        <div class="flex w-fit flex-wrap gap-2 rounded-lg bg-gray-100 p-1">
+          <button class="flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm">
+            ▦ Todos <span class="rounded-full bg-gray-200 px-1.5 py-0.5 text-xs text-gray-600">34</span></button>
+          <button class="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-gray-600">
+            ✆ WhatsApp <span class="rounded-full bg-green-100 px-1.5 py-0.5 text-xs text-green-700">21</span></button>
+          <button class="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-gray-600">
+            ▤ Abandonados <span class="rounded-full bg-orange-100 px-1.5 py-0.5 text-xs text-orange-700">6</span></button>
+          <button class="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-gray-600">
+            ▭ Pago pendiente <span class="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">5</span></button>
+          <button class="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-gray-600">
+            ▢ Archivados <span class="rounded-full bg-gray-200 px-1.5 py-0.5 text-xs text-gray-600">2</span></button>
+        </div>
+
+        <!-- Chips de estado logístico (los de TablaVentas.vue, con sus conteos) -->
+        <div class="mb-1 flex w-fit flex-wrap gap-1 rounded-lg bg-gray-100 p-1">
+          <button class="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-gray-900 shadow-sm">Todos (34)</button>
+          <button class="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600">Pendiente de pago (7)</button>
+          <button class="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600">Pagadas (8)</button>
+          <button class="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600">En ruta (6)</button>
+          <button class="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600">Entregadas (4)</button>
+          <button class="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600">Facturadas (9)</button>
+        </div>
+
+        <!-- Tabla: columnas reales de TablaVentas.vue -->
+        <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 text-[11px] tracking-wide text-gray-500 uppercase">
+                <tr>
+                  <th class="border-r border-gray-200 px-4 py-2.5 text-left font-semibold">Carrito</th>
+                  <th class="px-4 py-2.5 text-center font-semibold">Origen</th>
+                  <th class="px-4 py-2.5 text-center font-semibold">Tienda</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Cliente</th>
+                  <th class="px-4 py-2.5 text-center font-semibold">Entrega</th>
+                  <th class="px-4 py-2.5 text-center font-semibold">Prod.</th>
+                  <th class="px-4 py-2.5 text-right font-semibold">Total</th>
+                  <th class="px-4 py-2.5 text-left font-semibold">Pedido</th>
+                  <th class="px-4 py-2.5 text-center font-semibold">Tiempo</th>
+                  <th class="border-l border-gray-200 px-4 py-2.5 text-center font-semibold">Acciones</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+
+                <tr>
+                  <td class="border-r border-gray-200 px-4 py-3 align-top">
+                    <div class="flex flex-col gap-1">
+                      <a class="text-sm font-semibold text-blue-600 underline">#884210</a>
+                      <span class="w-fit rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">Facturada</span>
+                      <span class="text-xs text-gray-500">12/08/2026 09:14</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center align-top"><span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">WhatsApp</span></td>
+                  <td class="px-4 py-3 text-center align-top"><span class="text-sm font-medium text-gray-700">STIRPE</span></td>
+                  <td class="px-4 py-3 align-top">
+                    <div class="flex flex-col gap-1">
+                      <span class="text-sm font-medium text-gray-900">Marcela Ospina</span>
+                      <span class="flex items-center gap-1 text-xs text-gray-500">300 412 8891 <span class="text-gray-400">☎</span> <span class="text-gray-400">✆</span></span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center align-top"><span class="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">Coordinadora</span></td>
+                  <td class="px-4 py-3 text-center align-top text-sm text-gray-700">3</td>
+                  <td class="cifra px-4 py-3 text-right align-top text-sm font-semibold text-gray-900">$ 620.000</td>
+                  <td class="px-4 py-3 align-top">
+                    <div class="flex flex-col gap-1">
+                      <span class="text-sm font-medium text-gray-900">#PED-556201</span>
+                      <span class="w-fit rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">Pagado</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center align-top text-sm font-medium text-emerald-600">4h</td>
+                  <td class="border-l border-gray-200 px-4 py-3 text-center align-top"><button class="text-xs text-gray-600">👁 Ver</button></td>
+                </tr>
+
+                <tr>
+                  <td class="border-r border-gray-200 px-4 py-3 align-top">
+                    <div class="flex flex-col gap-1">
+                      <a class="text-sm font-semibold text-blue-600 underline">#884233</a>
+                      <span class="w-fit rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">En ruta</span>
+                      <span class="text-xs text-gray-500">12/08/2026 10:02</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center align-top"><span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">Asignado</span></td>
+                  <td class="px-4 py-3 text-center align-top"><span class="text-sm font-medium text-gray-700">STIRPE</span></td>
+                  <td class="px-4 py-3 align-top">
+                    <div class="flex flex-col gap-1">
+                      <span class="text-sm font-medium text-gray-900">Jhon Cardona</span>
+                      <span class="flex items-center gap-1 text-xs text-gray-500">311 776 2043 <span class="text-gray-400">☎</span> <span class="text-gray-400">✆</span></span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center align-top"><span class="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700">Mensajería interna</span></td>
+                  <td class="px-4 py-3 text-center align-top text-sm text-gray-700">2</td>
+                  <td class="cifra px-4 py-3 text-right align-top text-sm font-semibold text-gray-900">$ 1.140.000</td>
+                  <td class="px-4 py-3 align-top">
+                    <div class="flex flex-col gap-1">
+                      <span class="text-sm font-medium text-gray-900">#PED-556218</span>
+                      <span class="w-fit rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">Pagado</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center align-top text-sm font-medium text-emerald-600">3h</td>
+                  <td class="border-l border-gray-200 px-4 py-3 text-center align-top"><button class="text-xs text-gray-600">👁 Ver</button></td>
+                </tr>
+
+                <tr>
+                  <td class="border-r border-gray-200 px-4 py-3 align-top">
+                    <div class="flex flex-col gap-1">
+                      <a class="text-sm font-semibold text-blue-600 underline">#884288</a>
+                      <span class="w-fit rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pendiente de pago</span>
+                      <span class="text-xs text-gray-500">12/08/2026 12:20</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center align-top"><span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">WhatsApp</span></td>
+                  <td class="px-4 py-3 text-center align-top"><span class="text-sm font-medium text-gray-700">STIRPE</span></td>
+                  <td class="px-4 py-3 align-top">
+                    <div class="flex flex-col gap-1">
+                      <span class="text-sm font-medium text-gray-900">Andrés Villa</span>
+                      <span class="flex items-center gap-1 text-xs text-gray-500">315 220 7734 <span class="text-gray-400">☎</span> <span class="text-gray-400">✆</span></span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center align-top"><span class="rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">Coordinadora</span></td>
+                  <td class="px-4 py-3 text-center align-top text-sm text-gray-700">1</td>
+                  <td class="cifra px-4 py-3 text-right align-top text-sm font-semibold text-gray-900">$ 460.000</td>
+                  <td class="px-4 py-3 align-top">
+                    <div class="flex flex-col gap-1">
+                      <span class="text-sm font-medium text-gray-900">#PED-556240</span>
+                      <span class="w-fit rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pago pendiente</span>
+                      <a class="text-xs text-blue-600 underline">Ir a checkout</a>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center align-top text-sm font-medium text-amber-600">1h</td>
+                  <td class="border-l border-gray-200 px-4 py-3 text-center align-top"><button class="text-xs text-gray-600">👁 Ver</button></td>
+                </tr>
+
+                <tr>
+                  <td class="border-r border-gray-200 px-4 py-3 align-top">
+                    <div class="flex flex-col gap-1">
+                      <a class="text-sm font-semibold text-blue-600 underline">#884301</a>
+                      <span class="w-fit rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">Pendiente de pago</span>
+                      <span class="text-xs text-gray-500">12/08/2026 13:05</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center align-top"><span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">Asignado</span></td>
+                  <td class="px-4 py-3 text-center align-top"><span class="text-sm font-medium text-gray-700">DEREK</span></td>
+                  <td class="px-4 py-3 align-top">
+                    <div class="flex flex-col gap-1">
+                      <span class="text-sm font-medium text-gray-900">Luz Marina Gil</span>
+                      <span class="flex items-center gap-1 text-xs text-gray-500">301 664 1120 <span class="text-gray-400">☎</span> <span class="text-gray-400">✆</span></span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center align-top"><span class="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700">Mensajería interna</span></td>
+                  <td class="px-4 py-3 text-center align-top text-sm text-gray-700">2</td>
+                  <td class="cifra px-4 py-3 text-right align-top text-sm font-semibold text-gray-900">$ 720.000</td>
+                  <td class="px-4 py-3 align-top"><span class="text-sm text-gray-400">— Sin pedido</span></td>
+                  <td class="px-4 py-3 text-center align-top text-sm font-medium text-amber-600">40 min</td>
+                  <td class="border-l border-gray-200 px-4 py-3 text-center align-top"><button class="text-xs text-gray-600">👁 Ver</button></td>
+                </tr>
+
+                <tr>
+                  <td class="border-r border-gray-200 px-4 py-3 align-top">
+                    <div class="flex flex-col gap-1">
+                      <a class="text-sm font-semibold text-blue-600 underline">#884118</a>
+                      <span class="w-fit rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">Entregada</span>
+                      <span class="text-xs text-gray-500">10/08/2026 16:48</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center align-top"><span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">WhatsApp</span></td>
+                  <td class="px-4 py-3 text-center align-top"><span class="text-sm font-medium text-gray-700">STIRPE</span></td>
+                  <td class="px-4 py-3 align-top">
+                    <div class="flex flex-col gap-1">
+                      <span class="text-sm font-medium text-gray-900">Diana Peláez</span>
+                      <span class="flex items-center gap-1 text-xs text-gray-500">320 998 5512 <span class="text-gray-400">☎</span> <span class="text-gray-400">✆</span></span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center align-top"><span class="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">Servientrega</span></td>
+                  <td class="px-4 py-3 text-center align-top text-sm text-gray-700">4</td>
+                  <td class="cifra px-4 py-3 text-right align-top text-sm font-semibold text-gray-900">$ 800.000</td>
+                  <td class="px-4 py-3 align-top">
+                    <div class="flex flex-col gap-1">
+                      <span class="text-sm font-medium text-gray-900">#PED-556104</span>
+                      <span class="w-fit rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">Pagado</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-center align-top text-sm font-medium text-red-600">2d</td>
+                  <td class="border-l border-gray-200 px-4 py-3 text-center align-top"><button class="text-xs text-gray-600">👁 Ver</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="flex items-center justify-between border-t border-gray-200 px-4 py-3 text-xs text-gray-500">
+            <span>Mostrando 1–5 de 34</span>
+            <div class="flex gap-1">
+              <button class="rounded border border-gray-200 px-2.5 py-1">◀</button>
+              <button class="rounded bg-gray-900 px-2.5 py-1 text-white">1</button>
+              <button class="rounded border border-gray-200 px-2.5 py-1">▶</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="text-center text-xs text-gray-400">Sin indicadores: los KPIs viven solo en el Dashboard cumplimiento.</p>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script>
+  // ── Tabs de la página ─────────────────────────────────────────────────
+  let tabActual = 'dashboard';
+  function pintarTabs() {
+    document.querySelectorAll('.btn-tab').forEach(b => {
+      const activo = b.dataset.tab === tabActual;
+      b.className = 'btn-tab rounded-md px-4 py-1.5 text-sm font-medium '
+        + (activo ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600');
+    });
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('activa', p.id === 'tab-' + tabActual));
+  }
+  document.querySelectorAll('.btn-tab').forEach(b => b.addEventListener('click', () => {
+    tabActual = b.dataset.tab; pintarTabs(); window.scrollTo({ top: 0 });
+  }));
+
+  // ── Estado de la proyección (control del mockup) ───────────────────────
+  function pintarEstado(id) {
+    document.querySelectorAll('.btn-estado').forEach(b => {
+      const activo = b.dataset.estado === id;
+      b.className = 'btn-estado rounded-md px-2.5 py-1 text-xs font-medium ' + (activo ? 'bg-white text-gray-900' : 'text-gray-400');
+    });
+    document.querySelectorAll('.estado-proy').forEach(s => s.classList.toggle('activa', s.dataset.estadoPanel === id));
+  }
+  document.querySelectorAll('.btn-estado').forEach(b => b.addEventListener('click', () => {
+    pintarEstado(b.dataset.estado);
+    if (tabActual !== 'dashboard') { tabActual = 'dashboard'; pintarTabs(); }
+  }));
+
+  // ── Conmutador de base de IVA (control del mockup) ─────────────────────
+  // GW-107 D12: el asesor NO alterna. Existe aquí solo para validar ambos textos.
+  let conIva = true;
+  const btnBase = document.getElementById('btn-base');
+  btnBase.addEventListener('click', () => {
+    conIva = !conIva;
+    btnBase.textContent = conIva ? 'con IVA' : 'sin IVA';
+    document.querySelectorAll('.base-label').forEach(el => el.textContent = conIva ? 'con IVA incluido' : 'sin IVA');
+    document.querySelectorAll('.base-tooltip').forEach(el => el.textContent = conIva
+      ? 'agosto está declarado con IVA, así que tu venta se mide tal como la paga el cliente.'
+      : 'agosto está declarado sin IVA, así que a tus carritos se les descuenta el impuesto (÷ 1,19). Es una aproximación: el carrito no guarda el IVA discriminado.');
+  });
+
+  pintarEstado('e1');
+  pintarTabs();
+</script>
+
+</body>
+</html>
