@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REQ-QUINTA-037 · Firma TyC por WhatsApp — Prototipo</title>
+<!--
+  REQ-QUINTA-037 — Firma electrónica de TyC por código WhatsApp (canal admin)
+  Prototipo de validación. NO es código productivo. Sin dependencias externas.
+  Spec: docs/requirements/REQ-QUINTA-037/spec.md
+-->
+<style>
+  :root{
+    --azul-admin:#2c7ae5; --azul-marca:#0071BC;
+    --texto:#12263f; --muted:#95aac9; --borde:#e3ebf6;
+    --fondo:#f9fbfd; --verde:#16a34a; --naranja:#f6893d; --rojo:#e63757;
+    --wa-verde:#075e54; --wa-chat:#ece5dd;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    background:var(--fondo); color:var(--texto); font-size:14px; line-height:1.5;
+  }
+  /* ═══════════ BARRA SUPERIOR ═══════════ */
+  .topbar{
+    background:#fff;border-bottom:1px solid var(--borde);
+    padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    position:sticky;top:0;z-index:50;
+  }
+  .topbar .req-badge{
+    background:#fdf3e7;color:#b3661a;border:1px dashed #e8b27d;
+    font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px;letter-spacing:.4px;
+  }
+  .topbar h1{font-size:15px;font-weight:700}
+  .topbar .sub{font-size:12px;color:var(--muted)}
+  .btn-reset{
+    margin-left:auto;border:1px solid var(--borde);background:#fff;color:var(--muted);
+    padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-weight:600;
+  }
+  .btn-reset:hover{color:var(--texto);border-color:var(--muted)}
+  /* ═══════════ BARRA DE PROCESO ═══════════ */
+  .proceso{
+    display:flex;justify-content:center;gap:0;padding:16px 24px 8px;flex-wrap:wrap;
+  }
+  .proc-step{display:flex;align-items:center;gap:10px;padding:0 6px}
+  .proc-dot{
+    width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:14px;background:#e9f0f9;color:var(--muted);
+    border:2px solid var(--borde);transition:all .35s;flex-shrink:0;
+  }
+  .proc-step.activo .proc-dot{background:var(--azul-admin);color:#fff;border-color:var(--azul-admin);
+    box-shadow:0 0 0 5px rgba(44,122,229,.15);animation:pulso 1.6s infinite}
+  .proc-step.hecho .proc-dot{background:var(--verde);color:#fff;border-color:var(--verde)}
+  .proc-step.hecho .proc-dot::before{content:"✓"}
+  .proc-step.hecho .proc-dot span{display:none}
+  @keyframes pulso{0%,100%{box-shadow:0 0 0 4px rgba(44,122,229,.18)}50%{box-shadow:0 0 0 9px rgba(44,122,229,.06)}}
+  .proc-label{font-size:12px;font-weight:600;color:var(--muted);max-width:110px;line-height:1.25}
+  .proc-step.activo .proc-label{color:var(--azul-admin)}
+  .proc-step.hecho .proc-label{color:var(--verde)}
+  .proc-linea{width:56px;height:2px;background:var(--borde);margin:0 4px;align-self:center}
+  /* ═══════════ ESCENARIO ═══════════ */
+  .escenario{
+    display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:24px;
+    max-width:1400px;margin:8px auto 60px;padding:0 24px;align-items:start;
+  }
+  @media (max-width:1050px){.escenario{grid-template-columns:1fr}.panel-titular{margin:0 auto}}
+  .actor-titulo{
+    font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px;
+  }
+  .actor-titulo::after{content:"";flex:1;height:1px;background:var(--borde)}
+  /* ═══════════ PANEL ASESOR (réplica Dashkit) ═══════════ */
+  .admin-frame{
+    background:#fff;border:1px solid var(--borde);border-radius:14px;overflow:hidden;
+    box-shadow:0 6px 24px rgba(18,38,63,.06);
+  }
+  .admin-nav{
+    background:#fff;border-bottom:1px solid var(--borde);padding:0 20px;display:flex;gap:4px;
+  }
+  .admin-tab{
+    padding:13px 16px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;
+    border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;
+  }
+  .admin-tab.activa{color:var(--azul-admin);border-bottom-color:var(--azul-admin)}
+  .admin-body{padding:24px;background:var(--fondo);min-height:640px}
+  .header-pretitle{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .header-title{font-size:22px;font-weight:600;margin:2px 0 18px}
+  /* cards de paso (réplica card-paso del wizard real) */
+  .card-paso{
+    background:#fff;border:1px solid var(--borde);border-radius:12px;margin-bottom:14px;overflow:hidden;
+  }
+  .card-paso .cp-head{display:flex;align-items:center;gap:12px;padding:14px 20px;cursor:default}
+  .paso-badge{
+    width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:700;color:#fff;background:var(--azul-admin);flex-shrink:0;
+  }
+  .paso-badge.done{background:var(--verde)}
+  .paso-badge.done:empty::before{content:"✓"}
+  .cp-head h4{font-size:15px;font-weight:700;flex:1}
+  .cp-resumen{font-size:12.5px;color:var(--muted)}
+  .cp-body{padding:4px 20px 20px 62px}
+  .card-paso.colapsada .cp-body{display:none}
+  /* paso 5 */
+  #card-paso5{display:none;border:2px solid var(--azul-admin);box-shadow:0 4px 18px rgba(44,122,229,.10)}
+  .aviso-bloqueo{
+    background:#fdf3e7;border:1px solid #f3d3ac;color:#8a5417;border-radius:8px;
+    padding:10px 14px;font-size:12.5px;margin-top:14px;display:flex;gap:8px;align-items:flex-start;
+  }
+  .form-label{font-size:12px;font-weight:600;color:var(--texto);display:block;margin-bottom:5px}
+  .form-input{
+    border:1px solid #d2ddec;border-radius:8px;padding:9px 12px;font-size:14px;width:100%;
+    color:var(--texto);background:#fff;
+  }
+  .btn{
+    border:none;border-radius:8px;padding:10px 18px;font-size:13.5px;font-weight:600;cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;transition:all .15s;
+  }
+  .btn-primario{background:var(--azul-admin);color:#fff}
+  .btn-primario:hover{background:#2368c8}
+  .btn-outline{background:#fff;color:var(--azul-admin);border:1px solid var(--azul-admin)}
+  .btn-outline:hover{background:#eef4ff}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;border-radius:20px;
+    padding:4px 12px;font-size:11.5px;font-weight:700;letter-spacing:.03em;
+  }
+  .badge-pendiente{background:#e9f0f9;color:#5a7ba6}
+  .badge-enviado{background:#e0edff;color:#2c7ae5}
+  .badge-expirado{background:#fdeee2;color:#c96a1f}
+  .badge-aceptado{background:#e3f6ea;color:#158443}
+  .contador{
+    font-variant-numeric:tabular-nums;font-weight:700;color:var(--azul-admin);font-size:14px;
+  }
+  .link-demo{
+    font-size:11px;color:var(--naranja);border:1px dashed var(--naranja);border-radius:6px;
+    padding:3px 8px;cursor:pointer;background:#fff;font-weight:600;
+  }
+  /* sello */
+  .sello{
+    display:none;background:#f2fbf5;border:1px solid #bfe6cc;border-radius:10px;padding:16px 18px;margin-top:14px;
+  }
+  .sello h5{font-size:13px;font-weight:800;color:#158443;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .sello table{width:100%;font-size:12.5px;border-collapse:collapse}
+  .sello td{padding:3px 0}
+  .sello td:first-child{color:#5c8a6b;width:150px}
+  .sello td:last-child{font-weight:600}
+  .btn-constancia{margin-top:10px;background:#fff;border:1px solid #bfe6cc;color:#158443}
+  .btn-constancia:hover{background:#e9f7ee}
+  /* sucesos */
+  .sucesos{background:#fff;border:1px solid var(--borde);border-radius:12px;margin-top:18px;overflow:hidden}
+  .sucesos h5{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+    padding:12px 18px;border-bottom:1px solid var(--borde)}
+  .sucesos table{width:100%;border-collapse:collapse;font-size:12.5px}
+  .sucesos td{padding:9px 18px;border-bottom:1px solid #f1f5fa;vertical-align:top}
+  .sucesos td:first-child{color:var(--muted);white-space:nowrap;width:130px;font-variant-numeric:tabular-nums}
+  .sucesos tr:last-child td{border-bottom:none}
+  /* ficha contrato */
+  .ficha-migas{font-size:12px;color:var(--muted);margin-bottom:14px}
+  .ficha-migas b{color:var(--texto)}
+  .card-simple{background:#fff;border:1px solid var(--borde);border-radius:12px;margin-bottom:14px}
+  .card-simple .cs-head{padding:13px 20px;border-bottom:1px solid var(--borde);display:flex;align-items:center;gap:10px}
+  .card-simple .cs-head h4{font-size:14px;font-weight:700;flex:1}
+  .card-simple .cs-body{padding:18px 20px}
+  .tag-legacy{background:#f1f5fa;color:var(--muted);font-size:10.5px;font-weight:700;
+    padding:3px 8px;border-radius:5px;letter-spacing:.05em}
+  .pagos-wrap{position:relative}
+  .candado-overlay{
+    position:absolute;inset:0;background:rgba(249,251,253,.93);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    border-radius:12px;z-index:5;text-align:center;padding:20px;
+  }
+  .candado-overlay .icono{font-size:30px}
+  .candado-overlay p{font-size:12.5px;font-weight:600;color:#8a5417;max-width:280px}
+  /* ═══════════ PANEL TITULAR (celular) ═══════════ */
+  @media (min-width:1051px){.panel-titular{position:sticky;top:84px}}
+  .telefono{
+    width:360px;background:#0d0d0f;border-radius:44px;padding:12px;
+    box-shadow:0 18px 50px rgba(18,38,63,.25);margin:0 auto;
+  }
+  .tel-pantalla{
+    background:#fff;border-radius:34px;overflow:hidden;height:680px;position:relative;
+    display:flex;flex-direction:column;
+  }
+  .tel-notch{
+    position:absolute;top:0;left:50%;transform:translateX(-50%);
+    width:120px;height:26px;background:#0d0d0f;border-radius:0 0 16px 16px;z-index:20;
+  }
+  .tel-vista{display:none;flex-direction:column;height:100%}
+  .tel-vista.visible{display:flex}
+  /* idle */
+  #tel-idle{background:linear-gradient(160deg,#1b3a5c,#0e2036);color:#fff;align-items:center;justify-content:center;text-align:center;padding:30px}
+  #tel-idle .hora{font-size:52px;font-weight:200;letter-spacing:1px}
+  #tel-idle .fecha{font-size:14px;opacity:.75;margin-bottom:36px}
+  #tel-idle .sin-msj{font-size:12.5px;opacity:.55;border:1px dashed rgba(255,255,255,.3);border-radius:10px;padding:12px 18px}
+  .notif-wa{
+    display:none;background:rgba(255,255,255,.16);border-radius:14px;
+    padding:12px 14px;text-align:left;width:100%;margin-bottom:20px;cursor:pointer;
+    animation:entra .4s ease;
+  }
+  @keyframes entra{from{transform:translateY(-16px);opacity:0}to{transform:none;opacity:1}}
+  .notif-wa .app{font-size:10.5px;font-weight:700;opacity:.8;display:flex;gap:6px;align-items:center;margin-bottom:4px}
+  .notif-wa .txt{font-size:12.5px;line-height:1.4}
+  /* whatsapp */
+  #tel-wa{background:var(--wa-chat)}
+  .wa-header{background:var(--wa-verde);color:#fff;padding:34px 14px 12px;display:flex;align-items:center;gap:10px}
+  .wa-avatar{width:36px;height:36px;border-radius:50%;background:#fff;color:var(--wa-verde);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+  .wa-nombre{font-size:14.5px;font-weight:700;line-height:1.15}
+  .wa-estado{font-size:11px;opacity:.8}
+  .wa-chat{
+    flex:1;overflow-y:auto;padding:18px 12px;
+    background-image:radial-gradient(rgba(0,0,0,.035) 1.2px,transparent 1.2px);background-size:16px 16px;
+  }
+  .wa-burbuja{
+    background:#fff;border-radius:2px 12px 12px 12px;padding:10px 12px 6px;max-width:88%;
+    font-size:13px;line-height:1.45;box-shadow:0 1px 1px rgba(0,0,0,.08);animation:entra .35s ease;
+  }
+  .wa-burbuja .codigo-destacado{
+    display:inline-block;background:#eef7ee;border:1px solid #cfe8cf;border-radius:6px;
+    font-weight:800;letter-spacing:3px;padding:2px 10px;font-size:16px;margin:6px 0;
+    font-variant-numeric:tabular-nums;
+  }
+  .wa-burbuja a{color:#0b7fbf;font-weight:600;word-break:break-all}
+  .wa-hora{font-size:10px;color:#8696a0;text-align:right;margin-top:3px}
+  .wa-fecha-chip{
+    align-self:center;background:#fff;border-radius:8px;font-size:10.5px;color:#5b6b76;
+    padding:4px 10px;margin:0 auto 12px;width:fit-content;box-shadow:0 1px 1px rgba(0,0,0,.06);
+  }
+  /* página de firma */
+  #tel-firma{background:#f4f8fb}
+  .firma-header{background:#fff;border-bottom:1px solid #e2ecf3;padding:36px 16px 12px;text-align:center}
+  .firma-logo{font-size:13px;font-weight:800;letter-spacing:.16em;color:var(--azul-marca)}
+  .firma-logo small{display:block;font-size:8.5px;letter-spacing:.3em;color:#7fa8c6;font-weight:700}
+  .firma-scroll{flex:1;overflow-y:auto;padding:14px 14px 20px}
+  .firma-scroll h2{font-size:16px;font-weight:800;color:var(--texto);margin:4px 0 12px;text-align:center}
+  .f-card{background:#fff;border:1px solid #e2ecf3;border-radius:12px;padding:14px;margin-bottom:12px}
+  .f-card h3{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--azul-marca);margin-bottom:8px}
+  .resumen-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:12.5px}
+  .resumen-grid .lbl{color:#7d93a8;font-size:11px}
+  .resumen-grid .val{font-weight:700}
+  .f-card details{border-top:1px solid #eef4f8;padding:8px 0}
+  .f-card details:first-of-type{border-top:none}
+  .f-card summary{font-size:13px;font-weight:700;cursor:pointer;color:var(--texto)}
+  .f-card details p{font-size:12px;color:#4a5f72;margin-top:6px;line-height:1.55}
+  .placeholder-legal{
+    font-size:10px;color:#b3661a;background:#fdf3e7;border-radius:5px;padding:2px 7px;
+    display:inline-block;margin-top:6px;font-weight:700;
+  }
+  .check-linea{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;font-weight:600;padding:2px 0}
+  .check-linea input{width:19px;height:19px;accent-color:var(--azul-marca);flex-shrink:0;margin-top:1px}
+  .otp-fila{display:flex;gap:7px;justify-content:center;margin:12px 0 4px}
+  .otp-caja{
+    width:40px;height:48px;border:1.5px solid #cfdeeb;border-radius:9px;text-align:center;
+    font-size:20px;font-weight:800;color:var(--texto);background:#fff;
+    font-variant-numeric:tabular-nums;
+  }
+  .otp-caja:focus{outline:none;border-color:var(--azul-marca);box-shadow:0 0 0 3px rgba(0,113,188,.12)}
+  .otp-caja:disabled{background:#f1f6fa;color:#b9c9d6}
+  .firma-error{
+    display:none;background:#fdecef;border:1px solid #f5c2cb;color:#b02a42;border-radius:8px;
+    padding:9px 12px;font-size:12px;font-weight:600;margin-top:8px;text-align:center;
+  }
+  .btn-firmar{
+    width:100%;background:var(--azul-marca);color:#fff;border:none;border-radius:10px;
+    padding:13px;font-size:14.5px;font-weight:800;cursor:pointer;margin-top:10px;
+  }
+  .btn-firmar:disabled{background:#b7cfe2;cursor:not-allowed}
+  .sacudir{animation:sacudir .4s}
+  @keyframes sacudir{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+  /* éxito */
+  #tel-exito{background:#fff;align-items:center;justify-content:center;text-align:center;padding:34px 26px}
+  .check-anim{
+    width:86px;height:86px;border-radius:50%;background:#e3f6ea;display:flex;align-items:center;
+    justify-content:center;margin:0 auto 18px;animation:aparece .5s cubic-bezier(.2,1.6,.4,1)}
+  @keyframes aparece{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+  .check-anim svg{width:44px;height:44px;stroke:var(--verde);stroke-width:3.2;fill:none;
+    stroke-dasharray:60;stroke-dashoffset:60;animation:traza .6s .25s forwards}
+  @keyframes traza{to{stroke-dashoffset:0}}
+  #tel-exito h2{font-size:19px;font-weight:800;margin-bottom:6px}
+  #tel-exito .sub{font-size:13px;color:#5f7285;margin-bottom:22px}
+  .mini-sello{background:#f4f9f6;border:1px solid #cfe8d8;border-radius:12px;padding:14px;text-align:left;font-size:12px;width:100%}
+  .mini-sello div{display:flex;justify-content:space-between;padding:3px 0}
+  .mini-sello span:first-child{color:#5c8a6b}
+  .mini-sello span:last-child{font-weight:700}
+  /* toast */
+  #toast{
+    position:fixed;top:76px;right:24px;background:#12263f;color:#fff;border-radius:10px;
+    padding:12px 18px;font-size:13px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.25);
+    opacity:0;transform:translateY(-8px);transition:all .3s;z-index:99;pointer-events:none;max-width:340px;
+  }
+  #toast.visible{opacity:1;transform:none}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ BARRA SUPERIOR ═══════════ -->
+<div class="topbar">
+  <span class="req-badge">REQ-QUINTA-037 · PROTOTIPO</span>
+  <div>
+    <h1>Firma electrónica de TyC por código WhatsApp</h1>
+    <div class="sub">Simulación del proceso — canal admin (asesores). No es código productivo.</div>
+  </div>
+  <button class="btn-reset" onclick="location.reload()">↺ Reiniciar demo</button>
+</div>
+
+<!-- ═══════════ BARRA DE PROCESO ═══════════ -->
+<div class="proceso" id="proceso">
+  <div class="proc-step activo" data-paso="1"><div class="proc-dot"><span>1</span></div><div class="proc-label">Crear reserva</div></div>
+  <div class="proc-linea"></div>
+  <div class="proc-step" data-paso="2"><div class="proc-dot"><span>2</span></div><div class="proc-label">Enviar código</div></div>
+  <div class="proc-linea"></div>
+  <div class="proc-step" data-paso="3"><div class="proc-dot"><span>3</span></div><div class="proc-label">Firma del titular</div></div>
+  <div class="proc-linea"></div>
+  <div class="proc-step" data-paso="4"><div class="proc-dot"><span>4</span></div><div class="proc-label">Evidencia</div></div>
+</div>
+
+<div class="escenario">
+
+  <!-- ═══════════ PANEL ASESOR ═══════════ -->
+  <div>
+    <div class="actor-titulo">🖥 Vista del asesor — Admin Quinta del Mar</div>
+    <div class="admin-frame">
+      <div class="admin-nav">
+        <button class="admin-tab activa" onclick="cambiarTab('wizard',this)">Reservas › Crear nueva</button>
+        <button class="admin-tab" onclick="cambiarTab('contrato',this)">Ficha QM-1785 › Contrato</button>
+      </div>
+
+      <!-- TAB WIZARD -->
+      <div class="admin-body" id="tab-wizard">
+        <div class="header-pretitle">Reserva</div>
+        <div class="header-title">Crear nueva reserva</div>
+
+        <div class="card-paso colapsada">
+          <div class="cp-head"><span class="paso-badge done"></span><h4>Tipo de reserva</h4>
+            <span class="cp-resumen">Hospedaje sede completa</span></div>
+        </div>
+        <div class="card-paso colapsada">
+          <div class="cp-head"><span class="paso-badge done"></span><h4>Fechas y destino</h4>
+            <span class="cp-resumen">14 → 16 ago 2026 · 2 noches · Sede Francés</span></div>
+        </div>
+        <div class="card-paso colapsada">
+          <div class="cp-head"><span class="paso-badge done"></span><h4>Paquetes y tarifa</h4>
+            <span class="cp-resumen">Sede completa · $4.980.000</span></div>
+        </div>
+        <!-- PASO 4 — INTERACTIVO: consulta / registro del titular -->
+        <div class="card-paso" id="card-paso4">
+          <div class="cp-head">
+            <span class="paso-badge" id="badge-paso4">4</span>
+            <h4>Datos del titular</h4>
+            <span class="cp-resumen" id="resumen-titular"></span>
+          </div>
+          <div class="cp-body" id="cuerpo-paso4">
+            <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+              <div>
+                <label class="form-label">Tipo documento</label>
+                <select class="form-input" id="sel-tipodoc" style="width:auto">
+                  <option>CC</option><option>CE</option><option>PAS</option><option>TI</option>
+                </select>
+              </div>
+              <div style="min-width:220px">
+                <label class="form-label">Número de documento</label>
+                <input class="form-input" id="input-doc" value="1045892317" placeholder="Ingrese el documento">
+              </div>
+              <button type="button" class="btn btn-outline" onclick="consultarCliente()">Consultar</button>
+            </div>
+            <p style="font-size:11px;color:var(--muted);margin-top:6px">
+              Demo: <b>1045892317</b> devuelve un cliente existente · cualquier otro documento abre el registro de un titular nuevo.
+            </p>
+            <div id="seccion-cliente-demo" style="margin-top:12px"></div>
+          </div>
+        </div>
+
+        <!-- botón crear (aparece al resolver el titular) -->
+        <div id="seccion-crear" style="display:none;justify-content:flex-end;padding:6px 0 2px">
+          <button class="btn btn-primario" onclick="crearReserva()">Crear reserva</button>
+        </div>
+
+        <!-- PASO 5 — NUEVO -->
+        <div class="card-paso" id="card-paso5">
+          <div class="cp-head">
+            <span class="paso-badge" id="badge-paso5">5</span>
+            <h4>Aceptación de TyC <span style="font-weight:400;color:var(--muted);font-size:12px">(firma electrónica)</span></h4>
+            <span id="estado-badge-wizard" class="badge badge-pendiente">Pendiente</span>
+          </div>
+          <div class="cp-body">
+
+            <!-- estado PENDIENTE -->
+            <div id="bloque-enviar">
+              <p style="font-size:13px;color:#5a7ba6;margin-bottom:12px">
+                La reserva <b>QM-1785</b> quedó creada. Para habilitar los pagos, el titular debe aceptar los
+                términos y condiciones con su código de firma.
+              </p>
+              <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+                <div style="min-width:200px">
+                  <label class="form-label">Celular del titular (WhatsApp)</label>
+                  <input class="form-input" id="input-celular" value="300 812 4576">
+                </div>
+                <button class="btn btn-primario" id="btn-enviar" onclick="enviarCodigo(false)">
+                  📲 Enviar código por WhatsApp
+                </button>
+              </div>
+            </div>
+
+            <!-- estado ENVIADO / EXPIRADO -->
+            <div id="bloque-enviado" style="display:none">
+              <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                <div style="font-size:13px">
+                  Código enviado al <b id="lbl-celular">300 812 4576</b>
+                  <div style="font-size:12px;color:var(--muted)">Expira en <span class="contador" id="contador">30:00</span>
+                    <button class="link-demo" onclick="simularExpiracion()" title="Control de demo">⚡ Simular expiración</button>
+                  </div>
+                </div>
+                <button class="btn btn-outline" id="btn-reenviar" onclick="enviarCodigo(true)">↻ Reenviar</button>
+              </div>
+              <div id="msg-expirado" style="display:none;margin-top:10px;font-size:12.5px;color:#c96a1f;font-weight:600">
+                ⏰ El código expiró sin ser usado. Reenvía para generar uno nuevo.
+              </div>
+            </div>
+
+            <!-- estado ACEPTADO -->
+            <div class="sello" id="sello-wizard"></div>
+
+            <div class="aviso-bloqueo" id="aviso-bloqueo-wizard">
+              <span>⚠️</span>
+              <span>Los pagos de esta reserva quedan <b>bloqueados</b> (registro de pagos y links de cobro)
+              hasta que el titular acepte los términos y condiciones.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUCESOS -->
+        <div class="sucesos" id="card-sucesos" style="display:none">
+          <h5>Sucesos de la reserva (simulado)</h5>
+          <table id="tabla-sucesos"></table>
+        </div>
+      </div>
+
+      <!-- TAB CONTRATO -->
+      <div class="admin-body" id="tab-contrato" style="display:none">
+        <div class="ficha-migas">Reservas › <b>QM-1785</b> · <span id="miga-nombre">Carlos A. Restrepo Mesa</span> › <b>Contrato</b></div>
+
+        <div class="card-simple">
+          <div class="cs-head">
+            <h4>Firma electrónica TyC</h4>
+            <span id="estado-badge-contrato" class="badge badge-pendiente">Pendiente</span>
+          </div>
+          <div class="cs-body">
+            <div id="contrato-pendiente">
+              <p style="font-size:13px;color:#5a7ba6;margin-bottom:10px">
+                Aún no se ha enviado el código de firma. Envíalo desde aquí o desde el paso 5 del wizard de creación.
+              </p>
+              <button class="btn btn-primario" onclick="enviarCodigo(false)">📲 Enviar código por WhatsApp</button>
+            </div>
+            <div id="contrato-enviado" style="display:none;font-size:13px">
+              Código vigente enviado al <b>300 812 4576</b> ·
+              <button class="btn btn-outline" style="padding:6px 12px;font-size:12px" onclick="enviarCodigo(true)">↻ Reenviar</button>
+            </div>
+            <div class="sello" id="sello-contrato"></div>
+          </div>
+        </div>
+
+        <div class="card-simple">
+          <div class="cs-head"><h4>Contrato firmado</h4><span class="tag-legacy">MÉTODO ALTERNO / LEGACY</span></div>
+          <div class="cs-body">
+            <button class="btn btn-outline" onclick="toast('Simulado: descarga de contrato.php?reserva_id=1785')">⬇ Base contrato PDF</button>
+            <p style="font-size:12px;color:var(--muted);margin:12px 0 8px">
+              Cargue en formato PDF el contrato firmado de esta reserva (flujo manual actual).
+            </p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <input class="form-input" style="max-width:280px" disabled value="Cargar contrato…">
+              <button class="btn btn-outline" disabled>Actualizar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="pagos-wrap">
+          <div class="card-simple" style="margin-bottom:0">
+            <div class="cs-head"><h4>Generar link de pago</h4></div>
+            <div class="cs-body">
+              <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+                <div>
+                  <label class="form-label">Valor a cobrar</label>
+                  <input class="form-input" style="max-width:180px" value="$ 1.494.000" id="input-valor-pago">
+                </div>
+                <button class="btn btn-primario" id="btn-link-pago" onclick="toast('Simulado: link de cobro generado ✔')">Generar link</button>
+              </div>
+              <p style="font-size:11.5px;color:var(--muted);margin-top:10px">Anticipo sugerido 30% — $1.494.000 de $4.980.000</p>
+            </div>
+          </div>
+          <div class="candado-overlay" id="candado-pagos">
+            <div class="icono">🔒</div>
+            <p>Bloqueado hasta la aceptación de los términos y condiciones por el titular</p>
+            <span class="badge badge-pendiente" id="candado-estado">TyC pendientes</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════ PANEL TITULAR ═══════════ -->
+  <div class="panel-titular">
+    <div class="actor-titulo">📱 Vista del titular — <span class="nombre-titular">Carlos</span>&nbsp;(celular)</div>
+    <div class="telefono">
+      <div class="tel-pantalla">
+        <div class="tel-notch"></div>
+
+        <!-- IDLE -->
+        <div class="tel-vista visible" id="tel-idle">
+          <div class="notif-wa" id="notif-wa" onclick="abrirWhatsApp()">
+            <div class="app">🟢 WHATSAPP · ahora</div>
+            <div class="txt"><b>Quinta del Mar</b><br>Hola <span class="nombre-titular">Carlos</span> 👋 Tu reserva QM-1785 requiere la firma del contrato…</div>
+          </div>
+          <div class="hora" id="idle-hora">10:42</div>
+          <div class="fecha">martes, 5 de agosto</div>
+          <div class="sin-msj" id="idle-vacio">El celular del titular está a la espera del mensaje…</div>
+        </div>
+
+        <!-- WHATSAPP -->
+        <div class="tel-vista" id="tel-wa">
+          <div class="wa-header">
+            <div class="wa-avatar">QM</div>
+            <div>
+              <div class="wa-nombre">Quinta del Mar <span style="font-size:11px">☑️</span></div>
+              <div class="wa-estado">Cuenta de empresa</div>
+            </div>
+          </div>
+          <div class="wa-chat">
+            <div class="wa-fecha-chip">Hoy</div>
+            <div class="wa-burbuja">
+              Hola <b class="nombre-titular">Carlos</b> 👋 Tu reserva <b>QM-1785</b> en <b>Sede Francés</b> (14 al 16 de agosto)
+              requiere la firma del contrato de hospedaje y la aceptación de sus términos.<br>
+              Tu código de firma es:<br>
+              <span class="codigo-destacado" id="wa-codigo">——————</span><br>
+              Ábrelo aquí:<br>
+              <a href="#" onclick="abrirLinkFirma();return false" id="wa-link">quintadelmar.co/firma/qm1785-a8x3</a>
+              <div class="wa-hora">10:42 ✓✓</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PÁGINA DE FIRMA -->
+        <div class="tel-vista" id="tel-firma">
+          <div class="firma-header">
+            <div class="firma-logo">QUINTA DEL MAR<small>OPERADORA HOTELERA QM S.A.S · NIT 901.920.110-8</small></div>
+          </div>
+          <div class="firma-scroll">
+            <h2>Firma del contrato de tu reserva</h2>
+
+            <div class="f-card">
+              <h3>Tu reserva</h3>
+              <div class="resumen-grid">
+                <div><div class="lbl">Reserva</div><div class="val">QM-1785</div></div>
+                <div><div class="lbl">Sede</div><div class="val">Francés</div></div>
+                <div><div class="lbl">Check-in</div><div class="val">Vie 14 ago 2026</div></div>
+                <div><div class="lbl">Check-out</div><div class="val">Dom 16 ago 2026</div></div>
+                <div><div class="lbl">Noches</div><div class="val">2</div></div>
+                <div><div class="lbl">Huéspedes</div><div class="val">10 adultos · 2 niños</div></div>
+                <div style="grid-column:1/-1"><div class="lbl">Modalidad contratada</div><div class="val">Inmueble completo — uso exclusivo (máx. 22 personas)</div></div>
+                <div style="grid-column:1/-1"><div class="lbl">Valor total</div><div class="val" style="font-size:15px">$ 4.980.000 COP</div></div>
+                <div><div class="lbl">Anticipo (30%)</div><div class="val">$ 1.494.000</div></div>
+                <div><div class="lbl">Saldo (70%)</div><div class="val">$ 3.486.000 <span style="font-weight:400;color:#7d93a8">hasta el 7 ago</span></div></div>
+              </div>
+            </div>
+
+            <div class="f-card">
+              <h3>Partes del contrato</h3>
+              <div class="resumen-grid">
+                <div><div class="lbl">El Hospedante</div><div class="val">OPERADORA HOTELERA QM S.A.S<br><span style="font-weight:400;color:#7d93a8">NIT 901.920.110-8</span></div></div>
+                <div><div class="lbl">El Huésped</div><div class="val" id="parte-huesped">Carlos A. Restrepo Mesa<br><span style="font-weight:400;color:#7d93a8">CC 1.045.892.317</span></div></div>
+              </div>
+            </div>
+
+            <div class="f-card">
+              <h3>Contrato de hospedaje y alojamiento</h3>
+              <details open>
+                <summary>Lo esencial del contrato</summary>
+                <p><b>Objeto:</b> alojamiento turístico no permanente para ti y tus acompañantes registrados,
+                exclusivamente como lugar de descanso familiar, vacacional o recreativo (cláusula 1ª).<br>
+                <b>Pago:</b> anticipo del 30% para confirmar la reserva; el 70% restante una semana antes del
+                check-in. Reservas con menos de 5 días hábiles se pagan completas (cláusulas 4ª y 5ª).<br>
+                <b>Tus obligaciones:</b> respetar la capacidad máxima, conservar el inmueble, cumplir horarios de
+                check-in/check-out y restituirlo al terminar (cláusula 6ª).<br>
+                <b>Prohibiciones:</b> fogatas y pirotecnia, ceder el inmueble a terceros, contaminar el mar —
+                la sede está en zona de reserva natural (cláusula 7ª).</p>
+                <span class="placeholder-legal">RESUMEN INFORMATIVO — el documento firmado es el contrato completo</span>
+              </details>
+              <button type="button" class="btn" style="width:100%;margin-top:10px;background:#fff;border:1.5px solid var(--azul-marca);color:var(--azul-marca);justify-content:center" onclick="toast('Simulado: abre el contrato completo con los datos de tu reserva (PDF)')">📄 Ver contrato completo (PDF)</button>
+            </div>
+
+            <div class="f-card">
+              <h3>Política de cancelación y cambios <span style="font-weight:600;color:#7d93a8;text-transform:none;letter-spacing:0">(cláusula 13ª)</span></h3>
+              <table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px">
+                <tr style="background:#f0f6fb">
+                  <td style="padding:7px 8px;font-weight:700;border-radius:6px 0 0 6px">Si cancelas…</td>
+                  <td style="padding:7px 8px;font-weight:700;border-radius:0 6px 6px 0">Recibes</td>
+                </tr>
+                <tr><td style="padding:7px 8px;border-bottom:1px solid #eef4f8">Dentro de las 48 h del anticipo y faltando más de 8 días para el check-in</td><td style="padding:7px 8px;border-bottom:1px solid #eef4f8;font-weight:700;color:#158443">Reembolso del 100%</td></tr>
+                <tr><td style="padding:7px 8px;border-bottom:1px solid #eef4f8">Después de 48 h, faltando más de 8 días</td><td style="padding:7px 8px;border-bottom:1px solid #eef4f8;font-weight:700;color:#c96a1f">Penalidad del 30%</td></tr>
+                <tr><td style="padding:7px 8px;border-bottom:1px solid #eef4f8">Faltando 8 días o menos para el check-in</td><td style="padding:7px 8px;border-bottom:1px solid #eef4f8;font-weight:700;color:#b02a42">Sin reembolso</td></tr>
+                <tr><td style="padding:7px 8px">Cambio de fechas (con 60 días de aviso)</td><td style="padding:7px 8px;font-weight:700">1º sin costo · 2º con 30% · no hay 3º</td></tr>
+              </table>
+              <p style="font-size:11px;color:#7d93a8;margin-top:8px">Cancelación parcial: mismas reglas por cada noche cancelada. Notifica siempre a
+              <b>reservas@quintadelmar.co</b>. <a href="#" style="color:var(--azul-marca);font-weight:600" onclick="toast('Simulado: abre quintadelmar.co/legales/politica-cancelaciones');return false">Ver política completa</a></p>
+            </div>
+
+            <div class="f-card">
+              <h3>Tratamiento de datos personales</h3>
+              <p style="font-size:12px;color:#4a5f72">Autorizas a OPERADORA HOTELERA QM S.A.S el tratamiento de los datos que entregas
+              con este contrato, conforme a su política publicada (cláusula 15ª).
+              <a href="#" style="color:var(--azul-marca);font-weight:600" onclick="toast('Simulado: abre quintadelmar.co/docs/politicas-tratamiento-datos.pdf');return false">Leer política (PDF)</a></p>
+            </div>
+
+            <div class="f-card">
+              <label class="check-linea">
+                <input type="checkbox" id="check-acepto" onchange="toggleOtp()">
+                <span>He leído y acepto el <b>contrato de hospedaje y alojamiento</b> de la reserva QM-1785,
+                incluida su política de cancelación y cambios.</span>
+              </label>
+              <label class="check-linea" style="margin-top:8px">
+                <input type="checkbox" id="check-datos" onchange="toggleOtp()">
+                <span>Autorizo el <b>tratamiento de mis datos personales</b> conforme a la política publicada.</span>
+              </label>
+              <div class="otp-fila" id="otp-fila">
+                <input class="otp-caja" maxlength="1" inputmode="numeric" disabled>
+                <input class="otp-caja" maxlength="1" inputmode="numeric" disabled>
+                <input class="otp-caja" maxlength="1" inputmode="numeric" disabled>
+                <input class="otp-caja" maxlength="1" inputmode="numeric" disabled>
+                <input class="otp-caja" maxlength="1" inputmode="numeric" disabled>
+                <input class="otp-caja" maxlength="1" inputmode="numeric" disabled>
+              </div>
+              <p style="font-size:11px;color:#7d93a8;text-align:center">Digita el código de 6 dígitos que recibiste por WhatsApp.<br>
+              Tu código equivale a tu <b>firma electrónica</b> (cláusula 18ª del contrato · Ley 527 de 1999).</p>
+              <div class="firma-error" id="firma-error"></div>
+              <button class="btn-firmar" id="btn-firmar" disabled onclick="validarFirma()">Firmar y aceptar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ÉXITO -->
+        <div class="tel-vista" id="tel-exito">
+          <div>
+            <div class="check-anim"><svg viewBox="0 0 52 52"><path d="M14 27l8 8 16-18"/></svg></div>
+            <h2>Contrato QM-1785 firmado</h2>
+            <div class="sub">Firmaste el contrato de hospedaje y aceptaste sus términos.<br>Tu asesor ya puede gestionar los pagos.</div>
+            <div class="mini-sello" id="mini-sello"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ═══════════ MODAL: PÁGINA DE VERIFICACIÓN (lo que abre el QR) ═══════════ -->
+<div id="modal-verificar" style="display:none;position:fixed;inset:0;background:rgba(18,38,63,.65);z-index:130;overflow-y:auto;padding:30px 16px">
+  <div style="max-width:380px;margin:0 auto;background:#0d0d0f;border-radius:30px;padding:10px;box-shadow:0 24px 70px rgba(0,0,0,.45)">
+    <div style="background:#f4f8fb;border-radius:22px;overflow:hidden">
+      <!-- barra del navegador movil -->
+      <div style="background:#e9eff5;padding:10px 12px;display:flex;align-items:center;gap:8px">
+        <button onclick="document.getElementById('modal-verificar').style.display='none'"
+          style="border:none;background:none;font-size:15px;cursor:pointer;color:#5a7ba6">✕</button>
+        <div style="flex:1;background:#fff;border-radius:8px;padding:6px 10px;font-size:10.5px;color:#4a5f72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          🔒 quintadelmar.co/verificar/<span id="verif-token">—</span>
+        </div>
+      </div>
+      <div style="padding:20px 18px 24px">
+        <div style="text-align:center;font-size:11px;font-weight:800;letter-spacing:.14em;color:var(--azul-marca)">QUINTA DEL MAR</div>
+        <div style="text-align:center;font-size:8.5px;letter-spacing:.2em;color:#7fa8c6;font-weight:700;margin-bottom:16px">VERIFICACIÓN DE DOCUMENTOS</div>
+
+        <div style="background:#e3f6ea;border:1px solid #bfe6cc;border-radius:12px;padding:16px;text-align:center;margin-bottom:14px">
+          <div style="font-size:30px">✅</div>
+          <div style="font-size:15px;font-weight:800;color:#158443">Documento auténtico</div>
+          <div style="font-size:11.5px;color:#41765a;margin-top:2px">El registro coincide con los sistemas de<br>OPERADORA HOTELERA QM S.A.S</div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #e2ecf3;border-radius:12px;padding:14px;font-size:12px;margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#7d93a8">Documento</span><b>Contrato de hospedaje</b></div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#7d93a8">Reserva</span><b>QM-1785 · Sede Francés</b></div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#7d93a8">Firmado por</span><b id="verif-firmante">—</b></div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#7d93a8">Fecha de firma</span><b id="verif-fecha">—</b></div>
+          <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#7d93a8">Folio</span><b>FIRMA-QM-1785-001</b></div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #e2ecf3;border-radius:12px;padding:14px;font-size:11px;margin-bottom:14px">
+          <div style="color:#7d93a8;margin-bottom:4px">Huella del documento original (SHA-256):</div>
+          <code id="verif-hash" style="word-break:break-all;color:#2c5282;font-size:9.5px">—</code>
+          <p style="color:#7d93a8;margin-top:8px;font-size:10.5px">Compara esta huella con la impresa en tu constancia.
+          Si tu copia del PDF fue modificada, su huella <b>no</b> coincidirá con esta.</p>
+        </div>
+
+        <p style="font-size:9.5px;color:#95aac9;text-align:center;margin-top:4px">
+          Esta página muestra datos mínimos del firmante por protección de datos personales.<br>
+          Si el enlace no existiera o el documento estuviera anulado, verías el estado correspondiente.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODAL: CONSTANCIA DE FIRMA (última página del contrato) ═══════════ -->
+<div id="modal-constancia" style="display:none;position:fixed;inset:0;background:rgba(18,38,63,.55);z-index:120;overflow-y:auto;padding:30px 16px">
+  <div style="max-width:640px;margin:0 auto;background:#fff;border-radius:6px;box-shadow:0 24px 70px rgba(0,0,0,.35);padding:38px 44px;position:relative;font-size:12.5px">
+    <button onclick="document.getElementById('modal-constancia').style.display='none'"
+      style="position:absolute;top:12px;right:14px;border:none;background:none;font-size:20px;cursor:pointer;color:#95aac9">✕</button>
+    <p style="font-size:10px;color:#95aac9;text-align:right;margin-bottom:14px">Contrato de hospedaje y alojamiento — Reserva QM-1785 · página 8 de 8</p>
+    <h2 style="text-align:center;font-size:15px;letter-spacing:.06em;margin-bottom:2px">CONSTANCIA DE FIRMA ELECTRÓNICA</h2>
+    <p style="text-align:center;font-size:10.5px;color:#5a7ba6;margin-bottom:18px">Cláusula décima octava del contrato · Ley 527 de 1999 · Decreto 2364 de 2012</p>
+
+    <div style="border:1px solid #12263f;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;font-weight:700">
+      <span>FOLIO: <span id="const-folio">FIRMA-QM-1785-001</span></span>
+      <span>Generada: <span id="const-generada">—</span></span>
+    </div>
+
+    <div style="border:1px solid #12263f;padding:10px 14px;margin-bottom:10px">
+      <div style="font-weight:800;font-size:11px;letter-spacing:.05em;margin-bottom:6px">EL FIRMANTE (EL HUÉSPED)</div>
+      <div id="const-firmante">—</div>
+    </div>
+
+    <div style="border:1px solid #12263f;padding:10px 14px;margin-bottom:10px">
+      <div style="font-weight:800;font-size:11px;letter-spacing:.05em;margin-bottom:6px">DOCUMENTO FIRMADO</div>
+      Contrato de hospedaje y alojamiento — Reserva <b>QM-1785</b><br>
+      Sede Francés · 14 al 16 de agosto de 2026 · 2 noches · Inmueble completo uso exclusivo · $ 4.980.000 COP<br>
+      <span style="color:#5a7ba6">Incluye la política de cancelación y cambios (cláusula 13ª) y la autorización de
+      tratamiento de datos personales (cláusula 15ª).</span>
+    </div>
+
+    <div style="border:1px solid #12263f;padding:10px 14px;margin-bottom:10px">
+      <div style="font-weight:800;font-size:11px;letter-spacing:.05em;margin-bottom:6px">EVIDENCIA DE LA FIRMA</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px" id="const-evidencia"></table>
+      <div style="margin-top:8px;font-size:11.5px;color:#4a5f72">
+        <b>Aceptaciones registradas:</b><br>
+        ☑ "He leído y acepto el contrato de hospedaje y alojamiento de la reserva QM-1785, incluida su política de cancelación y cambios."<br>
+        ☑ "Autorizo el tratamiento de mis datos personales conforme a la política publicada."
+      </div>
+    </div>
+
+    <div style="border:1px solid #12263f;padding:10px 14px;margin-bottom:16px">
+      <div style="font-weight:800;font-size:11px;letter-spacing:.05em;margin-bottom:6px">VERIFICACIÓN</div>
+      <div style="display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+        <div style="min-width:0">
+          SHA-256 del documento congelado:<br>
+          <code id="const-hash" style="font-size:10.5px;word-break:break-all;color:#2c5282">—</code><br>
+          <span style="font-size:11px">Verificar autenticidad en: <b>quintadelmar.co/verificar/<span id="const-token">—</span></b></span>
+        </div>
+        <div onclick="verVerificacion()" title="Toca para simular el escaneo"
+          style="width:64px;height:64px;border:1.5px solid #12263f;display:grid;place-items:center;font-size:8px;text-align:center;color:#5a7ba6;flex-shrink:0;cursor:pointer;background:repeating-conic-gradient(#12263f 0 25%,#fff 0 50%) 0 0/8px 8px">
+          <span style="background:#fff;padding:2px 3px;font-weight:700">ESCANEAR</span></div>
+      </div>
+    </div>
+
+    <p style="font-size:10px;color:#95aac9;text-align:center">Documento generado y congelado al momento de la firma electrónica.
+    El código de firma se muestra enmascarado; el registro completo reposa en los sistemas de OPERADORA HOTELERA QM S.A.S.</p>
+  </div>
+</div>
+
+<script>
+/* ═══════════ ESTADO DE LA DEMO ═══════════ */
+const demo = {
+  estado: 'CREACION',   // CREACION → PENDIENTE → ENVIADO → (EXPIRADO) → ACEPTADO
+  codigo: null,
+  segundos: 1800,
+  timer: null,
+  selloHora: null,
+};
+
+const $ = id => document.getElementById(id);
+const hora = () => new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+const fechaHora = () => new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'})+' '+hora();
+
+/* ═══════════ UTILIDADES ═══════════ */
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('visible');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('visible'), 3200);
+}
+function setProceso(n){ // marca pasos < n como hechos, n como activo
+  document.querySelectorAll('.proc-step').forEach(s=>{
+    const p = +s.dataset.paso;
+    s.classList.toggle('hecho', p < n);
+    s.classList.toggle('activo', p === n);
+  });
+}
+function procesoCompleto(){
+  document.querySelectorAll('.proc-step').forEach(s=>{s.classList.add('hecho');s.classList.remove('activo')});
+}
+function addSuceso(txt){
+  $('card-sucesos').style.display = 'block';
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${fechaHora()}</td><td>${txt}</td>`;
+  $('tabla-sucesos').prepend(tr);
+}
+function setBadges(clase, texto){
+  ['estado-badge-wizard','estado-badge-contrato'].forEach(id=>{
+    const b = $(id); b.className = 'badge '+clase; b.textContent = texto;
+  });
+}
+function cambiarTab(cual, btn){
+  $('tab-wizard').style.display   = cual==='wizard'   ? 'block':'none';
+  $('tab-contrato').style.display = cual==='contrato' ? 'block':'none';
+  document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('activa'));
+  btn.classList.add('activa');
+}
+function verTel(id){
+  document.querySelectorAll('.tel-vista').forEach(v=>v.classList.remove('visible'));
+  $(id).classList.add('visible');
+}
+
+/* ═══════════ PASO 0: TITULAR (consulta / registro) ═══════════ */
+function consultarCliente(){
+  const doc = $('input-doc').value.replace(/\D/g,'');
+  const cont = $('seccion-cliente-demo');
+  if(!doc){ toast('Ingresa el número de documento.'); return; }
+
+  if(doc === '1045892317'){
+    // cliente existente → precarga (simula obtener_html_info_cliente_consultado)
+    cont.innerHTML = `
+      <div style="background:#f2fbf5;border:1px solid #bfe6cc;border-radius:10px;padding:14px 16px">
+        <div style="font-size:12px;font-weight:800;color:#158443;margin-bottom:8px">✔ Cliente encontrado en el sistema</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px 14px;font-size:12.5px">
+          <div><span style="color:#5c8a6b">Nombre:</span> <b>Carlos Andrés Restrepo Mesa</b></div>
+          <div><span style="color:#5c8a6b">Documento:</span> <b>CC 1.045.892.317</b></div>
+          <div><span style="color:#5c8a6b">Celular:</span> <b>300 812 4576</b></div>
+          <div><span style="color:#5c8a6b">Correo:</span> <b>carlos.restrepo@gmail.com</b></div>
+        </div>
+        <button type="button" class="btn btn-primario" style="margin-top:12px" onclick="usarTitularExistente()">Usar este titular</button>
+      </div>`;
+  } else {
+    // cliente nuevo → formulario de registro
+    cont.innerHTML = `
+      <div style="background:#fff;border:1px solid var(--borde);border-radius:10px;padding:14px 16px">
+        <div style="font-size:12px;font-weight:700;color:#5a7ba6;margin-bottom:10px">
+          No existe registro con ese documento — registra el titular:
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px">
+          <div><label class="form-label">Nombres *</label><input class="form-input" id="reg-nombre" placeholder="Nombres"></div>
+          <div><label class="form-label">Apellidos *</label><input class="form-input" id="reg-apellidos" placeholder="Apellidos"></div>
+          <div><label class="form-label">Celular (WhatsApp) *</label><input class="form-input" id="reg-celular" placeholder="300 000 0000"></div>
+          <div><label class="form-label">Correo</label><input class="form-input" id="reg-correo" placeholder="correo@ejemplo.com"></div>
+        </div>
+        <button type="button" class="btn btn-primario" style="margin-top:12px" onclick="registrarTitularNuevo()">Registrar titular</button>
+      </div>`;
+  }
+}
+function usarTitularExistente(){
+  setTitular({nombre:'Carlos Andrés', apellidos:'Restrepo Mesa', tipodoc:'CC', doc:'1.045.892.317',
+              celular:'300 812 4576', correo:'carlos.restrepo@gmail.com', nuevo:false});
+}
+function registrarTitularNuevo(){
+  const nombre=$('reg-nombre').value.trim(), apellidos=$('reg-apellidos').value.trim(), celular=$('reg-celular').value.trim();
+  if(!nombre || !apellidos || !celular){ toast('Nombres, apellidos y celular son obligatorios.'); return; }
+  const docFmt = $('input-doc').value.replace(/\D/g,'').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  setTitular({nombre, apellidos, tipodoc:$('sel-tipodoc').value, doc:docFmt,
+              celular, correo:$('reg-correo').value.trim(), nuevo:true});
+}
+function setTitular(t){
+  demo.titular = t;
+  const nombreCorto = t.nombre.split(' ')[0];
+  // colapsar paso 4 con resumen
+  $('resumen-titular').textContent = `${nombreCorto} ${t.apellidos} · ${t.tipodoc} ${t.doc}`;
+  $('badge-paso4').classList.add('done'); $('badge-paso4').textContent = '✓';
+  $('cuerpo-paso4').style.display = 'none';
+  $('seccion-crear').style.display = 'flex';
+  // propagar el titular a todo el escenario
+  $('input-celular').value = t.celular;
+  document.querySelectorAll('.nombre-titular').forEach(e=>e.textContent = nombreCorto);
+  $('parte-huesped').innerHTML = `${t.nombre} ${t.apellidos}<br><span style="font-weight:400;color:#7d93a8">${t.tipodoc} ${t.doc}</span>`;
+  $('miga-nombre').textContent = `${nombreCorto} ${t.apellidos}`;
+  toast(t.nuevo ? 'Titular registrado y asignado a la reserva.' : 'Titular asignado a la reserva.');
+}
+
+/* ═══════════ PASO 1: CREAR RESERVA ═══════════ */
+function crearReserva(){
+  demo.estado = 'PENDIENTE';
+  $('seccion-crear').style.display = 'none';
+  $('card-paso5').style.display = 'block';
+  setProceso(2);
+  addSuceso('Se crea la reserva <b>QM-1785</b> — Hospedaje sede completa, Sede Francés, 14→16 ago 2026, por <b>asesor.demo</b>');
+  addSuceso('🔒 Pagos bloqueados: pendiente aceptación de TyC del titular');
+  toast('Reserva QM-1785 creada. Falta la aceptación de TyC.');
+}
+
+/* ═══════════ PASO 2: ENVIAR / REENVIAR CÓDIGO ═══════════ */
+function enviarCodigo(esReenvio){
+  if(demo.estado === 'CREACION'){ toast('Primero crea la reserva en el wizard.'); return; }
+  if(demo.estado === 'ACEPTADO') return;
+
+  const anterior = demo.codigo;
+  demo.codigo = String(Math.floor(100000 + Math.random()*900000));
+  demo.segundos = 1800;
+  demo.estado = 'ENVIADO';
+
+  // UI asesor
+  $('bloque-enviar').style.display = 'none';
+  $('bloque-enviado').style.display = 'block';
+  $('msg-expirado').style.display = 'none';
+  $('contrato-pendiente').style.display = 'none';
+  $('contrato-enviado').style.display = 'block';
+  $('lbl-celular').textContent = $('input-celular').value;
+  setBadges('badge-enviado','Enviado — sin firmar');
+  $('candado-estado').textContent = 'TyC pendientes';
+  iniciarContador();
+
+  // cooldown reenviar
+  const btn = $('btn-reenviar');
+  btn.disabled = true; setTimeout(()=>btn.disabled=false, 8000);
+
+  // UI titular
+  $('wa-codigo').textContent = demo.codigo;
+  $('idle-vacio').style.display = 'none';
+  $('notif-wa').style.display = 'block';
+  verTel('tel-idle');
+  // limpiar OTP por si había intento previo
+  document.querySelectorAll('.otp-caja').forEach(c=>c.value='');
+  $('firma-error').style.display = 'none';
+
+  demo.horaEnvio = hora();
+  const cel = $('input-celular').value.replace(/(\d{3})[\s.]*\d{3}[\s.]*(\d{4})/,'$1•••$2');
+  if(esReenvio && anterior){
+    addSuceso(`Se <b>reenvió</b> el código de firma al ${cel} — el código anterior queda inválido`);
+    toast('Código reenviado. El anterior quedó inválido.');
+  } else {
+    addSuceso(`Se envió el código de firma por WhatsApp al ${cel}`);
+    toast('WhatsApp enviado (simulado). Mira el celular del titular →');
+  }
+  setProceso(3);
+}
+
+function iniciarContador(){
+  clearInterval(demo.timer);
+  pintarContador();
+  demo.timer = setInterval(()=>{
+    demo.segundos--;
+    if(demo.segundos <= 0){ expirar(); return; }
+    pintarContador();
+  }, 1000);
+}
+function pintarContador(){
+  const m = String(Math.floor(demo.segundos/60)).padStart(2,'0');
+  const s = String(demo.segundos%60).padStart(2,'0');
+  $('contador').textContent = `${m}:${s}`;
+}
+function simularExpiracion(){ demo.segundos = 0; expirar(); }
+function expirar(){
+  if(demo.estado !== 'ENVIADO') return;
+  clearInterval(demo.timer);
+  demo.estado = 'EXPIRADO';
+  $('contador').textContent = '00:00';
+  $('msg-expirado').style.display = 'block';
+  setBadges('badge-expirado','Expirado');
+  $('candado-estado').textContent = 'TyC pendientes (código expirado)';
+  addSuceso('⏰ El código de firma <b>expiró</b> sin ser usado');
+  toast('El código expiró. Reenvía para generar uno nuevo.');
+}
+
+/* ═══════════ PASO 3: EL TITULAR ═══════════ */
+function abrirWhatsApp(){ verTel('tel-wa'); }
+function abrirLinkFirma(){ demo.horaLink = hora(); verTel('tel-firma'); }
+
+function toggleOtp(){
+  const ok = $('check-acepto').checked && $('check-datos').checked;
+  document.querySelectorAll('.otp-caja').forEach(c=>c.disabled = !ok);
+  $('btn-firmar').disabled = !ok;
+  if(ok) document.querySelector('.otp-caja').focus();
+}
+
+// auto-avance de casillas OTP
+document.querySelectorAll('.otp-caja').forEach((caja, i, cajas)=>{
+  caja.addEventListener('input', ()=>{
+    caja.value = caja.value.replace(/\D/g,'');
+    if(caja.value && i < cajas.length-1) cajas[i+1].focus();
+  });
+  caja.addEventListener('keydown', e=>{
+    if(e.key==='Backspace' && !caja.value && i>0) cajas[i-1].focus();
+  });
+});
+
+function validarFirma(){
+  const ingresado = [...document.querySelectorAll('.otp-caja')].map(c=>c.value).join('');
+  const err = $('firma-error');
+
+  if(ingresado.length < 6){
+    mostrarError('Completa los 6 dígitos del código.'); return;
+  }
+  if(demo.estado === 'EXPIRADO'){
+    mostrarError('Este código expiró ⏰. Pídele a tu asesor que lo reenvíe.'); return;
+  }
+  if(ingresado !== demo.codigo){
+    mostrarError('Código incorrecto. Verifica el mensaje de WhatsApp.'); return;
+  }
+  firmar(ingresado);
+
+  function mostrarError(msg){
+    err.textContent = msg; err.style.display = 'block';
+    $('otp-fila').classList.remove('sacudir'); void $('otp-fila').offsetWidth;
+    $('otp-fila').classList.add('sacudir');
+  }
+}
+
+/* ═══════════ PASO 4: FIRMA Y EVIDENCIA ═══════════ */
+function firmar(codigo){
+  clearInterval(demo.timer);
+  demo.estado = 'ACEPTADO';
+  demo.selloHora = fechaHora();
+  const mascara = '••••' + codigo.slice(4);
+
+  // teléfono → éxito
+  $('mini-sello').innerHTML = `
+    <div><span>Fecha de firma</span><span>${demo.selloHora}</span></div>
+    <div><span>Código usado</span><span>${mascara}</span></div>
+    <div><span>Celular</span><span>${$('input-celular').value}</span></div>`;
+  verTel('tel-exito');
+
+  // asesor → sello en wizard y contrato
+  const selloHTML = `
+    <h5>✅ Sello de aceptación</h5>
+    <table>
+      <tr><td>Fecha y hora</td><td>${demo.selloHora}</td></tr>
+      <tr><td>Celular destino</td><td>${$('input-celular').value}</td></tr>
+      <tr><td>Código de firma</td><td>${mascara}</td></tr>
+      <tr><td>IP / dispositivo</td><td>181.59.104.22 · iPhone — Safari <i style="color:#8aa695">(simulado)</i></td></tr>
+    </table>
+    <button class="btn btn-constancia" onclick="verConstancia()">📄 Ver constancia de firma (última página del contrato)</button>`;
+  $('sello-wizard').innerHTML = selloHTML;   $('sello-wizard').style.display = 'block';
+  $('sello-contrato').innerHTML = selloHTML; $('sello-contrato').style.display = 'block';
+
+  $('bloque-enviado').style.display = 'none';
+  $('contrato-enviado').style.display = 'none';
+  $('aviso-bloqueo-wizard').style.display = 'none';
+  $('badge-paso5').classList.add('done'); $('badge-paso5').textContent = '✓';
+  setBadges('badge-aceptado','Aceptado ✓');
+
+  // desbloquear pagos
+  $('candado-pagos').style.display = 'none';
+
+  addSuceso(`✍️ El titular <b>firmó el contrato y aceptó los TyC</b> (firma ${mascara}, ${$('input-celular').value})`);
+  addSuceso('🔓 Se desbloqueó el registro de pagos y la generación de links de cobro');
+  procesoCompleto();
+  toast('¡Firmado! Evidencia registrada y pagos desbloqueados.');
+}
+
+/* ═══════════ CONSTANCIA DE FIRMA (última página del contrato) ═══════════ */
+function pseudoHash(semilla){
+  // hash visual de demo (NO criptográfico): genera 64 hex a partir de la semilla
+  let h1=0x811c9dc5, h2=0x1000193;
+  for(const c of semilla){ h1=(h1^c.charCodeAt(0))*16777619>>>0; h2=(h2+c.charCodeAt(0))*31>>>0; }
+  let out='';
+  for(let i=0;i<8;i++){ h1=(h1*16777619+i)>>>0; h2=(h2*31+h1)>>>0; out+=h1.toString(16).padStart(8,'0').slice(0,4)+h2.toString(16).padStart(8,'0').slice(0,4); }
+  return out.slice(0,64);
+}
+function verConstancia(){
+  if(demo.estado!=='ACEPTADO'){ toast('La constancia se genera al firmar.'); return; }
+  const t = demo.titular || {nombre:'Carlos Andrés',apellidos:'Restrepo Mesa',tipodoc:'CC',doc:'1.045.892.317',correo:'carlos.restrepo@gmail.com'};
+  const mascara = '••••'+demo.codigo.slice(4);
+  $('const-generada').textContent = demo.selloHora;
+  $('const-firmante').innerHTML = `<b>${t.nombre} ${t.apellidos}</b> · ${t.tipodoc} ${t.doc}<br>
+    Celular +57 ${$('input-celular').value}${t.correo ? ' · '+t.correo : ''}`;
+  $('const-evidencia').innerHTML = `
+    <tr><td style="padding:2px 0;color:#5a7ba6;width:190px">Envío del código (WhatsApp)</td><td><b>${demo.horaEnvio||'—'}</b> al +57 ${$('input-celular').value}</td></tr>
+    <tr><td style="padding:2px 0;color:#5a7ba6">Apertura del link de firma</td><td><b>${demo.horaLink||'—'}</b> · IP 181.59.104.22 · iPhone — Safari <i>(simulado)</i></td></tr>
+    <tr><td style="padding:2px 0;color:#5a7ba6">Firma validada</td><td><b>${demo.selloHora}</b> · código <b>${mascara}</b></td></tr>`;
+  const hash = pseudoHash(demo.codigo+demo.selloHora);
+  $('const-hash').textContent = hash;
+  $('const-token').textContent = hash.slice(0,12);
+  $('modal-constancia').style.display = 'block';
+}
+
+function verVerificacion(){
+  const t = demo.titular || {nombre:'Carlos Andrés', apellidos:'Restrepo Mesa', doc:'1.045.892.317'};
+  // datos minimos por proteccion de datos: iniciales + ultimos digitos del documento
+  const iniciales = t.nombre.charAt(0)+'*** '+t.apellidos.charAt(0)+'***';
+  const docMasc = '•••••••'+t.doc.replace(/\D/g,'').slice(-3);
+  const hash = pseudoHash(demo.codigo+demo.selloHora);
+  $('verif-token').textContent = hash.slice(0,12);
+  $('verif-firmante').textContent = iniciales+' · CC '+docMasc;
+  $('verif-fecha').textContent = demo.selloHora;
+  $('verif-hash').textContent = hash;
+  $('modal-verificar').style.display = 'block';
+}
+
+/* reloj del idle */
+$('idle-hora').textContent = hora();
+setInterval(()=>{ $('idle-hora').textContent = hora(); }, 30000);
+</script>
+</body>
+</html>
