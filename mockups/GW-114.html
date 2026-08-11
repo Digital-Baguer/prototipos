@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GW-114 · Mockup referencia QA — Despachados y Entregados por canal</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* get-web usa la sans del sistema (CSS compilado); no se cargan fuentes externas */
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900 antialiased">
+
+<div class="flex min-h-screen">
+
+  <!-- Sidebar (chrome del panel, simplificado) -->
+  <aside class="hidden w-52 shrink-0 flex-col bg-slate-900 text-slate-300 lg:flex">
+    <div class="flex h-14 items-center gap-2 border-b border-slate-800 px-4">
+      <span class="flex h-7 w-7 items-center justify-center rounded bg-slate-700 text-xs font-bold text-white">G</span>
+      <span class="text-sm font-semibold text-white">GET · Panel</span>
+    </div>
+    <nav class="flex-1 space-y-0.5 p-3 text-sm">
+      <a class="block rounded px-3 py-2 hover:bg-slate-800">Dashboard</a>
+      <a class="block rounded bg-slate-800 px-3 py-2 font-semibold text-white">Pedidos</a>
+      <a class="block rounded px-3 py-2 hover:bg-slate-800">Venta asistida</a>
+      <a class="block rounded px-3 py-2 hover:bg-slate-800">Productos</a>
+      <a class="block rounded px-3 py-2 hover:bg-slate-800">Clientes</a>
+    </nav>
+    <div class="border-t border-slate-800 p-4 text-xs text-slate-500">operador@get · v-mockup</div>
+  </aside>
+
+  <!-- Contenido -->
+  <main class="flex-1">
+    <header class="flex h-14 items-center justify-between border-b bg-white px-6">
+      <div>
+        <h1 class="text-base font-semibold">Pedidos · Dashboard</h1>
+      </div>
+      <span class="text-xs text-gray-400">Día de referencia: domingo 3 de agosto de 2026</span>
+    </header>
+
+    <div class="mx-auto max-w-6xl space-y-6 p-6">
+
+      <!-- Banner mockup -->
+      <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+        <strong>Mockup de referencia para QA (GW-114).</strong> Prototipo estático: los datos corresponden al
+        día de referencia 2026-08-03 de la spec. En producción, <em>Entregados es un contador retroactivo</em>
+        (crece durante el día conforme la transportadora confirma): cotejar contra la BD en el mismo instante
+        de la captura, no contra estas cifras literales.
+      </div>
+
+      <!-- Controles del mockup -->
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-1 rounded-lg border bg-white p-1 text-xs font-medium">
+          <button data-vista="despues" class="btn-vista rounded px-3 py-1.5">Después · GW-114</button>
+          <button data-vista="antes" class="btn-vista rounded px-3 py-1.5">Antes · producción actual</button>
+        </div>
+        <div class="flex items-center gap-1 rounded-lg border bg-white p-1 text-xs font-medium">
+          <button data-estado="exito" class="btn-estado rounded px-3 py-1.5">Éxito</button>
+          <button data-estado="carga" class="btn-estado rounded px-3 py-1.5">Carga</button>
+          <button data-estado="error" class="btn-estado rounded px-3 py-1.5">Error</button>
+        </div>
+        <span id="nota-vista" class="text-xs text-gray-500"></span>
+      </div>
+
+      <!-- Bloque Actividad operativa -->
+      <div class="overflow-hidden rounded-lg border bg-white">
+        <div class="border-b border-gray-100 px-5 py-3">
+          <h3 class="text-sm uppercase tracking-wide text-gray-500">Actividad operativa de hoy</h3>
+        </div>
+
+        <!-- Estado: carga (skeletons) -->
+        <div id="estado-carga" class="hidden grid-cols-2 gap-4 p-5 lg:grid-cols-4">
+          <div class="h-32 w-full animate-pulse rounded-md bg-gray-200"></div>
+          <div class="h-32 w-full animate-pulse rounded-md bg-gray-200"></div>
+          <div class="h-32 w-full animate-pulse rounded-md bg-gray-200"></div>
+          <div class="h-32 w-full animate-pulse rounded-md bg-gray-200"></div>
+        </div>
+
+        <!-- Estado: error (solo alert + reintentar) -->
+        <div id="estado-error" class="hidden flex-col items-center justify-center gap-2 p-8 text-center">
+          <p class="text-sm text-gray-500">No se pudo cargar la actividad operativa.</p>
+          <button class="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50" onclick="setEstado('exito')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+            Reintentar
+          </button>
+        </div>
+
+        <!-- Estado: éxito -->
+        <div id="estado-exito" class="grid grid-cols-2 divide-y divide-gray-100 lg:grid-cols-4 lg:divide-x lg:divide-y-0">
+
+          <!-- Facturados (sin cambios GW-114) -->
+          <div class="p-5">
+            <div class="flex items-center gap-2">
+              <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>
+              </span>
+              <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Facturados</p>
+            </div>
+            <div class="mt-3 flex items-baseline gap-2">
+              <p class="text-4xl font-bold tabular-nums text-gray-900">289</p>
+              <span class="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-emerald-700">▲ 5.1 %</span>
+            </div>
+            <p class="mt-1 text-sm font-semibold tabular-nums text-indigo-700">$48.632.500</p>
+            <p class="mt-0.5 text-[11px] tabular-nums text-gray-400">prom. 7 días: 275</p>
+          </div>
+
+          <!-- Despachados -->
+          <div class="p-5">
+            <div class="flex items-center gap-2">
+              <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
+              </span>
+              <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Despachados</p>
+            </div>
+            <div class="mt-3 flex items-baseline gap-2">
+              <p id="despachados-hoy" class="text-4xl font-bold tabular-nums text-gray-900"></p>
+              <span id="despachados-var" class="rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"></span>
+            </div>
+            <div id="despachados-barra" class="mt-1.5 flex h-1.5 w-full overflow-hidden rounded-full"></div>
+            <div id="despachados-leyenda" class="mt-1.5 space-y-0.5 text-[11px] text-gray-500"></div>
+            <p id="despachados-prom7" class="mt-1.5 text-[11px] tabular-nums text-gray-400"></p>
+          </div>
+
+          <!-- Entregados -->
+          <div class="p-5">
+            <div class="flex items-center gap-2">
+              <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 2 2 4-4"/><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/></svg>
+              </span>
+              <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Entregados</p>
+            </div>
+            <div class="mt-3 flex items-baseline gap-2">
+              <p id="entregados-hoy" class="text-4xl font-bold tabular-nums text-gray-900"></p>
+              <span id="entregados-var" class="rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"></span>
+            </div>
+            <div id="entregados-barra" class="mt-1.5 flex h-1.5 w-full overflow-hidden rounded-full"></div>
+            <div id="entregados-leyenda" class="mt-1.5 space-y-0.5 text-[11px] text-gray-500"></div>
+            <p id="entregados-prom7" class="mt-1.5 text-[11px] tabular-nums text-gray-400"></p>
+          </div>
+
+          <!-- Cancelados (sin cambios GW-114) -->
+          <div class="p-5">
+            <div class="flex items-center gap-2">
+              <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500 text-white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </span>
+              <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">Cancelados</p>
+            </div>
+            <p class="mt-3 text-4xl font-bold tabular-nums text-gray-900">7</p>
+            <p class="mt-1 text-[11px] text-gray-400">Motivo principal: Cliente desiste de la compra</p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Guía QA -->
+      <div class="rounded-lg border bg-white">
+        <div class="border-b border-gray-100 px-5 py-3">
+          <h3 class="text-sm uppercase tracking-wide text-gray-500">Qué verificar (criterios de aceptación · spec §3)</h3>
+        </div>
+        <div class="space-y-3 p-5 text-sm text-gray-700">
+          <div class="flex gap-2"><span class="font-semibold text-gray-400">1.</span><p>En ambos tiles el desglose muestra <strong>solo</strong> "Coordinadora", "Servientrega" y "Mensajería interna", siempre los 3 y en ese orden (aunque valgan 0). Nunca aparece "DEPRISA", "SERVIENTREGA" en mayúsculas, vacíos ni variantes mal escritas — compara con la vista "Antes".</p></div>
+          <div class="flex gap-2"><span class="font-semibold text-gray-400">2.</span><p>El total grande de cada tile es igual a la <strong>suma de sus 3 buckets</strong> (aquí: Despachados 233+8+23 = 264; Entregados 84+5+22 = 111).</p></div>
+          <div class="flex gap-2"><span class="font-semibold text-gray-400">3.</span><p><strong>Mensajería interna ya cuenta</strong> en ambos indicadores (antes era invisible: 0 de 597 pedidos de julio llenaban las fechas de despacho/entrega en <code class="rounded bg-gray-100 px-1">shop_pedidos</code>).</p></div>
+          <div class="flex gap-2"><span class="font-semibold text-gray-400">4.</span><p>Un pedido de mensajería con <strong>reasignación</strong> (2 filas en <code class="rounded bg-gray-100 px-1">entregas</code>) cuenta <strong>una sola vez</strong>; y "en ruta hoy" cuenta en Despachados aunque ya se haya entregado el mismo día.</p></div>
+          <div class="flex gap-2"><span class="font-semibold text-gray-400">5.</span><p>El "prom. 7 días" de ambos tiles también incluye los 3 canales.</p></div>
+          <div class="flex gap-2"><span class="font-semibold text-gray-400">6.</span><p><strong>Facturados y Cancelados no cambian</strong> respecto a producción (sin regresión).</p></div>
+          <div class="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
+            Cotejo numérico: usar las consultas SQL de la spec §10 contra <code class="rounded bg-amber-100 px-1">baguer_pro</code> <strong>en el mismo instante</strong> de la captura de pantalla. Entregados crece de forma retroactiva durante el día (patrón GW-60/GW-79); el bucket de mensajería-entregados puede subcontar ~8% por <code class="rounded bg-amber-100 px-1">fecha_entrega</code> NULL (aceptado, no es bug de este REQ).
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+// Colores por índice, idénticos al componente real (COLORES_CANAL)
+const COLORES = ['bg-emerald-600', 'bg-sky-500', 'bg-violet-500', 'bg-amber-500', 'bg-gray-400'];
+
+const DATA = {
+  despues: {
+    nota: 'Comportamiento GW-114: 3 buckets fijos por metodo_envio, con mensajería interna.',
+    despachados: { hoy: 264, prom7: 241.3, desglose: [
+      { tipo: 'Coordinadora', cantidad: 233 },
+      { tipo: 'Servientrega', cantidad: 8 },
+      { tipo: 'Mensajería interna', cantidad: 23 },
+    ]},
+    entregados: { hoy: 111, prom7: 129.6, desglose: [
+      { tipo: 'Coordinadora', cantidad: 84 },
+      { tipo: 'Servientrega', cantidad: 5 },
+      { tipo: 'Mensajería interna', cantidad: 22 },
+    ]},
+  },
+  antes: {
+    nota: 'Producción actual (defecto): clasifica por texto libre, mensajería invisible, aparece "DEPRISA".',
+    despachados: { hoy: 234, prom7: 226.0, desglose: [
+      { tipo: 'coordinadora', cantidad: 138 },
+      { tipo: 'SERVIENTREGA', cantidad: 95 },
+      { tipo: 'DEPRISA', cantidad: 1 },
+    ]},
+    entregados: { hoy: 89, prom7: 118.4, desglose: [] }, // sin desglose: solo el número
+  },
+};
+
+function pintarTile(prefijo, datos) {
+  const total = datos.desglose.reduce((a, d) => a + d.cantidad, 0) || 1;
+  document.getElementById(prefijo + '-hoy').textContent = datos.hoy;
+
+  const variacion = datos.prom7 > 0 ? Math.round(((datos.hoy - datos.prom7) / datos.prom7) * 1000) / 10 : null;
+  const chip = document.getElementById(prefijo + '-var');
+  if (variacion === null) { chip.classList.add('hidden'); }
+  else {
+    chip.classList.remove('hidden');
+    chip.className = 'rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ' +
+      (variacion >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600');
+    chip.textContent = (variacion >= 0 ? '▲ ' : '▼ ') + Math.abs(variacion) + ' %';
+  }
+
+  const barra = document.getElementById(prefijo + '-barra');
+  barra.innerHTML = '';
+  barra.style.display = datos.desglose.length ? 'flex' : 'none';
+  datos.desglose.forEach((d, i) => {
+    const seg = document.createElement('div');
+    seg.className = COLORES[i % COLORES.length];
+    seg.style.width = (d.cantidad / total * 100) + '%';
+    barra.appendChild(seg);
+  });
+
+  const leyenda = document.getElementById(prefijo + '-leyenda');
+  leyenda.innerHTML = datos.desglose.map((d, i) =>
+    '<p class="flex items-center justify-between">' +
+      '<span class="flex items-center gap-1.5"><span class="h-1.5 w-1.5 rounded-full ' + COLORES[i % COLORES.length] + '"></span>' + d.tipo + '</span>' +
+      '<span class="font-semibold tabular-nums text-gray-700">' + d.cantidad + '</span>' +
+    '</p>').join('');
+
+  document.getElementById(prefijo + '-prom7').textContent = 'prom. 7 días: ' + datos.prom7;
+}
+
+let vistaActual = 'despues';
+
+function setVista(vista) {
+  vistaActual = vista;
+  const d = DATA[vista];
+  pintarTile('despachados', d.despachados);
+  pintarTile('entregados', d.entregados);
+  document.getElementById('nota-vista').textContent = d.nota;
+  document.querySelectorAll('.btn-vista').forEach(b => {
+    const activo = b.dataset.vista === vista;
+    b.className = 'btn-vista rounded px-3 py-1.5 ' + (activo ? 'bg-slate-900 text-white' : 'text-gray-600 hover:bg-gray-100');
+  });
+}
+
+function setEstado(estado) {
+  document.getElementById('estado-exito').style.display = estado === 'exito' ? 'grid' : 'none';
+  document.getElementById('estado-carga').style.display = estado === 'carga' ? 'grid' : 'none';
+  document.getElementById('estado-error').style.display = estado === 'error' ? 'flex' : 'none';
+  document.querySelectorAll('.btn-estado').forEach(b => {
+    const activo = b.dataset.estado === estado;
+    b.className = 'btn-estado rounded px-3 py-1.5 ' + (activo ? 'bg-slate-900 text-white' : 'text-gray-600 hover:bg-gray-100');
+  });
+}
+
+document.querySelectorAll('.btn-vista').forEach(b => b.addEventListener('click', () => setVista(b.dataset.vista)));
+document.querySelectorAll('.btn-estado').forEach(b => b.addEventListener('click', () => setEstado(b.dataset.estado)));
+
+setVista('despues');
+setEstado('exito');
+</script>
+
+</body>
+</html>
