@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-115 · Rediseño del menú principal (sidebar) — get-web</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config = { darkMode: 'class' }</script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+  :root { --font-sys: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"; }
+  body { font-family: var(--font-sys); }
+
+  /* ================================================================
+     Tokens del sidebar — una capa por variante.
+     Esto mismo es lo que propone D7/H1: que el estado activo salga de
+     variables y no de un `!bg-emerald-600` clavado en el CVA.
+     ================================================================ */
+  .app {
+    --sb-w: 17rem;            /* 272px — decision D6 */
+    --sb-row-parent: 36px;
+    --sb-row-child: 32px;
+    --sb-header-h: 56px;
+    --sb-label-size: 13px;
+    --sb-radius: 8px;
+  }
+  .app[data-collapsed="true"] { --sb-w: 3.25rem; }
+
+  /* ---------- A · Sobrio neutro ---------- */
+  .app[data-variant="a"] {
+    --sb-bg:#ffffff; --sb-border:#e4e4e7; --sb-hover:#fafafa;
+    --sb-parent:#52525b; --sb-parent-open:#18181b; --sb-parent-icon:#71717a;
+    --sb-child:#52525b; --sb-child-icon:#71717a;
+    --sb-active-bg:#f4f4f5; --sb-active-fg:#18181b; --sb-active-icon:#059669;
+    --sb-accent:#10b981; --sb-guide:#e4e4e7; --sb-section:#a1a1aa;
+    --sb-accent-w:2px; --sb-logo-bg:#18181b; --sb-logo-fg:#ffffff;
+  }
+  .dark .app[data-variant="a"] {
+    --sb-bg:#09090b; --sb-border:#27272a; --sb-hover:#18181b;
+    --sb-parent:#a1a1aa; --sb-parent-open:#fafafa; --sb-parent-icon:#71717a;
+    --sb-child:#a1a1aa; --sb-child-icon:#71717a;
+    --sb-active-bg:#27272a; --sb-active-fg:#fafafa; --sb-active-icon:#34d399;
+    --sb-accent:#34d399; --sb-guide:#27272a; --sb-section:#71717a;
+    --sb-logo-bg:#fafafa; --sb-logo-fg:#09090b;
+  }
+
+  /* Combinación cruzada: app oscura + menú claro.
+     Existe solo para mostrar por qué un toggle independiente del menú
+     abre una casilla que nadie quiere. */
+  .dark .app[data-variant="a"][data-force-light="true"] {
+    --sb-bg:#ffffff; --sb-border:#e4e4e7; --sb-hover:#fafafa;
+    --sb-parent:#52525b; --sb-parent-open:#18181b; --sb-parent-icon:#71717a;
+    --sb-child:#52525b; --sb-child-icon:#71717a;
+    --sb-active-bg:#f4f4f5; --sb-active-fg:#18181b; --sb-active-icon:#059669;
+    --sb-accent:#10b981; --sb-guide:#e4e4e7; --sb-section:#a1a1aa;
+    --sb-logo-bg:#18181b; --sb-logo-fg:#ffffff;
+  }
+
+  /* ---------- B · Marca presente ---------- */
+  .app[data-variant="b"] {
+    --sb-bg:#fafafa; --sb-border:#e4e4e7; --sb-hover:#ecfdf5;
+    --sb-parent:#52525b; --sb-parent-open:#047857; --sb-parent-icon:#71717a;
+    --sb-child:#52525b; --sb-child-icon:#71717a;
+    --sb-active-bg:#d1fae5; --sb-active-fg:#065f46; --sb-active-icon:#059669;
+    --sb-accent:transparent; --sb-guide:#e4e4e7; --sb-section:#a1a1aa;
+    --sb-accent-w:0px; --sb-logo-bg:#047857; --sb-logo-fg:#ffffff;
+  }
+  .dark .app[data-variant="b"] {
+    --sb-bg:#09090b; --sb-border:#27272a; --sb-hover:rgba(16,185,129,.10);
+    --sb-parent:#a1a1aa; --sb-parent-open:#6ee7b7; --sb-parent-icon:#71717a;
+    --sb-child:#a1a1aa; --sb-child-icon:#71717a;
+    --sb-active-bg:rgba(16,185,129,.16); --sb-active-fg:#a7f3d0; --sb-active-icon:#34d399;
+    --sb-accent:transparent; --sb-guide:#27272a; --sb-section:#71717a;
+    --sb-logo-bg:#34d399; --sb-logo-fg:#052e1b;
+  }
+
+  /* ---------- C · Superficie oscura (igual en claro y oscuro) ---------- */
+  .app[data-variant="c"], .dark .app[data-variant="c"] {
+    --sb-bg:#18181b; --sb-border:#27272a; --sb-hover:rgba(255,255,255,.05);
+    --sb-parent:#a1a1aa; --sb-parent-open:#fafafa; --sb-parent-icon:#71717a;
+    --sb-child:#a1a1aa; --sb-child-icon:#71717a;
+    --sb-active-bg:rgba(255,255,255,.10); --sb-active-fg:#ffffff; --sb-active-icon:#34d399;
+    --sb-accent:#34d399; --sb-guide:#3f3f46; --sb-section:#71717a;
+    --sb-accent-w:2px; --sb-logo-bg:#fafafa; --sb-logo-fg:#18181b;
+  }
+
+  /* ---------- HOY · reproducción fiel del estado actual ---------- */
+  .app[data-variant="hoy"] {
+    --sb-w: 20rem;            /* 320px */
+    --sb-row-parent: 44px; --sb-row-child: 36px; --sb-header-h: 76px;
+    --sb-label-size: 14px; --sb-radius: 6px;
+    --sb-bg:#fafafa; --sb-border:#e8e8e8; --sb-hover:#f0f0f0;
+    --sb-parent:#43434f; --sb-parent-open:#43434f; --sb-parent-icon:#43434f;
+    --sb-child:#43434f; --sb-child-icon:#6f7480;
+    --sb-active-bg:#f1f5f9; --sb-active-fg:#4d4d4d;
+    --sb-active-icon:#6f7480; --sb-accent:transparent; --sb-accent-w:0px;
+    --sb-guide:transparent; --sb-section:#a1a1aa;
+    --sb-logo-bg:#18181b; --sb-logo-fg:#ffffff;
+  }
+  .dark .app[data-variant="hoy"] {
+    --sb-bg:#121212; --sb-border:#282828; --sb-hover:#1f1f1f;
+    --sb-parent:#f4f4f5; --sb-parent-open:#f4f4f5; --sb-parent-icon:#f4f4f5;
+    --sb-child:#f4f4f5; --sb-child-icon:#6f7480;   /* hardcodeado: queda opaco. H6 */
+    --sb-active-bg:#282828; --sb-active-fg:#f4f4f5;
+    --sb-logo-bg:#fafafa; --sb-logo-fg:#121212;
+  }
+
+  /* ================================================================
+     Estructura
+     ================================================================ */
+  .sidebar { width: var(--sb-w); background: var(--sb-bg); border-color: var(--sb-border);
+             transition: width .18s ease; }
+  .sb-header { height: var(--sb-header-h); border-color: var(--sb-border); }
+
+  .row { position: relative; display: flex; align-items: center; gap: 10px;
+         border-radius: var(--sb-radius); padding: 0 10px; cursor: pointer;
+         font-size: var(--sb-label-size); line-height: 1.2; width: 100%;
+         text-align: left; transition: background .12s, color .12s; }
+  .row:hover { background: var(--sb-hover); }
+  .row-parent { height: var(--sb-row-parent); color: var(--sb-parent); font-weight: 500; }
+  .row-parent .ic { color: var(--sb-parent-icon); }
+  .row-child  { height: var(--sb-row-child);  color: var(--sb-child);  font-weight: 400; }
+  .row-child .ic { color: var(--sb-child-icon); }
+
+  /* El padre que CONTIENE la pantalla activa: marca secundaria, sin relleno. D5 */
+  .row-parent[data-open-active="true"] { color: var(--sb-parent-open); font-weight: 600; }
+  .row-parent[data-open-active="true"] .ic { color: var(--sb-active-icon); }
+
+  /* El único activo real es el hijo. D5 */
+  .row-child[data-active="true"] {
+    background: var(--sb-active-bg); color: var(--sb-active-fg); font-weight: 500;
+  }
+  .row-child[data-active="true"] .ic { color: var(--sb-active-icon); }
+  .row-child[data-active="true"]::before {
+    content:""; position:absolute; left:-9px; top:50%; transform:translateY(-50%);
+    width: var(--sb-accent-w); height: 16px; border-radius: 2px; background: var(--sb-accent);
+  }
+
+  /* Ranura de ícono siempre reservada: alinea "Saldos a Favor", que no tiene ícono (H11) */
+  .ic { width:16px; height:16px; flex:none; display:grid; place-items:center; }
+  .row-parent .ic { width:18px; height:18px; }
+  .ic svg { width:100%; height:100%; }
+
+  .children { position: relative; margin-left: 19px; padding-left: 9px; }
+  .children::before { content:""; position:absolute; left:0; top:2px; bottom:2px;
+                      width:1px; background: var(--sb-guide); }
+
+  /* En HOY no hay guía ni barra de acento, y el padre activo es un bloque verde sólido */
+  .app[data-variant="hoy"] .row-parent[data-open-active="true"] {
+    background:#059669 !important; color:#fff !important; font-weight:700;
+  }
+  .app[data-variant="hoy"] .row-parent[data-open-active="true"] .ic { color:#fff; }
+  .app[data-variant="hoy"] .row-parent { font-weight:700; }
+  .app[data-variant="hoy"] .row-child[data-active="true"] { border:1px solid #e2e8f0; }
+  .app[data-variant="hoy"] .children { margin-left: 22px; padding-left: 12px; }
+  /* HOY no reserva la ranura del ícono cuando falta: por eso "Saldos a Favor" se desalinea */
+  .app[data-variant="hoy"] .ic:empty { display:none; }
+
+  .chev { margin-left:auto; transition: transform .18s ease; color: currentColor; opacity:.5; }
+  .row-parent[data-expanded="true"] .chev { transform: rotate(90deg); }
+
+  .section-label { font-size:11px; font-weight:600; letter-spacing:.04em;
+                   text-transform:uppercase; color: var(--sb-section);
+                   padding: 0 10px; margin: 14px 0 4px; }
+
+  /* Colapsado */
+  .app[data-collapsed="true"] .lbl,
+  .app[data-collapsed="true"] .chev,
+  .app[data-collapsed="true"] .children,
+  .app[data-collapsed="true"] .section-label,
+  .app[data-collapsed="true"] .brand-text { display:none; }
+  .app[data-collapsed="true"] .row { justify-content:center; padding:0; }
+  .app[data-collapsed="true"] .row-child[data-active="true"]::before { display:none; }
+  .app[data-collapsed="true"] .row-parent[data-open-active="true"] {
+    background: var(--sb-active-bg); color: var(--sb-active-fg);
+  }
+  .app[data-collapsed="true"] .sb-header { justify-content:center; padding-left:0; padding-right:0; }
+  .app[data-collapsed="true"] #btn-rail { margin-left:0; }
+
+  /* Tooltip del modo colapsado */
+  .row[data-tip]:hover::after {
+    content: attr(data-tip); position:absolute; left: calc(100% + 10px); top:50%;
+    transform:translateY(-50%); background:#18181b; color:#fff; font-size:12px;
+    padding:5px 9px; border-radius:6px; white-space:nowrap; z-index:60;
+    box-shadow:0 4px 14px rgba(0,0,0,.18);
+  }
+  .app:not([data-collapsed="true"]) .row[data-tip]:hover::after { display:none; }
+
+  /* Panel lateral del modo contraído. Lo que hoy hace el DropdownMenu de
+     NavMain.vue, con las tres correcciones: título, activo bien marcado
+     y apertura por clic (no por hover). */
+  #flyout .fly {
+    background: var(--sb-bg); border:1px solid var(--sb-border);
+    border-radius:10px; padding:6px; min-width:210px;
+    box-shadow:0 12px 32px rgba(0,0,0,.28);
+  }
+  #flyout .fly-title {
+    font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+    color: var(--sb-section); padding:6px 10px 8px; display:flex; align-items:center; gap:8px;
+    border-bottom:1px solid var(--sb-border); margin-bottom:6px;
+  }
+  #flyout .fly-title .ic { color: var(--sb-active-icon); }
+
+  /* El panel es contenido expandido aunque el rail esté contraído: hay que
+     neutralizar las reglas de "contraído" dentro de él. */
+  .app[data-collapsed="true"] #flyout .lbl { display:block; }
+  .app[data-collapsed="true"] #flyout .row { justify-content:flex-start; padding:0 10px; }
+  .app[data-collapsed="true"] #flyout .row-child[data-active="true"]::before { display:none; }
+  #flyout .row[data-tip]:hover::after { display:none; }
+
+  .scrollarea { scrollbar-width: thin; scrollbar-color: var(--sb-guide) transparent; }
+  .scrollarea::-webkit-scrollbar { width:8px; }
+  .scrollarea::-webkit-scrollbar-thumb { background: var(--sb-guide); border-radius:4px; }
+
+  .seg[aria-pressed="true"] { background:#18181b; color:#fff; }
+  .dark .seg[aria-pressed="true"] { background:#fafafa; color:#18181b; }
+</style>
+</head>
+
+<body class="bg-zinc-100 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+
+<!-- ══════════ Barra de control del mockup (no es parte de la app) ══════════ -->
+<div class="sticky top-0 z-50 border-b border-zinc-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 backdrop-blur">
+  <div class="max-w-[1500px] mx-auto px-5 py-3 flex flex-wrap items-center gap-x-6 gap-y-3">
+    <div class="mr-auto">
+      <div class="text-[13px] font-semibold">GW-115 · Menú principal de get-web</div>
+      <div class="text-[11px] text-zinc-500">Mockup de decisión · datos reales de la tabla <code>menu</code> (BD <code>get</code>)</div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <span class="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Dirección</span>
+      <div class="flex rounded-lg border border-zinc-300 dark:border-zinc-700 overflow-hidden text-[12px] font-medium">
+        <button class="seg px-3 py-1.5" data-var="hoy" aria-pressed="false">Hoy</button>
+        <button class="seg px-3 py-1.5 border-l border-zinc-300 dark:border-zinc-700" data-var="a" aria-pressed="false">A · Sobrio</button>
+        <button class="seg px-3 py-1.5 border-l border-zinc-300 dark:border-zinc-700" data-var="b" aria-pressed="false">B · Marca</button>
+        <button class="seg px-3 py-1.5 border-l border-zinc-300 dark:border-zinc-700" data-var="c" aria-pressed="true">C · Oscuro ✓</button>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button id="btn-theme" class="px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 text-[12px] font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800">
+        Modo oscuro
+      </button>
+      <button id="btn-collapse" class="px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 text-[12px] font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800">
+        Colapsar
+      </button>
+      <button id="btn-cruce" class="px-3 py-1.5 rounded-lg border border-amber-400 text-amber-700 dark:text-amber-400 text-[12px] font-medium hover:bg-amber-50 dark:hover:bg-amber-500/10">
+        Ver cruce app oscura + menú claro
+      </button>
+    </div>
+
+    <div class="flex items-center gap-4 pl-4 border-l border-zinc-200 dark:border-zinc-800">
+      <div>
+        <div class="text-[10px] uppercase tracking-wide text-zinc-500">Alto del menú</div>
+        <div class="text-[13px] font-semibold tabular-nums"><span id="m-alto">—</span> px</div>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-wide text-zinc-500">Cabe en 1 pantalla</div>
+        <div class="text-[13px] font-semibold"><span id="m-cabe">—</span></div>
+      </div>
+      <div>
+        <div class="text-[10px] uppercase tracking-wide text-zinc-500">Ancho</div>
+        <div class="text-[13px] font-semibold tabular-nums"><span id="m-ancho">—</span> px</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ Nota de lectura ══════════ -->
+<div class="max-w-[1500px] mx-auto px-5 pt-5">
+  <div id="nota" class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 text-[13px] leading-relaxed text-zinc-600 dark:text-zinc-400"></div>
+</div>
+
+<!-- ══════════ Marco de la aplicación ══════════ -->
+<div class="max-w-[1500px] mx-auto p-5">
+  <div class="rounded-xl overflow-hidden border border-zinc-300 dark:border-zinc-800 shadow-sm">
+
+    <!-- cromo de navegador -->
+    <div class="flex items-center gap-2 px-4 h-9 bg-zinc-200 dark:bg-zinc-800 border-b border-zinc-300 dark:border-zinc-700">
+      <span class="w-2.5 h-2.5 rounded-full bg-zinc-400 dark:bg-zinc-600"></span>
+      <span class="w-2.5 h-2.5 rounded-full bg-zinc-400 dark:bg-zinc-600"></span>
+      <span class="w-2.5 h-2.5 rounded-full bg-zinc-400 dark:bg-zinc-600"></span>
+      <div class="ml-3 px-3 py-0.5 rounded bg-white dark:bg-zinc-900 text-[11px] text-zinc-500">get.baguer.co/pedidos</div>
+    </div>
+
+    <div class="app relative flex bg-white dark:bg-zinc-950" data-variant="c" data-collapsed="false" style="height:660px">
+
+      <!-- ═════ SIDEBAR ═════ -->
+      <aside class="sidebar relative flex flex-col border-r shrink-0">
+        <!-- Tira del borde: segunda forma de plegar/desplegar, en todo el alto.
+             El primitivo SidebarRail.vue ya existe en get-web y hoy no se usa. -->
+        <button id="rail-strip" title="Plegar o desplegar el menú"
+                class="absolute inset-y-0 -right-1.5 w-3 z-30 group cursor-ew-resize">
+          <span class="block h-full w-[2px] mx-auto transition-colors group-hover:bg-emerald-400/70"></span>
+        </button>
+        <div class="sb-header flex items-center gap-2.5 px-3 border-b shrink-0">
+          <div class="brand-text w-8 h-8 rounded-lg grid place-items-center shrink-0" style="background:var(--sb-logo-bg)">
+            <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                 style="color:var(--sb-logo-fg)">
+              <path d="M3 9h18M5 9V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/>
+            </svg>
+          </div>
+          <span class="brand-text text-[17px] font-bold tracking-tight" style="color:var(--sb-parent-open)">get</span>
+          <button id="btn-rail" title="Plegar o desplegar el menú (Cmd/Ctrl + B)" class="ml-auto p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10" style="color:var(--sb-parent-icon)">
+            <i data-lucide="panel-left-close" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <nav id="nav" class="scrollarea flex-1 overflow-y-auto overflow-x-hidden px-2.5 py-3"><div id="navinner"></div></nav>
+        <!-- Anclado al borde del sidebar con left:100%, no a la posición medida del
+             botón: así no se descoloca si se abre durante la transición de ancho. -->
+        <div id="flyout" class="hidden absolute z-50" style="left:calc(100% + 8px)"></div>
+
+        <div class="border-t px-2.5 py-2.5 shrink-0" style="border-color:var(--sb-border)">
+          <div class="row" data-tip="Francisco Lizcano">
+            <span class="ic"><span class="w-6 h-6 rounded-full bg-zinc-300 dark:bg-zinc-700 grid place-items-center text-[10px] font-bold text-zinc-700 dark:text-zinc-200">FL</span></span>
+            <span class="lbl min-w-0">
+              <span class="block truncate font-medium" style="color:var(--sb-parent-open)">Francisco Lizcano</span>
+              <span class="block truncate text-[11px]" style="color:var(--sb-section)">Administrador</span>
+            </span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ═════ CONTENIDO ═════ -->
+      <main class="flex-1 min-w-0 flex flex-col bg-zinc-50 dark:bg-zinc-950">
+        <header class="h-14 shrink-0 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center px-6 gap-3">
+          <i data-lucide="house" class="w-4 h-4 text-zinc-400"></i>
+          <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-zinc-300"></i>
+          <span class="text-[13px] text-zinc-500">Pedidos</span>
+          <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-zinc-300"></i>
+          <span class="text-[13px] font-semibold" id="crumb">Lista de Pedidos</span>
+          <div class="ml-auto flex items-center gap-2">
+            <div class="hidden md:flex items-center gap-2 px-3 h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[12px] text-zinc-400 w-56">
+              <i data-lucide="search" class="w-3.5 h-3.5"></i> Buscar…
+            </div>
+            <button class="h-8 px-3 rounded-lg bg-emerald-600 text-white text-[12px] font-semibold">Nuevo pedido</button>
+          </div>
+        </header>
+
+        <div class="flex-1 overflow-auto p-6">
+          <div class="grid grid-cols-4 gap-3 mb-5">
+            <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+              <div class="text-[11px] uppercase tracking-wide text-zinc-500">Facturados</div>
+              <div class="text-2xl font-bold mt-1 tabular-nums">377</div>
+              <div class="text-[12px] text-emerald-600 font-semibold">$ 179.008.041</div>
+            </div>
+            <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+              <div class="text-[11px] uppercase tracking-wide text-zinc-500">Despachados</div>
+              <div class="text-2xl font-bold mt-1 tabular-nums">376</div>
+              <div class="text-[12px] text-zinc-500">prom. 7 días: 341</div>
+            </div>
+            <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+              <div class="text-[11px] uppercase tracking-wide text-zinc-500">Entregados</div>
+              <div class="text-2xl font-bold mt-1 tabular-nums">298</div>
+              <div class="text-[12px] text-zinc-500">ticket prom. $ 478.262</div>
+            </div>
+            <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+              <div class="text-[11px] uppercase tracking-wide text-zinc-500">Devoluciones</div>
+              <div class="text-2xl font-bold mt-1 tabular-nums">12</div>
+              <div class="text-[12px] text-zinc-500">3,2 % del despacho</div>
+            </div>
+          </div>
+
+          <!-- La tabla es el juez del ancho: aquí se nota lo que el sidebar devuelve. D6 -->
+          <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+            <div class="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center">
+              <span class="text-[13px] font-semibold">Pedidos de hoy</span>
+              <span class="ml-2 text-[11px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500">162</span>
+            </div>
+            <table class="w-full text-[12px]">
+              <thead class="bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500">
+                <tr>
+                  <th class="text-left font-medium px-4 py-2">Pedido</th>
+                  <th class="text-left font-medium px-4 py-2">Cliente</th>
+                  <th class="text-left font-medium px-4 py-2">Ciudad</th>
+                  <th class="text-left font-medium px-4 py-2">Método de envío</th>
+                  <th class="text-left font-medium px-4 py-2">Transportadora</th>
+                  <th class="text-left font-medium px-4 py-2">Estado</th>
+                  <th class="text-right font-medium px-4 py-2">Total</th>
+                </tr>
+              </thead>
+              <tbody id="tbody" class="divide-y divide-zinc-100 dark:divide-zinc-800"></tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<div class="max-w-[1500px] mx-auto px-5 pb-10 text-[12px] text-zinc-500">
+  Prototipo de validación · no es código de producción. Los 8 módulos y 22 subpantallas provienen de
+  <code>SELECT … FROM menu WHERE is_visible_in_menu = 1</code> sobre la BD <code>get</code>.
+</div>
+
+<script>
+/* ════════════════ Datos reales del menú (BD get, tabla menu) ════════════════ */
+const MENU = [
+  { t:'Dashboard',     i:'layout-dashboard', c:[] },
+  { t:'Pedidos',       i:'shopping-cart',    c:[ {t:'Lista de Pedidos', i:'list'} ] },
+  { t:'Descuentos',    i:'percent',          c:[ {t:'Promociones', i:'badge-percent'} ] },
+  { t:'Clientes',      i:'users',            c:[ {t:'Vista 360', i:'user-search'} ] },
+  { t:'Venta asistida',i:'user-check',       c:[
+      {t:'Gestión de ventas', i:'bar-chart-3'}, {t:'Asignar clientes', i:'user-plus'},
+      {t:'Mis ventas', i:'shopping-cart'},      {t:'Gestión entregas', i:'truck'},
+      {t:'Productos visitados', i:'eye'},       {t:'Mis Entregas', i:'bike'},
+      {t:'Presupuesto', i:'calculator'},        {t:'Presupuesto asesor', i:'calculator'},
+      {t:'Configuración comisiones', i:'percent'},
+      {t:'Liquidación de comisiones', i:'percent'},
+      {t:'Cierre de períodos', i:'calendar'} ] },
+  /* "Saldos a Favor" no tiene menu_icon en BD — caso real de alineación (H11) */
+  { t:'Devoluciones',  i:'undo',             c:[ {t:'Saldos a Favor', i:null} ] },
+  { t:'QUAC',          i:'credit-card',      c:[
+      {t:'Cortes PVAL', i:'mail'},   {t:'Consulta PVAL', i:'search'},
+      {t:'Consulta de Planes', i:'file-text'}, {t:'Simulador compras', i:'calculator'} ] },
+  { t:'Configuración', i:'settings',         c:[
+      {t:'Usuarios', i:'user-cog'}, {t:'Roles', i:'key'}, {t:'Permisos de Navegación', i:'navigation'} ] },
+];
+
+const NOTAS = {
+  hoy: '<b class="text-zinc-900 dark:text-zinc-100">Hoy.</b> Reproducción fiel del estado actual, para comparar honestamente. Los ocho grupos abren a la vez, el módulo padre se pinta de verde sólido a todo el ancho <i>y además</i> el hijo se marca en gris — dos filas activas compitiendo (H2). El sidebar mide 320 px. Fíjate en “Saldos a Favor”: no tiene ícono en BD y su texto queda desalineado respecto a sus hermanas (H11).',
+  a:   '<b class="text-zinc-900 dark:text-zinc-100">A · Sobrio neutro.</b> El sidebar se calla para que mande el contenido. El único activo real es la pantalla (el hijo): fondo neutro suave más una barra de acento de 2 px. El módulo que la contiene solo cambia a texto oscuro y semibold, sin relleno. El verde queda reservado para acentos mínimos y para las acciones primarias de la página.',
+  b:   '<b class="text-zinc-900 dark:text-zinc-100">B · Marca presente.</b> Conserva el verde de <i>get</i> en la navegación, pero desaturado: la pantalla activa es una píldora verde muy clara con texto e ícono verde oscuro, y el módulo que la contiene pasa a verde. Mantiene la identidad visible sin el bloque saturado de hoy.',
+  c:   '<span class="inline-block mb-2 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 text-[11px] font-semibold uppercase tracking-wide">Dirección aprobada · contrato de interfaz</span><br><b class="text-zinc-900 dark:text-zinc-100">C · Superficie oscura.</b> El sidebar es una superficie oscura permanente, igual en modo claro y oscuro. La separación entre navegar y trabajar se logra con contraste de superficie en vez de con color, así que el verde queda libre para significar solo una cosa en la página. Es la apuesta más fuerte: cambia por completo la primera impresión del CMS.',
+};
+
+/* ════════════════ Estado ════════════════ */
+const app = document.querySelector('.app');
+const nav = document.getElementById('nav');
+const navInner = document.getElementById('navinner');
+let variante = 'a';
+let activo   = { padre:'Pedidos', hijo:'Lista de Pedidos' };
+/* Con la decisión D4 solo arranca abierto el módulo de la pantalla actual.
+   En la variante "hoy" se abren todos, que es el comportamiento vigente. */
+let abiertos = new Set([activo.padre]);
+
+function icono(nombre, clase) {
+  if (!nombre) return '';
+  return `<i data-lucide="${nombre}" class="${clase||''}"></i>`;
+}
+
+function render() {
+  const esHoy = variante === 'hoy';
+  const grupos = esHoy ? new Set(MENU.map(m => m.t)) : abiertos;
+
+  navInner.innerHTML = MENU.map(m => {
+    const tieneHijos  = m.c.length > 0;
+    const expandido   = tieneHijos && grupos.has(m.t);
+    const contieneAct = m.t === activo.padre;
+    /* Un módulo sin hijos (Dashboard) es una pantalla en sí misma:
+       se marca como activo real, no como "contenedor del activo". */
+    const esHojaAct   = !tieneHijos && activo.hijo === m.t;
+
+    const padre = `
+      <button class="row row-parent"
+              data-open-active="${contieneAct || esHojaAct}"
+              data-expanded="${expandido}"
+              data-tip="${m.t}"
+              data-padre="${m.t}">
+        <span class="ic">${icono(m.i)}</span>
+        <span class="lbl truncate">${m.t}</span>
+        ${tieneHijos ? '<i data-lucide="chevron-right" class="chev w-3.5 h-3.5"></i>' : ''}
+      </button>`;
+
+    const hijos = !tieneHijos || !expandido ? '' : `
+      <div class="children">
+        ${m.c.map(h => `
+          <button class="row row-child"
+                  data-active="${contieneAct && h.t === activo.hijo}"
+                  data-padre="${m.t}" data-hijo="${h.t}">
+            <span class="ic">${icono(h.i)}</span>
+            <span class="lbl truncate">${h.t}</span>
+          </button>`).join('')}
+      </div>`;
+
+    return `<div class="mb-0.5">${padre}${hijos}</div>`;
+  }).join('');
+
+  lucide.createIcons();
+  /* Si el catálogo de lucide no trae algún nombre, se deja la ranura vacía
+     en vez de un hueco roto — la alineación se mantiene igual. */
+  cablear();
+  medir();
+}
+
+const flyout = document.getElementById('flyout');
+
+function cerrarFlyout() { flyout.classList.add('hidden'); flyout.innerHTML = ''; }
+
+/* Contraído: el clic en un módulo con hijos abre el panel, NO navega ni expande.
+   Un módulo sin hijos (Dashboard) sí es una pantalla y navega. */
+function abrirFlyout(btn, m) {
+  const rBtn = btn.getBoundingClientRect();
+  flyout.innerHTML = `
+    <div class="fly">
+      <div class="fly-title"><span class="ic">${icono(m.i)}</span>${m.t}</div>
+      ${m.c.map(h => `
+        <button class="row row-child" data-active="${m.t===activo.padre && h.t===activo.hijo}"
+                data-padre="${m.t}" data-hijo="${h.t}">
+          <span class="ic">${icono(h.i)}</span><span class="lbl truncate">${h.t}</span>
+        </button>`).join('')}
+    </div>`;
+  const rSide = btn.closest('aside').getBoundingClientRect();
+  const altoPanel = m.c.length * 32 + 58;
+  flyout.style.top = Math.max(8, Math.min(rBtn.top - rSide.top, rSide.height - altoPanel - 8)) + 'px';
+  flyout.classList.remove('hidden');
+  lucide.createIcons();
+  flyout.querySelectorAll('.row-child').forEach(x => x.onclick = () => {
+    activo = { padre:x.dataset.padre, hijo:x.dataset.hijo };
+    abiertos.add(activo.padre);
+    cerrarFlyout(); render(); pintarMiga();   // permanece contraído
+  });
+}
+
+document.addEventListener('click', e => {
+  if (!flyout.contains(e.target) && !e.target.closest('.row-parent')) cerrarFlyout();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarFlyout(); });
+
+function cablear() {
+  nav.querySelectorAll('.row-parent').forEach(b => b.onclick = () => {
+    const t = b.dataset.padre;
+    const m = MENU.find(x => x.t === t);
+    if (app.dataset.collapsed === 'true' && m.c.length) { abrirFlyout(b, m); return; }
+    cerrarFlyout();
+    if (!m.c.length) { activo = { padre:t, hijo:t }; abiertos = new Set([t]); }
+    else if (abiertos.has(t)) abiertos.delete(t);
+    else abiertos.add(t);
+    render(); pintarMiga();
+  });
+  nav.querySelectorAll('.row-child').forEach(b => b.onclick = () => {
+    activo = { padre:b.dataset.padre, hijo:b.dataset.hijo };
+    abiertos.add(activo.padre);
+    render(); pintarMiga();
+  });
+}
+
+function pintarMiga() {
+  const c = document.getElementById('crumb');
+  c.textContent = activo.hijo;
+  c.previousElementSibling.previousElementSibling.textContent = activo.padre;
+}
+
+/* ════════════════ Métricas en vivo ════════════════
+   El alto del menú es el argumento central de D4: se mide, no se estima. */
+function medir() {
+  /* Se mide el contenido, no el contenedor: `scrollHeight` nunca baja del alto
+     de la caja, así que reportaría el alto disponible cuando el menú sí cabe. */
+  const cs2  = getComputedStyle(nav);
+  const alto = Math.round(navInner.getBoundingClientRect().height
+                          + parseFloat(cs2.paddingTop) + parseFloat(cs2.paddingBottom));
+  /* El ancho se lee de la variable, no del rectángulo: la transición CSS
+     hace que getBoundingClientRect devuelva el valor en tránsito. */
+  const rem   = parseFloat(getComputedStyle(document.documentElement).fontSize);
+  const ancho = Math.round(parseFloat(getComputedStyle(app).getPropertyValue('--sb-w')) * rem);
+  const cabe  = alto <= nav.clientHeight;
+  document.getElementById('m-alto').textContent  = alto;
+  document.getElementById('m-ancho').textContent = ancho;
+  const el = document.getElementById('m-cabe');
+  el.textContent = cabe ? 'Sí' : 'No';
+  el.className = cabe ? 'text-emerald-600 font-semibold' : 'text-red-500 font-semibold';
+}
+
+/* ════════════════ Controles ════════════════ */
+document.querySelectorAll('.seg').forEach(b => b.onclick = () => {
+  variante = b.dataset.var;
+  document.querySelectorAll('.seg').forEach(x => x.setAttribute('aria-pressed', x === b));
+  app.dataset.variant = variante;
+  document.getElementById('nota').innerHTML = NOTAS[variante];
+  render();
+});
+
+document.getElementById('btn-theme').onclick = (e) => {
+  const oscuro = document.documentElement.classList.toggle('dark');
+  e.target.textContent = oscuro ? 'Modo claro' : 'Modo oscuro';
+  medir();
+};
+
+function alternarColapso() {
+  cerrarFlyout();
+  const col = app.dataset.collapsed === 'true';
+  app.dataset.collapsed = String(!col);
+  document.getElementById('btn-collapse').textContent = col ? 'Colapsar' : 'Expandir';
+  /* El icono comunica la accion, no el estado: contraido ofrece "abrir". */
+  const btn = document.getElementById('btn-rail');
+  btn.innerHTML = `<i data-lucide="${col ? 'panel-left-close' : 'panel-left-open'}" class="w-4 h-4"></i>`;
+  btn.title = col ? 'Contraer el menú' : 'Desplegar el menú';
+  lucide.createIcons();
+  setTimeout(medir, 220);
+}
+document.getElementById('btn-collapse').onclick = alternarColapso;
+
+/* Demuestra la cuarta casilla del cruce de ejes: app en oscuro, menú en claro. */
+document.getElementById('btn-cruce').onclick = () => {
+  const activoYa = app.dataset.forceLight === 'true';
+  if (activoYa) {
+    app.removeAttribute('data-force-light');
+    document.documentElement.classList.remove('dark');
+    document.getElementById('btn-theme').textContent = 'Modo oscuro';
+    document.getElementById('nota').innerHTML = NOTAS[variante];
+  } else {
+    document.querySelector('.seg[data-var="a"]').click();
+    document.documentElement.classList.add('dark');
+    document.getElementById('btn-theme').textContent = 'Modo claro';
+    app.dataset.forceLight = 'true';
+    document.getElementById('nota').innerHTML =
+      '<b class="text-amber-700 dark:text-amber-400">Cruce: app oscura + menú claro.</b> ' +
+      'Esta es la casilla que un interruptor independiente del menú deja alcanzable: una columna ' +
+      'blanca de 272 px contra un área de trabajo casi negra. No está rota técnicamente — está ' +
+      'rota como producto. Si el toggle entra al REQ, hay que diseñarla o bloquearla; ' +
+      'bloquearla equivale a aceptar que los dos ajustes no son ejes independientes. ' +
+      'Pulsa el botón otra vez para volver.';
+  }
+  medir();
+};
+document.getElementById('btn-rail').onclick = alternarColapso;
+
+/* ════════════════ Datos de la tabla ════════════════ */
+const PEDIDOS = [
+  ['#284191','Marta Quintero','Bogotá','Transportadora','Servientrega','Despachado','$ 389.900'],
+  ['#284190','Jhon Cárdenas','Pereira','Transportadora','Coordinadora','Despachado','$ 512.400'],
+  ['#284188','Liliana Ospina','Medellín','Mensajería interna','—','Entregado','$ 249.000'],
+  ['#284187','Carlos Bermúdez','Valledupar','Contra entrega','—','En ruta','$ 178.500'],
+  ['#284185','Sandra Villalba','Cali','Transportadora','Servientrega','Facturado','$ 1.045.900'],
+  ['#284182','Andrés Mejía','Barranquilla','Transportadora','Coordinadora','Entregado','$ 320.000'],
+];
+const TONO = { Despachado:'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+               Entregado:'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+               'En ruta':'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+               Facturado:'bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300' };
+document.getElementById('tbody').innerHTML = PEDIDOS.map(p => `
+  <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+    <td class="px-4 py-2.5 font-medium tabular-nums">${p[0]}</td>
+    <td class="px-4 py-2.5">${p[1]}</td>
+    <td class="px-4 py-2.5 text-zinc-500">${p[2]}</td>
+    <td class="px-4 py-2.5 text-zinc-500">${p[3]}</td>
+    <td class="px-4 py-2.5 text-zinc-500">${p[4]}</td>
+    <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded-full text-[11px] font-medium ${TONO[p[5]]}">${p[5]}</span></td>
+    <td class="px-4 py-2.5 text-right font-semibold tabular-nums">${p[6]}</td>
+  </tr>`).join('');
+
+/* ════════════════ Arranque ════════════════ */
+document.getElementById('nota').innerHTML = NOTAS.c;
+render();
+window.addEventListener('resize', medir);
+/* En la primera pintura, `medir()` corre antes de que lucide termine de sustituir
+   los <i> por <svg>, y reporta un alto menor al real. Se vuelve a medir cuando el
+   layout ya está estable. */
+requestAnimationFrame(() => requestAnimationFrame(medir));
+window.addEventListener('load', medir);
+/* get-web ya trae este atajo (SIDEBAR_KEYBOARD_SHORTCUT en utils.ts) y nadie lo conoce. */
+document.addEventListener('keydown', e => {
+  if (e.key.toLowerCase() === 'b' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); alternarColapso(); }
+});
+</script>
+</body>
+</html>
