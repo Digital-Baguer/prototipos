@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GW-113 · Gestión de Ventas — Consulta de ventas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .cifra { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  @keyframes pulso { 0%,100% { opacity: 1 } 50% { opacity: .45 } }
+  .skeleton { animation: pulso 1.4s ease-in-out infinite; }
+
+  .vista { display: none; }
+  .vista.activa { display: block; }
+  .estado-panel { display: none; }
+  .estado-panel.activa { display: block; }
+
+  /* Variante D7-B: el semáforo se neutraliza en ventas ya cerradas */
+  body[data-semaforo="b"] .tiempo-cerrada { color: #9CA3AF !important; font-weight: 400 !important; }
+
+  /* D4 · columnas congeladas con CSS puro (sin PrimeVue): la fila mide ~1420px,
+     así que en pantallas por debajo de 1700px la tabla se desplaza. Congelando
+     Carrito (izquierda) y Acción (derecha), el # y el botón "Ver" quedan siempre visibles. */
+  #vista-propuesta table th:first-child,
+  #vista-propuesta table td:first-child { position: sticky; left: 0; z-index: 2; border-right: 1px solid #F3F4F6; }
+  #vista-propuesta table th:last-child,
+  #vista-propuesta table td:last-child  { position: sticky; right: 0; z-index: 2; border-left: 1px solid #F3F4F6; }
+  #vista-propuesta table td:first-child,
+  #vista-propuesta table td:last-child   { background: #fff; }
+  #vista-propuesta table th:first-child,
+  #vista-propuesta table th:last-child   { background: #F9FAFB; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-900" data-semaforo="b">
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     CONTROLES DEL MOCKUP — no forman parte de la interfaz real
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="sticky top-0 z-50 border-b border-gray-700 bg-gray-900 text-gray-200">
+  <div class="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-6 gap-y-2 px-5 py-2.5">
+    <span class="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">Mockup GW-113</span>
+
+    <div class="flex items-center gap-1.5">
+      <span class="text-[11px] text-gray-500">Vista:</span>
+      <button data-vista="antes" class="btn-vista rounded-md px-2.5 py-1 text-xs font-medium">Hoy · 8 columnas</button>
+      <button data-vista="propuesta" class="btn-vista rounded-md px-2.5 py-1 text-xs font-medium">Propuesta · 11 columnas</button>
+    </div>
+
+    <div class="flex items-center gap-1.5">
+      <span class="text-[11px] text-gray-500">D7 · Semáforo de tiempo:</span>
+      <button data-semaforo="a" class="btn-semaforo rounded-md px-2.5 py-1 text-xs font-medium">A · igual a Mis Ventas</button>
+      <button data-semaforo="b" class="btn-semaforo rounded-md px-2.5 py-1 text-xs font-medium">B · neutro si la venta ya cerró ✓</button>
+    </div>
+
+    <div class="ml-auto flex items-center gap-1.5">
+      <span class="text-[11px] text-gray-500">Estado:</span>
+      <button data-estado="normal" class="btn-estado rounded-md px-2.5 py-1 text-xs font-medium">1 · Con datos</button>
+      <button data-estado="vacio" class="btn-estado rounded-md px-2.5 py-1 text-xs font-medium">2 · Sin resultados</button>
+      <button data-estado="cargando" class="btn-estado rounded-md px-2.5 py-1 text-xs font-medium">3 · Cargando</button>
+      <button data-estado="falla" class="btn-estado rounded-md px-2.5 py-1 text-xs font-medium">4 · Falla</button>
+    </div>
+  </div>
+  <div class="mx-auto max-w-[1600px] px-5 pb-2 text-[10px] text-gray-500">
+    Filas y conteos tomados de <span class="text-gray-400">baguer_pro</span> el 03/08/2026 (carritos reales de STIRPE y DEREK).
+    Los celulares se muestran como los pinta la pantalla real.
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     CHROME DE get-web
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="mx-auto flex max-w-[1600px]">
+
+  <aside class="hidden w-56 shrink-0 border-r border-gray-200 bg-white lg:block">
+    <div class="flex h-14 items-center gap-2 border-b border-gray-200 px-4">
+      <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-900 text-xs font-bold text-white">G</div>
+      <span class="text-sm font-semibold">GET</span>
+    </div>
+    <nav class="p-3 text-sm">
+      <p class="px-2 pt-1 pb-2 text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Venta asistida</p>
+      <a class="mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-600"><span class="text-xs">▦</span> Mis ventas</a>
+      <a class="mb-0.5 flex items-center gap-2 rounded-lg bg-gray-900 px-2.5 py-2 font-medium text-white"><span class="text-xs">▣</span> Gestión de ventas</a>
+      <a class="mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-600"><span class="text-xs">▤</span> Gestión de entregas</a>
+      <a class="mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-600"><span class="text-xs">☺</span> Asignar clientes</a>
+      <p class="px-2 pt-4 pb-2 text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Pedidos</p>
+      <a class="mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-600"><span class="text-xs">▣</span> Consultar pedidos</a>
+    </nav>
+  </aside>
+
+  <div class="min-w-0 flex-1">
+
+    <header class="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-5">
+      <div class="flex items-center gap-2 text-sm text-gray-500">
+        <span>Dashboard</span><span class="text-gray-300">/</span><span>Venta Asistida</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="hidden text-xs text-gray-500 sm:inline">STIRPE QEC</span>
+        <div class="flex items-center gap-2">
+          <div class="flex h-7 w-7 items-center justify-center rounded-full bg-gray-200 text-[11px] font-semibold text-gray-600">CG</div>
+          <span class="hidden text-sm text-gray-700 md:inline">Carolina Gutiérrez</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- HeaderLayout real de la pantalla -->
+    <div class="border-b border-gray-200 bg-white px-5 py-4">
+      <h1 class="text-xl font-bold">Gestión de Ventas</h1>
+      <p class="text-sm text-gray-500">Panel de control para supervisar ventas de todos los asesores</p>
+    </div>
+
+    <main class="space-y-3 px-5 py-4">
+
+      <!-- Pestañas de la página (el selector de ámbito no se muestra en Consulta) -->
+      <div class="flex w-fit gap-1 rounded-lg bg-gray-100 p-1">
+        <button class="rounded-md px-4 py-1.5 text-sm font-medium text-gray-500">Dashboard</button>
+        <button class="rounded-md bg-white px-4 py-1.5 text-sm font-medium text-gray-900 shadow-sm">Consulta de ventas</button>
+        <button class="rounded-md px-4 py-1.5 text-sm font-medium text-gray-500">Histórico</button>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           BLOQUE DE FILTROS — idéntico al actual, no cambia en GW-113
+           ══════════════════════════════════════════════════════════════ -->
+      <div class="space-y-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="mr-1 text-xs font-medium text-gray-500">Período:</span>
+          <button class="rounded-md bg-gray-900 px-3 py-1 text-xs font-medium text-white">Quincena actual</button>
+          <button class="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600">Quincena anterior</button>
+          <button class="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600">Hoy</button>
+          <button class="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600">Personalizado</button>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <select class="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"><option>Todas las tiendas</option></select>
+          <select class="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"><option>Todos los asesores</option></select>
+          <select class="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"><option>Mensajería: todas</option></select>
+          <select class="rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700"><option>Logística: todas</option></select>
+          <input type="text" placeholder="Buscar cliente, #carrito, documento…"
+            class="min-w-[200px] flex-1 rounded-md border border-gray-200 px-3 py-1.5 text-xs text-gray-700 placeholder:text-gray-400" />
+          <button class="rounded-md bg-gray-900 px-4 py-1.5 text-xs font-medium text-white">Buscar</button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           TABLA
+           ══════════════════════════════════════════════════════════════ -->
+      <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+
+        <!-- Tabs de estado de pago (conteos reales del 01–03/08/2026) -->
+        <div class="border-b border-gray-100 px-4 pt-3 pb-0">
+          <div class="flex w-fit gap-1 rounded-lg bg-gray-100 p-1">
+            <button class="rounded-md bg-white px-3 py-1 text-xs font-medium text-gray-900 shadow-sm">Todos <span class="ml-1 text-[10px] tabular-nums">(487)</span></button>
+            <button class="rounded-md px-3 py-1 text-xs font-medium text-gray-500">Pendientes de pago <span class="ml-1 text-[10px] tabular-nums">(360)</span></button>
+            <button class="rounded-md px-3 py-1 text-xs font-medium text-gray-500">Pagadas <span class="ml-1 text-[10px] tabular-nums">(127)</span></button>
+            <button class="rounded-md px-3 py-1 text-xs font-medium text-gray-500">Facturadas <span class="ml-1 text-[10px] tabular-nums">(0)</span></button>
+          </div>
+        </div>
+
+        <!-- ─────────────── ESTADO 1 · CON DATOS ─────────────── -->
+        <div id="estado-normal" class="estado-panel activa">
+
+          <!-- ══════ VISTA "HOY" · 8 COLUMNAS ══════ -->
+          <div id="vista-antes" class="vista">
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="bg-gray-50 text-[11px] tracking-wide text-gray-400 uppercase">
+                    <th class="px-4 py-2.5 text-left font-medium">Carrito</th>
+                    <th class="px-4 py-2.5 text-left font-medium">Cliente</th>
+                    <th class="px-4 py-2.5 text-left font-medium">Asesor</th>
+                    <th class="px-4 py-2.5 text-center font-medium">Estado de pago</th>
+                    <th class="px-4 py-2.5 text-center font-medium">Mensajería</th>
+                    <th class="px-4 py-2.5 text-center font-medium">Entrega</th>
+                    <th class="px-4 py-2.5 text-right font-medium">Total (neto)</th>
+                    <th class="px-4 py-2.5 text-right font-medium">Acción</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50" id="tbody-antes"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- ══════ VISTA PROPUESTA · 11 COLUMNAS ══════ -->
+          <div id="vista-propuesta" class="vista activa">
+            <div class="overflow-x-auto">
+              <table class="w-full min-w-[1240px]">
+                <thead>
+                  <tr class="bg-gray-50 text-[11px] tracking-wide whitespace-nowrap text-gray-400 uppercase">
+                    <th class="px-4 py-2.5 text-left font-medium" style="min-width:140px">Carrito</th>
+                    <th class="px-4 py-2.5 text-center font-medium" style="min-width:96px">Origen</th>
+                    <th class="px-4 py-2.5 text-center font-medium" style="min-width:80px">Tienda</th>
+                    <th class="px-4 py-2.5 text-left font-medium" style="min-width:210px">Cliente</th>
+                    <th class="px-4 py-2.5 text-left font-medium" style="min-width:170px">Asesor</th>
+                    <th class="px-4 py-2.5 text-center font-medium" style="min-width:140px">Entrega</th>
+                    <th class="px-4 py-2.5 text-center font-medium" style="min-width:64px">Prod.</th>
+                    <th class="px-4 py-2.5 text-right font-medium" style="min-width:118px">Total (neto)</th>
+                    <th class="px-4 py-2.5 text-left font-medium" style="min-width:150px">Pedido</th>
+                    <th class="px-4 py-2.5 text-center font-medium" style="min-width:72px">Tiempo</th>
+                    <th class="px-4 py-2.5 text-right font-medium" style="min-width:86px">Acción</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50" id="tbody-propuesta"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between border-t border-gray-100 px-4 py-3">
+            <span class="text-xs text-gray-500">Página 1 de 10 <span class="ml-1">(487 registros)</span></span>
+            <div class="flex gap-2">
+              <button class="rounded-md border border-gray-200 px-3 py-1 text-xs text-gray-400" disabled>&larr; Anterior</button>
+              <button class="rounded-md border border-gray-200 px-3 py-1 text-xs text-gray-600">Siguiente &rarr;</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─────────────── ESTADO 2 · SIN RESULTADOS ─────────────── -->
+        <div id="estado-vacio" class="estado-panel">
+          <div class="px-4 py-16 text-center">
+            <p class="text-sm text-gray-500">No hay ventas para los filtros seleccionados.</p>
+            <p class="mt-1 text-xs text-gray-400">Amplía el período o quita filtros de tienda, asesor o mensajería.</p>
+          </div>
+        </div>
+
+        <!-- ─────────────── ESTADO 3 · CARGANDO ─────────────── -->
+        <div id="estado-cargando" class="estado-panel">
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead>
+                <tr class="bg-gray-50 text-[11px] tracking-wide text-gray-400 uppercase">
+                  <th class="px-4 py-2.5 text-left font-medium">Carrito</th>
+                  <th class="px-4 py-2.5 text-center font-medium">Origen</th>
+                  <th class="px-4 py-2.5 text-center font-medium">Tienda</th>
+                  <th class="px-4 py-2.5 text-left font-medium">Cliente</th>
+                  <th class="px-4 py-2.5 text-left font-medium">Asesor</th>
+                  <th class="px-4 py-2.5 text-center font-medium">Entrega</th>
+                  <th class="px-4 py-2.5 text-center font-medium">Prod.</th>
+                  <th class="px-4 py-2.5 text-right font-medium">Total (neto)</th>
+                  <th class="px-4 py-2.5 text-left font-medium">Pedido</th>
+                  <th class="px-4 py-2.5 text-center font-medium">Tiempo</th>
+                  <th class="px-4 py-2.5 text-right font-medium">Acción</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-50" id="tbody-skeleton"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ─────────────── ESTADO 4 · FALLA ─────────────── -->
+        <div id="estado-falla" class="estado-panel">
+          <div class="px-4 py-10">
+            <div class="mx-auto max-w-xl rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+              <p class="text-sm font-medium text-red-800">No se pudo cargar la consulta de ventas.</p>
+              <p class="mt-1 text-xs text-red-700">Vuelve a intentar en unos segundos. Si el problema continúa, avisa al equipo de tecnología.</p>
+              <button class="mt-3 rounded-md border border-red-300 bg-white px-3 py-1 text-xs font-medium text-red-700">Reintentar</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Nota de lectura del mockup -->
+      <div class="rounded-xl border border-gray-200 bg-white p-4 text-xs leading-relaxed text-gray-600">
+        <p class="mb-2 text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Qué cambia respecto de hoy</p>
+        <ul class="list-disc space-y-1 pl-5">
+          <li>El <strong>#carrito</strong> pasa a ser clicable (hoy se ve azul pero no abre nada) y debajo lleva el estado logístico y la fecha.</li>
+          <li>La columna <strong>"Entrega"</strong> cambia de significado: hoy muestra el estado (Pendiente / En ruta), ahora muestra el transportador con su badge. El estado se muda al bloque del carrito.</li>
+          <li>La columna <strong>"Estado de pago"</strong> desaparece como columna suelta: se absorbe en el bloque <strong>Pedido</strong>, junto al #PED y al enlace "Ir a checkout".</li>
+          <li>Las etiquetas se corrigen al usar la configuración compartida: una venta facturada dice <strong>"Facturada"</strong> (hoy dice "Entregada") y una pagada dice <strong>"Pagada"</strong> (hoy dice "Pendiente").</li>
+          <li>Entran <strong>Origen</strong>, <strong>Tienda</strong>, <strong>Prod.</strong>, <strong>Tiempo</strong> y el celular del cliente (sin botones de llamar ni WhatsApp).</li>
+          <li>La fila necesita ~1.420 px y el contenedor da ~1.334 px, así que la tabla se desplaza: <strong>Carrito y Acción quedan congelados</strong> a izquierda y derecha para que el # y el botón "Ver" siempre se vean.</li>
+          <li>El <strong>semáforo de tiempo</strong> se aplica solo mientras la venta sigue viva; una venta facturada, con pedido pagado o cancelada muestra el tiempo en gris (variante B aprobada).</li>
+          <li><strong>Pedido cancelado (D10, post-auditoría):</strong> la cancelación es un estado propio que <em>convive</em> con el logístico — un pedido facturado y cancelado muestra los dos badges. Como el backend no la modela, esas filas llegan sin estado logístico y "Cancelada" es el único badge. No se les ofrece "Ir a checkout" y su tiempo va en gris. Son el 14 % de las filas reales.</li>
+        </ul>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+// ── Datos reales (baguer_pro · 03/08/2026) ────────────────────────────────────
+const FILAS = [
+  { id:157484, fecha:'26 jul 2026', log:'facturada', origen:'whatsapp', tienda:'Stirpe',
+    cliente:'Diana Milena Rivera Ramirez', cel:'3142267129', asesor:'Brayan Javier Ardila Florez',
+    envio:'coordinadora', prod:17, total:3615907, pedido:712525, pago:'pagado', tiempo:'8d', urg:'rojo', cerrada:true },
+  { id:157482, fecha:'26 jul 2026', log:'facturada', origen:'whatsapp', tienda:'Derek',
+    cliente:'Ilvar Ivan Avila Suarez', cel:'3233255403', asesor:'Ingrid Tatiana Contreras Zúñiga',
+    envio:'coordinadora', prod:1, total:182907, pedido:712520, pago:'pagado', tiempo:'8d', urg:'rojo', cerrada:true },
+  { id:159529, fecha:'28 jul 2026', log:'en_ruta', origen:'whatsapp', tienda:'Stirpe',
+    cliente:'Paola Andrea Soto Guarin', cel:'3153682233', asesor:'Fabian Andres Prada Rueda',
+    envio:'coordinadora', prod:0, total:8961, pedido:null, pago:null, tiempo:'6d', urg:'rojo', cerrada:false },
+  { id:165114, fecha:'3 ago 2026', log:'pagada', origen:'asignado', tienda:'Stirpe',
+    cliente:'Kelly Contreras', cel:'3203907444', asesor:'Andres Felipe Jimenez Quintero',
+    envio:'coordinadora', prod:2, total:488757, pedido:714665, pago:'pagado', tiempo:'1h', urg:'ambar', cerrada:true },
+  { id:164897, fecha:'3 ago 2026', log:'pendiente_pago', origen:'asignado', tienda:'Stirpe',
+    cliente:'Leidy Rosnaira Alvarez Camargo', cel:'3122040469', asesor:'Paula Andrea Oliveros Ardila',
+    envio:'coordinadora', prod:1, total:355765, pedido:714602, pago:'pago_pendiente', tiempo:'12h', urg:'rojo', cerrada:false },
+  { id:165225, fecha:'3 ago 2026', log:'pendiente_pago', origen:'whatsapp', tienda:'Stirpe',
+    cliente:'Sandra Patricia Cristancho Eljure', cel:'3016611606', asesor:'Paula Andrea Oliveros Ardila',
+    envio:'mensajeria', prod:5, total:187850, pedido:null, pago:null, tiempo:'25min', urg:'verde', cerrada:false },
+  { id:165193, fecha:'3 ago 2026', log:'pendiente_pago', origen:'whatsapp', tienda:'Derek',
+    cliente:'Luisa Fernanda Fernandez Londoño', cel:'3168229638', asesor:'Paola Andrea Soto Guarin',
+    envio:'servientrega', prod:8, total:730700, pedido:null, pago:null, tiempo:'45min', urg:'ambar', cerrada:false },
+  { id:165185, fecha:'3 ago 2026', log:'pendiente_pago', origen:'whatsapp', tienda:'Derek',
+    cliente:'Diana Hernandez Mejía', cel:'3192664464', asesor:'Sheyla Mariyuri Jimenez Pinto',
+    envio:'servientrega', prod:0, total:0, pedido:null, pago:null, tiempo:'50min', urg:'ambar', cerrada:false },
+  // D10 · pedido cancelado: el backend lo deja sin estado logistico, asi que el unico badge es
+  // "Cancelada". Sin enlace a checkout y con el tiempo en gris. Es el 14% de las filas reales.
+  { id:164512, fecha:'1 ago 2026', log:'', origen:'whatsapp', tienda:'Stirpe',
+    cliente:'Yeimy Carolina Osorio Pabon', cel:'3126677401', asesor:'Juan Camilo Vergel Acosta',
+    envio:'coordinadora', prod:2, total:428900, pedido:714221, pago:'pago_pendiente',
+    tiempo:'10d', urg:'rojo', cerrada:true, cancelado:true },
+  // D10 · facturado Y cancelado: los dos badges conviven (1 caso real desde julio).
+  { id:158904, fecha:'27 jul 2026', log:'facturada', origen:'asignado', tienda:'Derek',
+    cliente:'Hector Mauricio Rangel Pinzon', cel:'3155512098', asesor:'Ingrid Tatiana Contreras Zúñiga',
+    envio:'coordinadora', prod:4, total:912450, pedido:712901, pago:'pago_pendiente',
+    tiempo:'15d', urg:'rojo', cerrada:true, cancelado:true },
+];
+
+// ── Configuración compartida (constants.ts) ───────────────────────────────────
+const estadoLogisticaConfig = {
+  pendiente_pago: { label:'Pendiente de pago', cls:'bg-amber-100 text-amber-600' },
+  pagada:         { label:'Pagada',            cls:'bg-green-100 text-green-700' },
+  en_ruta:        { label:'En ruta',           cls:'bg-blue-100 text-blue-700' },
+  entregada:      { label:'Entregada',         cls:'bg-green-100 text-green-700' },
+  facturada:      { label:'Facturada',         cls:'bg-green-100 text-green-700' },
+};
+// D10 · badge de cancelacion, ortogonal al estado logistico. Paleta de estadoConfig.cancelada.
+const badgeCancelada = { label:'Cancelada', cls:'bg-[#FEEBEB] text-[#C53030]' };
+const origenConfig = {
+  whatsapp: { label:'WhatsApp', cls:'bg-[#ECFDF5] text-[#059669]' },
+  asignado: { label:'Asignado', cls:'bg-[#EFF6FF] text-[#2563EB]' },
+};
+// Iconos Lucide (los mismos que renderiza Icon.vue vía lucide-vue-next), a 12 px como en TablaVentas.vue
+const svg = d => `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+  class="shrink-0">${d}</svg>`;
+const iconTruck = svg('<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>');
+const iconBike  = svg('<circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>');
+
+const entregaConfig = {
+  mensajeria:   { label:'Mensajería',   icon:iconBike,  cls:'bg-[#F3E5F5] text-[#7B1FA2]' },
+  servientrega: { label:'Servientrega', icon:iconTruck, cls:'bg-[#F1F5F9] text-[#475569]' },
+  coordinadora: { label:'Coordinadora', icon:iconTruck, cls:'bg-[#F1F5F9] text-[#475569]' },
+};
+const pedidoConfig = {
+  pago_pendiente: { label:'Pago pendiente', cls:'bg-[#FFF7ED] text-[#C2410C]' },
+  pagado:         { label:'Pagado',         cls:'bg-[#E6F4EA] text-[#1E7E34]' },
+};
+// Etiquetas LOCALES que ConsultaVentas.vue usa hoy (para la vista "Hoy")
+const badgesHoy = {
+  facturada:      { label:'Facturada',         cls:'bg-emerald-100 text-emerald-700' },
+  pagado:         { label:'Pagada',            cls:'bg-blue-100 text-blue-700' },
+  pago_pendiente: { label:'Pendiente de pago', cls:'bg-slate-100 text-slate-600' },
+};
+const logisticaHoy = {
+  facturada:      { label:'Entregada', cls:'bg-emerald-100 text-emerald-700' },
+  entregada:      { label:'Entregada', cls:'bg-emerald-100 text-emerald-700' },
+  en_ruta:        { label:'En ruta',   cls:'bg-blue-100 text-blue-700' },
+  pagada:         { label:'Pendiente', cls:'bg-slate-100 text-slate-600' },
+  pendiente_pago: { label:'Pendiente', cls:'bg-slate-100 text-slate-600' },
+  // Un pedido CANCELADO llega sin estado logistico. Hoy la pantalla lo rotula "Pendiente":
+  // no dice que esta cancelado y lo deja pareciendo cobrable. Es el hallazgo P0-1.
+  '':             { label:'Pendiente', cls:'bg-slate-100 text-slate-600' },
+};
+const mensajeriaHoy = { servientrega:'Servientrega', coordinadora:'Coordinadora', mensajeria:'Mensajería interna' };
+const colorUrg = { verde:'text-[#059669]', ambar:'text-[#D97706]', rojo:'text-[#DC2626]' };
+
+const pesos = n => '$ ' + n.toLocaleString('es-CO');
+const cel = c => c.replace(/(\d{3})(\d{3})(\d{4})/, '$1 $2 $3');
+const pill = (label, cls) => `<span class="inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${cls}">${label}</span>`;
+
+// ── Vista "Hoy" (8 columnas) ──────────────────────────────────────────────────
+document.getElementById('tbody-antes').innerHTML = FILAS.map(f => {
+  const pagoBadge = f.log === 'facturada' ? badgesHoy.facturada
+    : (f.pago === 'pagado' ? badgesHoy.pagado : badgesHoy.pago_pendiente);
+  const lg = logisticaHoy[f.log];
+  return `<tr class="hover:bg-gray-50/60">
+    <td class="px-4 py-2.5"><span class="text-xs font-medium text-blue-600">#${f.id}</span></td>
+    <td class="px-4 py-2.5"><span class="text-xs text-gray-700">${f.cliente}</span></td>
+    <td class="px-4 py-2.5"><span class="text-xs text-gray-600">${f.asesor}</span></td>
+    <td class="px-4 py-2.5 text-center">${pill(pagoBadge.label, pagoBadge.cls)}</td>
+    <td class="px-4 py-2.5 text-center"><span class="text-xs text-gray-600">${mensajeriaHoy[f.envio]}</span></td>
+    <td class="px-4 py-2.5 text-center">${pill(lg.label, lg.cls)}</td>
+    <td class="cifra px-4 py-2.5 text-right"><span class="text-xs font-semibold text-gray-900">${pesos(f.total)}</span></td>
+    <td class="px-4 py-2.5 text-right"><button class="rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-600">Ver</button></td>
+  </tr>`;
+}).join('');
+
+// ── Vista propuesta (11 columnas) ─────────────────────────────────────────────
+document.getElementById('tbody-propuesta').innerHTML = FILAS.map(f => {
+  const lg = estadoLogisticaConfig[f.log];
+  const og = origenConfig[f.origen];
+  const en = entregaConfig[f.envio];
+  const celdaPedido = f.pedido
+    ? `<div class="flex flex-col gap-1">
+         <span class="text-xs font-medium text-gray-900">#PED-${f.pedido}</span>
+         ${pill(pedidoConfig[f.pago].label, pedidoConfig[f.pago].cls)}
+         ${f.pago !== 'pagado' && !f.cancelado ? '<a href="#" class="text-xs text-blue-600 hover:underline">Ir a checkout</a>' : ''}
+       </div>`
+    : `<span class="text-xs text-gray-400">— Sin pedido</span>`;
+  return `<tr class="hover:bg-gray-50/60">
+    <td class="px-4 py-2.5 align-top">
+      <div class="flex flex-col gap-1">
+        <button class="text-left text-xs font-semibold text-blue-600 hover:underline">#${f.id}</button>
+        ${lg ? pill(lg.label, lg.cls) : ''}
+        ${f.cancelado ? pill(badgeCancelada.label, badgeCancelada.cls) : ''}
+        <span class="text-xs whitespace-nowrap text-gray-500">${f.fecha}</span>
+      </div>
+    </td>
+    <td class="px-4 py-2.5 text-center align-top">${pill(og.label, og.cls)}</td>
+    <td class="px-4 py-2.5 text-center align-top"><span class="text-xs font-medium text-gray-700">${f.tienda}</span></td>
+    <td class="px-4 py-2.5 align-top">
+      <div class="flex flex-col gap-0.5">
+        <span class="text-xs font-medium whitespace-nowrap text-gray-900">${f.cliente}</span>
+        <span class="cifra text-xs text-gray-500">${cel(f.cel)}</span>
+      </div>
+    </td>
+    <td class="px-4 py-2.5 align-top"><span class="text-xs whitespace-nowrap text-gray-600">${f.asesor}</span></td>
+    <td class="px-4 py-2.5 text-center align-top">${pill(en.icon + en.label, en.cls)}</td>
+    <td class="px-4 py-2.5 text-center align-top"><span class="text-xs text-gray-700">${f.prod}</span></td>
+    <td class="cifra px-4 py-2.5 text-right align-top"><span class="text-xs font-semibold text-gray-900">${pesos(f.total)}</span></td>
+    <td class="px-4 py-2.5 align-top">${celdaPedido}</td>
+    <td class="px-4 py-2.5 text-center align-top">
+      <span class="text-xs font-medium ${colorUrg[f.urg]} ${f.cerrada ? 'tiempo-cerrada' : ''}">${f.tiempo}</span>
+    </td>
+    <td class="px-4 py-2.5 text-right align-top"><button class="rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">Ver</button></td>
+  </tr>`;
+}).join('');
+
+// ── Skeleton de carga ─────────────────────────────────────────────────────────
+document.getElementById('tbody-skeleton').innerHTML = Array.from({length:6}).map(() => `
+  <tr class="skeleton">
+    ${Array.from({length:11}).map(() => '<td class="px-4 py-3"><div class="h-3 rounded bg-gray-200"></div></td>').join('')}
+  </tr>`).join('');
+
+// ── Controles del mockup ──────────────────────────────────────────────────────
+function pintarBotones(selector, attr, valor) {
+  document.querySelectorAll(selector).forEach(b => {
+    const activo = b.dataset[attr] === valor;
+    b.className = b.className.replace(/ (bg-white text-gray-900|border border-gray-600 text-gray-400)/g, '');
+    b.className = b.className.split(' ').filter(c => !['bg-white','text-gray-900','border','border-gray-600','text-gray-400'].includes(c)).join(' ');
+    b.className += activo ? ' bg-white text-gray-900' : ' border border-gray-600 text-gray-400';
+  });
+}
+document.querySelectorAll('.btn-vista').forEach(b => b.onclick = () => {
+  const v = b.dataset.vista;
+  document.getElementById('vista-antes').classList.toggle('activa', v === 'antes');
+  document.getElementById('vista-propuesta').classList.toggle('activa', v === 'propuesta');
+  pintarBotones('.btn-vista', 'vista', v);
+});
+document.querySelectorAll('.btn-semaforo').forEach(b => b.onclick = () => {
+  document.body.dataset.semaforo = b.dataset.semaforo;
+  pintarBotones('.btn-semaforo', 'semaforo', b.dataset.semaforo);
+});
+document.querySelectorAll('.btn-estado').forEach(b => b.onclick = () => {
+  const e = b.dataset.estado;
+  ['normal','vacio','cargando','falla'].forEach(k =>
+    document.getElementById('estado-' + k).classList.toggle('activa', k === e));
+  pintarBotones('.btn-estado', 'estado', e);
+});
+pintarBotones('.btn-vista', 'vista', 'propuesta');
+pintarBotones('.btn-semaforo', 'semaforo', 'b');
+pintarBotones('.btn-estado', 'estado', 'normal');
+</script>
+
+</body>
+</html>
