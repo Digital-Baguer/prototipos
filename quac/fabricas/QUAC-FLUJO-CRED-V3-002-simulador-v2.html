@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador v2 — Fábricas de Crédito QUAC</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+ :root{--violet:#7C3AED}
+ body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+ .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+ .spinner{width:22px;height:22px;border:3px solid #E9D5FF;border-top-color:#7C3AED;border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+ .spinner-lg{width:42px;height:42px;border-width:4px}
+ @keyframes spin{to{transform:rotate(360deg)}}
+ .otp{width:42px;height:52px;text-align:center;border:1.5px solid #CBD5E1;border-radius:10px;font-size:22px;font-family:ui-monospace,monospace}
+ .otp:focus{outline:2px solid #7C3AED;border-color:#7C3AED}
+ .esp{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;font-family:ui-monospace,monospace}
+ .esp .d{width:6px;height:6px;border-radius:50%;background:currentColor}
+ .esp-g{background:#DCFCE7;color:#15803D}.esp-a{background:#FEF3C7;color:#B45309}.esp-r{background:#FEE2E2;color:#B91C1C}.esp-b{background:#DBEAFE;color:#1D4ED8}
+ .tcard{transition:box-shadow .15s}
+ .tcard.click:hover{box-shadow:0 4px 16px rgba(124,58,237,.14);cursor:pointer}
+ .drawer{transition:transform .25s ease}
+ dialog::backdrop{background:rgba(15,15,35,.45)}
+ input,select{transition:border-color .12s,box-shadow .12s}
+ input:focus,select:focus{outline:none;border-color:#7C3AED;box-shadow:0 0 0 3px rgba(124,58,237,.14)}
+ .err-input{border-color:#DC2626!important;box-shadow:0 0 0 3px rgba(220,38,38,.10)!important}
+</style>
+</head>
+<body class="bg-[#EEF0FA] text-slate-800 text-[13.5px]">
+
+<div class="flex min-h-screen">
+ <!-- ══════════ SHELL · SIDEBAR ══════════ -->
+ <aside class="w-60 bg-white border-r border-slate-200 shrink-0 hidden lg:block">
+  <div class="px-5 py-5 text-[22px] font-extrabold text-indigo-950">Quac</div>
+  <nav class="px-3 pb-6 text-[13px]" id="sidenav"></nav>
+ </aside>
+
+ <!-- ══════════ MAIN ══════════ -->
+ <main class="flex-1 min-w-0">
+  <div class="bg-white/70 backdrop-blur border-b border-slate-200 px-6 py-3 flex items-center gap-2 sticky top-0 z-20">
+   <h1 class="text-[17px] font-bold text-indigo-950" id="titlebar">Mesa de estudios</h1>
+   <div class="flex-1"></div>
+   <div id="tabsbar" class="flex items-center gap-1.5 overflow-x-auto"></div>
+  </div>
+  <div id="content" class="p-6"></div>
+ </main>
+</div>
+
+<!-- Drawer de sucesos -->
+<div id="drawer" class="drawer fixed top-0 right-0 h-full w-[380px] bg-white shadow-2xl z-40 translate-x-full flex flex-col">
+ <div class="px-5 py-4 border-b border-slate-200 flex items-center">
+  <h3 class="font-bold text-[15px]">Sucesos</h3><div class="flex-1"></div>
+  <button class="text-slate-400 hover:text-slate-700 text-lg" onclick="toggleDrawer(false)">✕</button>
+ </div>
+ <div id="drawer-body" class="flex-1 overflow-y-auto p-5"></div>
+</div>
+
+<!-- Modal -->
+<div id="modal-bg" class="fixed inset-0 bg-[rgba(15,15,35,.45)] z-50 hidden items-center justify-center p-4">
+ <div id="modal" class="bg-white rounded-2xl shadow-2xl w-[600px] max-w-full max-h-[88vh] overflow-y-auto p-7"></div>
+</div>
+
+<div id="toasts" class="fixed bottom-5 right-5 z-[60] flex flex-col gap-2"></div>
+<input type="file" id="file-pick" class="hidden" accept="image/*">
+
+<script>
+/* ════════════════ ESTADO GLOBAL ════════════════ */
+const CLIENTE={nombre:'María Alejandra',apellido:'Rodríguez López',nac:'1992-03-14',ciudadNac:'Medellín',deptoNac:'Antioquia',expFecha:'2010-05-02',ciudadExp:'Bucaramanga',deptoExp:'Santander',cel:'314 567 8901',correo:'maria.rodriguez@gmail.com',dir:'Cra 45 # 12-30, apto 301',ciudad:'Bucaramanga',depto:'Santander',cupo:'$4.900.000'};
+const CUPO_PREVIO='$2.700.000';
+const ASESORES={'1956':'Carlos Díaz (operador en sesión)','2998':'Juan Ríos','1015':'Diana Torres','5299':'Luisa Marín','10010':'Ana Vélez'};
+const SEMILLAS={'1000000002':'re_estudio','1000000003':'cierre_reciente','1000000010':'cupo_activo','1000000011':'no_aplica_mora','1000000012':'desbloqueo','1000000013':'reactivacion','1000000017':'expirada'};
+const FINALES={
+ cupo_activo:{tono:'ok',titulo:'Cupo ya activo',msg:'El cliente ya tiene cupo QUAC disponible de '+CUPO_PREVIO+'. Puede comprar en caja sin solicitar de nuevo.'},
+ no_aplica_mora:{tono:'err',titulo:'No aplica por mora',msg:'El cliente tiene el cupo bloqueado y presenta mora vigente. No puede solicitar, desbloquear ni reactivar cupo mientras la mora persista. El detalle de la mora no se muestra en tienda; el cliente puede consultarlo en los canales de atención QUAC.'},
+ expirada:{tono:'warn',titulo:'Gestión expirada',msg:'El cliente tenía una gestión pausada que no se retomó dentro de los 90 días: quedó Expirada y no se puede recuperar. Puede iniciar una solicitud nueva desde cero.'},
+ cierre_reciente:{tono:'err',titulo:'No puede aplicar por ahora',msg:'Existe un estudio reciente cerrado como no viable que no permite retomar.'}
+};
+const BADGE={
+ EN_PROCESO:['En proceso','bg-violet-100 text-violet-700'],
+ PAUSADO:['Pausado','bg-slate-200 text-slate-600'],
+ AUTOGESTION:['En autogestión','bg-blue-100 text-blue-700'],
+ ESCALADO:['Escalado a fábrica','bg-amber-100 text-amber-700'],
+ DEVUELTO:['Devuelto por fábrica','bg-rose-100 text-rose-700'],
+ PEND_CLIENTE:['Pendiente cliente previo','bg-amber-100 text-amber-700'],
+ APROBADO:['Aprobado','bg-green-100 text-green-700'],
+ RECHAZADO:['Rechazado','bg-red-100 text-red-700'],
+ DESBLOQUEADO:['Desbloqueado','bg-green-100 text-green-700'],
+ REACTIVADO:['Reactivado','bg-green-100 text-green-700']
+};
+const FASES={creacion:['Captura','Creación del cliente'],asesor:['Captura','Asignar asesor'],tyc:['Captura','Aceptación T&C'],riesgo:['Estudio','Evaluación de riesgo'],dir:['Captura','Dirección'],ident:['Biometría','Validación de identidad'],cupo:['Cierre','Decisión de cupo']};
+let MESA=[
+ {id:'S-104',nombre:'Jorge Ramírez',doc:'80.221.443',estado:'EN_PROCESO',fase:'Captura',paso:'Aceptación T&C',asesor:'A-1015',cupo:'—',min:3,ult:'hoy 10:21',interv:false},
+ {id:'S-103',nombre:'Andrés Quintero',doc:'1.098.776.554',estado:'APROBADO',fase:'Cierre',paso:'Decisión de cupo',asesor:'A-2998',cupo:'$4.900.000',min:0,ult:'hoy 10:04',interv:false},
+ {id:'S-102',nombre:'Laura Daniela Pérez',doc:'43.778.901',estado:'EN_PROCESO',fase:'Estudio',paso:'Evaluación de riesgo',asesor:'A-1015',cupo:'$2.700.000',min:9,ult:'hoy 09:58',interv:true},
+ {id:'S-101',nombre:'Carlos Martínez',doc:'79.554.120',estado:'ESCALADO',fase:'Fábrica',paso:'Validación de identidad',asesor:'A-5299',cupo:'$2.800.000',min:17,ult:'hoy 09:41',interv:false},
+ {id:'S-100',nombre:'—',doc:'1.022.334.556',estado:'AUTOGESTION',fase:'Captura',paso:'Creación del cliente',asesor:'A-1956',cupo:'—',min:0,ult:'ayer 17:22',interv:false},
+ {id:'S-099',nombre:'María Fernanda Gil',doc:'52.114.998',estado:'RECHAZADO',fase:'Estudio',paso:'Evaluación de riesgo',asesor:'A-1015',cupo:'—',min:0,ult:'ayer 16:05',interv:false}
+];
+let S={view:'mesa',vista:'tabla',seq:105,tabs:[],active:null,filtros:{estado:'',busq:'',interv:false},drawerOpen:false};
+const EST={};
+
+/* ════════════════ HELPERS ════════════════ */
+const $=id=>document.getElementById(id);
+function badge(k){const b=BADGE[k]||['?','bg-slate-100'];return '<span class="px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold '+b[1]+'">'+b[0]+'</span>'}
+function esp(min,label){if(min<=0)return '<span class="mono text-slate-400">—</span>';const c=min<5?'esp-g':min<15?'esp-a':'esp-r';return '<span class="esp '+c+'"><span class="d"></span>'+min+' min'+(label?' '+label:'')+'</span>'}
+function mins(t0){return Math.max(0,Math.floor((Date.now()-t0)/60000))}
+function hora(){const d=new Date();return d.getHours()+':'+String(d.getMinutes()).padStart(2,'0')}
+function toast(t){const c=$('toasts');const d=document.createElement('div');d.className='bg-indigo-950 text-white text-[12.5px] px-4 py-2.5 rounded-xl shadow-lg';d.textContent=t;c.appendChild(d);setTimeout(()=>d.remove(),4000)}
+function modal(html,w){const m=$('modal');m.className='bg-white rounded-2xl shadow-2xl '+(w||'w-[600px]')+' max-w-full max-h-[88vh] overflow-y-auto p-7';m.innerHTML=html;$('modal-bg').classList.remove('hidden');$('modal-bg').classList.add('flex')}
+function closeModal(){$('modal-bg').classList.add('hidden');$('modal-bg').classList.remove('flex')}
+function toggleDrawer(open){S.drawerOpen=open;$('drawer').style.transform=open?'translateX(0)':'translateX(100%)';if(open)renderDrawer()}
+function log(e,tono,txt){e.sucesos.unshift({t:hora(),tono,txt});if(S.drawerOpen)renderDrawer()}
+function fillOtp(id,code){const b=$(id);if(!b)return;[...b.querySelectorAll('input')].forEach((el,i)=>el.value=code[i]||'')}
+function invalid(id,msg){const el=$(id);if(!el)return;el.classList.add('err-input');let m=el.parentElement.querySelector('.err-msg');
+ if(!m){m=document.createElement('p');m.className='err-msg text-red-600 text-[11.5px] mt-1.5 font-semibold';el.parentElement.appendChild(m)}
+ m.textContent=msg;el.focus();
+ el.addEventListener('input',()=>{el.classList.remove('err-input');const x=el.parentElement.querySelector('.err-msg');if(x)x.remove()},{once:true})}
+function otpRow(id,accion){return '<div id="'+id+'" class="flex gap-2 justify-center my-4">'+[0,1,2,3,4,5].map(()=>'<input class="otp" maxlength="1"'+(accion?' onkeydown="if(event.key===\'Enter\'){'+accion+'}"':'')+'>').join('')+'</div>'}
+const btnP='class="bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4 py-2 rounded-lg text-[13px]"';
+const btnO='class="border border-slate-300 hover:bg-slate-50 font-semibold px-4 py-2 rounded-lg text-[13px]"';
+const btnG='class="text-slate-500 hover:text-slate-800 font-semibold px-3 py-2 text-[13px]"';
+function resBox(tono,titulo,msg){const m={ok:['bg-green-50 border-green-200 text-green-800','✓'],err:['bg-red-50 border-red-200 text-red-800','✕'],warn:['bg-amber-50 border-amber-200 text-amber-800','!'],info:['bg-blue-50 border-blue-200 text-blue-800','ⓘ'],tok:['bg-violet-50 border-violet-200 text-violet-800','✦']}[tono];
+ return '<div class="border rounded-xl px-4 py-3.5 '+m[0]+'"><div class="font-bold text-[13.5px] mb-0.5">'+m[1]+' '+titulo+'</div><div class="text-[12.5px] leading-relaxed">'+msg+'</div></div>'}
+function field(label,val,id,type,extra){return '<div><label class="block text-[12px] font-semibold text-slate-600 mb-1.5">'+label+'</label><input id="'+(id||'')+'" type="'+(type||'text')+'" value="'+(val||'')+'" '+(extra||'')+' class="w-full h-[42px] border border-slate-300 rounded-lg px-3.5 text-[13.5px] bg-white"></div>'}
+const DEPTOS={'Antioquia':['Medellín','Bello','Envigado','Itagüí'],'Santander':['Bucaramanga','Floridablanca','Girón','Piedecuesta'],'Cundinamarca':['Bogotá','Soacha','Chía'],'Valle del Cauca':['Cali','Palmira','Buga']};
+const selCls='w-full h-[42px] border border-slate-300 rounded-lg px-3 text-[13.5px] bg-white';
+function selDepto(label,id,ciudadId,val){return '<div><label class="block text-[12px] font-semibold text-slate-600 mb-1.5">'+label+'</label><select id="'+id+'" class="'+selCls+'" onchange="onDepto(this,\''+ciudadId+'\')"><option value="">— Seleccionar —</option>'+Object.keys(DEPTOS).map(d=>'<option '+(d===val?'selected':'')+'>'+d+'</option>').join('')+'</select></div>'}
+function selCiudad(label,id,depto,val){return '<div><label class="block text-[12px] font-semibold text-slate-600 mb-1.5">'+label+'</label><select id="'+id+'" class="'+selCls+'">'+(depto?DEPTOS[depto].map(c=>'<option '+(c===val?'selected':'')+'>'+c+'</option>').join(''):'<option value="">—</option>')+'</select></div>'}
+function onDepto(sel,cid){const c=$(cid);if(c)c.innerHTML=(DEPTOS[sel.value]||['—']).map(x=>'<option>'+x+'</option>').join('')}
+function fieldDate(label,val,id){
+ return '<div><label class="block text-[12px] font-semibold text-slate-600 mb-1.5">'+label+'</label>'+
+ '<div class="relative"><input id="'+id+'" value="'+(val||'')+'" placeholder="AAAA-MM-DD" maxlength="10" class="w-full h-[42px] border border-slate-300 rounded-lg px-3.5 pr-10 text-[13.5px] bg-white mono">'+
+ '<input type="date" id="'+id+'-pk" value="'+(val||'')+'" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" tabindex="-1" onchange="$(\''+id+'\').value=this.value">'+
+ '<button type="button" title="Abrir calendario" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-violet-600" onclick="(function(p,t){p.value=t.value||\'\';try{p.showPicker()}catch(err){p.click()}})($(\''+id+'-pk\'),$(\''+id+'\'))">'+I('calendar','w-4 h-4')+'</button></div></div>';
+}
+
+/* ════════════════ SIDEBAR ════════════════ */
+function renderSidebar(){
+ const item=(t,on)=>'<div class="px-3 py-2 rounded-lg cursor-pointer '+(on?'bg-violet-100 text-violet-800 font-semibold':'text-slate-600 hover:bg-slate-100')+'" onclick="'+(on?'showMesa()':'toast(\'Solo maqueta — catálogo de administración\')')+'">'+t+'</div>';
+ const sec=t=>'<div class="px-3 pt-4 pb-1.5 text-[10.5px] font-bold tracking-wider text-slate-400">'+t+'</div>';
+ $('sidenav').innerHTML=item('Inicio')+sec('OPERATIVO')+item('Mesa de estudios',true)+sec('ADMINISTRACIÓN')+
+  ['Operadores','Canales de origen','Motivos de escalamiento','Estados','Fases','Pasos','Transiciones','Reglas de negocio','Reglas de fraude','Centrales de riesgo','Tipos de documento','Tipos de fotografía','Diagnósticos del BOT'].map(t=>item(t)).join('')+
+  sec('DIAGNÓSTICO')+['Bot Ubica','Validación identidad asesor','Diagnósticos OTP'].map(t=>item(t)).join('');
+}
+
+/* ════════════════ TABS ════════════════ */
+function renderTabs(){
+ const tabs=S.tabs.map(id=>{const e=EST[id];const on=S.view==='est'&&S.active===id;
+  return '<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap '+(on?'bg-violet-600 text-white':'bg-slate-100 text-slate-600 hover:bg-slate-200')+'" onclick="showEst(\''+id+'\')">'+id+' · '+(e.nombre?e.nombre.split(' ')[0]:'Sin datos')+'<span class="opacity-60 hover:opacity-100" onclick="event.stopPropagation();cerrarTab(\''+id+'\')">✕</span></button>'}).join('');
+ $('tabsbar').innerHTML=tabs;
+}
+function showMesa(){S.view='mesa';S.active=null;render()}
+function showEst(id){S.view='est';S.active=id;render()}
+function cerrarTab(id){S.tabs=S.tabs.filter(t=>t!==id);if(S.active===id){S.view='mesa';S.active=null}render()}
+
+/* ════════════════ MESA ════════════════ */
+function filas(){
+ let rows=MESA.slice();
+ const f=S.filtros;
+ if(f.estado)rows=rows.filter(r=>r.estado===f.estado);
+ if(f.interv)rows=rows.filter(r=>r.interv);
+ if(f.busq){const q=f.busq.toLowerCase();rows=rows.filter(r=>(r.nombre+' '+r.doc+' '+r.id).toLowerCase().includes(q))}
+ return rows;
+}
+const ICO={
+ lupa:'<svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-[16px] h-[16px] text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+ list:'<svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3.01 6h.01M3.01 12h.01M3.01 18h.01"/></svg>',
+ grid:'<svg class="w-[17px] h-[17px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1.5"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1.5"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1.5"/><rect x="14" y="14" width="6.5" height="6.5" rx="1.5"/></svg>'
+};
+function vBtn(v,ico,tit){const on=S.vista===v;return '<button title="'+tit+'" class="px-2.5 py-1.5 rounded-lg '+(on?'bg-violet-100 text-violet-700':'text-slate-400 hover:text-slate-600')+'" onclick="S.vista=\''+v+'\';render()">'+ico+'</button>'}
+const P={
+ camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+ keyboard:'<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/>',
+ user:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+ folder:'<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+ card:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+ lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+ pencil:'<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
+ idcard:'<rect x="2" y="4" width="20" height="16" rx="2"/><circle cx="8" cy="10" r="2"/><path d="M14 8h4M14 12h4M6 16h12"/>',
+ mail:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+ check:'<path d="M20 6 9 17l-5-5"/>',
+ refresh:'<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
+ calendar:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>'
+};
+function I(n,cls){return '<svg class="'+(cls||'w-4 h-4')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+P[n]+'</svg>'}
+function listaHTML(){
+ const rows=filas();
+ if(!rows.length)return '<div class="bg-white border border-slate-200 rounded-xl py-14 text-center text-slate-400 text-[13px]">Sin resultados para los filtros aplicados.</div>';
+ if(S.vista==='tabla')return '<div class="bg-white border border-slate-200 rounded-xl overflow-hidden"><table class="w-full text-[12.5px]"><thead class="bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wide"><tr>'+
+  ['ID','Cliente','Estado','Fase / Paso','Espera','Asesor','Cupo preap.','Última actividad'].map(h=>'<th class="text-left font-bold px-4 py-3">'+h+'</th>').join('')+'</tr></thead><tbody>'+
+  rows.map(r=>'<tr class="border-t border-slate-100 hover:bg-violet-50/50 cursor-pointer" onclick="retomar(\''+r.id+'\')">'+
+   '<td class="px-4 py-3 mono font-bold text-violet-700">'+r.id+'</td>'+
+   '<td class="px-4 py-3"><div class="font-bold">'+r.nombre+'</div><div class="mono text-slate-400 text-[11.5px]">CC '+r.doc+'</div></td>'+
+   '<td class="px-4 py-3">'+badge(r.estado)+'</td>'+
+   '<td class="px-4 py-3"><b>'+r.fase+'</b><div class="text-slate-500 text-[11.5px]">'+r.paso+'</div></td>'+
+   '<td class="px-4 py-3">'+esp(r.min)+'</td>'+
+   '<td class="px-4 py-3 mono">'+r.asesor+'</td>'+
+   '<td class="px-4 py-3 mono font-semibold">'+r.cupo+'</td>'+
+   '<td class="px-4 py-3 text-slate-500">'+r.ult+'</td></tr>').join('')+'</tbody></table></div>';
+ return '<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">'+rows.map(r=>
+  '<div class="bg-white border border-slate-200 rounded-xl p-4 tcard click" onclick="retomar(\''+r.id+'\')">'+
+  '<div class="flex items-start gap-2"><div class="flex-1"><div class="font-bold text-[14px]">'+r.nombre+'</div><div class="mono text-slate-400 text-[11.5px]">'+r.id+' · CC '+r.doc+'</div></div>'+badge(r.estado)+'</div>'+
+  '<div class="mt-2.5 text-[12.5px] border-t border-slate-100 pt-2.5"><b>'+r.fase+'</b> · '+r.paso+'</div>'+
+  '<div class="mt-3 flex items-center border-t border-slate-100 pt-2.5">'+esp(r.min,'esperando')+'<div class="flex-1"></div><span class="mono font-semibold">'+r.cupo+'</span></div></div>').join('')+'</div>';
+}
+function renderLista(){const el=$('lista');if(el)el.innerHTML=listaHTML()}
+function renderMesa(){
+ $('titlebar').textContent='Mesa de estudios';
+ const n={tot:MESA.length,proc:0,apr:0,rec:0,interv:MESA.filter(r=>r.interv).length};
+ MESA.forEach(r=>{if(r.estado==='APROBADO'||r.estado==='DESBLOQUEADO'||r.estado==='REACTIVADO')n.apr++;else if(r.estado==='RECHAZADO')n.rec++;else n.proc++});
+ const stat=(l,v,c)=>'<div class="bg-white border border-slate-200 rounded-xl px-5 py-4 flex-1 min-w-[140px]"><div class="text-[11.5px] font-semibold text-slate-400">'+l+'</div><div class="text-[26px] font-extrabold '+(c||'text-indigo-950')+'">'+v+'</div></div>';
+ const statI='<div class="bg-white border '+(S.filtros.interv?'border-amber-300 ring-2 ring-amber-100':'border-slate-200')+' rounded-xl px-5 py-4 flex-1 min-w-[140px] cursor-pointer" onclick="S.filtros.interv=!S.filtros.interv;render()" title="Filtrar los estudios que requieren intervención"><div class="text-[11.5px] font-semibold text-slate-400">Requieren intervención</div><div class="text-[26px] font-extrabold text-amber-500">'+n.interv+'</div></div>';
+ $('content').innerHTML=
+  '<div class="text-[12px] font-semibold text-slate-400 mb-2">Hoy · '+new Date().toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' · Tienda Centro</div>'+
+  '<div class="flex gap-3 flex-wrap">'+stat('Total',n.tot)+stat('En proceso',n.proc,'text-violet-600')+stat('Aprobados',n.apr,'text-green-600')+stat('Rechazados',n.rec,'text-red-500')+statI+'</div>'+
+  '<div class="mt-5 flex items-center gap-3">'+
+   '<div class="flex-1 relative">'+ICO.lupa+'<input value="'+S.filtros.busq+'" placeholder="Buscar por cliente, documento o S-NNN…" class="w-full border border-slate-200 rounded-xl pl-10 pr-3.5 py-2.5 text-[13.5px] bg-white" oninput="S.filtros.busq=this.value;renderLista()"></div>'+
+   '<div class="bg-white border border-slate-200 rounded-xl p-1 flex gap-1 shrink-0">'+vBtn('tabla',ICO.list,'Vista de tabla')+vBtn('cards',ICO.grid,'Vista de tarjetas')+'</div>'+
+   '<button '+btnP+' style="white-space:nowrap;border-radius:12px" onclick="mAlta()">＋ Nueva solicitud</button></div>'+
+  '<div id="lista" class="mt-4">'+listaHTML()+'</div>';
+}
+
+/* ════════════════ ALTA (D-v2-3/4/5) ════════════════ */
+function mAlta(){
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">Nueva solicitud</h2>'+
+ '<p class="text-slate-500 text-[12.5px] mt-0.5 mb-5">Digite el documento del cliente para consultar cómo continúa la atención.</p>'+
+ '<div class="grid grid-cols-2 gap-3"><div><label class="block text-[12px] font-semibold text-slate-600 mb-1.5">Tipo de documento</label><select id="alta-tipo" class="w-full h-[42px] border border-slate-300 rounded-lg px-3 text-[13.5px] bg-white"><option>CC</option><option>CE</option><option>TI</option></select></div>'+
+ '<div>'+field('Número de documento','','alta-num','','onkeydown="if(event.key===\'Enter\')altaConsultar()"')+'</div></div>'+
+ '<div class="mt-3">'+field('Código del asesor (opcional)','','alta-ase','','onkeydown="if(event.key===\'Enter\')altaConsultar()"')+'<p class="text-[11.5px] text-slate-400 mt-1">Si queda vacío, el asesor será el operador en sesión (A-1956 · desarroll5).</p></div>'+
+ '<details class="mt-4 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3"><summary class="text-[12px] font-bold text-slate-500 cursor-pointer">Documentos de prueba</summary>'+
+ '<div class="mono text-[11.5px] mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-slate-600">'+
+ Object.entries({'1000000002':'Re-estudio','1000000003':'Cierre reciente','1000000010':'Cupo ya activo','1000000011':'No aplica por mora','1000000012':'Desbloqueo','1000000013':'Reactivación','1000000017':'Expirada','cualquier otro':'Cliente nuevo'}).map(([k,v])=>'<div>'+k+' → '+v+'</div>').join('')+'</div></details>'+
+ '<div class="flex justify-end gap-2 mt-6"><button '+btnG+' onclick="closeModal()">Cancelar</button><button '+btnP+' onclick="altaConsultar()">Consultar</button></div>');
+}
+function altaConsultar(){
+ const num=$('alta-num').value.trim(), tipo=$('alta-tipo').value, ase=$('alta-ase').value.trim();
+ if(!num){invalid('alta-num','Este campo es obligatorio — digite el documento del cliente');return}
+ modal('<div class="text-center py-10"><div class="spinner spinner-lg mx-auto"></div><h3 class="font-bold mt-4">Consultando…</h3><p class="text-slate-500 text-[12.5px] mt-1">Clasificando la atención del documento '+tipo+' '+num+'</p></div>');
+ setTimeout(()=>{
+  const res=SEMILLAS[num]||'cliente_nuevo';
+  if(FINALES[res])return mFinal(res,tipo,num,ase);
+  if(res==='desbloqueo')return abrirEstudio('desb',tipo,num,ase);
+  if(res==='reactivacion')return abrirEstudio('react',tipo,num,ase);
+  if(res==='re_estudio')return abrirEstudio('re',tipo,num,ase);
+  abrirEstudio('nuevo',tipo,num,ase);
+ },1100);
+}
+function mFinal(res,tipo,num,ase){
+ const f=FINALES[res];
+ const extra=res==='expirada'?'<button '+btnP+' onclick="closeModal();abrirEstudio(\'nuevo\',\''+tipo+'\',\''+num+'\',\''+(ase||'')+'\')">Iniciar solicitud nueva →</button>':'';
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">Nueva solicitud</h2><p class="mono text-slate-400 text-[12px] mt-0.5 mb-4">'+tipo+' '+num+'</p>'+
+ resBox(f.tono,f.titulo,f.msg)+
+ '<div class="flex justify-end gap-2 mt-6">'+extra+'<button '+(extra?btnG:btnP)+' onclick="closeModal()">Finalizar consulta</button></div>');
+}
+
+/* ════════════════ CREACIÓN DEL ESTUDIO ════════════════ */
+function abrirEstudio(tipo,docTipo,docNum,ase){
+ closeModal();
+ const id='S-'+(S.seq++);
+ const re=tipo==='re', mini=tipo==='desb'||tipo==='react';
+ const e={id,tipo,docTipo:docTipo||'CC',docNum:docNum||'—',nombre:null,estado:'EN_PROCESO',gestion:'Asistida',
+  asesor:ase?('A-'+ase.replace(/^A-?/,'')):'A-1956',asesorNombre:ase?(ASESORES[ase.replace(/^A-?/,'')]||'Asesor externo'):ASESORES['1956'],asesorOk:true,rostroOk:false,rostroPend:false,autogestion:false,
+  caja:'Caja 01',t0:Date.now(),sol:null,cupoPre:null,direccion:null,
+  contacto:{cel:CLIENTE.cel,mail:CLIENTE.correo,celOk:false,mailOk:false},
+  re:{sms:false,ivr:false},envios:[],canalSel:'SMS',
+  fotos:{f:false,r:false,ocr:false},
+  ident:{gestos:false,live:false,frontal:null,reverso:null,fase:null},
+  est:{fase:null,t0:null,llamada:false},
+  t:mini?(tipo==='desb'?{riesgo:'pend',ident:'bloq'}:{tyc:'pend',ident:'bloq'})
+        :{creacion:'pend',asesor:'pend',tyc:'bloq',riesgo:'bloq',dir:'bloq',ident:'bloq',cupo:'bloq'},
+  pasoActual:mini?(tipo==='desb'?'riesgo':'tyc'):'creacion',
+  fin:null,sucesos:[]};
+ if(re){e.nombre=CLIENTE.nombre+' '+CLIENTE.apellido;e.datosPrevios=true}
+ if(mini){e.nombre=tipo==='desb'?'Andrés Quintero':CLIENTE.nombre+' '+CLIENTE.apellido;e.cupoPrevio=CUPO_PREVIO;e.ident.frontal='vig';e.ident.reverso='vig'}
+ EST[id]=e;S.tabs.push(id);
+ log(e,'sys',tipo==='desb'?'Atención abierta — aplica desbloqueo express (C-02)':tipo==='react'?'Atención abierta — aplica reactivación (C-02)':re?'Atención abierta — re-estudio (C-02)':'Atención abierta — cliente nuevo (C-02)');
+ if(ase)log(e,'sys','Código de asesor capturado en el alta — '+e.asesor);
+ showEst(id);
+}
+function retomar(rowId){
+ if(EST[rowId]){showEst(rowId);return}
+ const r=MESA.find(x=>x.id===rowId);if(!r)return;
+ const e={id:r.id,tipo:'retomar',ultBase:r.ult,docTipo:'CC',docNum:r.doc,nombre:r.nombre==='—'?null:r.nombre,estado:r.estado,gestion:r.estado==='AUTOGESTION'?'Autogestión':'Asistida',
+  asesor:r.asesor,asesorNombre:ASESORES[r.asesor.replace(/^A-/,'')]||'Asesor externo',asesorOk:true,rostroOk:true,rostroPend:false,autogestion:r.estado==='AUTOGESTION',caja:'Caja 01',t0:Date.now()-r.min*60000,sol:'#10'+r.id.slice(2),cupoPre:r.cupo==='—'?null:r.cupo,direccion:null,
+  contacto:{cel:CLIENTE.cel,mail:CLIENTE.correo,celOk:true,mailOk:true},re:{sms:false,ivr:false},envios:[],canalSel:'SMS',fotos:{f:true,r:true,ocr:true},
+  ident:{gestos:false,live:false,frontal:'ok',reverso:'ok',fase:r.paso==='Validación de identidad'?'revision':null},
+  est:{fase:null,t0:null,llamada:false},fin:null,sucesos:[{t:r.ult,tono:'sys',txt:'Solicitud retomada desde la Mesa'}]};
+ const orden=['creacion','asesor','tyc','riesgo','dir','ident','cupo'];
+ const pasoKey=Object.keys(FASES).find(k=>FASES[k][1]===r.paso)||'creacion';
+ e.t={};orden.forEach(k=>{const i=orden.indexOf(k),j=orden.indexOf(pasoKey);e.t[k]=i<j?'ok':i===j?'pend':'bloq'});
+ if(r.estado==='ESCALADO'){e.t.ident='proc';e.ident.fase='fabrica'}
+ if(r.paso==='Evaluación de riesgo'&&r.estado==='EN_PROCESO'){e.t.riesgo='proc';e.est.fase='llamada';e.est.t0=Date.now()-r.min*60000;e.t.dir='pend';e.t.ident='pend'}
+ e.pasoActual=pasoKey;
+ EST[r.id]=e;S.tabs.push(r.id);showEst(r.id);
+}
+
+/* ════════════════ PESTAÑA DE ESTUDIO ════════════════ */
+function fasePaso(e){
+ if(e.fin)return e.fin.fase||['Cierre','—'];
+ const k=e.pasoActual;return FASES[k]||['—','—'];
+}
+function headerHTML(e){
+ const titulo=e.nombre?e.nombre:(e.docTipo+' '+e.docNum);
+ const sub=e.nombre?'':'<span class="text-slate-400 text-[12px] font-semibold ml-2">Sin datos</span>';
+ const fp=fasePaso(e);
+ const m=mins(e.t0);
+ return '<div class="bg-white border border-slate-200 rounded-xl px-5 py-4">'+
+ '<div class="flex items-center gap-3 flex-wrap"><h2 class="text-[19px] font-extrabold text-indigo-950">'+titulo+sub+'</h2>'+badge(e.estado)+
+ '<div class="flex-1"></div><button '+btnO+' onclick="toggleDrawer(true)">Ver sucesos ▸</button></div>'+
+ '<div class="mt-1.5 text-[13px] font-semibold text-slate-600">'+fp[0]+' · '+fp[1]+'</div>'+
+ '<div class="mt-2 flex items-center gap-x-4 gap-y-1 flex-wrap mono text-[11.5px] text-slate-400">'+
+ '<span class="font-bold text-violet-700">'+e.id+'</span>'+(e.nombre?'<span>'+e.docTipo+' '+e.docNum+'</span>':'')+
+ '<span>'+e.caja+'</span><span>'+e.asesor+'</span><span>Cupo preap. '+(e.cupoPre||'—')+'</span><span>Creado hoy '+new Date(e.t0).getHours()+':'+String(new Date(e.t0).getMinutes()).padStart(2,'0')+'</span>'+esp(m)+'</div></div>';
+}
+function pill(tone,inner){const t={green:'bg-green-50 text-green-700',amber:'bg-amber-50 text-amber-700',blue:'bg-blue-50 text-blue-700',rose:'bg-rose-50 text-rose-700',slate:'bg-slate-100 text-slate-500'}[tone];
+ return '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold shrink-0 '+t+'">'+inner+'</span>'}
+function estadoTarjeta(e,k){
+ if(e.autogestion&&e.t[k]!=='ok')return [pill('slate',I('lock','w-3 h-3')+'En autogestión'),''];
+ const st=e.t[k];
+ if(st==='ok')return [pill('green','Completado'),'click'];
+ if(st==='pend')return [pill('amber','Pendiente'),'click'];
+ if(st==='proc')return [pill('blue','Procesando'),'click'];
+ if(st==='warn')return [pill('rose','Requiere atención'),'click'];
+ if(k==='cupo'&&e.t.ident==='ok')return [pill('slate',I('lock','w-3 h-3')+'Bloqueado'),'click']; /* compuerta UBICA abrible (P1) */
+ return [pill('slate',I('lock','w-3 h-3')+'Bloqueado'),''];
+}
+const HINT={tyc:'Requiere capturar los datos primero.',riesgo:'Requiere la aceptación de T&C.',dir:'Se habilita con la validación inicial de viabilidad.',ident:'Se habilita con la validación inicial de viabilidad.',cupo:'Disponible tras la validación de identidad.'};
+function accionTarjeta(e,k){
+ const st=e.t[k];if(!(st==='pend'||st==='warn')||e.autogestion)return '';
+ const lbl={creacion:e.tipo==='re'?'Verificar datos':'Capturar datos',asesor:'Asignar asesor',tyc:'Aceptar T&C',riesgo:e.tipo==='desb'?'Iniciar desbloqueo':'Iniciar evaluación',dir:'Registrar dirección',ident:st==='warn'?'Revisar novedad':'Capturar identidad',cupo:'Activar cupo'}[k]||'Abrir';
+ return '<div class="mt-4 pt-4 border-t border-black/5"><span class="text-[14px] font-bold text-violet-600">'+lbl+' →</span></div>';
+}
+function subEstadoTarjeta(e,k){
+ if(k==='riesgo'&&e.t[k]==='proc'){const f=e.est.fase;const lbl={viabilidad:'Validación inicial de viabilidad…',contacto:'Validación de contacto (UBICA)…',llamada:'Esperando llamada de confirmación',cupo:'Asignando cupo…'}[f]||'';
+  return '<div class="mt-2 flex items-center gap-2 text-[11.5px] text-blue-700"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span>'+lbl+'</div><div class="mono text-[11px] text-slate-400 mt-1">'+segundos(e.est.t0)+'</div>'}
+ if(k==='riesgo'&&e.t[k]==='warn')return '<div class="mt-2 text-[11.5px] text-amber-700 font-semibold">Esperando llamada de confirmación</div>';
+ if(k==='ident'){const i=e.ident;
+  if(e.t[k]==='proc'&&i.fase==='revision')return '<div class="mt-2 flex items-center gap-2 text-[11.5px] text-blue-700"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span>En revisión</div>';
+  if(e.t[k]==='proc'&&i.fase==='fabrica')return '<div class="mt-2 text-[11.5px] text-amber-700 font-semibold">En revisión manual — Fábrica de soporte</div>';
+  if(e.t[k]==='proc'&&i.fase==='remoto')return '<div class="mt-2 text-[11.5px] text-blue-700 font-semibold">Con el cliente — enlace enviado</div>';
+  if(e.t[k]==='pend'||e.t[k]==='warn'){
+   const f=i.frontal||(e.fotos.ocr?'pre':'req'),r=i.reverso||(e.fotos.ocr?'pre':'req');
+   const lab=v=>v==='ok'?['✓ Validada','text-green-600']:v==='vig'?['✓ Vigente','text-green-600']:v==='pre'?['Precargada','text-blue-600']:v==='rej'?['✗ Re-captura','text-red-600']:['Se solicitará','text-slate-400'];
+   const ts=[['Prueba de vida',i.live?['✓ Superada','text-green-600']:['Pendiente','text-slate-400']],['Doc. frontal',lab(f)],['Doc. reverso',lab(r)]];
+   return '<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">'+ts.map(s=>
+   '<div class="bg-white/70 border border-black/5 rounded-xl px-4 py-3"><div class="text-[12.5px] font-semibold text-slate-600">'+s[0]+'</div><div class="text-[12px] mt-0.5 font-bold '+s[1][1]+'">'+s[1][0]+'</div></div>').join('')+'</div>'}}
+ if(k==='asesor'&&e.t[k]==='ok'&&e.rostroPend)return '<div class="mt-2 text-[11.5px] text-amber-600 font-semibold">Rostro pendiente</div>';
+ if(k==='cupo'&&e.t[k]==='bloq'&&e.t.ident==='ok'&&e.t.riesgo!=='ok')return '<div class="mt-2"><span class="esp esp-b"><span class="d"></span>Esperando definición UBICA</span></div>';
+ if(k==='dir'&&e.t[k]==='ok')return '<div class="mt-2"><button class="text-[11.5px] font-bold text-violet-600 hover:underline" onclick="event.stopPropagation();mT5(\''+e.id+'\')">Editar</button></div>';
+ return '';
+}
+function segundos(t0){if(!t0)return '';const s=Math.floor((Date.now()-t0)/1000);return s<60?s+' seg':Math.floor(s/60)+' min '+(s%60)+' seg'}
+function tarjeta(e,k,num,nombre,wide){
+ const [bad,click]=estadoTarjeta(e,k);
+ const st=e.t[k];
+ const onclick=click?('onclick="abrirTarjeta(\''+e.id+'\',\''+k+'\')"'):'';
+ const mini=e.tipo==='desb'||e.tipo==='react';
+ const hintTxt=mini?(k==='ident'?(e.tipo==='desb'?'Requiere la evaluación de riesgo.':'Requiere la aceptación de T&C.'):''):(HINT[k]||'');
+ const hint=(st==='bloq'&&!e.autogestion&&hintTxt)?'<div class="mt-4 text-[14px] text-slate-400">'+hintTxt+'</div>':'';
+ const sub=subEstadoTarjeta(e,k);
+ const lock=e.autogestion&&st!=='ok';
+ const tono=lock?'bg-slate-50/80 border-slate-200':st==='ok'?'bg-green-50/60 border-green-200':st==='pend'?'bg-white border-violet-300 ring-1 ring-violet-100':st==='proc'?'bg-blue-50/50 border-blue-200':st==='warn'?'bg-amber-50/70 border-amber-300':'bg-slate-50/80 border-slate-200';
+ const nb=lock?'bg-slate-200/70 text-slate-400':st==='ok'?'bg-green-100 text-green-700':st==='pend'?'bg-violet-600 text-white':st==='proc'?'bg-blue-100 text-blue-700':st==='warn'?'bg-amber-100 text-amber-700':'bg-slate-200/70 text-slate-400';
+ return '<div class="border rounded-2xl p-6 tcard '+tono+' '+click+(wide?' md:col-span-2':'')+'" '+onclick+'>'+
+ '<div class="flex items-start gap-4"><span class="w-11 h-11 rounded-xl '+nb+' font-bold flex items-center justify-center text-[16px] shrink-0">'+num+'</span>'+
+ '<div class="flex-1 pt-2.5 font-bold text-[16px] text-indigo-950 leading-tight">'+nombre+'</div>'+bad+'</div>'+
+ (st==='ok'?(function(){e.done=e.done||{};if(!e.done[k])e.done[k]=(e.ultBase||('hoy · '+hora()));return '<div class="mt-3.5 text-[12.5px] text-slate-400 mono">'+e.done[k]+'</div>'})():'')+
+ (sub?'<div class="mt-2">'+sub+'</div>':'')+hint+accionTarjeta(e,k)+'</div>';
+}
+function gridHTML(e){
+ if(e.fin)return finHTML(e);
+ const mini=e.tipo==='desb'||e.tipo==='react';
+ if(mini){
+  const porque=e.tipo==='desb'
+   ?resBox('info','Cupo bloqueado por inactividad — aplica desbloqueo express','<b>'+e.nombre+'</b> tiene un cupo de <b>'+e.cupoPrevio+'</b> bloqueado por inactividad, sin mora vigente. Sus documentos y selfie están vigentes y no ha cambiado celular ni correo: puede desbloquear <b>sin nuevo estudio</b>.')
+   :resBox('info','Cupo eliminado recientemente — aplica reactivación','El cupo de <b>'+e.nombre+'</b> fue eliminado hace 12 días, sin mora histórica relevante y sin cambios en sus datos: puede reactivarse <b>sin nuevo estudio</b>.');
+  const t1=e.tipo==='desb'?tarjeta(e,'riesgo',1,'Evaluación de riesgo'):tarjeta(e,'tyc',1,'Aceptación T&C');
+  return porque+'<div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">'+t1+tarjeta(e,'ident',2,'Validación de identidad')+'</div>';
+ }
+ const n1=e.tipo==='re'?'Actualización de datos':'Creación del cliente';
+ return '<div class="grid grid-cols-1 md:grid-cols-2 gap-5">'+
+  tarjeta(e,'creacion',1,n1)+tarjeta(e,'asesor',2,'Asignar asesor')+tarjeta(e,'tyc',3,'Aceptación T&C')+
+  tarjeta(e,'riesgo',4,'Evaluación de riesgo')+tarjeta(e,'dir',5,'Dirección')+tarjeta(e,'ident',6,'Validación de identidad',true)+
+  tarjeta(e,'cupo',7,'Decisión de cupo',true)+'</div>';
+}
+function finHTML(e){
+ const f=e.fin;
+ const tonos={ok:['bg-green-50 border-green-200','text-green-700'],warn:['bg-amber-50 border-amber-200','text-amber-700'],err:['bg-red-50 border-red-200','text-red-700']};
+ const t=tonos[f.tono];
+ return '<div class="border rounded-2xl '+t[0]+' text-center py-12 px-8">'+
+ '<div class="text-[34px]">'+(f.tono==='ok'?'✓':f.tono==='warn'?'!':'✕')+'</div>'+
+ '<h2 class="text-[20px] font-extrabold mt-2 '+t[1]+'">'+f.titulo+'</h2>'+
+ (f.monto?'<div class="mono text-[30px] font-extrabold mt-2 '+t[1]+'">'+f.monto+'</div>':'')+
+ '<p class="text-slate-600 text-[13px] mt-2 max-w-md mx-auto">'+f.msg+'</p>'+
+ '<button '+btnP+' style="margin-top:20px" onclick="showMesa()">Volver a la mesa</button></div>';
+}
+function sideHTML(e){
+ const emp='<span class="text-slate-300">—</span>';
+ const kv=(k,v)=>'<div class="flex items-center justify-between gap-3 py-[7px] border-b border-slate-100 last:border-0"><span class="text-slate-400 text-[12px]">'+k+'</span><span class="text-right font-semibold text-[12px] text-slate-700">'+(v||emp)+'</span></div>';
+ const card=(ico,t,body)=>'<div class="bg-white border border-slate-200 rounded-xl px-4 py-3.5 mb-4"><h4 class="flex items-center gap-2 text-[11px] font-bold tracking-wider text-violet-700 mb-1">'+I(ico,'w-3.5 h-3.5')+t+'</h4>'+body+'</div>';
+ const mini=e.tipo==='desb'||e.tipo==='react';
+ const solicitud=card('folder','SOLICITUD',
+  kv('ID',e.sol?'<span class="mono">'+e.sol+'</span>':'<span class="mono text-slate-400">— preliminar</span>')+
+  kv('Canal','Tienda · '+e.caja)+
+  kv('Asesor','<span class="mono">'+e.asesor+'</span>'+(e.rostroOk?' <span class="text-green-600">✓</span>':e.rostroPend?' <span class="text-amber-500 text-[11px]">rostro pend.</span>':''))+
+  kv('Tipo de gestión',e.gestion)+
+  kv('Estado',badge(e.estado))+
+  (e.autogestion
+   ?'<button class="mt-3 w-full border border-blue-200 bg-blue-50 text-blue-700 font-bold rounded-lg py-2 text-[12px]" onclick="retomarTienda(\''+e.id+'\')">Retomar en tienda</button>'
+   :(mini||e.fin?'':'<button class="mt-3 w-full border border-slate-200 hover:border-violet-300 hover:text-violet-700 font-bold rounded-lg py-2 text-[12px] text-slate-500" onclick="mAutogestion(\''+e.id+'\')">Continuar en autogestión</button>')));
+ const canEdit=e.nombre&&!mini&&!e.autogestion&&!e.fin&&e.t.creacion==='ok';
+ const cliente=card('user','CLIENTE'+(canEdit?'<span class="flex-1"></span><button class="flex items-center gap-1 text-[11px] font-bold text-violet-600 hover:underline" onclick="mEditarCliente(\''+e.id+'\')">'+I('pencil','w-3 h-3')+'Editar</button>':''),
+  kv('Documento','<span class="mono">'+e.docTipo+' '+e.docNum+'</span>')+
+  kv('Nombre',e.nombre)+
+  (e.nombre&&!mini?kv('Nacimiento','<span class="mono">'+CLIENTE.nac+' · '+CLIENTE.ciudadNac+'</span>')+kv('Expedición','<span class="mono">'+CLIENTE.expFecha+' · '+CLIENTE.ciudadExp+'</span>'):'')+
+  kv('Celular',(e.nombre||mini)?'<span class="mono">'+e.contacto.cel+'</span>'+(e.contacto.celOk?' <span class="text-green-600">✓</span>':''):null)+
+  kv('Correo',(e.nombre||mini)?'<span class="text-[11.5px]">'+e.contacto.mail+'</span>'+(e.contacto.mailOk?' <span class="text-green-600">✓</span>':''):null)+
+  (mini?'':kv('Dirección',e.direccion?'<span class="text-[11.5px]">'+e.direccion+'</span> <button class="text-violet-600 align-middle" title="Editar dirección" onclick="mT5(\''+e.id+'\')">'+I('pencil','w-3 h-3 inline')+'</button>':null)));
+ const credito=mini
+  ?card('card','CRÉDITO',kv('Cupo previo','<span class="mono">'+e.cupoPrevio+'</span>')+kv('Estado',e.fin&&e.fin.tono==='ok'?'<span class="text-green-600 font-bold">Activo ✓</span>':'Bloqueado'))
+  :card('card','CRÉDITO',
+   kv('Viabilidad',e.t.riesgo==='ok'||['contacto','llamada','cupo'].includes(e.est.fase)?'Viable ✓':e.est.fase==='viabilidad'?'<span class="text-blue-600">Validando…</span>':null)+
+   kv('Validación de contacto',e.t.riesgo==='ok'?(e.est.llamada?'Confirmada por llamada ✓':'Datos consistentes ✓'):e.est.fase==='contacto'?'<span class="text-blue-600">Validando…</span>':e.est.fase==='llamada'?'<span class="text-amber-600">Esperando llamada</span>':null)+
+   kv('Cupo preaprobado',e.cupoPre?'<span class="mono">'+e.cupoPre+'</span>':e.est.fase==='cupo'?'<span class="text-blue-600">Validando…</span>':null));
+ const sop=(ico,l,v)=>'<div class="flex items-center gap-2.5 py-[7px] border-b border-slate-100 last:border-0"><span class="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">'+I(ico,'w-3.5 h-3.5')+'</span><span class="flex-1 text-slate-500 text-[12px]">'+l+'</span><span class="text-[11.5px] font-bold '+(v?'text-green-600':'text-slate-300')+'">'+(v||'—')+'</span></div>';
+ const soportes=card('camera','SOPORTES',
+  mini?sop('idcard','Doc. frontal','✓ vigente')+sop('refresh','Doc. reverso','✓ vigente')+sop('user','Selfie / liveness','✓ vigente')
+  :sop('idcard','Doc. frontal',(e.fotos.f||hayDoc(e.ident.frontal))?(e.ident.frontal==='ok'?'validada':e.ident.fase==='revision'?'en revisión':'cargada'):e.ident.frontal==='rej'?'✗ re-captura':null)+
+   sop('refresh','Doc. reverso',(e.fotos.r||hayDoc(e.ident.reverso))?(e.ident.reverso==='ok'?'validada':e.ident.fase==='revision'?'en revisión':'cargada'):e.ident.reverso==='rej'?'✗ re-captura':null)+
+   sop('user','Selfie / liveness',e.ident.live?(e.t.ident==='ok'?'verificada':'en revisión'):null));
+ return solicitud+cliente+credito+soportes;
+}
+function renderEst(e){
+ $('titlebar').textContent='Solicitud '+e.id;
+ $('content').innerHTML=
+ '<div class="flex items-center gap-1.5 text-[12.5px] mb-4"><span class="text-slate-400 text-[14px]">‹</span><span class="font-semibold text-indigo-950/80 hover:underline cursor-pointer" onclick="showMesa()">Mesa de estudios</span><span class="text-slate-300 mx-1">/</span><span class="font-bold text-indigo-950">Solicitud '+e.id+'</span></div>'+headerHTML(e)+
+ '<div class="grid grid-cols-12 gap-5 mt-5"><div class="col-span-12 lg:col-span-8">'+gridHTML(e)+'</div>'+
+ '<div class="col-span-12 lg:col-span-4">'+sideHTML(e)+'</div></div>';
+}
+function renderDrawer(){
+ const e=S.active?EST[S.active]:null;
+ $('drawer-body').innerHTML=!e?'<p class="text-slate-400 text-[12.5px]">Abra una solicitud para ver sus sucesos.</p>'
+ :e.sucesos.map(s=>{const c={ok:'bg-green-100 text-green-700',err:'bg-red-100 text-red-700',warn:'bg-amber-100 text-amber-700',sys:'bg-slate-100 text-slate-500',info:'bg-blue-100 text-blue-700'}[s.tono];
+  return '<div class="flex gap-3 mb-4"><span class="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[11px] font-bold '+c+'">●</span><div><div class="text-[12.5px] font-semibold leading-snug">'+s.txt+'</div><div class="text-[11px] text-slate-400 mt-0.5">hoy · '+s.t+'</div></div></div>'}).join('')||'<p class="text-slate-400 text-[12.5px]">Sin sucesos aún.</p>';
+}
+
+/* ════════════════ RUTEO DE TARJETAS ════════════════ */
+function abrirTarjeta(id,k){
+ const e=EST[id];if(!e)return;
+ if(e.autogestion&&e.t[k]!=='ok'){toast('El estudio está en autogestión — el cliente lo continúa desde su celular');return}
+ if(k==='creacion')return mT1(id,0);
+ if(k==='asesor')return mT2(id);
+ if(k==='tyc')return e.tipo==='react'?mTycMini(id,0):mT3(id,0);
+ if(k==='riesgo')return e.tipo==='desb'?mRiesgoMini(id):mT4(id);
+ if(k==='dir')return mT5(id);
+ if(k==='ident')return mT6(id);
+ if(k==='cupo')return mT7(id,0);
+}
+function completar(e,k,paso){e.t[k]='ok';const orden=Object.keys(e.t);const sig=orden.find(x=>e.t[x]==='pend'||e.t[x]==='proc'||e.t[x]==='warn');if(sig)e.pasoActual=sig;render()}
+
+/* ════════ T1 · Creación / Actualización (D-v2-12) ════════ */
+function mT1(id,ph){
+ const e=EST[id];const tit=e.tipo==='re'?'Actualización de datos':'Creación del cliente';
+ if(e.tipo!=='re'&&ph===0)return modal('<h2 class="text-[18px] font-bold text-indigo-950">'+tit+'</h2><p class="text-slate-500 text-[12.5px] mt-0.5 mb-5">¿Cómo quiere capturar los datos del cliente?</p>'+
+  '<div class="grid grid-cols-2 gap-4">'+
+  '<div class="border-2 border-slate-200 hover:border-violet-400 rounded-xl p-6 text-center cursor-pointer" onclick="mT1(\''+id+'\',1)"><div class="mx-auto w-10 h-10 flex items-center justify-center text-violet-600">'+I('camera','w-7 h-7')+'</div><h4 class="font-bold mt-2 text-indigo-950">Mediante OCR</h4><p class="text-[12px] text-slate-500 mt-1">Captura del documento y extracción automática</p></div>'+
+  '<div class="border-2 border-slate-200 hover:border-violet-400 rounded-xl p-6 text-center cursor-pointer" onclick="mT1(\''+id+'\',3)"><div class="mx-auto w-10 h-10 flex items-center justify-center text-violet-600">'+I('keyboard','w-7 h-7')+'</div><h4 class="font-bold mt-2 text-indigo-950">Manual</h4><p class="text-[12px] text-slate-500 mt-1">Ingreso manual de los datos</p></div></div>'+
+  '<div class="flex justify-end mt-5"><button '+btnG+' onclick="closeModal()">Cancelar</button></div>');
+ if(ph===1)return modal('<h2 class="text-[18px] font-bold text-indigo-950">'+tit+' — Fotos del documento</h2><p class="text-slate-500 text-[12.5px] mt-0.5 mb-4">Cargue las dos caras del documento para procesar con OCR.</p>'+
+  '<div class="grid grid-cols-2 gap-4">'+[['f','Cara frontal','Foto, datos personales y número'],['r','Cara posterior','Huella dactilar y código de barras']].map(c=>
+  '<div class="border-2 border-dashed '+(e.fotos[c[0]]?'border-green-300 bg-green-50':'border-slate-300')+' rounded-xl p-5 text-center cursor-pointer" onclick="e=EST[\''+id+'\'];e.fotos.'+c[0]+'=true;mT1(\''+id+'\',1)"><div class="mx-auto w-9 h-9 flex items-center justify-center '+(e.fotos[c[0]]?'text-green-600':'text-slate-400')+'">'+(e.fotos[c[0]]?I('check','w-6 h-6'):I('idcard','w-6 h-6'))+'</div><h4 class="font-bold mt-1 text-[13px] text-indigo-950">'+c[1]+'</h4><p class="text-[11.5px] text-slate-500 mt-0.5">'+c[2]+'</p><div class="text-[11px] font-bold mt-1.5 '+(e.fotos[c[0]]?'text-green-600':'text-slate-400')+'">'+(e.fotos[c[0]]?'Cargada':'Pendiente')+'</div></div>').join('')+'</div>'+
+  '<div class="flex justify-end gap-2 mt-5"><button '+btnG+' onclick="mT1(\''+id+'\',0)">← Volver</button><button '+btnP+' '+(e.fotos.f&&e.fotos.r?'':'disabled style="opacity:.4"')+' onclick="mT1(\''+id+'\',2)">Procesar con OCR ▶</button></div>');
+ if(ph===2){e.fotos.ocr=true;log(e,'sys','OCR en proceso — extrayendo datos del documento');
+  setTimeout(()=>{log(e,'sys','OCR completado — datos extraídos');mT1(id,3)},1700);
+  return modal('<div class="text-center py-10"><div class="spinner spinner-lg mx-auto"></div><h3 class="font-bold mt-4">Procesando con OCR…</h3><p class="text-slate-500 text-[12px] mt-1">Leyendo nombres, fechas, lugar de nacimiento y de expedición · ubicando por código DANE</p></div>')}
+ const edit=e.editando, ocr=e.fotos.ocr, pre=ocr||e.tipo==='re'||edit, preC=edit||e.tipo==='re';
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">'+(edit?'Editar datos del cliente':e.tipo==='re'?'Verificar y actualizar datos':tit)+'</h2>'+
+ (edit&&e.sol?'<div class="mt-3">'+resBox('warn','La edición invalida la firma electrónica','Al guardar los cambios, el cliente deberá aceptar de nuevo los T&C y firmar con un token (la tarjeta 3 vuelve a quedar pendiente).')+'</div>':'')+
+ (!edit&&ocr?'<div class="mt-3">'+resBox('info','Datos leídos del documento','El OCR leyó MEDELLÍN (nacimiento) y BUCARAMANGA (expedición) y los ubicó por código DANE. Verifique y ajuste antes de guardar.')+'</div>':'')+
+ (!edit&&e.tipo==='re'?'<div class="mt-3">'+resBox('info','Cliente existente','Formulario prellenado con la historia. Verifique y actualice lo que haya cambiado.')+'</div>':'')+
+ '<div class="grid grid-cols-2 gap-4 mt-5">'+field('Nombres',pre?CLIENTE.nombre:'','t1-nom')+field('Apellidos',pre?CLIENTE.apellido:'','t1-ape')+'</div>'+
+ '<div class="text-[11px] font-bold text-violet-700 mt-6 mb-2 tracking-wide">LUGAR Y FECHA DE NACIMIENTO</div>'+
+ '<div class="grid grid-cols-3 gap-4">'+fieldDate('Fecha',pre?CLIENTE.nac:'','t1-fnac')+selDepto('Departamento','t1-dnac','t1-cnac',pre?CLIENTE.deptoNac:'')+selCiudad('Ciudad','t1-cnac',pre?CLIENTE.deptoNac:'',pre?CLIENTE.ciudadNac:'')+'</div>'+
+ '<div class="text-[11px] font-bold text-violet-700 mt-6 mb-2 tracking-wide">EXPEDICIÓN DEL DOCUMENTO</div>'+
+ '<div class="grid grid-cols-3 gap-4">'+fieldDate('Fecha',pre?CLIENTE.expFecha:'','t1-fexp')+selDepto('Departamento','t1-dexp','t1-cexp',pre?CLIENTE.deptoExp:'')+selCiudad('Ciudad','t1-cexp',pre?CLIENTE.deptoExp:'',pre?CLIENTE.ciudadExp:'')+'</div>'+
+ '<div class="text-[11px] font-bold text-violet-700 mt-6 mb-2 tracking-wide">DATOS DE CONTACTO</div>'+
+ '<div class="grid grid-cols-2 gap-4">'+
+ '<div><label class="block text-[12px] font-semibold text-slate-600 mb-1.5">Celular</label><input id="t1-cel" value="'+(preC?CLIENTE.cel:'')+'" placeholder="Celular del cliente" class="w-full h-[42px] border border-slate-300 rounded-lg px-3.5 text-[13.5px] bg-white" onkeydown="if(event.key===\'Enter\')this.blur()" oninput="EST[\''+id+'\'].contacto.celOk=false" onblur="if(this.value.trim()&&!EST[\''+id+'\'].contacto.celOk)valContacto(\''+id+'\',\'cel\')"><div class="mt-1.5" id="v-cel">'+vLinks(id,'cel',e.contacto.celOk)+'</div></div>'+
+ '<div><label class="block text-[12px] font-semibold text-slate-600 mb-1.5">Correo electrónico</label><input id="t1-mail" value="'+(preC?CLIENTE.correo:'')+'" placeholder="correo@ejemplo.com" class="w-full h-[42px] border border-slate-300 rounded-lg px-3.5 text-[13.5px] bg-white" onkeydown="if(event.key===\'Enter\')this.blur()" oninput="EST[\''+id+'\'].contacto.mailOk=false" onblur="if(this.value.trim()&&!EST[\''+id+'\'].contacto.mailOk)valContacto(\''+id+'\',\'mail\')"><div class="mt-1.5" id="v-mail">'+vLinks(id,'mail',e.contacto.mailOk)+'</div></div></div>'+
+ '<div class="flex items-center justify-end gap-2 mt-6">'+((e.contacto.celOk&&e.contacto.mailOk)?'':'<span id="t1-hint" class="text-[11.5px] text-slate-400 mr-auto">«Guardar» se habilita al validar la disponibilidad de celular y correo</span>')+'<button '+btnG+' onclick="closeModal()">Cancelar</button>'+
+ '<button id="t1-save" '+btnP+' '+(e.contacto.celOk&&e.contacto.mailOk?'':'disabled style="opacity:.4"')+' onclick="guardarT1(\''+id+'\')">'+(edit?'Guardar cambios →':e.tipo==='re'?'Confirmar datos →':'Guardar cliente →')+'</button></div>','w-[780px]');
+ setTimeout(()=>{const x=EST[id],i=$('t1-cel');if(x&&!x.contacto.celOk&&i&&i.value.trim())valContacto(id,'cel')},300);
+ setTimeout(()=>{const x=EST[id],i=$('t1-mail');if(x&&!x.contacto.mailOk&&i&&i.value.trim())valContacto(id,'mail')},600);
+}
+function vLinks(id,cual,ok){
+ if(ok)return '<span class="text-green-600 text-[12px] font-bold">✓ Disponible</span>';
+ return '<span class="text-[11.5px] text-slate-400">Validación automática de disponibilidad</span>'+
+ '<span class="text-slate-300 mx-1.5">·</span><button class="text-[11.5px] text-slate-400 hover:text-slate-600 underline decoration-dotted" onclick="valContacto(\''+id+'\',\''+cual+'\',true)">Simular no disponible</button>';
+}
+function valContacto(id,cual,forzar){
+ const e=EST[id];const box=$('v-'+cual);const inp=$(cual==='cel'?'t1-cel':'t1-mail');
+ box.innerHTML='<span class="text-[12px] text-blue-600 flex items-center gap-1.5"><span class="spinner" style="width:12px;height:12px;border-width:2px"></span>Validando disponibilidad…</span>';
+ setTimeout(()=>{
+  if(forzar){
+   if(cual==='cel')e.contacto.celOk=false;else e.contacto.mailOk=false;
+   if(inp)inp.classList.add('err-input');
+   log(e,'err',(cual==='cel'?'Celular':'Correo')+' no disponible — asociado a otro documento con cupo activo o solicitud en curso');
+   box.innerHTML='<div class="text-red-600 text-[12px] font-semibold">✗ No disponible — está asociado a otro documento con cupo activo o solicitud en curso.</div>'+
+   '<div class="text-[11.5px] text-slate-500 mt-1">Solicite al cliente otro '+(cual==='cel'?'celular':'correo')+' y corríjalo en el campo — la disponibilidad se validará automáticamente.</div>';
+   const b=$('t1-save');if(b){b.disabled=true;b.style.opacity=.4}
+   return}
+  if(inp)inp.classList.remove('err-input');
+  if(cual==='cel')e.contacto.celOk=true;else e.contacto.mailOk=true;
+  log(e,'ok',(cual==='cel'?'Celular':'Correo')+' validado — disponible, sin cupo activo ni solicitud en curso');
+  box.innerHTML='<span class="text-green-600 text-[12px] font-bold">✓ Disponible</span>';
+  if(e.contacto.celOk&&e.contacto.mailOk){const b=$('t1-save');if(b){b.disabled=false;b.style.opacity=1}const h=$('t1-hint');if(h)h.remove()}},900);
+}
+function guardarT1(id){
+ const e=EST[id];e.nombre=($('t1-nom').value||CLIENTE.nombre)+' '+($('t1-ape').value||CLIENTE.apellido).split(' ')[0]+'.';
+ if(e.editando){e.editando=false;
+  if(e.sol){e.t.tyc='pend';log(e,'warn','Datos del cliente editados — la firma electrónica quedó invalidada; se requiere aceptar T&C y re-tokenizar');toast('Firma invalidada — se requiere re-tokenizar')}
+  else{log(e,'sys','Datos del cliente editados');toast('Datos actualizados')}
+  closeModal();render();return}
+ log(e,'ok','Cliente '+(e.tipo==='re'?'actualizado':'creado')+' — contacto validado ✓');
+ e.t.creacion='ok';if(e.t.tyc==='bloq')e.t.tyc='pend';e.pasoActual='asesor';
+ closeModal();render();toast('Cliente '+(e.tipo==='re'?'actualizado':'creado'));
+}
+function mEditarCliente(id){EST[id].editando=true;mT1(id,3)}
+
+/* ════════ T2 · Asignar asesor (D-v2-13) ════════ */
+function mT2(id){
+ const e=EST[id];const exento=e.asesor==='A-10010';
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">Asignar asesor</h2><p class="text-slate-500 text-[12.5px] mt-0.5 mb-4">¿Cómo continúa la gestión?</p>'+
+ '<div class="flex gap-3 mb-5">'+
+ '<label class="flex-1 border-2 '+(e.gestion==='Asistida'?'border-violet-400 bg-violet-50':'border-slate-200')+' rounded-xl px-4 py-3 cursor-pointer" onclick="EST[\''+id+'\'].gestion=\'Asistida\';mT2(\''+id+'\')"><b>Asistida en tienda</b><div class="text-[11.5px] text-slate-500 mt-0.5">El asesor opera la solicitud</div></label>'+
+ '<label class="flex-1 border-2 '+(e.gestion==='Autogestión'?'border-blue-400 bg-blue-50':'border-slate-200')+' rounded-xl px-4 py-3 cursor-pointer" onclick="EST[\''+id+'\'].gestion=\'Autogestión\';mT2(\''+id+'\')"><b>Autogestión</b><div class="text-[11.5px] text-slate-500 mt-0.5">El cliente continúa desde su celular</div></label></div>'+
+ (e.gestion==='Asistida'
+ ?'<div class="border border-slate-200 rounded-xl px-4 py-4">'+
+  '<div class="grid grid-cols-2 gap-4">'+
+  '<div><label class="block text-[12px] font-semibold text-slate-600 mb-1.5">Código del asesor</label>'+
+  (e.rostroOk
+   ?'<div class="flex items-center justify-between h-[42px] px-3.5 border border-slate-200 rounded-lg bg-slate-50"><span class="mono font-bold">'+e.asesor+'</span>'+I('lock','w-3.5 h-3.5 text-slate-400')+'</div>'
+   :'<input id="t2-cod" value="'+e.asesor.replace(/^A-/,'')+'" class="w-full h-[42px] border border-slate-300 rounded-lg px-3.5 text-[13.5px] bg-white mono" onkeydown="if(event.key===\'Enter\')this.blur()" oninput="EST[\''+id+'\'].asesorOk=false" onblur="if(!EST[\''+id+'\'].asesorOk)valAsesor(\''+id+'\')">')+
+  '</div>'+
+  '<div><label class="block text-[12px] font-semibold text-slate-600 mb-1.5">Asesor</label><div id="t2-nom" class="h-[42px] flex items-center text-[13px] font-semibold">'+(e.asesorOk?e.asesorNombre+' <span class="text-green-600 text-[12px] font-bold ml-1.5">✓</span>':'<span class="text-slate-400">—</span>')+'</div></div></div>'+
+  (e.rostroOk?'<div class="flex items-center gap-2 mt-3 text-[12.5px]"><span class="text-green-600 font-bold">✓ Rostro verificado</span><span class="text-[11px] text-slate-400">el asesor ya no puede cambiarse</span></div>'
+  :exento?'<div class="flex items-center gap-2 mt-3 text-[12.5px]"><span class="text-green-600 font-bold">✓ Validación facial vigente</span><span class="text-[11px] text-slate-400">no se requiere repetir</span></div>'
+  :'<p class="text-[11.5px] text-slate-400 mt-2">El código puede cambiarse mientras no se valide el rostro; el nombre se consulta automáticamente. Códigos demo: 1956 · 2998 · 1015 · 5299 · 10010 (validación facial vigente).</p>')+'</div>'+
+  (e.t.asesor==='ok'
+  ?'<div class="flex justify-end gap-2 mt-6"><button '+btnP+' onclick="closeModal()">Cerrar</button></div>'
+  :(e.rostroOk||exento)
+  ?'<div class="flex justify-end gap-2 mt-6"><button '+btnG+' onclick="closeModal()">Cancelar</button><button id="t2-conf" '+btnP+' '+(e.asesorOk?'':'disabled style="opacity:.4"')+' onclick="confirmarT2(\''+id+'\')">Confirmar →</button></div>'
+  :'<div class="flex items-center justify-end gap-2 mt-6"><span class="text-[11.5px] text-slate-400 mr-auto">Si la validación se interrumpe, puede relanzarse reabriendo esta tarjeta</span><button '+btnG+' onclick="closeModal()">Cancelar</button><button id="t2-conf" '+btnP+' '+(e.asesorOk?'':'disabled style="opacity:.4"')+' onclick="mVida(\''+id+'\',\'asesor\',0)">Continuar a validación facial →</button></div>')
+ :'<div class="mt-2">'+resBox('info','Envío de enlace','Se enviará un enlace al celular validado del cliente (••• '+e.contacto.cel.slice(-4)+') por SMS o WhatsApp para que continúe la solicitud por su cuenta.')+'</div>'+
+  '<div class="flex justify-end gap-2 mt-6"><button '+btnG+' onclick="closeModal()">Cancelar</button><button class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg text-[13px]" onclick="enviarEnlace(\''+id+'\')">Enviar enlace →</button></div>'));
+}
+function valAsesor(id){
+ const e=EST[id];const inp=$('t2-cod'),nom=$('t2-nom');if(!inp||!nom)return;
+ const cod=inp.value.trim().replace(/^A-?/,'');
+ if(!cod){nom.innerHTML='<span class="text-slate-400">—</span>';return}
+ nom.innerHTML='<span class="text-[12px] text-blue-600 flex items-center gap-1.5"><span class="spinner" style="width:12px;height:12px;border-width:2px"></span>Consultando…</span>';
+ setTimeout(()=>{
+  const n=ASESORES[cod];
+  if(n){e.asesor='A-'+cod;e.asesorNombre=n;e.asesorOk=true;
+   log(e,'sys','Asesor asignado — A-'+cod+' · '+n);mT2(id)}
+  else{e.asesorOk=false;inp.classList.add('err-input');
+   nom.innerHTML='<span class="text-red-600 text-[12px] font-semibold">✗ Código no encontrado — verifique con el asesor</span>';
+   const b=$('t2-conf');if(b){b.disabled=true;b.style.opacity=.4}}
+ },800);
+}
+function confirmarT2(id){
+ const e=EST[id];e.t.asesor='ok';
+ log(e,'ok','Asesor asignado — '+e.asesor+(e.rostroOk?' · rostro verificado ✓':' · validación facial vigente'));
+ closeModal();render();
+}
+function enviarEnlace(id){
+ const e=EST[id];e.autogestion=true;e.gestion='Autogestión';e.estado='AUTOGESTION';e.t.asesor='ok';
+ log(e,'info','Enlace enviado por WhatsApp al ••• '+e.contacto.cel.slice(-4)+' — el estudio pasa a autogestión');
+ modal('<div class="text-center py-6"><div class="w-12 h-12 mx-auto rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">'+I('mail','w-6 h-6')+'</div><h3 class="font-bold text-[16px] mt-3">✓ Enlace enviado</h3><p class="text-slate-500 text-[13px] mt-1.5 max-w-sm mx-auto">El cliente continúa la solicitud desde su celular. El estudio queda <b>En autogestión</b> y las capturas en tienda se bloquean.</p><button '+btnP+' style="margin-top:18px" onclick="closeModal();render()">Entendido</button></div>');
+}
+function retomarTienda(id){
+ const e=EST[id];e.autogestion=false;e.gestion='Asistida';e.estado='EN_PROCESO';
+ log(e,'sys','Solicitud retomada en tienda — la autogestión se pausa');toast('Retomada en tienda');render();
+}
+function mAutogestion(id){EST[id].gestion='Autogestión';mT2(id)}
+
+/* ════════ Prueba de vida compartida (asesor · identidad · minis) ════════ */
+function mVida(id,ctx,ph){
+ const e=EST[id];
+ const titulo=ctx==='asesor'?'Validación facial del asesor':'Prueba de vida';
+ if(ph===0)return modal('<h2 class="text-[18px] font-bold text-indigo-950">'+titulo+'</h2><p class="text-slate-500 text-[12.5px] mt-0.5 mb-4">'+(ctx==='asesor'?'El asesor completa la prueba de vida en esta pantalla.':'Gire la pantalla o la cámara hacia el cliente.')+'</p>'+
+ '<div class="bg-slate-900 rounded-2xl h-52 flex flex-col items-center justify-center text-white/80">'+I('user','w-11 h-11')+'<p class="text-[12.5px] mt-3">'+(ctx==='asesor'?'Asesor':'Cliente')+': mira a la cámara y sigue las instrucciones</p></div>'+
+ '<div class="flex justify-end gap-2 mt-5"><button '+btnG+' onclick="'+(ctx==='asesor'?'mT2(\''+id+'\')':'closeModal()')+'">Cancelar</button><button '+btnP+' onclick="mVida(\''+id+'\',\''+ctx+'\',1)">Iniciar captura →</button></div>');
+ if(ph===1)return modal('<h2 class="text-[18px] font-bold text-indigo-950">'+titulo+'</h2><p class="text-slate-500 text-[12.5px] mt-0.5 mb-4">Siguiendo gestos…</p>'+
+ '<div class="bg-slate-900 rounded-2xl h-52 flex flex-col items-center justify-center text-white/80">'+I('refresh','w-11 h-11')+'<p class="text-[12.5px] mt-3 italic">«Gira lentamente la cabeza a la derecha… ahora sonríe»</p></div>'+
+ '<div class="flex justify-end gap-2 mt-5"><button '+btnG+' onclick="'+(ctx==='asesor'?'mT2(\''+id+'\')':'closeModal()')+'">Cancelar</button><button '+btnP+' onclick="mVida(\''+id+'\',\''+ctx+'\',2)">Gestos completados →</button></div>');
+ if(ph===2){
+  setTimeout(()=>mVida(id,ctx,3),2000);
+  return modal('<div class="text-center py-10"><div class="spinner spinner-lg mx-auto"></div><h3 class="font-bold mt-4">Procesando…</h3><p class="text-slate-500 text-[12px] mt-1">'+(ctx==='asesor'?'Comparando contra la foto del asesor (umbral 60 %)':ctx==='ident'?'Procesando la prueba de vida y validando la selfie':'Comparando con la selfie almacenada del cliente')+'</p></div>')}
+ if(ctx==='asesor'){e.rostroOk=true;log(e,'ok','Validación facial del asesor superada — guardada en ValidacionesAsesor');return confirmarT2(id)}
+ if(ctx==='ident'){e.ident.gestos=true;e.ident.live=true;log(e,'ok','Gestos de seguridad y prueba de vida superados');return mT6(id)}
+ /* minis: elegir resultado */
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">Resultado de la prueba de vida</h2><p class="text-slate-500 text-[12.5px] mt-0.5 mb-5">Simulación — elija el resultado.</p>'+
+ '<div class="flex gap-3"><button '+btnP+' onclick="finMini(\''+id+'\',true)">✓ Superada — '+(e.tipo==='desb'?'desbloquear':'reactivar')+' cupo</button>'+
+ '<button '+btnO+' onclick="finMini(\''+id+'\',false)">No concluyente — a fábrica</button></div>');
+}
+
+/* ════════ T3 · Aceptación T&C (D-v2-14) ════════ */
+function canalBtnT3(id,val,lbl){
+ const e=EST[id];const wa=val==='WhatsApp';const hab=!wa||(e.re.sms&&e.re.ivr);const on=e.canalSel===val;
+ return '<button class="flex-1 h-[42px] rounded-lg border text-[13px] font-bold '+(on?'border-violet-500 bg-violet-50 text-violet-700':hab?'border-slate-300 bg-white text-slate-600 hover:border-slate-400':'border-slate-200 bg-white text-slate-300 cursor-not-allowed')+'" onclick="selCanalT3(\''+id+'\',\''+val+'\')">'+lbl+'</button>';
+}
+function selCanalT3(id,val){
+ const e=EST[id];
+ if(val==='WhatsApp'&&!(e.re.sms&&e.re.ivr)){toast('WhatsApp se habilita tras usar SMS y Llamada');return}
+ e.canalSel=val;mT3(id,0);
+}
+function enviarTokenT3(id,canal){
+ const e=EST[id];const c=canal||e.canalSel;
+ if(c==='WhatsApp'&&!(e.re.sms&&e.re.ivr)){toast('WhatsApp se habilita tras usar SMS y Llamada');return}
+ if(c==='SMS')e.re.sms=true;if(c==='IVR')e.re.ivr=true;
+ e.envios.unshift({t:hora(),c});
+ log(e,'sys','Token de firma enviado vía '+(c==='IVR'?'llamada':c)+' — celular ••• '+e.contacto.cel.slice(-4));
+ mT3(id,1);
+}
+function mT3(id,ph){
+ const e=EST[id];
+ if(!e.envios.length)return modal('<h2 class="text-[18px] font-bold text-indigo-950">Aceptación T&C</h2>'+
+ '<div class="mt-4 border border-blue-200 bg-blue-50 rounded-xl px-4 py-3.5 text-[12.5px] leading-relaxed text-blue-900">Al recibir y validar el token, el cliente acepta los <b>Términos y Condiciones</b> del crédito QUAC y la <b>Política de tratamiento de datos</b>. El token funciona como su firma electrónica.</div>'+
+ '<label class="block text-[12px] font-semibold text-slate-600 mt-5 mb-1.5">Canal de envío del token</label>'+
+ '<div class="flex gap-3">'+canalBtnT3(id,'SMS','SMS')+canalBtnT3(id,'IVR','IVR (llamada)')+canalBtnT3(id,'WhatsApp','WhatsApp')+'</div>'+
+ '<div class="flex items-center gap-2 mt-6"><button '+btnP+' onclick="enviarTokenT3(\''+id+'\')">Enviar token →</button><div class="flex-1"></div><button '+btnG+' onclick="closeModal()">Cancelar</button></div>');
+ const ult=e.envios[0], wa=e.re.sms&&e.re.ivr;
+ return modal('<h2 class="text-[18px] font-bold text-indigo-950">Aceptación T&C</h2>'+
+ '<div class="mt-4 border border-violet-200 bg-violet-50 rounded-xl px-4 py-3.5"><div class="font-bold text-[13.5px] text-violet-800">Token enviado al celular ••• '+e.contacto.cel.slice(-4)+'</div><div class="text-[12.5px] text-violet-800/80 mt-0.5">Se envió un código de 6 dígitos por '+(ult.c==='IVR'?'llamada':ult.c)+'. Solicite el código al cliente y digítelo a continuación.</div></div>'+
+ otpRow('otp-tyc','firmarT3(\''+id+'\')')+
+ '<div class="flex items-center gap-3 text-[12px] flex-wrap"><button '+btnO+' onclick="fillOtp(\'otp-tyc\',\'482913\')">Llenar demo</button><span class="text-slate-400">¿No recibió el token?</span>'+
+ '<button class="font-bold text-violet-600 hover:underline" onclick="enviarTokenT3(\''+id+'\',\'SMS\')">Reenviar SMS</button>'+
+ '<button class="font-bold text-violet-600 hover:underline" onclick="enviarTokenT3(\''+id+'\',\'IVR\')">Llamada</button>'+
+ '<button class="font-bold '+(wa?'text-violet-600 hover:underline':'text-slate-300 cursor-not-allowed')+'" onclick="enviarTokenT3(\''+id+'\',\'WhatsApp\')">WhatsApp</button></div>'+
+ '<div class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mt-4"><div class="text-[10.5px] font-bold tracking-wider text-slate-400 mb-1">ENVÍOS</div>'+
+ e.envios.map(v=>'<div class="text-[12px] py-0.5 flex gap-3"><span class="mono text-slate-400">hoy · '+v.t+'</span><span>Token → '+(v.c==='IVR'?'Llamada':v.c)+' · celular ••• '+e.contacto.cel.slice(-4)+'</span></div>').join('')+'</div>'+
+ '<div class="flex items-center gap-2 mt-5"><button '+btnP+' onclick="firmarT3(\''+id+'\')">Verificar token →</button><div class="flex-1"></div><button '+btnG+' onclick="closeModal()">Cancelar</button></div>');
+}
+function firmarT3(id){
+ const e=EST[id];
+ modal('<div class="text-center py-10"><div class="spinner spinner-lg mx-auto"></div><h3 class="font-bold mt-4">Verificando token…</h3></div>');
+ setTimeout(()=>{
+  e.sol='#1049';e.t.tyc='ok';e.t.riesgo='pend';e.pasoActual='riesgo';
+  log(e,'ok','Token validado — firma electrónica registrada. Nace la solicitud '+e.sol);
+  closeModal();render();toast('Firma registrada — se creó la solicitud '+e.sol);
+ },1400);
+}
+
+/* ════════ T4 · Evaluación de riesgo (D-v2-15) ════════ */
+function mT4(id){
+ const e=EST[id];
+ if(e.t.riesgo==='pend'&&!e.est.fase)return modal('<h2 class="text-[18px] font-bold text-indigo-950">Evaluación de riesgo</h2>'+
+ '<p class="text-slate-500 text-[13px] mt-2 leading-relaxed">El sistema realiza la validación inicial de viabilidad del cliente. El proceso continúa en segundo plano y su avance se refleja en esta tarjeta.</p>'+
+ '<div class="flex justify-end gap-2 mt-6"><button '+btnG+' onclick="closeModal()">Cancelar</button><button '+btnP+' onclick="iniciarRiesgo(\''+id+'\')">Iniciar evaluación ▶</button></div>');
+ /* inspección */
+ const f=e.est.fase, fin=e.t.riesgo==='ok';
+ const M=e.est.marcas||{};
+ const nombres={viabilidad:'Validación inicial de viabilidad',contacto:'Validación de contacto (UBICA)',llamada:'Llamada de confirmación al cliente',cupo:'Asignación de cupo'};
+ const hero=fin
+  ?'<div class="mt-4 border border-green-200 bg-green-50 rounded-xl px-4 py-3.5"><div class="font-bold text-[13.5px] text-green-700">✓ Evaluación completada</div><div class="text-[12.5px] text-green-700/80 mt-0.5">Cliente viable · cupo preaprobado <span class="mono font-bold">'+(e.cupoPre||'—')+'</span></div></div>'
+  :f==='llamada'
+  ?'<div class="mt-4">'+resBox('warn','Llamada de confirmación en curso','El sistema llama al celular del cliente (••• '+e.contacto.cel.slice(-4)+') para confirmar sus datos. Pídale que esté pendiente de la llamada.')+'</div>'
+  :'<div class="text-center pt-5 pb-2"><div class="spinner spinner-lg mx-auto"></div><h3 class="font-bold text-[15px] mt-3">'+nombres[f]+'…</h3><div class="mt-2"><span class="inline-block bg-violet-100 text-violet-700 mono text-[12px] font-bold px-3 py-1 rounded-full">'+segundos(e.est.t0)+'</span></div></div>';
+ const etapa=(k,lbl)=>{const orden=['viabilidad','contacto','llamada','cupo','done'];const i=orden.indexOf(k),j=fin?99:orden.indexOf(f);
+  const ok=fin||i<j;const act=!fin&&k===f;
+  return '<div class="flex items-center gap-3 py-2.5 border-b border-slate-100 last:border-0"><span class="w-5 text-center '+(ok?'text-green-600':act?'text-blue-600':'text-slate-300')+' text-[14px]">'+(ok?'✓':act?'⟳':'○')+'</span><span class="font-semibold text-[13px] '+(act?'text-blue-700':ok?'text-slate-700':'text-slate-400')+'">'+lbl+'</span><span class="ml-auto mono text-[11px] '+(act?'text-blue-600':'text-slate-400')+'">'+(ok&&M[k]?'hoy · '+M[k]:act?segundos(e.est.t0):'')+'</span></div>'};
+ let acciones='';
+ if(!fin){
+  if(f==='viabilidad')acciones='<button '+btnP+' onclick="riesgoViable(\''+id+'\')">Supera</button><button '+btnO+' onclick="riesgoNoViable(\''+id+'\',\'No viable antecedentes\')">No viable antecedentes</button><button '+btnO+' onclick="riesgoNoViable(\''+id+'\',\'No viable centrales\')">No viable centrales</button>';
+  if(f==='contacto')acciones='<button '+btnP+' onclick="riesgoContacto(\''+id+'\',false)">Datos consistentes</button><button '+btnO+' onclick="riesgoContacto(\''+id+'\',true)">Requiere llamada</button>';
+  if(f==='llamada')acciones='<button '+btnP+' onclick="riesgoLlamada(\''+id+'\')">Llamada atendida →</button>';
+  if(f==='cupo')acciones='<button '+btnP+' onclick="riesgoCupo(\''+id+'\')">Cupo asignado</button>';
+  acciones='<p class="text-[11px] font-bold text-slate-400 mt-4 mb-1.5 tracking-wide">SIMULAR RESPUESTA</p><div class="flex gap-2 flex-wrap">'+acciones+'</div>';
+ }
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">Evaluación de riesgo</h2>'+
+ (fin?'':'<p class="text-slate-500 text-[12.5px] mt-0.5">El proceso corre en segundo plano — puede cerrar esta ventana en cualquier momento.</p>')+
+ hero+
+ '<div class="border border-slate-200 rounded-xl px-4 mt-4">'+etapa('viabilidad',nombres.viabilidad)+etapa('contacto',nombres.contacto)+((e.est.llamada||f==='llamada')?etapa('llamada',nombres.llamada):'')+etapa('cupo',nombres.cupo)+'</div>'+acciones+
+ '<div class="flex justify-end mt-5"><button '+btnG+' onclick="closeModal()">Volver a la solicitud</button></div>');
+}
+function marcaEst(e,k){e.est.marcas=e.est.marcas||{};e.est.marcas[k]=hora()}
+/* Post-auditoría REQ 002 (P1): sin esta promoción la tarjeta 7 quedaba Bloqueada
+   para siempre (nunca clickeable) y el flujo no podía terminar por la UI. */
+function promoverCupo(e){if(e.t.riesgo==='ok'&&e.t.ident==='ok'&&e.t.cupo==='bloq')e.t.cupo='pend'}
+function iniciarRiesgo(id){
+ const e=EST[id];e.t.riesgo='proc';e.est.fase='viabilidad';e.est.t0=Date.now();e.pasoActual='riesgo';
+ log(e,'sys','Estudio iniciado — validación inicial de viabilidad');
+ closeModal();render();
+}
+function riesgoViable(id){
+ const e=EST[id];marcaEst(e,'viabilidad');e.est.fase='contacto';e.est.t0=Date.now();
+ e.t.dir='pend';e.t.ident='pend';
+ log(e,'ok','Validación de viabilidad — cliente viable. Se habilitan Dirección e Identidad en paralelo');
+ toast('Cliente viable — dirección e identidad disponibles');mT4(id);render();
+}
+function riesgoNoViable(id,motivo){
+ const e=EST[id];e.t.riesgo='warn';e.estado='RECHAZADO';
+ e.fin={tono:'err',titulo:motivo,msg:'Las validaciones iniciales no fueron superadas. La solicitud finaliza.',fase:['Cierre','Evaluación de riesgo']};
+ log(e,'err','Evaluación de riesgo — '+motivo+'; la solicitud finaliza');
+ closeModal();render();
+}
+function riesgoContacto(id,llamada){
+ const e=EST[id];marcaEst(e,'contacto');
+ if(llamada){e.est.fase='llamada';e.est.llamada=true;log(e,'warn','Validación de contacto — requiere llamada de confirmación al cliente');marcarInterv(e,true)}
+ else{e.est.fase='cupo';e.est.t0=Date.now();log(e,'ok','Validación de contacto — datos consistentes, sin llamada')}
+ mT4(id);render();
+}
+function riesgoLlamada(id){
+ const e=EST[id];marcaEst(e,'llamada');e.est.fase='cupo';e.est.t0=Date.now();
+ log(e,'ok','Llamada de confirmación atendida — datos del cliente validados');marcarInterv(e,false);mT4(id);render();
+}
+function riesgoCupo(id){
+ const e=EST[id];marcaEst(e,'cupo');e.est.fase='done';e.t.riesgo='ok';e.cupoPre=CLIENTE.cupo;promoverCupo(e);
+ log(e,'ok','Asignación de cupo — el cliente aplica para '+CLIENTE.cupo);
+ toast('Cupo preaprobado: '+CLIENTE.cupo);closeModal();render();
+}
+function marcarInterv(e,v){const r=MESA.find(x=>x.id===e.id);if(r)r.interv=v}
+
+/* ════════ T5 · Dirección (D-v2-16) ════════ */
+function mT5(id){
+ const e=EST[id];const editar=e.t.dir==='ok';
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">'+(editar?'Editar dirección de residencia':'Dirección')+'</h2>'+
+ (editar?'<p class="text-slate-500 text-[12.5px] mt-1">La dirección no forma parte de la firma electrónica: puede editarse en cualquier momento sin volver a tokenizar.</p>':'')+
+ '<div class="grid grid-cols-2 gap-3 mt-4">'+selDepto('Departamento','t5-depto','t5-ciudad',CLIENTE.depto)+selCiudad('Ciudad','t5-ciudad',CLIENTE.depto,CLIENTE.ciudad)+'</div>'+
+ '<div class="mt-3">'+field('Dirección de residencia',e.direccion||CLIENTE.dir,'t5-dir','','onkeydown="if(event.key===\'Enter\')guardarT5(\''+id+'\','+editar+')"')+'</div>'+
+ '<div class="flex justify-end gap-2 mt-6"><button '+btnG+' onclick="closeModal()">Cancelar</button><button '+btnP+' onclick="guardarT5(\''+id+'\','+editar+')">'+(editar?'Guardar cambios →':'Guardar dirección →')+'</button></div>');
+}
+function guardarT5(id,editar){
+ const e=EST[id];e.direccion=($('t5-dir').value||CLIENTE.dir)+' · '+CLIENTE.ciudad;
+ e.t.dir='ok';log(e,editar?'sys':'ok','Dirección '+(editar?'editada':'registrada')+' — '+CLIENTE.ciudad);
+ closeModal();render();
+}
+
+/* ════════ T6 · Validación de identidad (D-v2-17) ════════ */
+function hayDoc(v){return v==='ok'||v==='pre'||v==='vig'}
+function reqIdent(e){if(e.ident.frontal===null){e.ident.frontal=e.fotos.ocr?'pre':'req';e.ident.reverso=e.fotos.ocr?'pre':'req'}}
+function mT6(id){
+ const e=EST[id];const i=e.ident;
+ if(i.fase==='revision')return mT6Revision(id);
+ if(i.fase==='fabrica')return mT6Fabrica(id);
+ if(i.fase==='remoto')return modal('<h2 class="text-[18px] font-bold text-indigo-950">Validación de identidad</h2>'+
+  '<div class="mt-3">'+resBox('info','Enlace enviado por WhatsApp al ••• '+e.contacto.cel.slice(-4),'El cliente realiza la validación desde su celular — el mismo proceso decide allá qué capturas pedirle. El avance llega solo; esta pestaña se actualizará.')+'</div>'+
+  '<div class="flex justify-end gap-2 mt-5"><button '+btnG+' onclick="closeModal()">Volver</button><button '+btnP+' onclick="const x=EST[\''+id+'\'];x.ident.gestos=true;x.ident.live=true;x.ident.frontal=\'ok\';x.ident.reverso=\'ok\';enviarIdent(\''+id+'\')">Simular: el cliente completó →</button></div>');
+ reqIdent(e);
+ if(i.live&&(i.frontal==='req'||i.frontal==='rej'))return mT6Doc(id,'frontal');
+ if(i.live&&i.frontal==='ok'&&(i.reverso==='req'||i.reverso==='rej'))return mT6Doc(id,'reverso');
+ if(i.live&&i.frontal==='ok'&&i.reverso==='ok')return enviarIdent(id);
+ if(i.live&&i.frontal==='pre')return mT6PostLive(id);
+ const est=v=>v==='pre'?['Precargada — se valida automáticamente tras la prueba de vida','text-blue-600']:v==='rej'?['✗ Rechazada — se solicitará re-captura','text-red-600']:v==='ok'?['✓ Validada','text-green-600']:['Se solicitará tras la prueba de vida','text-slate-400'];
+ const fila=(lbl,st)=>'<div class="flex items-center gap-3 border border-slate-200 rounded-xl px-4 py-3"><span class="flex-1 font-semibold text-[13px]">'+lbl+'</span><span class="text-[11.5px] font-bold text-right '+st[1]+'">'+st[0]+'</span></div>';
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">Validación de identidad</h2>'+
+ '<p class="text-slate-500 text-[12.5px] mt-0.5 mb-4">Proceso independiente: consulta su estado y solicita únicamente lo que falta.</p>'+
+ '<div class="space-y-2.5">'+
+ fila('Gestos de seguridad + prueba de vida',i.live?['✓ Superada','text-green-600']:['Pendiente','text-slate-400'])+
+ fila('Documento frontal',est(i.frontal))+
+ fila('Documento reverso',est(i.reverso))+'</div>'+
+ '<div class="flex justify-between items-center mt-6"><button class="text-[12.5px] font-bold text-blue-600 hover:underline" onclick="identRemoto(\''+id+'\')">Enviar enlace al cliente</button>'+
+ '<div class="flex gap-2"><button '+btnG+' onclick="closeModal()">Cancelar</button><button '+btnP+' onclick="mVida(\''+id+'\',\'ident\',0)">Iniciar validación →</button></div></div>');
+}
+function mT6PostLive(id){
+ const e=EST[id];
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">Validación de identidad</h2>'+
+ '<div class="mt-3">'+resBox('info','Validando documentos precargados','La prueba de vida fue superada. El proceso valida automáticamente el frontal y el reverso ya existentes — no se le solicitan al cliente.')+'</div>'+
+ '<p class="text-[11px] font-bold text-slate-400 mt-4 mb-1.5 tracking-wide">SIMULAR RESULTADO</p>'+
+ '<div class="flex gap-2 flex-wrap"><button '+btnP+' onclick="preIdentOk(\''+id+'\')">✓ Documentos validados</button><button '+btnO+' onclick="preIdentRech(\''+id+'\')">Frontal rechazado — recapturar</button></div>'+
+ '<div class="flex justify-end mt-5"><button '+btnG+' onclick="closeModal()">Volver</button></div>');
+}
+function preIdentOk(id){const e=EST[id];e.ident.frontal='ok';e.ident.reverso='ok';
+ log(e,'ok','Documentos precargados validados automáticamente — frontal y reverso');enviarIdent(id)}
+function preIdentRech(id){const e=EST[id];e.ident.frontal='rej';e.ident.reverso='ok';
+ log(e,'warn','Documento frontal rechazado — se solicita re-captura SOLO del frontal');mT6(id)}
+function mT6Doc(id,cara){
+ const e=EST[id];const rej=e.ident[cara]==='rej';
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">Validación de identidad — '+(cara==='frontal'?'Documento frontal':'Documento reverso')+'</h2>'+
+ (rej?'<div class="mt-3">'+resBox('warn','Re-captura requerida','El documento '+cara+' anterior fue rechazado por la validación (legibilidad / OCR). Capture una nueva foto — solo se solicita esta cara.')+'</div>':'')+
+ '<div class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center mt-4"><div class="mx-auto w-9 h-9 flex items-center justify-center text-slate-400">'+I('idcard','w-7 h-7')+'</div><h4 class="font-bold mt-1 text-[13px] text-indigo-950">'+(cara==='frontal'?'Cara frontal — foto, datos personales y número':'Cara posterior — huella dactilar y código de barras')+'</h4></div>'+
+ '<div class="flex justify-end gap-2 mt-5"><button '+btnG+' onclick="closeModal()">Cancelar</button><button '+btnP+' onclick="cargaDoc(\''+id+'\',\''+cara+'\')">Capturar y validar →</button></div>');
+}
+function cargaDoc(id,cara){
+ const e=EST[id];
+ modal('<div class="text-center py-10"><div class="spinner spinner-lg mx-auto"></div><h3 class="font-bold mt-4">Validando '+(cara==='frontal'?'documento frontal':'documento reverso')+'…</h3><p class="text-slate-500 text-[12px] mt-1">Etiquetas · OCR'+(cara==='frontal'?' · comparación con la selfie':'')+'</p></div>');
+ setTimeout(()=>{e.ident[cara]='ok';log(e,'ok','Documento '+cara+' validado ✓');mT6(id)},1400);
+}
+function identRemoto(id){const e=EST[id];e.ident.fase='remoto';e.t.ident='proc';log(e,'sys','Enlace de validación enviado por WhatsApp — ••• '+e.contacto.cel.slice(-4));closeModal();render()}
+function enviarIdent(id){
+ const e=EST[id];e.ident.fase='revision';e.t.ident='proc';
+ log(e,'sys','Verificación de identidad enviada — selfie + frontal + reverso');
+ closeModal();render();toast('Verificación enviada — en revisión');
+}
+function mT6Revision(id){
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">Validación de identidad</h2>'+
+ '<div class="mt-3">'+resBox('info','En revisión','La verificación fue enviada y está siendo procesada. El resultado llega solo.')+'</div>'+
+ '<p class="text-[11.5px] text-slate-400 mt-3 mb-1 font-bold">SIMULAR RESULTADO</p>'+
+ '<div class="grid grid-cols-2 gap-2">'+
+ '<button '+btnP+' onclick="identOk(\''+id+'\')">✓ Verificado</button>'+
+ '<button '+btnO+' onclick="identDifiere(\''+id+'\')">Nombre difiere</button>'+
+ '<button '+btnO+' onclick="identFraude(\''+id+'\')">Fraude / inconsistencia</button>'+
+ '<button '+btnO+' onclick="identFabrica(\''+id+'\')">A fábrica de soporte</button></div>'+
+ '<div class="flex justify-end mt-5"><button '+btnG+' onclick="closeModal()">Volver</button></div>');
+}
+function identOk(id){const e=EST[id];e.t.ident='ok';e.ident.fase=null;log(e,'ok','Soportes verificados por el sistema ✓');promoverCupo(e);cierreIdent(e)}
+function identDifiere(id){const e=EST[id];e.t.ident='ok';e.ident.fase=null;
+ log(e,'info','Verificación documental — el nombre difiere; datos actualizados con la información del documento');
+ log(e,'ok','Viabilidad re-evaluada — continúa');promoverCupo(e);cierreIdent(e)}
+function identFraude(id){const e=EST[id];e.estado='RECHAZADO';e.t.ident='warn';
+ e.fin={tono:'err',titulo:'Fraude / inconsistencia',msg:'El tipo y número del documento no coinciden con la verificación. La solicitud finaliza.'};
+ log(e,'err','Verificación documental — tipo y número no coinciden; la solicitud finaliza');closeModal();render()}
+function identFabrica(id){const e=EST[id];e.ident.fase='fabrica';e.estado='ESCALADO';
+ log(e,'warn','Validación de identidad — escalada a fábrica de soporte');closeModal();render()}
+function mT6Fabrica(id){
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">Validación de identidad</h2>'+
+ '<div class="mt-3">'+resBox('warn','En revisión manual — Fábrica de soporte','La verificación está siendo revisada por el equipo de soporte. La solicitud queda activa y retomará aquí.')+'</div>'+
+ '<div class="flex gap-2 mt-4"><button '+btnP+' onclick="fabricaDesatasque(\''+id+'\')">Desatasque — aprobada</button><button '+btnO+' onclick="fabricaFreno(\''+id+'\')">Freno — devuelta con motivo</button></div>'+
+ '<div class="flex justify-end mt-5"><button '+btnG+' onclick="closeModal()">Volver a la solicitud</button></div>');
+}
+function fabricaDesatasque(id){const e=EST[id];e.estado='EN_PROCESO';e.t.ident='ok';e.ident.fase=null;
+ log(e,'ok','Fábrica de soporte — desatasque: verificación aprobada');toast('Desatasque — la solicitud continúa');promoverCupo(e);cierreIdent(e)}
+function fabricaFreno(id){const e=EST[id];e.estado='DEVUELTO';e.t.ident='warn';e.ident.fase=null;e.ident.gestos=false;e.ident.live=false;e.ident.frontal=e.fotos.ocr?'pre':'req';e.ident.reverso=e.fotos.ocr?'pre':'req';
+ log(e,'err','Fábrica de soporte — freno: DEVUELTO_POR_FABRICA · Documento ilegible, solicitar nueva captura');
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">Validación de identidad</h2><div class="mt-3">'+resBox('err','Devuelto por fábrica','Motivo: <b>Documento ilegible — solicitar nueva captura de fotos y prueba de vida.</b>')+'</div>'+
+ '<div class="flex justify-end gap-2 mt-5"><button '+btnG+' onclick="closeModal();render()">Volver a la mesa</button><button '+btnP+' onclick="EST[\''+id+'\'].t.ident=\'pend\';EST[\''+id+'\'].estado=\'EN_PROCESO\';log(EST[\''+id+'\'],\'info\',\'Reintentando validación de identidad — nueva captura solicitada\');mT6(\''+id+'\')">Reintentar validación →</button></div>')}
+function cierreIdent(e){
+ if(e.tipo==='desb'||e.tipo==='react')return;
+ closeModal();render();
+}
+
+/* ════════ T7 · Decisión de cupo (D-v2-18) ════════ */
+function mT7(id,ph){
+ const e=EST[id];
+ if(e.t.riesgo!=='ok')return modal('<h2 class="text-[18px] font-bold text-indigo-950">Decisión de cupo</h2>'+
+ '<div class="mt-3">'+resBox('info','Esperando definición UBICA','La evaluación de riesgo aún está corriendo. El envío del token se habilita cuando llegue el resultado.')+'</div>'+
+ '<div class="flex justify-end mt-5"><button '+btnG+' onclick="closeModal()">Volver</button></div>');
+ if(ph===0)return modal('<h2 class="text-[18px] font-bold text-indigo-950">Decisión de cupo</h2>'+
+ '<p class="text-slate-500 text-[13px] mt-2">El contacto del cliente ya fue validado en el estudio. Para activar el cupo, se verifica el <b>correo</b> del cliente con un token — el celular ya fue verificado con la firma.</p>'+
+ '<div class="mt-3">'+resBox('tok','Tokenización de correo electrónico','Se enviará un token de 6 dígitos a <b>'+e.contacto.mail+'</b>.')+'</div>'+
+ '<div class="flex justify-end gap-2 mt-5"><button '+btnG+' onclick="closeModal()">Cancelar</button><button '+btnP+' onclick="log(EST[\''+id+'\'],\'sys\',\'Token enviado al correo — '+e.contacto.mail+'\');mT7(\''+id+'\',1)">Enviar token al correo ▶</button></div>');
+ if(ph===1)return modal('<h2 class="text-[18px] font-bold text-indigo-950">Confirmación de correo y activación</h2>'+
+ '<div class="mt-3">'+resBox('tok','Token enviado a '+e.contacto.mail,'Solicite el código al cliente y digítelo a continuación.')+'</div>'+otpRow('otp-mail','activar(\''+id+'\')')+
+ '<div class="flex items-center justify-center gap-3 text-[12px]"><button class="font-bold text-slate-500 hover:text-slate-800" onclick="fillOtp(\'otp-mail\',\'835172\')">Llenar demo</button><span class="text-slate-300">·</span><button class="font-bold text-violet-600" onclick="log(EST[\''+id+'\'],\'sys\',\'Token de correo reenviado\');toast(\'Token reenviado al correo\')">Reenviar</button>'+
+ '<span class="text-slate-300">·</span><button class="font-bold text-amber-600" onclick="ubicaCall(\''+id+'\')">Simular: UBICA no concluyente</button></div>'+
+ '<div class="flex justify-end gap-2 mt-6"><button '+btnG+' onclick="closeModal()">Cancelar</button><button '+btnP+' onclick="activar(\''+id+'\')">Verificar token ▶</button></div>');
+}
+function ubicaCall(id){
+ const e=EST[id];e.t.cupo='warn';e.estado='PAUSADO';marcarInterv(e,true);
+ log(e,'warn','Definición UBICA no concluyente — pasa para gestión manual en el call');
+ closeModal();render();toast('Pasa para gestión manual en el call');
+}
+function activar(id){
+ const e=EST[id];
+ modal('<div class="text-center py-10"><div class="spinner spinner-lg mx-auto"></div><h3 class="font-bold mt-4">Verificando token y activando el cupo…</h3></div>');
+ setTimeout(()=>{
+  e.t.cupo='ok';e.estado='APROBADO';
+  log(e,'ok','Cupo activado — '+CLIENTE.cupo+' · notificado por SMS y correo');
+  e.fin={tono:'ok',titulo:'Cupo activado',monto:CLIENTE.cupo,msg:'Disponible de inmediato para pagar en caja · notificación enviada por SMS y correo.'};
+  const r=MESA.find(x=>x.id===e.id);if(r){r.estado='APROBADO';r.cupo=CLIENTE.cupo}
+  closeModal();render();toast('Cupo activado — '+CLIENTE.cupo);
+ },1600);
+}
+
+/* ════════ Mini-flujos (D-v2-20) ════════ */
+function mRiesgoMini(id){
+ const e=EST[id];
+ if(e.t.riesgo==='proc')return modal('<h2 class="text-[18px] font-bold text-indigo-950">Evaluación de riesgo</h2>'+
+  '<div class="text-center py-8"><div class="spinner spinner-lg mx-auto"></div><h3 class="font-bold mt-3">Validación simplificada en curso…</h3><p class="text-slate-500 text-[12px] mt-1">El sistema revisa antecedentes y reportes negativos.</p></div>'+
+  '<div class="flex gap-2 justify-center"><button '+btnP+' onclick="miniSupera(\''+id+'\')">Simular: supera</button><button '+btnO+' onclick="miniNoSupera(\''+id+'\')">Simular: no supera</button></div>'+
+  '<div class="flex justify-end mt-4"><button '+btnG+' onclick="closeModal()">Volver</button></div>');
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">Evaluación de riesgo</h2>'+
+ '<p class="text-slate-500 text-[13px] mt-2">Validación simplificada: el sistema revisa antecedentes y reportes negativos para habilitar el desbloqueo sin nuevo estudio.</p>'+
+ '<div class="flex justify-end gap-2 mt-6"><button '+btnG+' onclick="closeModal()">Cancelar</button><button '+btnP+' onclick="EST[\''+id+'\'].t.riesgo=\'proc\';log(EST[\''+id+'\'],\'sys\',\'Desbloqueo express iniciado — validación simplificada\');render();mRiesgoMini(\''+id+'\')">Iniciar desbloqueo ▶</button></div>');
+}
+function miniSupera(id){const e=EST[id];e.t.riesgo='ok';e.t.ident='pend';e.pasoActual='ident';
+ log(e,'ok','Validación simplificada superada');closeModal();render()}
+function miniNoSupera(id){const e=EST[id];e.estado='RECHAZADO';
+ e.fin={tono:'err',titulo:'No viable antecedentes',msg:'La validación simplificada no fue superada. El proceso finaliza y el cupo permanece bloqueado.'};
+ log(e,'err','Validación simplificada no superada — no viable antecedentes');closeModal();render()}
+function mTycMini(id,ph){
+ const e=EST[id];
+ if(ph===0)return modal('<h2 class="text-[18px] font-bold text-indigo-950">Aceptación T&C</h2>'+
+ '<p class="text-slate-500 text-[13px] mt-2">Para reactivar el cupo, el cliente re-acepta los Términos y Condiciones con un token a su celular registrado.</p>'+
+ '<div class="mt-3">'+resBox('tok','Token enviado al celular ••• '+e.contacto.cel.slice(-4),'Se envió un código de 6 dígitos. Solicite el código y digítelo.')+'</div>'+otpRow('otp-react','confirmarTycMini(\''+id+'\')')+
+ '<div class="flex items-center justify-center gap-3 text-[12px]"><button class="font-bold text-slate-500" onclick="fillOtp(\'otp-react\',\'619042\')">Llenar demo</button><span class="text-slate-300">·</span><button class="font-bold text-violet-600" onclick="log(EST[\''+id+'\'],\'sys\',\'Token reenviado\');toast(\'Token reenviado\')">Reenviar</button><span class="text-slate-300">·</span><button class="font-bold text-amber-600" onclick="tokenInvalido(\''+id+'\')">Simular: token inválido</button></div>'+
+ '<div class="flex justify-end gap-2 mt-6"><button '+btnG+' onclick="closeModal()">Cancelar</button><button '+btnP+' onclick="confirmarTycMini(\''+id+'\')">Verificar token ▶</button></div>');
+}
+function confirmarTycMini(id){const e=EST[id];e.t.tyc='ok';e.t.ident='pend';e.pasoActual='ident';e.estado='EN_PROCESO';log(e,'ok','Token validado — T&C aceptados');closeModal();render()}
+function tokenInvalido(id){const e=EST[id];e.estado='PEND_CLIENTE';e.t.tyc='warn';
+ log(e,'warn','Token inválido — estado Pendiente cliente previo');closeModal();render();toast('Pendiente cliente previo — puede reintentarse')}
+function finMini(id,ok){
+ const e=EST[id];closeModal();
+ if(ok){e.t.ident='ok';e.estado=e.tipo==='desb'?'DESBLOQUEADO':'REACTIVADO';
+  e.fin={tono:'ok',titulo:e.tipo==='desb'?'Cupo desbloqueado':'Cupo reactivado',monto:e.cupoPrevio,msg:'Disponible de inmediato para pagar en caja · sin nuevo estudio de crédito.'};
+  log(e,'ok','Prueba de vida superada — cupo '+(e.tipo==='desb'?'desbloqueado':'reactivado'))}
+ else{e.estado='ESCALADO';
+  e.fin={tono:'warn',titulo:(e.tipo==='desb'?'Desbloqueo':'Reactivación')+' en fábrica de soporte',msg:'La prueba de vida no fue concluyente. El equipo de soporte revisará el caso y el cliente será notificado con la resolución.'};
+  log(e,'warn','Prueba de vida no concluyente — escalado a fábrica de soporte')}
+ render();
+}
+
+/* ════════ Tarjeta de identidad en minis: liveness directo ════════ */
+const _abrirTarjeta=abrirTarjeta;
+abrirTarjeta=function(id,k){
+ const e=EST[id];
+ if((e.tipo==='desb'||e.tipo==='react')&&k==='ident'){
+  if(e.t.ident!=='pend'){toast('Complete primero el paso anterior');return}
+  return modal('<h2 class="text-[18px] font-bold text-indigo-950">Validación de identidad</h2>'+
+  '<div class="mt-3">'+resBox('ok','Soportes vigentes','No se requieren nuevas fotos del documento: la prueba de vida se compara con la selfie almacenada.')+'</div>'+
+  '<div class="flex justify-end gap-2 mt-5"><button '+btnG+' onclick="closeModal()">Cancelar</button><button '+btnP+' onclick="mVida(\''+id+'\',\'mini\',0)">Iniciar prueba de vida ▶</button></div>');
+ }
+ _abrirTarjeta(id,k);
+};
+
+/* ════════════════ RENDER RAÍZ ════════════════ */
+function render(){
+ renderTabs();
+ if(S.view==='mesa')renderMesa();else if(S.active&&EST[S.active])renderEst(EST[S.active]);
+ if(S.drawerOpen)renderDrawer();
+}
+renderSidebar();render();
+setInterval(()=>{if(S.view==='est')render()},30000);
+</script>
+</body>
+</html>
