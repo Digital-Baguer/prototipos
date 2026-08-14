@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup AQ-003 · Home app QUAC v2 (shell + Home + modales + Movimientos) · v2 con cabezote 3.8.0</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        quac: '#7633FF',
+        quacdark: '#321185',
+        quaclight: '#C5C5FF',
+        mint: '#06D6A0',
+        morayellow: '#FFBE0B',
+        panelgray: '#E9E8F1',
+      },
+      fontFamily: {
+        display: ['Poppins', 'sans-serif'],
+        body: ['"Nunito Sans"', 'sans-serif'],
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { background:#f1f5f9; }
+  .phone { width: 390px; height: 800px; }
+  .sheet-enter { transform: translateY(100%); }
+  .sheet-open { transform: translateY(0); transition: transform .25s ease-out; }
+  .ring-anim { transition: stroke-dashoffset 1s linear; }
+  .fade { animation: fade .3s ease-out; }
+  @keyframes fade { from { opacity:0 } to { opacity:1 } }
+  @keyframes pulse-soft { 0%,100% { opacity:.45 } 50% { opacity:.9 } }
+  .logo-pulse { animation: pulse-soft 1.8s ease-in-out infinite; }
+</style>
+</head>
+<body class="font-body text-slate-800">
+
+<div class="flex min-h-screen">
+
+  <!-- ══════════ PANEL DE CONTROL (validación) ══════════ -->
+  <aside class="w-80 shrink-0 bg-white border-r border-slate-200 p-5 space-y-5 overflow-y-auto h-screen sticky top-0">
+    <div>
+      <p class="text-xs font-bold tracking-widest text-quac uppercase">Mockup · AQ-003-home · rev 2</p>
+      <h1 class="font-display font-bold text-lg leading-tight mt-1">Home app QUAC v2</h1>
+      <p class="text-xs text-slate-500 mt-1">Cabezote 3.8.0 server-driven por nivel Status QUAC (decisión 6.1). Contrato de interfaz — validar pantalla por pantalla.</p>
+    </div>
+
+    <div>
+      <p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Pantallas</p>
+      <div class="space-y-1" id="navScreens">
+        <button data-goto="loading" class="nav-btn w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100">1 · SCR-023 Carga post-login</button>
+        <button data-goto="home" class="nav-btn w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100">2 · SCR-024 Home</button>
+        <button data-goto="mov" class="nav-btn w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100">3 · SCR-032 Movimientos</button>
+        <button data-goto="placeholder" class="nav-btn w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100">4 · Tabs placeholder</button>
+        <button data-goto="error" class="nav-btn w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100">5 · Falla del servicio</button>
+      </div>
+      <div class="space-y-1 mt-2 pt-2 border-t border-slate-100">
+        <button onclick="openSheet('sheetCartera')" class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100">↑ SCR-029 Detalle de cartera</button>
+        <button onclick="openSheet('sheetPlan')" class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100">↑ SCR-031 Plan de pagos</button>
+        <button onclick="openAlertCupo()" class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-slate-100">↑ SCR-030 ¿Cómo funciona el cupo?</button>
+      </div>
+    </div>
+
+    <div>
+      <p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Variantes (conmutables)</p>
+      <div class="space-y-3 text-sm">
+        <div>
+          <p class="font-semibold mb-1">Nivel Status QUAC <span class="text-[10px] text-slate-400">(tema server-driven)</span></p>
+          <div class="flex gap-1">
+            <button id="btnNivelQuac" onclick="setNivel('quac')" class="flex-1 px-2 py-1.5 rounded-lg border text-xs font-bold">QUAC</button>
+            <button id="btnNivelGold" onclick="setNivel('gold')" class="flex-1 px-2 py-1.5 rounded-lg border text-xs font-bold">GOLD</button>
+            <button id="btnNivelOff" onclick="setNivel('off')" class="flex-1 px-2 py-1.5 rounded-lg border text-xs font-bold">Apagado</button>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">"Apagado" = status_quac null / mostrar=false: tema default y SIN tab Quac+ (decisiones 6.1 y 6.2).</p>
+        </div>
+        <div>
+          <p class="font-semibold mb-1">Estado del crédito</p>
+          <div class="flex gap-1">
+            <button id="btnAldia" onclick="setMora(false)" class="flex-1 px-2 py-1.5 rounded-lg border text-xs font-bold">Al día</button>
+            <button id="btnMora" onclick="setMora(true)" class="flex-1 px-2 py-1.5 rounded-lg border text-xs font-bold">En mora</button>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Mora = badge AMARILLA #FFBE0B (color real 3.8.0).</p>
+        </div>
+        <div>
+          <p class="font-semibold mb-1">Créditos del cliente</p>
+          <div class="flex gap-1">
+            <button id="btnUno" onclick="setComercios(1)" class="flex-1 px-2 py-1.5 rounded-lg border text-xs font-bold">1 comercio</button>
+            <button id="btnDos" onclick="setComercios(2)" class="flex-1 px-2 py-1.5 rounded-lg border text-xs font-bold">2 comercios</button>
+          </div>
+        </div>
+        <div>
+          <p class="font-semibold mb-1">Movimientos sin datos</p>
+          <div class="flex gap-1">
+            <button id="btnConDatos" onclick="setVacio(false)" class="flex-1 px-2 py-1.5 rounded-lg border text-xs font-bold">Con datos</button>
+            <button id="btnVacio" onclick="setVacio(true)" class="flex-1 px-2 py-1.5 rounded-lg border text-xs font-bold">Vacío</button>
+          </div>
+        </div>
+        <div>
+          <p class="font-semibold mb-1">Diseño de Movimientos</p>
+          <div class="flex gap-1">
+            <button id="btnMovA" onclick="setMovDesign('a')" class="flex-1 px-2 py-1.5 rounded-lg border text-xs font-bold">A · Legacy</button>
+            <button id="btnMovB" onclick="setMovDesign('b')" class="flex-1 px-2 py-1.5 rounded-lg border text-xs font-bold">B · Timeline</button>
+          </div>
+          <label class="flex items-center gap-2 mt-2 text-xs cursor-pointer">
+            <input id="chkPuntos" type="checkbox" onchange="setPuntos(this.checked)" class="accent-purple-600">
+            Vista previa: puntos por transacción
+          </label>
+          <p class="text-[11px] text-slate-400 mt-1">✓ DECIDIDO: B timeline (Sección 7 del brainstorming). A queda solo como referencia comparativa. El check simula la zona de puntos futura.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs space-y-1.5">
+      <p class="font-bold text-emerald-800">✓ Decisiones ya tomadas (lote 3)</p>
+      <p class="text-emerald-800"><b>6.1</b> status_quac REAL en /v2/home (patrón PD-1463, degradación a tema default).</p>
+      <p class="text-emerald-800"><b>6.2</b> Tab Quac+ server-driven (mostrar=true) — placeholder hasta AQ-004.</p>
+      <p class="text-emerald-800"><b>6.3</b> PAGAR / "Pagar ahora" visibles → tab Pagar "Próximamente".</p>
+      <p class="text-emerald-800"><b>6.4</b> Campana visible sin badge → aviso "Próximamente".</p>
+    </div>
+
+    <div class="text-[11px] text-slate-400 leading-relaxed">
+      Colores verificados contra <code>CardCupo.dart</code> y <code>HeaderPage.dart</code> 3.8.0: badge al día #06D6A0 · mora #FFBE0B · panel #E9E8F1 · título crédito #321185 · PAGAR #7633FF · gradiente default #4197ED→#7D2FEB→#CB1CE7. El dorado GOLD es aproximado (los colores reales vienen del backend en <code>tema_niveles[].bg_colors</code>). Clave dinámica rota cada 30 s.
+    </div>
+  </aside>
+
+  <!-- ══════════ TELÉFONO ══════════ -->
+  <main class="flex-1 flex items-center justify-center p-6">
+    <div class="phone relative bg-[#F4F3F8] rounded-[2.5rem] shadow-2xl ring-8 ring-slate-900 overflow-hidden flex flex-col">
+
+      <!-- ───── HEADER COMPARTIDO DEL SHELL (estilo 3.8.0) ───── -->
+      <div id="shellHeader" class="shrink-0 px-5 pt-3 pb-12 relative z-10 transition-colors">
+        <!-- status bar dentro del gradiente, como 3.8.0 -->
+        <div class="flex items-center justify-between text-[11px] font-bold mb-2" id="statusBar">
+          <span>9:41</span><span>▮▮▮ 5G 🔋</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <!-- Logo Quac (wordmark simplificado) -->
+          <div id="logoQuac" class="flex items-center gap-1.5 font-display font-extrabold text-xl tracking-tight">
+            <span class="inline-block w-7 h-7 rounded-full border-[3px] border-current relative">
+              <span class="absolute w-1.5 h-1.5 rounded-full bg-current top-1 left-1.5"></span>
+              <span class="absolute w-2 h-[3px] bg-current -right-1.5 top-2 rounded"></span>
+            </span>
+            Quac
+          </div>
+          <div class="flex items-center gap-3" id="headerIcons">
+            <button onclick="toastCampana()" class="text-xl" title="Notificaciones (AQ-006)">🔔</button>
+            <button class="w-7 h-7 rounded-full border-2 border-current text-sm font-bold" title="Abre quac.co/ayuda">?</button>
+          </div>
+        </div>
+        <div class="flex items-center justify-between mt-3">
+          <p id="saludo" class="text-lg">Hola, <span class="font-display font-bold">Francisco</span></p>
+          <button id="badgeNivel" onclick="goTab('quacplus')" class="hidden px-4 py-1 rounded-full text-xs font-bold tracking-wider" title="Tu nivel Quac+ (tap → tab Quac+)">GOLD</button>
+        </div>
+      </div>
+
+      <!-- ───── CARD FLOTANTE CLAVE DINÁMICA (horizontal, 3.8.0) ───── -->
+      <div id="claveCard" class="relative -mt-8 mx-5 bg-white rounded-full shadow-lg px-5 py-3 flex items-center justify-between z-10">
+        <p class="text-sm text-slate-500">Tu clave dinámica es:</p>
+        <div class="flex items-center gap-3">
+          <p id="totpCode" class="font-display font-extrabold text-2xl tracking-[.25em] text-slate-900">3950</p>
+          <svg width="34" height="34" viewBox="0 0 40 40" class="-rotate-90">
+            <circle cx="20" cy="20" r="15" fill="none" stroke="#FBE3F1" stroke-width="8"/>
+            <circle id="totpRing" cx="20" cy="20" r="15" fill="none" stroke="#E5147E" stroke-width="8"
+                    stroke-dasharray="94.2" stroke-dashoffset="0" class="ring-anim"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- ───── VISTA: SCR-023 LOADING ───── -->
+      <section id="view-loading" class="view hidden absolute inset-0 bg-white flex-col items-center justify-center text-center px-10 z-20">
+        <div class="absolute inset-0 grid grid-cols-3 gap-6 items-center justify-items-center opacity-[.07] px-6 pointer-events-none">
+          <span class="font-display font-800 text-xl logo-pulse">STIRPE</span>
+          <span class="font-display font-800 text-xl logo-pulse" style="animation-delay:.3s">DEREK</span>
+          <span class="font-display font-800 text-xl logo-pulse" style="animation-delay:.6s">U82</span>
+          <span class="font-display font-800 text-xl logo-pulse" style="animation-delay:.9s">CLOVER</span>
+          <span class="font-display font-800 text-xl logo-pulse" style="animation-delay:1.2s">TRAVEL</span>
+          <span class="font-display font-800 text-xl logo-pulse" style="animation-delay:1.5s">FACTORY</span>
+        </div>
+        <div class="relative flex flex-col items-center gap-6">
+          <div class="w-16 h-16 rounded-full border-4 border-quaclight border-t-quac animate-spin"></div>
+          <p class="font-display font-semibold text-quacdark text-lg leading-snug">Sincronizando información<br>con nuestros comercios aliados</p>
+          <p class="text-xs text-slate-400">Cargando tu perfil…</p>
+        </div>
+      </section>
+
+      <!-- ───── VISTA: FALLA DEL SERVICIO ───── -->
+      <section id="view-error" class="view hidden absolute inset-0 bg-white flex-col items-center justify-center text-center px-10 z-20">
+        <div class="w-14 h-14 rounded-full bg-red-50 text-red-500 flex items-center justify-center text-2xl mb-4">!</div>
+        <p class="font-display font-bold text-quacdark text-lg">No pudimos cargar tu información</p>
+        <p class="text-sm text-slate-500 mt-2">Tuvimos un problema consultando tu crédito. Verifica tu conexión e inténtalo de nuevo.</p>
+        <button onclick="reintentar()" class="mt-6 bg-quacdark text-white font-display font-bold text-sm tracking-wider px-8 py-3 rounded-xl">REINTENTAR</button>
+      </section>
+
+      <!-- ───── CONTENIDO SCROLLEABLE DE LA TAB ───── -->
+      <div class="flex-1 overflow-y-auto pb-2" id="tabContent">
+
+        <!-- ═ TAB INICIO (SCR-024, layout 3.8.0) ═ -->
+        <section id="view-home" class="view px-5 pt-4 space-y-4 fade">
+
+          <!-- Card Crédito Baguer -->
+          <div class="rounded-3xl shadow-sm bg-white p-5">
+            <div class="flex items-start justify-between">
+              <div class="leading-tight">
+                <p class="text-base text-quacdark">Crédito</p>
+                <p class="font-display font-extrabold text-xl text-quacdark">Baguer</p>
+              </div>
+              <button onclick="openSheet('sheetCartera')" class="w-8 h-8 rounded-full bg-quacdark text-white text-sm font-bold" title="Detalle de cartera">i</button>
+            </div>
+
+            <div class="mt-4 text-center">
+              <p class="text-base text-slate-600">Tu cupo disponible</p>
+              <p class="font-display font-extrabold text-[34px] text-slate-900 leading-tight">$ 1.555.392</p>
+              <button onclick="openAlertCupo()" class="text-sm text-slate-400">¿Como funciona?</button>
+            </div>
+
+            <div class="mt-4 bg-panelgray rounded-2xl px-4 py-3 grid grid-cols-2 relative">
+              <div class="text-center">
+                <p class="text-sm text-slate-600">Pago mínimo</p>
+                <p class="font-display font-bold text-lg">$678.167</p>
+              </div>
+              <div class="absolute left-1/2 top-3 bottom-3 w-[2px] bg-[#C5C3D8]"></div>
+              <div class="text-center">
+                <p class="text-sm text-slate-600">Deuda total</p>
+                <p class="font-display font-bold text-lg">$3.374.815</p>
+              </div>
+            </div>
+
+            <div class="mt-4 flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span class="text-2xl text-slate-400">📅</span>
+                <div class="leading-tight">
+                  <p class="text-sm text-slate-600">Fecha límite de pago</p>
+                  <p id="fechaLimite" class="font-display font-bold text-lg">02 Ago 2026</p>
+                </div>
+              </div>
+              <span id="badgeEstado" class="px-3.5 py-1.5 rounded-full text-[13px] font-bold bg-mint text-[#374957]">Al día</span>
+            </div>
+
+            <button onclick="goTab('pagar')" class="mt-5 w-full bg-quac text-white font-display font-bold text-base tracking-widest py-3.5 rounded-xl">PAGAR</button>
+            <button onclick="openSheet('sheetPlan')" class="mt-2 w-full text-slate-900 font-display font-bold text-base py-2">Ver mis planes de pago</button>
+          </div>
+
+          <!-- Card comercio 2 (variante multi-comercio) -->
+          <div id="cardComercio2" class="hidden rounded-3xl shadow-sm bg-white p-5">
+            <div class="flex items-start justify-between">
+              <div class="leading-tight">
+                <p class="text-base text-quacdark">Crédito</p>
+                <p class="font-display font-extrabold text-xl text-quacdark">Travel</p>
+              </div>
+              <button class="w-8 h-8 rounded-full bg-quacdark text-white text-sm font-bold">i</button>
+            </div>
+            <div class="mt-4 text-center">
+              <p class="text-base text-slate-600">Tu cupo disponible</p>
+              <p class="font-display font-extrabold text-[34px] text-slate-900 leading-tight">$ 1.200.000</p>
+            </div>
+            <div class="mt-4 bg-panelgray rounded-2xl px-4 py-3 grid grid-cols-2 relative">
+              <div class="text-center"><p class="text-sm text-slate-600">Pago mínimo</p><p class="font-display font-bold text-lg">$0</p></div>
+              <div class="absolute left-1/2 top-3 bottom-3 w-[2px] bg-[#C5C3D8]"></div>
+              <div class="text-center"><p class="text-sm text-slate-600">Deuda total</p><p class="font-display font-bold text-lg">$0</p></div>
+            </div>
+            <div class="mt-4 flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <span class="text-2xl text-slate-400">📅</span>
+                <div class="leading-tight">
+                  <p class="text-sm text-slate-600">Fecha límite de pago</p>
+                  <p class="font-display font-bold text-lg">--</p>
+                </div>
+              </div>
+              <span class="px-3.5 py-1.5 rounded-full text-[13px] font-bold bg-mint text-[#374957]">Al día</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═ TAB MOVIMIENTOS (SCR-032) ═ -->
+        <section id="view-mov" class="view hidden px-5 pt-4 fade">
+          <h2 class="font-display font-bold text-quacdark text-xl text-center">Transacciones</h2>
+          <p class="text-xs text-slate-500 text-center mt-1">Mira el histórico de todas las compras y abonos que has realizado.</p>
+
+          <!-- Diseño A: sub-tabs legacy -->
+          <div id="movDesignA">
+            <div class="mt-4 grid grid-cols-2 text-center text-sm font-display font-bold">
+              <button id="subPagos" onclick="setSubtab('pagos')" class="pb-2 border-b-2 border-quac text-quacdark">Últ. pagos</button>
+              <button id="subCompras" onclick="setSubtab('compras')" class="pb-2 border-b-2 border-slate-200 text-slate-400">Últ. compras</button>
+            </div>
+
+            <div id="listaPagos" class="divide-y divide-slate-200 bg-white rounded-2xl px-4 mt-3">
+              <div class="py-3 flex justify-between items-start"><div><p class="text-sm font-bold">Abono estado de cuenta BAGUER S.A.S.</p><p class="text-xs text-slate-400">10 jul 2026</p></div><div class="text-right"><p class="text-sm font-bold text-red-500">$-394.433</p><p class="pts hidden text-[11px] font-bold text-quac">+394 pts</p></div></div>
+              <div class="py-3 flex justify-between items-start"><div><p class="text-sm font-bold">Abono estado de cuenta BAGUER S.A.S.</p><p class="text-xs text-slate-400">08 jun 2026</p></div><div class="text-right"><p class="text-sm font-bold text-red-500">$-386.932</p><p class="pts hidden text-[11px] font-bold text-quac">+386 pts</p></div></div>
+              <div class="py-3 flex justify-between items-start"><div><p class="text-sm font-bold">Abono estado de cuenta BAGUER S.A.S.</p><p class="text-xs text-slate-400">05 may 2026</p></div><div class="text-right"><p class="text-sm font-bold text-red-500">$-401.210</p><p class="pts hidden text-[11px] font-bold text-quac">+401 pts</p></div></div>
+            </div>
+
+            <div id="listaCompras" class="hidden divide-y divide-slate-200 bg-white rounded-2xl px-4 mt-3">
+              <div class="py-3 flex justify-between items-start"><div><p class="text-sm font-bold">STIRPE CACIQUE (BGA)</p><p class="text-xs text-slate-400">25 jun 2026</p></div><div class="text-right"><p class="text-sm font-bold text-quacdark">$968.800</p><p class="pts hidden text-[11px] font-bold text-quac">+968 pts</p></div></div>
+              <div class="py-3 flex justify-between items-start"><div><p class="text-sm font-bold">DEREK CABECERA (BGA)</p><p class="text-xs text-slate-400">14 may 2026</p></div><div class="text-right"><p class="text-sm font-bold text-quacdark">$245.900</p><p class="pts hidden text-[11px] font-bold text-quac">+245 pts</p></div></div>
+              <div class="py-3 flex justify-between items-start"><div><p class="text-sm font-bold">U82 CENTRO (BGA)</p><p class="text-xs text-slate-400">02 abr 2026</p></div><div class="text-right"><p class="text-sm font-bold text-quacdark">$129.950</p><p class="pts hidden text-[11px] font-bold text-quac">+129 pts</p></div></div>
+            </div>
+          </div>
+
+          <!-- Diseño B: timeline unificado (propuesta) -->
+          <div id="movDesignB" class="hidden">
+            <div class="mt-4 flex gap-2 justify-center text-xs font-display font-bold">
+              <button id="fltTodos" onclick="setFiltroB('todos')" class="px-4 py-1.5 rounded-full border">Todos</button>
+              <button id="fltCompras" onclick="setFiltroB('compras')" class="px-4 py-1.5 rounded-full border">Compras</button>
+              <button id="fltAbonos" onclick="setFiltroB('abonos')" class="px-4 py-1.5 rounded-full border">Abonos</button>
+            </div>
+            <div class="divide-y divide-slate-100 bg-white rounded-2xl px-4 mt-3">
+              <div class="tl-item py-3 flex items-center gap-3" data-tipo="abono"><span class="w-9 h-9 shrink-0 rounded-full bg-emerald-50 flex items-center justify-center">💸</span><div class="flex-1"><p class="text-sm font-bold">Abono a tu crédito</p><p class="text-xs text-slate-400">10 jul 2026 · Baguer</p></div><div class="text-right"><p class="text-sm font-bold text-emerald-600">-$394.433</p><p class="pts hidden text-[11px] font-bold text-quac">+394 pts</p></div></div>
+              <div class="tl-item py-3 flex items-center gap-3" data-tipo="compra"><span class="w-9 h-9 shrink-0 rounded-full bg-quac/10 flex items-center justify-center">🛍</span><div class="flex-1"><p class="text-sm font-bold">Compra en STIRPE CACIQUE</p><p class="text-xs text-slate-400">25 jun 2026 · Bucaramanga</p></div><div class="text-right"><p class="text-sm font-bold text-quacdark">$968.800</p><p class="pts hidden text-[11px] font-bold text-quac">+968 pts</p></div></div>
+              <div class="tl-item py-3 flex items-center gap-3" data-tipo="abono"><span class="w-9 h-9 shrink-0 rounded-full bg-emerald-50 flex items-center justify-center">💸</span><div class="flex-1"><p class="text-sm font-bold">Abono a tu crédito</p><p class="text-xs text-slate-400">08 jun 2026 · Baguer</p></div><div class="text-right"><p class="text-sm font-bold text-emerald-600">-$386.932</p><p class="pts hidden text-[11px] font-bold text-quac">+386 pts</p></div></div>
+              <div class="tl-item py-3 flex items-center gap-3" data-tipo="compra"><span class="w-9 h-9 shrink-0 rounded-full bg-quac/10 flex items-center justify-center">🛍</span><div class="flex-1"><p class="text-sm font-bold">Compra en DEREK CABECERA</p><p class="text-xs text-slate-400">14 may 2026 · Bucaramanga</p></div><div class="text-right"><p class="text-sm font-bold text-quacdark">$245.900</p><p class="pts hidden text-[11px] font-bold text-quac">+245 pts</p></div></div>
+              <div class="tl-item py-3 flex items-center gap-3" data-tipo="abono"><span class="w-9 h-9 shrink-0 rounded-full bg-emerald-50 flex items-center justify-center">💸</span><div class="flex-1"><p class="text-sm font-bold">Abono a tu crédito</p><p class="text-xs text-slate-400">05 may 2026 · Baguer</p></div><div class="text-right"><p class="text-sm font-bold text-emerald-600">-$401.210</p><p class="pts hidden text-[11px] font-bold text-quac">+401 pts</p></div></div>
+              <div class="tl-item py-3 flex items-center gap-3" data-tipo="compra"><span class="w-9 h-9 shrink-0 rounded-full bg-quac/10 flex items-center justify-center">🛍</span><div class="flex-1"><p class="text-sm font-bold">Compra en U82 CENTRO</p><p class="text-xs text-slate-400">02 abr 2026 · Bucaramanga</p></div><div class="text-right"><p class="text-sm font-bold text-quacdark">$129.950</p><p class="pts hidden text-[11px] font-bold text-quac">+129 pts</p></div></div>
+            </div>
+            <p class="text-[10px] text-slate-400 text-center mt-2">Íconos de muestra · los definitivos salen de assets oficiales</p>
+          </div>
+
+          <div id="movVacio" class="hidden text-center pt-10">
+            <p class="text-4xl">🧾</p>
+            <p class="font-display font-bold text-slate-700 mt-3">Aún no tienes movimientos</p>
+            <p class="text-xs text-slate-400 mt-1 px-8">Cuando realices compras o abonos con tu crédito QUAC los verás aquí.</p>
+          </div>
+        </section>
+
+        <!-- ═ TABS PLACEHOLDER ═ -->
+        <section id="view-placeholder" class="view hidden px-8 pt-16 text-center fade">
+          <p class="text-4xl">🚧</p>
+          <h2 id="phTitle" class="font-display font-bold text-quacdark text-xl mt-4">Pagar</h2>
+          <p class="text-sm text-slate-500 mt-2">Muy pronto podrás usar esta sección desde la app.</p>
+          <p id="phReq" class="text-[11px] text-slate-300 mt-4 font-mono">llega con AQ-005</p>
+        </section>
+
+      </div>
+
+      <!-- ───── BOTTOM NAV (server-driven: Quac+ condicional) ───── -->
+      <nav id="bottomNav" class="shrink-0 border-t border-slate-200 bg-white grid grid-cols-5 text-center text-[10px] font-bold pb-4 pt-2 z-10"></nav>
+
+      <!-- ───── OVERLAY + BOTTOMSHEETS + ALERT ───── -->
+      <div id="overlay" class="hidden absolute inset-0 bg-black/40 z-40" onclick="closeAll()"></div>
+
+      <!-- SCR-029 Detalle de cartera -->
+      <div id="sheetCartera" class="sheet hidden absolute bottom-0 inset-x-0 bg-white rounded-t-3xl z-50 max-h-[80%] overflow-y-auto sheet-enter">
+        <div class="p-5">
+          <div class="flex justify-between items-start">
+            <h3 class="font-display font-bold text-quacdark text-lg">Detalle de cartera</h3>
+            <button onclick="closeAll()" class="text-slate-400 text-lg leading-none">✕</button>
+          </div>
+          <p class="text-xs text-slate-500 mt-2">Recuerda: este crédito corresponde a las compras realizadas en nuestros comercios aliados: Stirpe, Travel, Equis, U82, Derek, Clover y Factory.</p>
+          <div class="mt-3 flex items-center gap-2">
+            <span id="sheetBadge" class="px-3 py-1 rounded-full text-[12px] font-bold bg-mint text-[#374957]">Al día</span>
+            <p id="sheetMsg" class="text-xs text-slate-600">¡Felicitaciones! Estás al día con tus pagos.</p>
+          </div>
+          <p class="text-[11px] uppercase tracking-wide text-slate-400 font-bold mt-5">Información detallada</p>
+          <div class="divide-y divide-slate-100 text-sm mt-1">
+            <div class="py-2.5 flex justify-between"><span class="text-slate-500">Capital</span><b>$3.310.412</b></div>
+            <div class="py-2.5 flex justify-between"><span class="text-slate-500">Vencido</span><b id="rowVencido">$0</b></div>
+            <div class="py-2.5 flex justify-between"><span class="text-slate-500">Intereses mora</span><b id="rowMora">$0</b></div>
+            <div class="py-2.5 flex justify-between"><span class="text-slate-500">Honorarios</span><b>$0</b></div>
+            <div class="py-2.5 flex justify-between"><span class="text-slate-500">Gastos</span><b>$64.403</b></div>
+            <div class="py-2.5 flex justify-between bg-slate-50 rounded-lg px-2 -mx-2"><span class="font-bold">Deuda total</span><b id="rowDeuda" class="font-display">$3.374.815</b></div>
+          </div>
+          <button onclick="closeAll()" class="mt-5 w-full border-2 border-quacdark text-quacdark font-display font-bold text-sm tracking-widest py-3 rounded-xl">ENTENDIDO</button>
+        </div>
+      </div>
+
+      <!-- SCR-031 Plan de pagos -->
+      <div id="sheetPlan" class="sheet hidden absolute bottom-0 inset-x-0 bg-white rounded-t-3xl z-50 max-h-[80%] overflow-y-auto sheet-enter">
+        <div class="p-5">
+          <div class="flex justify-between items-start">
+            <h3 class="font-display font-bold text-quacdark text-lg">Plan de pagos</h3>
+            <button onclick="closeAll()" class="text-slate-400 text-lg leading-none">✕</button>
+          </div>
+          <p class="text-xs text-slate-500 mt-2">Encuentra todas las fechas y el valor del pago que debes realizar para estar al día.</p>
+          <div class="mt-4 bg-quaclight/30 rounded-2xl p-4 flex items-center justify-between">
+            <div>
+              <p class="text-[11px] text-slate-500">Fecha próximo pago</p>
+              <p id="planProximo" class="font-display font-extrabold text-lg text-quacdark">02 Ago 2026</p>
+            </div>
+            <button onclick="closeAll(); goTab('pagar')" class="bg-quac text-white font-display font-bold text-xs tracking-wider px-5 py-2.5 rounded-xl">Pagar ahora</button>
+          </div>
+          <div class="mt-4 text-sm">
+            <div class="grid grid-cols-2 text-[11px] font-bold text-slate-400 bg-slate-50 rounded-lg px-3 py-2"><span>Próximo pago</span><span class="text-right">Valor a pagar</span></div>
+            <div class="divide-y divide-slate-100">
+              <div class="grid grid-cols-2 px-3 py-2.5 bg-quaclight/10"><span>02 Ago 2026</span><b class="text-right">$678.167</b></div>
+              <div class="grid grid-cols-2 px-3 py-2.5"><span>02 Sep 2026</span><b class="text-right">$678.167</b></div>
+              <div class="grid grid-cols-2 px-3 py-2.5"><span>02 Oct 2026</span><b class="text-right">$678.167</b></div>
+              <div class="grid grid-cols-2 px-3 py-2.5"><span>02 Nov 2026</span><b class="text-right">$678.167</b></div>
+              <div class="grid grid-cols-2 px-3 py-2.5"><span>02 Dic 2026</span><b class="text-right">$662.147</b></div>
+            </div>
+          </div>
+          <button onclick="closeAll()" class="mt-5 w-full border-2 border-quacdark text-quacdark font-display font-bold text-sm tracking-widest py-3 rounded-xl">ENTENDIDO</button>
+        </div>
+      </div>
+
+      <!-- SCR-030 Alert cupo -->
+      <div id="alertCupo" class="hidden absolute inset-0 z-50 flex items-center justify-center px-8">
+        <div class="absolute inset-0 bg-black/40" onclick="closeAll()"></div>
+        <div class="relative bg-white rounded-2xl p-5 shadow-xl fade">
+          <p class="font-display font-bold text-quacdark">¿Conoces cómo funciona el cupo?</p>
+          <p class="text-sm text-slate-500 mt-2">Es un valor indicativo que te permite realizar compras a cuotas con QUAC. Ten en cuenta que este cupo puede variar en estado y valor según nuestras políticas internas de crédito.</p>
+          <button onclick="closeAll()" class="mt-4 w-full text-quac font-display font-bold text-sm py-1">Aceptar</button>
+        </div>
+      </div>
+
+      <!-- Toast campana -->
+      <div id="toast" class="hidden absolute top-24 inset-x-8 z-50 bg-slate-900/90 text-white text-xs rounded-xl px-4 py-3 text-center fade">Notificaciones: llega con AQ-006 🔔</div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+let state = { view: 'home', nivel: 'gold', mora: false, comercios: 1, vacio: false, subtab: 'pagos', movDesign: 'a', puntos: false, filtroB: 'todos' };
+const PH = { pagar: ['Pagar', 'llega con AQ-005'], quacplus: ['Quac+', 'llega con AQ-004'], mas: ['Más', 'llega con AQ-007'] };
+
+// Temas server-driven (tema_niveles[] simulado). GOLD aproximado; el real viene del backend.
+const TEMAS = {
+  quac: { grad: 'linear-gradient(115deg,#4197ED 0%,#7D2FEB 55%,#CB1CE7 100%)', text: '#FFFFFF',
+          badge: null },
+  gold: { grad: 'linear-gradient(115deg,#EFD990 0%,#E2C169 40%,#C89A3F 100%)'.replace('#EFD990','#EFD990'), text: '#4A3A10',
+          badge: { text: 'GOLD', bg: '#3F3413', fg: '#F5E3B0' } },
+  off:  { grad: 'linear-gradient(115deg,#4197ED 0%,#7D2FEB 55%,#CB1CE7 100%)', text: '#FFFFFF',
+          badge: null },
+};
+
+function $(id){ return document.getElementById(id); }
+
+function renderNav(){
+  const tabs = [
+    ['inicio','🏠','Inicio'], ['mov','🧾','Movimientos'], ['pagar','💳','Pagar'],
+    ...(state.nivel !== 'off' ? [['quacplus','✨','Quac+']] : []),
+    ['mas','☰','Más'],
+  ];
+  const nav = $('bottomNav');
+  nav.className = nav.className.replace(/grid-cols-\d/, 'grid-cols-' + tabs.length);
+  nav.innerHTML = tabs.map(([t, icon, label]) => {
+    const active = t === (state.view === 'home' ? 'inicio' : state.view);
+    return `<button data-tab="${t}" onclick="goTab('${t}')" class="tab-btn ${active ? 'text-quacdark' : 'text-slate-400'}"><span class="block text-lg">${icon}</span>${label}</button>`;
+  }).join('');
+}
+
+function applyTema(){
+  const t = TEMAS[state.nivel];
+  $('shellHeader').style.background = t.grad;
+  ['statusBar','logoQuac','headerIcons','saludo'].forEach(id => $(id).style.color = t.text);
+  const b = $('badgeNivel');
+  if (t.badge){
+    b.classList.remove('hidden');
+    b.textContent = t.badge.text;
+    b.style.background = t.badge.bg;
+    b.style.color = t.badge.fg;
+  } else {
+    b.classList.add('hidden');
+  }
+}
+
+function showView(v){
+  state.view = v;
+  document.querySelectorAll('.view').forEach(el => el.classList.add('hidden'));
+  $('view-' + (v in PH ? 'placeholder' : v)).classList.remove('hidden');
+  if (v in PH){ $('phTitle').textContent = PH[v][0]; $('phReq').textContent = PH[v][1]; }
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    b.classList.toggle('bg-quac/10', b.dataset.goto === v);
+    b.classList.toggle('font-bold', b.dataset.goto === v);
+  });
+  renderNav();
+}
+
+function goTab(t){
+  if (t === 'quacplus' && state.nivel === 'off') return;
+  showView(t === 'inicio' ? 'home' : t);
+}
+
+document.querySelectorAll('.nav-btn').forEach(b => b.onclick = () => {
+  const v = b.dataset.goto;
+  if (v === 'placeholder') { showView('pagar'); }
+  else if (v === 'loading') { simulateLoading(); }
+  else showView(v);
+});
+
+function simulateLoading(){
+  showView('loading');
+  setTimeout(() => { if (state.view === 'loading') showView('home'); }, 2800);
+}
+function reintentar(){ simulateLoading(); }
+
+function chip(el, on, colorOn){
+  el.className = 'flex-1 px-2 py-1.5 rounded-lg border text-xs font-bold ' + (on ? colorOn : 'border-slate-200');
+}
+
+function setNivel(n){
+  state.nivel = n;
+  chip($('btnNivelQuac'), n==='quac', 'bg-quac text-white border-quac');
+  chip($('btnNivelGold'), n==='gold', 'bg-[#C89A3F] text-white border-[#C89A3F]');
+  chip($('btnNivelOff'),  n==='off',  'bg-slate-700 text-white border-slate-700');
+  if (state.view === 'quacplus' && n === 'off') state.view = 'home';
+  applyTema(); showView(state.view);
+}
+
+function setMora(m){
+  state.mora = m;
+  chip($('btnMora'), m, 'bg-morayellow text-black border-morayellow');
+  chip($('btnAldia'), !m, 'bg-mint text-white border-mint');
+  $('badgeEstado').textContent = m ? 'En mora' : 'Al día';
+  $('badgeEstado').className = 'px-3.5 py-1.5 rounded-full text-[13px] font-bold ' + (m ? 'bg-morayellow text-black' : 'bg-mint text-[#374957]');
+  $('fechaLimite').textContent = m ? 'Inmediato' : '02 Ago 2026';
+  $('sheetBadge').textContent = m ? 'En mora' : 'Al día';
+  $('sheetBadge').className = 'px-3 py-1 rounded-full text-[12px] font-bold ' + (m ? 'bg-morayellow text-black' : 'bg-mint text-[#374957]');
+  $('sheetMsg').textContent = m ? 'Tienes pagos vencidos. Ponte al día para seguir usando tu cupo.' : '¡Felicitaciones! Estás al día con tus pagos.';
+  $('rowVencido').textContent = m ? '$678.167' : '$0';
+  $('rowMora').textContent = m ? '$21.480' : '$0';
+  $('rowDeuda').textContent = m ? '$3.396.295' : '$3.374.815';
+  $('planProximo').textContent = m ? 'Inmediato' : '02 Ago 2026';
+}
+
+function setComercios(n){
+  state.comercios = n;
+  chip($('btnUno'), n===1, 'bg-quac text-white border-quac');
+  chip($('btnDos'), n===2, 'bg-quac text-white border-quac');
+  $('cardComercio2').classList.toggle('hidden', n === 1);
+  showView('home');
+}
+
+function setVacio(v){
+  state.vacio = v;
+  chip($('btnVacio'), v, 'bg-quac text-white border-quac');
+  chip($('btnConDatos'), !v, 'bg-quac text-white border-quac');
+  showView('mov'); refreshMov();
+}
+
+function setMovDesign(d){
+  state.movDesign = d;
+  chip($('btnMovA'), d==='a', 'bg-quac text-white border-quac');
+  chip($('btnMovB'), d==='b', 'bg-quac text-white border-quac');
+  showView('mov'); refreshMov();
+}
+
+function setPuntos(p){
+  state.puntos = p;
+  document.querySelectorAll('.pts').forEach(e => e.classList.toggle('hidden', !p));
+  if (state.view !== 'mov') { showView('mov'); refreshMov(); }
+}
+
+function refreshMov(){
+  $('movDesignA').classList.toggle('hidden', state.vacio || state.movDesign !== 'a');
+  $('movDesignB').classList.toggle('hidden', state.vacio || state.movDesign !== 'b');
+  $('movVacio').classList.toggle('hidden', !state.vacio);
+  if (state.movDesign === 'a') setSubtab(state.subtab);
+  else setFiltroB(state.filtroB);
+}
+
+function setSubtab(s){
+  state.subtab = s;
+  $('subPagos').className   = 'pb-2 border-b-2 ' + (s==='pagos' ? 'border-quac text-quacdark' : 'border-slate-200 text-slate-400');
+  $('subCompras').className = 'pb-2 border-b-2 ' + (s==='compras' ? 'border-quac text-quacdark' : 'border-slate-200 text-slate-400');
+  $('listaPagos').classList.toggle('hidden', state.vacio || s !== 'pagos');
+  $('listaCompras').classList.toggle('hidden', state.vacio || s !== 'compras');
+}
+
+function setFiltroB(f){
+  state.filtroB = f;
+  const chipB = (el, on) => el.className = 'px-4 py-1.5 rounded-full border ' + (on ? 'bg-quac text-white border-quac' : 'border-slate-200 text-slate-500');
+  chipB($('fltTodos'), f==='todos'); chipB($('fltCompras'), f==='compras'); chipB($('fltAbonos'), f==='abonos');
+  const map = { compras: 'compra', abonos: 'abono' };
+  document.querySelectorAll('.tl-item').forEach(e =>
+    e.classList.toggle('hidden', f !== 'todos' && e.dataset.tipo !== map[f]));
+}
+
+function openSheet(id){
+  showView('home');
+  $('overlay').classList.remove('hidden');
+  const s = $(id); s.classList.remove('hidden');
+  requestAnimationFrame(() => requestAnimationFrame(() => s.classList.add('sheet-open')));
+}
+function openAlertCupo(){ showView('home'); $('alertCupo').classList.remove('hidden'); }
+function closeAll(){
+  $('overlay').classList.add('hidden'); $('alertCupo').classList.add('hidden');
+  document.querySelectorAll('.sheet').forEach(s => { s.classList.remove('sheet-open'); s.classList.add('hidden'); });
+}
+function toastCampana(){
+  $('toast').classList.remove('hidden');
+  setTimeout(() => $('toast').classList.add('hidden'), 2200);
+}
+
+// TOTP: rota cada 30 s con anillo de progreso
+function tickTotp(){
+  const now = Math.floor(Date.now()/1000);
+  const remaining = 30 - (now % 30);
+  const seed = Math.floor(now/30);
+  const code = String(1000 + ((seed * 7919) % 9000));
+  $('totpCode').textContent = code;
+  $('totpRing').style.strokeDashoffset = String(94.2 * (1 - remaining/30));
+}
+setInterval(tickTotp, 1000); tickTotp();
+
+setNivel('gold'); setMora(true); setComercios(1); setMovDesign('b'); setFiltroB('todos'); setVacio(false); showView('home');
+</script>
+</body>
+</html>
