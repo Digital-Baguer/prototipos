@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GW-116 · Comisiones VA — Equipos de venta y liquidación por roles</title>
+<!-- v3.3 · 2026-08-13 · bono diario replicado fiel a la UI real (GW-47/51) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .cifra { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  .tip { position: relative; display: inline-flex; align-items: center; cursor: help; }
+  .tip-box { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+    width: 300px; white-space: normal; background: #111827; color: #fff; font-size: 11px;
+    line-height: 1.45; padding: 9px 11px; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.22);
+    opacity: 0; visibility: hidden; transition: opacity .12s ease; z-index: 40; text-align: left; }
+  .tip:hover .tip-box { opacity: 1; visibility: visible; }
+  .tip-box::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    border: 5px solid transparent; border-top-color: #111827; }
+
+  @keyframes pulso { 0%,100% { opacity: 1 } 50% { opacity: .45 } }
+  .skeleton { animation: pulso 1.4s ease-in-out infinite; }
+
+  .pantalla { display: none; }
+  .pantalla.activa { display: block; }
+  .estado-vista { display: none; }
+  .estado-vista.activa { display: block; }
+  button:disabled { cursor: not-allowed; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     CONTROLES DEL MOCKUP — no forman parte de la interfaz real
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="sticky top-0 z-50 border-b border-gray-700 bg-gray-900 text-gray-200">
+  <div class="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-5 gap-y-2 px-5 py-2.5">
+    <span class="text-[11px] font-semibold tracking-wider text-gray-500 uppercase">Mockup GW-116</span>
+    <span class="text-[11px] text-gray-500">Pantalla:</span>
+    <div class="flex items-center gap-1.5">
+      <button data-pantalla="equipos" class="btn-pantalla rounded-md px-2.5 py-1 text-xs font-medium">1 · Equipos de venta</button>
+      <button data-pantalla="config" class="btn-pantalla rounded-md px-2.5 py-1 text-xs font-medium">2 · Configuración (escalas por rol)</button>
+      <button data-pantalla="liquidacion" class="btn-pantalla rounded-md px-2.5 py-1 text-xs font-medium">3 · Liquidación (ref. GW-119)</button>
+    </div>
+    <span class="text-[11px] text-gray-500">Estado:</span>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <button data-estado="normal" class="btn-estado rounded-md px-2.5 py-1 text-xs font-medium">Normal</button>
+      <button data-estado="cerrada" class="btn-estado rounded-md px-2.5 py-1 text-xs font-medium">Quincena cerrada</button>
+      <button data-estado="cargando" class="btn-estado rounded-md px-2.5 py-1 text-xs font-medium">Cargando</button>
+      <button data-estado="falla" class="btn-estado rounded-md px-2.5 py-1 text-xs font-medium">Falla</button>
+    </div>
+    <span class="text-[11px] text-gray-500">Escala:</span>
+    <div class="flex items-center gap-1.5">
+      <button data-escala="configurada" class="btn-escala rounded-md px-2.5 py-1 text-xs font-medium">Con filas</button>
+      <button data-escala="vacia" class="btn-escala rounded-md px-2.5 py-1 text-xs font-medium">Sin filas</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     CHROME DE get-web
+     ══════════════════════════════════════════════════════════════════════ -->
+<div class="mx-auto flex max-w-[1500px]">
+
+  <aside class="hidden w-56 shrink-0 border-r border-gray-200 bg-white lg:block">
+    <div class="flex h-14 items-center gap-2 border-b border-gray-200 px-4">
+      <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-900 text-xs font-bold text-white">G</div>
+      <span class="text-sm font-semibold">GET</span>
+    </div>
+    <nav class="p-3 text-sm">
+      <p class="px-2 pt-1 pb-2 text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Comisiones VA</p>
+      <a id="nav-config" class="mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-600"><span class="text-gray-400"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span> Configuración</a>
+      <a id="nav-equipos" class="mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-600"><span class="text-gray-400"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Equipos de venta <span class="ml-auto rounded bg-emerald-100 px-1 text-[9px] font-bold text-emerald-700">NUEVO</span></a>
+      <a class="mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-600"><span class="text-gray-400"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg></span> Cargar archivos</a>
+      <a class="mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-600"><span class="text-gray-400"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg></span> Bitácora</a>
+      <a id="nav-liquidacion" class="mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-600"><span class="text-gray-400"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg></span> Liquidación</a>
+      <a class="mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-gray-600"><span class="text-gray-400"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span> Cierre de períodos</a>
+    </nav>
+  </aside>
+
+  <div class="min-w-0 flex-1">
+
+    <header class="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-5">
+      <div class="flex items-center gap-2 text-sm text-gray-500">
+        <span>Venta Asistida</span><span class="text-gray-300">/</span><span>Comisiones</span><span class="text-gray-300">/</span><span id="miga-actual" class="text-gray-900">Equipos de venta</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
+          <div class="flex h-7 w-7 items-center justify-center rounded-full bg-gray-200 text-[11px] font-semibold text-gray-600">MG</div>
+          <span class="hidden text-sm text-gray-700 md:inline">Marcela Gómez</span>
+        </div>
+      </div>
+    </header>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     PANTALLA 1 · EQUIPOS DE VENTA  (/venta-asistida/comisiones/equipos)
+     ══════════════════════════════════════════════════════════════════════ -->
+<section id="pantalla-equipos" class="pantalla activa">
+
+  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-5 py-4">
+    <div>
+      <h1 class="text-xl font-bold">Equipos de venta</h1>
+      <p class="text-sm text-gray-500">Roles de venta (coordinador, supervisor, director) y sus vendedores asociados · las escalas se configuran en Configuración de comisiones</p>
+    </div>
+    <button class="btn-abrir-modal inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm">
+      <span class="text-base leading-none">＋</span> Nuevo titular
+    </button>
+  </div>
+
+  <main class="space-y-4 px-5 py-4">
+
+    <!-- ESTADO: CARGANDO -->
+    <div class="estado-vista" data-para="cargando">
+      <div class="space-y-3">
+        <div class="skeleton h-10 rounded-lg bg-gray-200"></div>
+        <div class="skeleton h-24 rounded-lg bg-gray-200"></div>
+        <div class="skeleton h-24 rounded-lg bg-gray-200"></div>
+        <div class="skeleton h-24 rounded-lg bg-gray-200"></div>
+      </div>
+    </div>
+
+    <!-- ESTADO: FALLA -->
+    <div class="estado-vista" data-para="falla">
+      <div class="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <svg class="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.73 18 13.73 4a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        <div>
+          <p class="font-semibold">No fue posible cargar los equipos de venta.</p>
+          <p class="mt-0.5 text-red-700">Intenta de nuevo. Si el problema persiste, contacta al administrador.</p>
+          <button class="mt-2 rounded-md border border-red-300 bg-white px-3 py-1 text-xs font-medium text-red-700">Reintentar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ESTADO: NORMAL / CERRADA (la pantalla de equipos no cambia con el cierre) -->
+    <div class="estado-vista activa space-y-4" data-para="normal cerrada">
+
+      <!-- LISTA DE TITULARES -->
+      <div class="overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-left text-xs font-semibold tracking-wide text-gray-500 uppercase">
+            <tr>
+              <th class="px-4 py-3">Titular</th>
+              <th class="px-4 py-3">Rol de venta</th>
+              <th class="px-4 py-3">Vendedores</th>
+              <th class="px-4 py-3">Vigente desde</th>
+              <th class="px-4 py-3 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr class="bg-emerald-50/40">
+              <td class="px-4 py-3">
+                <p class="font-medium">Carolina Méndez</p>
+                <p class="text-xs text-gray-500">carolina.mendez</p>
+              </td>
+              <td class="px-4 py-3"><span class="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">Coordinadora</span></td>
+              <td class="px-4 py-3">
+                <span class="mr-1 rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">STIRPE · 8</span>
+              </td>
+              <td class="px-4 py-3 text-xs text-gray-600">01 ago 2026</td>
+              <td class="px-4 py-3 text-right">
+                <button id="btn-editar-carolina" class="btn-abrir-modal rounded-md border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700">Editar</button> <button class="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-600">Retirar rol</button>
+              </td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3">
+                <p class="font-medium">Andrés Prada</p>
+                <p class="text-xs text-gray-500">andres.prada</p>
+              </td>
+              <td class="px-4 py-3"><span class="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">Coordinador</span></td>
+              <td class="px-4 py-3"><span class="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">DEREK · 6</span></td>
+              <td class="px-4 py-3 text-xs text-gray-600">01 ago 2026</td>
+              <td class="px-4 py-3 text-right"><button class="btn-abrir-modal rounded-md border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700">Editar</button> <button class="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-600">Retirar rol</button></td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3">
+                <p class="font-medium">Paola Cifuentes</p>
+                <p class="text-xs text-gray-500">paola.cifuentes</p>
+              </td>
+              <td class="px-4 py-3"><span class="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-medium text-violet-700">Supervisora</span></td>
+              <td class="px-4 py-3"><span class="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">STIRPE · 14</span></td>
+              <td class="px-4 py-3 text-xs text-gray-600">01 ago 2026</td>
+              <td class="px-4 py-3 text-right"><button class="btn-abrir-modal rounded-md border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700">Editar</button> <button class="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-600">Retirar rol</button></td>
+            </tr>
+            <tr>
+              <td class="px-4 py-3">
+                <p class="font-medium">Ricardo Salazar</p>
+                <p class="text-xs text-gray-500">ricardo.salazar</p>
+              </td>
+              <td class="px-4 py-3"><span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">Director</span></td>
+              <td class="px-4 py-3">
+                <span class="mr-1 rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">STIRPE · 14</span>
+                <span class="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">DEREK · 11</span>
+              </td>
+              <td class="px-4 py-3 text-xs text-gray-600">01 ago 2026</td>
+              <td class="px-4 py-3 text-right"><button class="btn-abrir-modal rounded-md border border-gray-300 px-3 py-1 text-xs font-medium text-gray-700">Editar</button> <button class="rounded-md border border-red-200 px-3 py-1 text-xs font-medium text-red-600">Retirar rol</button></td>
+            </tr>
+            <!-- Titular retirada: vigencia cerrada, solo consulta -->
+            <tr class="bg-gray-50/70 text-gray-400">
+              <td class="px-4 py-3">
+                <p class="font-medium">Julieta Navarro</p>
+                <p class="text-xs">julieta.navarro</p>
+              </td>
+              <td class="px-4 py-3">
+                <span class="rounded-full bg-gray-200 px-2.5 py-0.5 text-xs font-medium text-gray-500">Supervisora</span>
+                <span class="ml-1 rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500">RETIRADA</span>
+              </td>
+              <td class="px-4 py-3"><span class="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium">DEREK · 9</span></td>
+              <td class="px-4 py-3 text-xs">01 jul — 31 jul 2026</td>
+              <td class="px-4 py-3 text-right">
+                <span class="tip">
+                  <span class="text-[11px]">solo consulta</span>
+                  <span class="tip-box">El rol se retiró cerrando su vigencia. Las liquidaciones de julio la siguen mostrando con su equipo y escala de esa fecha; en rangos posteriores ya no aparece. Si vuelve a ejercer el rol, se crea una asignación nueva.</span>
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="border-t border-gray-200 bg-gray-50 px-4 py-2 text-[11px] text-gray-500">
+          Retirar un rol no borra su historia: cierra la vigencia. Las quincenas ya liquidadas conservan al titular con el equipo y la escala vigentes en esas fechas.
+        </div>
+      </div>
+
+      <!-- MODAL DE EDICIÓN (se abre con "Editar" o "Nuevo titular") -->
+      <div id="modal-editar" class="fixed inset-0 z-40 hidden items-start justify-center overflow-y-auto bg-black/40 p-4 pt-12">
+      <div class="w-full max-w-2xl rounded-xl border border-gray-300 bg-white shadow-2xl">
+        <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3">
+          <div>
+            <h2 class="text-sm font-bold">Editar titular · Carolina Méndez</h2>
+            <p class="text-xs text-gray-500">Los cambios rigen desde hoy; los períodos ya cerrados no se recalculan.</p>
+          </div>
+          <button class="btn-cerrar-modal text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+
+        <div class="space-y-4 p-5">
+
+          <!-- Columna izquierda: datos + vendedores -->
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="mb-1 block text-xs font-semibold text-gray-600">Usuario</label>
+                <select class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                  <option>Carolina Méndez (carolina.mendez)</option>
+                  <option>Otro usuario activo…</option>
+                </select>
+                <p class="mt-1 text-[11px] text-gray-400">Usuarios activos con acceso a venta asistida (incluye asesores)</p>
+              </div>
+              <div>
+                <label class="mb-1 block text-xs font-semibold text-gray-600">Rol de venta</label>
+                <select class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                  <option selected>Coordinadora</option>
+                  <option>Supervisora</option>
+                  <option>Directora</option>
+                </select>
+                <p class="mt-1 text-[11px] text-gray-400">Etiqueta descriptiva — no cambia el cálculo</p>
+              </div>
+            </div>
+
+            <div>
+              <div class="mb-2 flex items-center justify-between">
+                <label class="text-xs font-semibold text-gray-600">Vendedores del equipo</label>
+                <span class="text-[11px] text-gray-400">8 seleccionados</span>
+              </div>
+              <div class="rounded-lg border border-gray-200">
+                <label class="flex cursor-pointer items-center justify-between border-b border-gray-200 bg-gray-50 px-3 py-1.5">
+                  <span class="flex items-center gap-2 text-[11px] font-semibold tracking-wide text-gray-500 uppercase"><input type="checkbox" checked class="rounded" /> STIRPE · seleccionar todos</span>
+                  <span class="text-[10px] font-medium text-gray-400">8 de 10</span>
+                </label>
+                <div class="grid grid-cols-2 gap-x-3 px-3 py-2 text-sm">
+                  <label class="flex items-center gap-2 py-1"><input type="checkbox" checked class="rounded" /> Laura Restrepo <span class="text-[11px] text-gray-400">347</span></label>
+                  <label class="flex items-center gap-2 py-1"><input type="checkbox" checked class="rounded" /> Julián Ortiz <span class="text-[11px] text-gray-400">352</span></label>
+                  <label class="flex items-center gap-2 py-1"><input type="checkbox" checked class="rounded" /> Diana Rueda <span class="text-[11px] text-gray-400">361</span></label>
+                  <label class="flex items-center gap-2 py-1"><input type="checkbox" checked class="rounded" /> Sofía Cárdenas <span class="text-[11px] text-gray-400">365</span></label>
+                  <label class="flex items-center gap-2 py-1"><input type="checkbox" checked class="rounded" /> Mateo Quintero <span class="text-[11px] text-gray-400">371</span></label>
+                  <label class="flex items-center gap-2 py-1"><input type="checkbox" checked class="rounded" /> Valentina Soto <span class="text-[11px] text-gray-400">378</span></label>
+                  <label class="flex items-center gap-2 py-1"><input type="checkbox" checked class="rounded" /> Camilo Vega <span class="text-[11px] text-gray-400">382</span></label>
+                  <label class="flex items-center gap-2 py-1"><input type="checkbox" checked class="rounded" /> Natalia Pineda <span class="text-[11px] text-gray-400">389</span></label>
+                  <label class="flex items-center gap-2 py-1 text-gray-400"><input type="checkbox" class="rounded" /> Andrea Molina <span class="text-[11px]">391</span></label>
+                  <label class="flex items-center gap-2 py-1 text-gray-400"><input type="checkbox" class="rounded" /> Felipe Rincón <span class="text-[11px]">394</span></label>
+                </div>
+                <label class="flex cursor-pointer items-center justify-between border-y border-gray-200 bg-gray-50 px-3 py-1.5">
+                  <span class="flex items-center gap-2 text-[11px] font-semibold tracking-wide text-gray-500 uppercase"><input type="checkbox" class="rounded" /> DEREK · seleccionar todos</span>
+                  <span class="text-[10px] font-medium text-gray-400">0 de 2</span>
+                </label>
+                <div class="grid grid-cols-2 gap-x-3 px-3 py-2 text-sm">
+                  <label class="flex items-center gap-2 py-1 text-gray-400"><input type="checkbox" class="rounded" /> Sara Beltrán <span class="text-[11px]">411</span></label>
+                  <label class="flex items-center gap-2 py-1 text-gray-400"><input type="checkbox" class="rounded" /> Óscar Mejía <span class="text-[11px]">415</span></label>
+                </div>
+              </div>
+              <p class="mt-1 text-[11px] text-gray-400">El mismo vendedor puede pertenecer a varios equipos a la vez (coordinador, supervisor y director).</p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-2 rounded-lg bg-blue-50 px-3 py-2 text-[11px] leading-relaxed text-blue-800">
+            <span>ℹ</span>
+            <p>Los vendedores se agrupan por tienda según su asignación actual (misma fuente que el reparto de presupuesto). Si el titular tiene vendedores en las dos tiendas, la liquidación calcula y paga cada tienda por separado. Las escalas se configuran por rol en Configuración de comisiones › Métricas de cumplimiento.</p>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 border-t border-gray-200 bg-gray-50 px-5 py-3">
+          <button class="btn-cerrar-modal rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700">Cancelar</button>
+          <button class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white">Guardar cambios</button>
+        </div>
+      </div>
+      </div><!-- /modal-editar -->
+
+      <!-- HISTORIAL -->
+      <div class="overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <div class="border-b border-gray-200 px-4 py-3 text-sm font-bold">Historial de cambios</div>
+        <table class="w-full text-sm">
+          <tbody class="divide-y divide-gray-100 text-xs text-gray-600">
+            <tr><td class="px-4 py-2 text-gray-400">01 ago 2026 · 09:12</td><td class="px-4 py-2">Marcela Gómez</td><td class="px-4 py-2">Ricardo Salazar · creado como Director · 25 vendedores (STIRPE 14, DEREK 11)</td></tr>
+            <tr><td class="px-4 py-2 text-gray-400">01 ago 2026 · 08:58</td><td class="px-4 py-2">Marcela Gómez</td><td class="px-4 py-2">Carolina Méndez · creada como Coordinadora · 8 vendedores STIRPE</td></tr>
+            <tr><td class="px-4 py-2 text-gray-400">31 jul 2026 · 17:05</td><td class="px-4 py-2">Marcela Gómez</td><td class="px-4 py-2">Julieta Navarro · retiro del rol Supervisora (vigencia cerrada; las liquidaciones de julio no cambian)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     PANTALLA 2 · CONFIGURACIÓN DE COMISIONES — PESTAÑA "ESCALAS DE ROLES"
+     (/venta-asistida/comisiones/configuracion)
+     ══════════════════════════════════════════════════════════════════════ -->
+<section id="pantalla-config" class="pantalla">
+
+  <div class="border-b border-gray-200 bg-white px-5 py-4">
+    <h1 class="text-xl font-bold">Configuración de comisiones</h1>
+    <p class="text-sm text-gray-500">Tasas por tienda × métrica</p>
+  </div>
+
+  <main class="space-y-4 px-5 py-4">
+
+    <!-- Tabs existentes de la página (sin pestañas nuevas: todo vive en Métricas de cumplimiento) -->
+    <div class="flex w-fit flex-wrap gap-1 rounded-lg bg-gray-100 p-1 text-sm">
+      <button class="rounded-md bg-white px-4 py-1.5 font-medium shadow-sm"><svg class="-mt-0.5 mr-1 inline h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M13 17V9"/><path d="M18 17V5"/><path d="M8 17v-3"/></svg>Métricas de cumplimiento</button>
+      <button class="rounded-md px-4 py-1.5 font-medium text-gray-500"><svg class="-mt-0.5 mr-1 inline h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>Presupuesto de ventas</button>
+      <button class="rounded-md px-4 py-1.5 font-medium text-gray-500"><svg class="-mt-0.5 mr-1 inline h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>Métricas del mes</button>
+    </div>
+
+    <!-- ESTADO: CARGANDO -->
+    <div class="estado-vista" data-para="cargando">
+      <div class="space-y-3">
+        <div class="skeleton h-10 w-96 rounded-lg bg-gray-200"></div>
+        <div class="skeleton h-64 rounded-lg bg-gray-200"></div>
+      </div>
+    </div>
+
+    <!-- ESTADO: FALLA -->
+    <div class="estado-vista" data-para="falla">
+      <div class="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <svg class="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.73 18 13.73 4a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        <div>
+          <p class="font-semibold">No fue posible cargar las escalas de roles.</p>
+          <button class="mt-2 rounded-md border border-red-300 bg-white px-3 py-1 text-xs font-medium text-red-700">Reintentar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ESTADO: NORMAL / CERRADA -->
+    <div class="estado-vista activa space-y-4" data-para="normal cerrada">
+
+      <template id="fragmento-obsoleto-no-contractual">
+      <!-- Selector de tienda (existente) -->
+      <div>
+        <label class="mb-1 block text-[11px] font-semibold tracking-wide text-gray-500 uppercase">Tienda</label>
+        <select class="w-64 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">
+          <option selected>STIRPE QEC</option>
+          <option>DEREK QEC</option>
+        </select>
+      </div>
+
+      <!-- TABS DE ROL (NUEVO GW-116) -->
+      <div class="flex w-fit flex-wrap items-center gap-1 rounded-lg bg-gray-100 p-1 text-sm">
+        <button data-rol="asesor" class="btn-rol rounded-md px-4 py-1.5 font-medium text-gray-500">Asesor</button>
+        <button data-rol="coordinador" class="btn-rol rounded-md bg-white px-4 py-1.5 font-medium shadow-sm">Coordinador</button>
+        <button data-rol="supervisor" class="btn-rol rounded-md px-4 py-1.5 font-medium text-gray-500">Supervisor</button>
+        <button data-rol="director" class="btn-rol rounded-md px-4 py-1.5 font-medium text-gray-500">Director</button>
+        <span class="ml-1 rounded bg-emerald-100 px-1.5 text-[9px] font-bold text-emerald-700">NUEVO</span>
+      </div>
+      <p class="-mt-2 text-[11px] text-gray-400">El tab Asesor conserva la configuración actual sin cambios. Cada rol puede configurar su propio bono diario con sus condiciones; un rol sin bono configurado no paga bono.</p>
+
+      <!-- VISTA ROL ASESOR: configuración actual sin cambios, con su Bono diario -->
+      <div id="vista-rol-asesor" class="hidden space-y-4">
+        <div class="flex w-fit flex-wrap gap-1 rounded-lg bg-gray-100 p-1 text-sm">
+          <button class="rounded-md px-4 py-1.5 font-medium text-gray-500">Ventas <span class="text-xs text-gray-400">21 filas</span></button>
+          <button class="rounded-md px-4 py-1.5 font-medium text-gray-500">VPT <span class="text-xs text-gray-400">21 filas</span></button>
+          <button class="rounded-md px-4 py-1.5 font-medium text-gray-500">TCV <span class="text-xs text-gray-400">1 fila</span></button>
+          <button class="rounded-md bg-white px-4 py-1.5 font-medium shadow-sm">Bono diario</button>
+          <button class="rounded-md px-4 py-1.5 font-medium text-gray-500">Historial de cambios <span class="rounded bg-blue-100 px-1.5 text-xs font-medium text-blue-600">121</span></button>
+        </div>
+        <div class="max-w-3xl space-y-3">
+          <!-- Réplica fiel de la UI real (GW-47/51) — la implementación NO cambia estos estilos -->
+          <div class="rounded-lg border border-gray-200 bg-white p-5">
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-bold">Bono diario por meta cumplida</h2>
+              <span class="rounded bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">EXISTENTE · SIN CAMBIOS (GW-47/51)</span>
+            </div>
+            <p class="mt-4 mb-1 text-[11px] font-semibold tracking-wide text-gray-500 uppercase">Monto por día cumplido</p>
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-500">$</span>
+              <input class="cifra w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm" value="20000" />
+              <button class="rounded-lg bg-gray-400 px-5 py-2 text-sm font-medium text-white">Guardar</button>
+            </div>
+
+            <hr class="my-5 border-gray-100" />
+
+            <h3 class="text-base font-bold">Condiciones para ganar el bono</h3>
+            <p class="mb-3 text-sm text-gray-500">El asesor gana el bono del día cuando cumple <span class="font-semibold">todas las condiciones activas</span>.</p>
+
+            <div class="space-y-2">
+              <div class="flex items-center gap-4 rounded-lg border border-gray-200 bg-white px-4 py-3">
+                <span class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-blue-500"><span class="absolute right-0.5 h-5 w-5 rounded-full bg-white shadow"></span></span>
+                <span class="w-28 text-sm font-medium">Venta del día</span>
+                <span class="text-sm text-gray-400">≥</span>
+                <input class="cifra w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm" value="10" />
+                <span class="text-sm text-gray-500">% de la meta del día</span>
+              </div>
+              <div class="flex items-center gap-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-gray-400">
+                <span class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-gray-200"><span class="absolute left-0.5 h-5 w-5 rounded-full bg-white shadow"></span></span>
+                <span class="w-28 text-sm font-medium">UPT del día</span>
+                <span class="text-sm text-gray-400">≥</span>
+                <input disabled class="cifra w-20 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-400" value="100" />
+                <span class="text-sm text-gray-500">% de la meta</span>
+              </div>
+              <div class="flex items-center gap-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-gray-400">
+                <span class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-gray-200"><span class="absolute left-0.5 h-5 w-5 rounded-full bg-white shadow"></span></span>
+                <span class="w-28 text-sm font-medium">VPT del día</span>
+                <span class="text-sm text-gray-400">≥</span>
+                <input disabled class="cifra w-20 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-400" value="100" />
+                <span class="text-sm text-gray-500">% de la meta</span>
+              </div>
+              <div class="flex items-center gap-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-gray-400">
+                <span class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-gray-200"><span class="absolute left-0.5 h-5 w-5 rounded-full bg-white shadow"></span></span>
+                <span class="w-28 text-sm font-medium">TCV del día</span>
+                <span class="text-sm text-gray-400">≥</span>
+                <input disabled class="cifra w-20 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-400" value="100" />
+                <span class="text-sm text-gray-500">% de la meta</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-start gap-2 rounded-lg bg-blue-50 px-3 py-2 text-[11px] leading-relaxed text-blue-800">
+            <span>ℹ</span>
+            <p>Cada rol tiene su propio bono diario y condiciones — este es el del rol Asesor (existente, sin cambios). En los demás roles, las condiciones se evalúan sobre los números del día del equipo; un rol sin bono configurado no paga bono.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- VISTA ROLES NUEVOS (coordinador / supervisor / director) -->
+      <div id="vista-rol-coordinador" class="space-y-4">
+
+      <!-- SUB-TABS DE MÉTRICA (mismo patrón actual) -->
+      <div class="flex w-fit flex-wrap gap-1 rounded-lg bg-gray-100 p-1 text-sm">
+        <button class="rounded-md bg-white px-4 py-1.5 font-medium shadow-sm">Ventas <span class="text-xs text-gray-400">3 filas</span></button>
+        <button class="rounded-md px-4 py-1.5 font-medium text-gray-500">VPT <span class="text-xs text-gray-400">1 fila</span></button>
+        <button class="rounded-md px-4 py-1.5 font-medium text-gray-500">TCV <span class="text-xs text-gray-400">1 fila</span></button>
+        <button class="rounded-md px-4 py-1.5 font-medium text-gray-500">Bono diario <span class="text-xs text-gray-400">sin configurar</span></button>
+        <button class="rounded-md px-4 py-1.5 font-medium text-gray-500">Historial de cambios <span class="rounded bg-blue-100 px-1.5 text-xs font-medium text-blue-600">14</span></button>
+      </div>
+
+      <!-- Escala del rol en la tienda -->
+      <div class="max-w-3xl">
+            <div class="rounded-lg border border-gray-200 bg-white p-4">
+              <h2 class="text-lg font-bold">Escala de comisión sobre ventas · <span id="titulo-rol-escala">Coordinador</span></h2>
+              <p class="mb-3 text-sm text-gray-500">Si el cumplimiento de ventas del equipo ≥ X% → pago fijo en $ o % sobre la venta neta del equipo · aplica la tasa más alta alcanzada</p>
+            </div>
+            <div class="mt-3 overflow-hidden rounded-lg border border-gray-200 bg-white">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-left text-[11px] font-semibold tracking-wide text-gray-500 uppercase">
+                  <tr>
+                    <th class="px-4 py-2.5">Cumplimiento ≥</th>
+                    <th class="px-4 py-2.5">Tipo de pago</th>
+                    <th class="px-4 py-2.5 text-right">Valor</th>
+                    <th class="px-4 py-2.5"></th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                  <tr>
+                    <td class="px-4 py-2.5"><span class="cifra">80 %</span></td>
+                    <td class="px-4 py-2.5">
+                      <select class="rounded border border-gray-300 px-2 py-1 text-xs"><option selected>Fijo ($)</option><option>% sobre venta</option></select>
+                    </td>
+                    <td class="px-4 py-2.5 text-right"><input class="cifra w-32 rounded border border-gray-300 px-2 py-1 text-right text-sm" value="$ 400.000" /></td>
+                    <td class="px-4 py-2.5 text-right text-gray-300 hover:text-red-500"><button><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
+                  </tr>
+                  <tr>
+                    <td class="px-4 py-2.5"><span class="cifra">90 %</span></td>
+                    <td class="px-4 py-2.5">
+                      <select class="rounded border border-gray-300 px-2 py-1 text-xs"><option selected>Fijo ($)</option><option>% sobre venta</option></select>
+                    </td>
+                    <td class="px-4 py-2.5 text-right"><input class="cifra w-32 rounded border border-gray-300 px-2 py-1 text-right text-sm" value="$ 600.000" /></td>
+                    <td class="px-4 py-2.5 text-right text-gray-300 hover:text-red-500"><button><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
+                  </tr>
+                  <tr>
+                    <td class="px-4 py-2.5"><span class="cifra">100 %</span></td>
+                    <td class="px-4 py-2.5">
+                      <select class="rounded border border-gray-300 px-2 py-1 text-xs"><option>Fijo ($)</option><option selected>% sobre venta</option></select>
+                    </td>
+                    <td class="px-4 py-2.5 text-right"><input class="cifra w-32 rounded border border-gray-300 px-2 py-1 text-right text-sm" value="1,20 %" /></td>
+                    <td class="px-4 py-2.5 text-right text-gray-300 hover:text-red-500"><button><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="border-t border-gray-200 bg-gray-50 px-4 py-2">
+                <div class="flex flex-wrap items-center gap-2 text-sm">
+                  <input placeholder="Cumplimiento ≥ %" class="w-28 rounded border border-gray-300 px-2 py-1 text-xs" />
+                  <select class="rounded border border-gray-300 px-2 py-1 text-xs"><option>Fijo ($)</option><option>% sobre venta</option></select>
+                  <input placeholder="Valor" class="w-24 rounded border border-gray-300 px-2 py-1 text-xs" />
+                  <button class="rounded-md bg-gray-900 px-3 py-1 text-xs font-medium text-white">＋ Nueva fila</button>
+                </div>
+              </div>
+            </div>
+            <div class="mt-2 flex items-start gap-2 rounded-lg bg-blue-50 px-3 py-2 text-[11px] leading-relaxed text-blue-800">
+              <span>ℹ</span>
+              <p>VPT y TCV solo pagan si la comisión de ventas pagó (regla del módulo). El % se aplica sobre la venta neta del equipo en esta tienda; el valor fijo se paga completo al alcanzar el cumplimiento. Los cambios rigen desde hoy; los períodos cerrados no se recalculan.</p>
+            </div>
+          </div>
+      </div><!-- /vista-rol-coordinador -->
+      </template><!-- Variante anterior conservada solo como referencia histórica; NO implementar -->
+
+      <!-- CONTRATO CANÓNICO · DISPOSICIÓN VERTICAL COMPACTA + D19 -->
+      <div id="config-vista-contractual" class="space-y-3">
+        <div class="flex flex-col gap-4 lg:flex-row">
+          <div class="w-full shrink-0 self-start lg:w-44">
+            <label class="sr-only" for="config-tienda">Tienda</label>
+            <select id="config-tienda" class="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium shadow-sm">
+              <option selected>STIRPE QEC</option>
+              <option>DEREK QEC</option>
+            </select>
+            <nav class="mt-4" aria-label="Métricas de comisión">
+              <p class="mb-1.5 px-3 text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Métricas</p>
+              <div class="space-y-1">
+                <button type="button" data-metrica="ventas" class="btn-metrica w-full rounded-lg px-3 py-2 text-left text-sm font-medium">Ventas <span id="conteo-ventas" class="float-right text-xs">3</span></button>
+                <button type="button" data-metrica="vpt" class="btn-metrica w-full rounded-lg px-3 py-2 text-left text-sm font-medium">VPT <span id="conteo-vpt" class="float-right text-xs">1</span></button>
+                <button type="button" data-metrica="tcv" class="btn-metrica w-full rounded-lg px-3 py-2 text-left text-sm font-medium">TCV <span id="conteo-tcv" class="float-right text-xs">1</span></button>
+                <button type="button" data-metrica="bono" class="btn-metrica w-full rounded-lg px-3 py-2 text-left text-sm font-medium">Bono diario <span id="conteo-bono" class="float-right text-[10px]">configurado</span></button>
+              </div>
+            </nav>
+          </div>
+
+          <div class="min-w-0 flex-1 space-y-3">
+            <div class="flex min-h-10 flex-wrap items-center gap-3">
+              <div class="flex w-fit flex-wrap items-center gap-1 rounded-lg bg-gray-100 p-1 text-sm" role="tablist" aria-label="Rol de venta">
+                <button type="button" role="tab" data-rol-contractual="asesor" class="btn-rol-contractual rounded-md px-4 py-1.5 font-medium">Asesor</button>
+                <button type="button" role="tab" data-rol-contractual="coordinador" class="btn-rol-contractual rounded-md px-4 py-1.5 font-medium">Coordinador</button>
+                <button type="button" role="tab" data-rol-contractual="supervisor" class="btn-rol-contractual rounded-md px-4 py-1.5 font-medium">Supervisor</button>
+                <button type="button" role="tab" data-rol-contractual="director" class="btn-rol-contractual rounded-md px-4 py-1.5 font-medium">Director</button>
+              </div>
+              <button type="button" class="btn-abrir-historial ml-auto inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+                Historial de cambios <span class="rounded bg-blue-100 px-1.5 text-xs font-medium text-blue-600">14</span>
+              </button>
+            </div>
+
+            <section id="panel-escala" class="overflow-hidden rounded-lg border border-gray-200 bg-white" aria-live="polite">
+              <div class="flex flex-wrap items-start justify-between gap-3 border-b border-gray-200 px-4 py-3">
+                <div>
+                  <h2 id="titulo-escala-contractual" class="text-sm font-bold">Comisión sobre ventas · Coordinador · STIRPE QEC</h2>
+                  <p id="alcance-escala" class="text-xs text-gray-500">Aplica a todos los coordinadores con equipo activo en STIRPE QEC.</p>
+                </div>
+                <button id="btn-nueva-fila" type="button" class="shrink-0 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white">＋ Nueva fila</button>
+              </div>
+
+              <div class="flex flex-wrap items-start justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3">
+                <div>
+                  <p class="text-xs font-semibold text-gray-700">Tipo de comisión de esta escala</p>
+                  <p class="text-[11px] text-gray-500">Se elige antes de crear la primera fila y aplica a toda la escala.</p>
+                </div>
+                <div class="text-right">
+                  <div class="inline-flex rounded-lg bg-gray-200 p-1" role="group" aria-label="Tipo de comisión de toda la escala" aria-describedby="ayuda-tipo-escala">
+                    <button id="tipo-porcentaje" type="button" data-tipo="porcentaje" class="btn-tipo rounded-md px-3 py-1.5 text-xs font-medium">Porcentaje</button>
+                    <button id="tipo-fijo" type="button" data-tipo="fijo" class="btn-tipo rounded-md px-3 py-1.5 text-xs font-medium">Valor fijo</button>
+                  </div>
+                  <p id="ayuda-tipo-escala" class="mt-1.5 flex items-center justify-end gap-1 text-[11px] text-gray-500"></p>
+                </div>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full min-w-[560px] text-sm">
+                  <thead class="bg-gray-50 text-left text-[11px] font-semibold tracking-wide text-gray-500 uppercase">
+                    <tr>
+                      <th class="px-4 py-2">Cumplimiento ≥</th>
+                      <th id="encabezado-valor" class="px-4 py-2 text-right">Valor fijo</th>
+                      <th class="w-32 px-4 py-2 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="filas-escala" class="divide-y divide-gray-100"></tbody>
+                </table>
+              </div>
+              <div class="border-t border-gray-100 px-4 py-2 text-[11px] text-gray-500">
+                Se aplica la fila con el mayor umbral alcanzado; las filas no se acumulan. VPT y TCV solo pagan si la comisión de ventas pagó.
+              </div>
+            </section>
+
+            <section id="panel-bono" class="hidden rounded-lg border border-gray-200 bg-white p-5" aria-live="polite">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h2 id="titulo-bono" class="text-lg font-bold">Bono diario por meta cumplida · Coordinador</h2>
+                <span id="badge-bono" class="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">NUEVO GW-116 · DATOS DEL EQUIPO</span>
+              </div>
+              <p class="mt-4 mb-1 text-[11px] font-semibold tracking-wide text-gray-500 uppercase">Monto por día cumplido</p>
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-gray-500">$</span>
+                <input id="monto-bono" class="cifra w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm" value="50000" />
+                <button type="button" class="rounded-lg bg-gray-900 px-5 py-2 text-sm font-medium text-white">Guardar</button>
+              </div>
+              <hr class="my-5 border-gray-100" />
+              <h3 class="text-base font-bold">Condiciones para ganar el bono</h3>
+              <p id="descripcion-bono" class="mb-3 text-sm text-gray-500">El equipo gana el bono del día cuando cumple todas las condiciones activas.</p>
+              <div class="space-y-2">
+                <div class="flex flex-wrap items-center gap-4 rounded-lg border border-gray-200 bg-white px-4 py-3">
+                  <button type="button" role="switch" aria-checked="true" data-condicion="venta" class="btn-switch relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-blue-500" aria-label="Activar condición Venta del día"><span class="absolute right-0.5 h-5 w-5 rounded-full bg-white shadow"></span></button>
+                  <span class="w-28 text-sm font-medium">Venta del día</span><span class="text-sm text-gray-400">≥</span>
+                  <input class="input-condicion cifra w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm" value="100" />
+                  <span class="text-sm text-gray-500">% de la meta del día</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-gray-400">
+                  <button type="button" role="switch" aria-checked="false" data-condicion="upt" class="btn-switch relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-gray-200" aria-label="Activar condición UPT del día"><span class="absolute left-0.5 h-5 w-5 rounded-full bg-white shadow"></span></button>
+                  <span class="w-28 text-sm font-medium">UPT del día</span><span>≥</span>
+                  <input disabled class="input-condicion cifra w-20 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm" value="100" />
+                  <span>% de la meta</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-gray-400">
+                  <button type="button" role="switch" aria-checked="false" data-condicion="vpt" class="btn-switch relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-gray-200" aria-label="Activar condición VPT del día"><span class="absolute left-0.5 h-5 w-5 rounded-full bg-white shadow"></span></button>
+                  <span class="w-28 text-sm font-medium">VPT del día</span><span>≥</span>
+                  <input disabled class="input-condicion cifra w-20 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm" value="100" />
+                  <span>% de la meta</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-4 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-gray-400">
+                  <button type="button" role="switch" aria-checked="false" data-condicion="tcv" class="btn-switch relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-gray-200" aria-label="Activar condición TCV del día"><span class="absolute left-0.5 h-5 w-5 rounded-full bg-white shadow"></span></button>
+                  <span class="w-28 text-sm font-medium">TCV del día</span><span>≥</span>
+                  <input disabled class="input-condicion cifra w-20 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm" value="100" />
+                  <span>% de la meta</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div><!-- /config-vista-contractual -->
+
+      <!-- MODAL HISTORIAL DE CAMBIOS (se abre con el CTA "Historial de cambios") -->
+      <div id="modal-historial" class="fixed inset-0 z-40 hidden items-start justify-center overflow-y-auto bg-black/40 p-4 pt-16" role="dialog" aria-modal="true" aria-labelledby="titulo-historial">
+        <div class="w-full max-w-2xl rounded-xl border border-gray-300 bg-white shadow-2xl">
+          <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3">
+            <div>
+              <h2 id="titulo-historial" class="text-sm font-bold">Historial de cambios · STIRPE QEC</h2>
+              <p class="text-xs text-gray-500">Escalas, bono diario y condiciones de todos los roles</p>
+            </div>
+            <button type="button" class="btn-cerrar-historial rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600" aria-label="Cerrar historial">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m18 6-12 12"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+          <!-- Filtro de fechas · por defecto: últimos 30 días -->
+          <div class="flex flex-wrap items-center gap-2 border-b border-gray-100 bg-gray-50/60 px-5 py-2.5">
+            <label class="text-[11px] font-semibold tracking-wide text-gray-500 uppercase">Desde</label>
+            <input type="date" value="2026-07-15" class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs" />
+            <label class="text-[11px] font-semibold tracking-wide text-gray-500 uppercase">Hasta</label>
+            <input type="date" value="2026-08-14" class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs" />
+            <button class="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white">Filtrar</button>
+            <span class="ml-auto text-[11px] text-gray-400">Por defecto: últimos 30 días</span>
+          </div>
+          <table class="w-full text-sm">
+            <tbody class="divide-y divide-gray-100 text-xs text-gray-600">
+              <tr><td class="w-36 px-5 py-2.5 text-gray-400">05 ago 2026 · 10:41</td><td class="w-32 px-3 py-2.5">Marcela Gómez</td><td class="px-3 py-2.5">Escala Coordinador · ventas ≥90%: $500.000 → $600.000</td></tr>
+              <tr><td class="px-5 py-2.5 text-gray-400">03 ago 2026 · 16:20</td><td class="px-3 py-2.5">Marcela Gómez</td><td class="px-3 py-2.5">Bono diario Asesor · monto: $18.000 → $20.000</td></tr>
+              <tr><td class="px-5 py-2.5 text-gray-400">02 ago 2026 · 11:05</td><td class="px-3 py-2.5">Marcela Gómez</td><td class="px-3 py-2.5">Condición del bono Asesor · venta del día: ≥100% → ≥10% de la meta</td></tr>
+              <tr><td class="px-5 py-2.5 text-gray-400">01 ago 2026 · 09:12</td><td class="px-3 py-2.5">Marcela Gómez</td><td class="px-3 py-2.5">Escala Director · ventas: creada con 2 filas (≥80% $500.000 · ≥100% $1.200.000)</td></tr>
+              <tr><td class="px-5 py-2.5 text-gray-400">01 ago 2026 · 08:58</td><td class="px-3 py-2.5">Marcela Gómez</td><td class="px-3 py-2.5">Escala Coordinador · ventas: creada con 3 filas</td></tr>
+              <tr><td class="px-5 py-2.5 text-gray-400">28 jul 2026 · 15:44</td><td class="px-3 py-2.5">Marcela Gómez</td><td class="px-3 py-2.5">Escala Asesor · ventas ≥95%: 0,92% → 0,95%</td></tr>
+            </tbody>
+          </table>
+          <div class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-5 py-2.5">
+            <span class="text-xs text-gray-500">Mostrando <b>1–10</b> de <b>47</b> cambios del período</span>
+            <div class="flex items-center gap-1">
+              <button class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs text-gray-400">‹ Anterior</button>
+              <button class="rounded-md bg-gray-900 px-2.5 py-1 text-xs font-medium text-white">1</button>
+              <button class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs text-gray-600">2</button>
+              <button class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs text-gray-600">3</button>
+              <span class="px-1 text-xs text-gray-400">…</span>
+              <button class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs text-gray-600">5</button>
+              <button class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs text-gray-600">Siguiente ›</button>
+            </div>
+          </div>
+          <div class="border-t border-gray-100 px-5 py-2 text-[11px] text-gray-400">
+            Los cambios rigen desde su fecha; los períodos cerrados no se recalculan.
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     PANTALLA 2 · LIQUIDACIÓN — BLOQUE DE ROLES
+     ══════════════════════════════════════════════════════════════════════ -->
+<section id="pantalla-liquidacion" class="pantalla">
+
+  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-5 py-4">
+    <div>
+      <h1 class="text-xl font-bold">Liquidación de comisiones</h1>
+      <p class="text-sm text-gray-500">STIRPE · Quincena 1 · 01 — 15 ago 2026</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <span id="badge-cerrada" class="hidden rounded-full bg-gray-800 px-3 py-1 text-xs font-medium text-white"><span class="inline-flex items-center gap-1.5"><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Quincena cerrada · foto congelada</span></span>
+      <button class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700">⬇ Exportar Excel</button>
+    </div>
+  </div>
+
+  <main class="space-y-4 px-5 py-4">
+
+    <!-- FRONTERA GW-118/GW-119: esta pantalla NO se implementa en GW-116 -->
+    <div class="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+      <span class="text-base leading-none">⚠</span>
+      <div>
+        <p class="font-semibold">Referencia de diseño para GW-119 — no se implementa en este REQ.</p>
+        <p class="mt-0.5 text-amber-800">GW-116 entrega solo Configuración (tabs de rol) y Equipos de venta. La liquidación de roles es el REQ GW-119, que se hará sobre master con GW-118 y GW-116 desplegados. Además, la tabla de asesores mostrada aquí quedó desactualizada: GW-118 le agregó las columnas Devoluciones y Por facturar y la tarjeta de pendientes — se actualizará al iniciar GW-119.</p>
+      </div>
+    </div>
+
+    <!-- ESTADO: CARGANDO -->
+    <div class="estado-vista" data-para="cargando">
+      <div class="space-y-3">
+        <div class="skeleton h-32 rounded-lg bg-gray-200"></div>
+        <div class="skeleton h-40 rounded-lg bg-gray-200"></div>
+      </div>
+    </div>
+
+    <!-- ESTADO: FALLA -->
+    <div class="estado-vista" data-para="falla">
+      <div class="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <span class="text-base leading-none">⚠</span>
+        <div>
+          <p class="font-semibold">No fue posible calcular la liquidación de roles.</p>
+          <p class="mt-0.5 text-red-700">La tabla de asesores no se afecta. Intenta de nuevo.</p>
+          <button class="mt-2 rounded-md border border-red-300 bg-white px-3 py-1 text-xs font-medium text-red-700">Reintentar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ESTADO: NORMAL / CERRADA -->
+    <div class="estado-vista activa space-y-4" data-para="normal cerrada">
+
+      <!-- TABLA DE ASESORES (EXISTENTE — resumida, sin cambios en este REQ) -->
+      <div class="overflow-hidden rounded-lg border border-gray-200 bg-white opacity-75">
+        <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+          <span class="text-sm font-bold">Asesores</span>
+          <span class="rounded bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">EXISTENTE · SIN CAMBIOS — se muestra recortada</span>
+        </div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 text-left text-[11px] font-semibold tracking-wide text-gray-500 uppercase">
+            <tr><th class="px-4 py-2">Asesor</th><th class="px-4 py-2 text-right">Meta</th><th class="px-4 py-2 text-right">Venta neta</th><th class="px-4 py-2 text-right">% Cumpl.</th><th class="px-4 py-2 text-right">% Total</th><th class="px-4 py-2 text-right">Comisión</th><th class="px-4 py-2 text-right">Bono</th><th class="px-4 py-2 text-right">Total a pagar</th></tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr><td class="px-4 py-2">Laura Restrepo</td><td class="cifra px-4 py-2 text-right">$ 10.400.000</td><td class="cifra px-4 py-2 text-right">$ 11.230.500</td><td class="cifra px-4 py-2 text-right text-emerald-600">108,0 %</td><td class="cifra px-4 py-2 text-right">1,60 %</td><td class="cifra px-4 py-2 text-right">$ 179.688</td><td class="cifra px-4 py-2 text-right">$ 60.000</td><td class="cifra px-4 py-2 text-right font-semibold">$ 239.688</td></tr>
+            <tr><td class="px-4 py-2">Mateo Quintero</td><td class="cifra px-4 py-2 text-right">$ 10.400.000</td><td class="cifra px-4 py-2 text-right">$ 8.912.300</td><td class="cifra px-4 py-2 text-right text-amber-600">85,7 %</td><td class="cifra px-4 py-2 text-right">1,30 %</td><td class="cifra px-4 py-2 text-right">$ 115.860</td><td class="cifra px-4 py-2 text-right">$ 20.000</td><td class="cifra px-4 py-2 text-right font-semibold">$ 135.860</td></tr>
+            <tr><td colspan="8" class="px-4 py-2 text-center text-xs text-gray-400">… 12 asesores más …</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- BLOQUE NUEVO: ROLES DE VENTA -->
+      <div class="overflow-hidden rounded-lg border-2 border-emerald-300 bg-white">
+        <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-bold">Roles de venta</span>
+            <span class="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">GW-119 · REFERENCIA</span>
+          </div>
+          <span class="text-xs text-gray-500">Cumplimiento del equipo en STIRPE · escala del rol en esta tienda</span>
+        </div>
+        <div class="overflow-x-auto">
+        <table class="w-full min-w-[1050px] text-sm">
+          <thead class="bg-gray-50 text-left text-[11px] font-semibold tracking-wide text-gray-500 uppercase">
+            <tr>
+              <th class="px-4 py-2">Titular</th>
+              <th class="px-4 py-2">Equipo</th>
+              <th class="px-4 py-2 text-right">Meta equipo</th>
+              <th class="px-4 py-2 text-right">Venta equipo</th>
+              <th class="px-4 py-2 text-right">% Cumpl.</th>
+              <th class="px-4 py-2 text-right">Ventas</th>
+              <th class="px-4 py-2 text-right">VPT</th>
+              <th class="px-4 py-2 text-right">TCV</th>
+              <th class="px-4 py-2 text-right">Bono</th>
+              <th class="px-4 py-2 text-right">Total a pagar</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <!-- Coordinadora: gana venta + VPT + TCV -->
+            <tr>
+              <td class="px-4 py-3">
+                <p class="font-medium">Carolina Méndez</p>
+                <span class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">Coordinadora</span>
+              </td>
+              <td class="px-4 py-3 text-xs text-gray-500">8 vendedores</td>
+              <td class="cifra px-4 py-3 text-right">$ 82.400.000</td>
+              <td class="cifra px-4 py-3 text-right">$ 74.100.000</td>
+              <td class="cifra px-4 py-3 text-right font-medium text-emerald-600">89,9 %</td>
+              <td class="px-4 py-3 text-right">
+                <span class="cifra font-medium">$ 400.000</span>
+                <p class="text-[10px] text-gray-400">fijo · ≥80%</p>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <span class="cifra font-medium">$ 150.000</span>
+                <p class="text-[10px] text-gray-400">fijo · VPT 103,6%</p>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <span class="cifra font-medium">$ 37.050</span>
+                <p class="text-[10px] text-gray-400">0,05% venta · TCV 107,5%</p>
+              </td>
+              <td class="px-4 py-3 text-right"><span class="cifra font-medium">$ 40.000</span><p class="text-[10px] text-gray-400">2 días</p></td>
+              <td class="cifra px-4 py-3 text-right text-base font-bold">$ 627.050</td>
+            </tr>
+            <!-- Supervisora: bajo el piso → gate -->
+            <tr class="bg-gray-50/60">
+              <td class="px-4 py-3">
+                <p class="font-medium">Paola Cifuentes</p>
+                <span class="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-medium text-violet-700">Supervisora</span>
+              </td>
+              <td class="px-4 py-3 text-xs text-gray-500">14 vendedores</td>
+              <td class="cifra px-4 py-3 text-right">$ 118.000.000</td>
+              <td class="cifra px-4 py-3 text-right">$ 91.000.000</td>
+              <td class="cifra px-4 py-3 text-right font-medium text-red-600">77,1 %</td>
+              <td class="px-4 py-3 text-right"><span class="cifra text-gray-400">$ 0</span><p class="text-[10px] text-gray-400">bajo el mínimo (80%)</p></td>
+              <td class="px-4 py-3 text-right">
+                <div class="tip justify-end">
+                  <span class="cifra text-gray-400">$ 0</span>
+                  <span class="tip-box">El VPT del equipo cumplió (104,2%), pero VPT y TCV solo pagan cuando el componente de ventas paga. Como la venta quedó en 77,1% (bajo el 80%), no se liquida ningún componente.</span>
+                </div>
+                <p class="text-[10px] text-gray-400">VPT 104,2% · sin comisión de venta</p>
+              </td>
+              <td class="px-4 py-3 text-right"><span class="cifra text-gray-400">$ 0</span></td>
+              <td class="px-4 py-3 text-right">
+                <div class="tip justify-end"><span class="cifra font-medium">$ 20.000</span>
+                  <span class="tip-box">El bono diario es independiente de la comisión: se gana día a día cumpliendo las condiciones del rol. El 8 de agosto el equipo cumplió la meta del día y las condiciones activas.</span>
+                </div>
+                <p class="text-[10px] text-gray-400">1 día</p>
+              </td>
+              <td class="cifra px-4 py-3 text-right text-base font-bold">$ 20.000</td>
+            </tr>
+            <!-- Director: partición STIRPE -->
+            <tr>
+              <td class="px-4 py-3">
+                <p class="font-medium">Ricardo Salazar</p>
+                <div class="flex items-center gap-1.5">
+                  <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">Director</span>
+                  <span class="tip">
+                    <span class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">también en DEREK ↗</span>
+                    <span class="tip-box">Este titular tiene vendedores en las dos tiendas. Aquí se liquida solo su equipo de STIRPE; su equipo de DEREK se liquida por separado en la vista de DEREK, con su propia escala. Su pago total es la suma de ambas.</span>
+                  </span>
+                </div>
+              </td>
+              <td class="px-4 py-3 text-xs text-gray-500">14 vendedores <span class="text-gray-400">(de 25)</span></td>
+              <td class="cifra px-4 py-3 text-right">$ 118.000.000</td>
+              <td class="cifra px-4 py-3 text-right">$ 109.300.000</td>
+              <td class="cifra px-4 py-3 text-right font-medium text-emerald-600">92,6 %</td>
+              <td class="px-4 py-3 text-right"><span class="cifra font-medium">$ 500.000</span><p class="text-[10px] text-gray-400">fijo · ≥80%</p></td>
+              <td class="px-4 py-3 text-right"><span class="cifra text-gray-400">—</span><p class="text-[10px] text-gray-400">sin configurar</p></td>
+              <td class="px-4 py-3 text-right"><span class="cifra text-gray-400">—</span></td>
+              <td class="px-4 py-3 text-right"><span class="cifra text-gray-400">—</span><p class="text-[10px] text-gray-400">sin bono configurado</p></td>
+              <td class="cifra px-4 py-3 text-right text-base font-bold">$ 500.000</td>
+            </tr>
+          </tbody>
+          <tfoot class="border-t-2 border-gray-200 bg-gray-50 font-semibold">
+            <tr>
+              <td class="px-4 py-3" colspan="9">Total roles de venta · STIRPE</td>
+              <td class="cifra px-4 py-3 text-right text-base font-bold">$ 1.147.050</td>
+            </tr>
+          </tfoot>
+        </table>
+        </div>
+        <div class="border-t border-gray-200 bg-gray-50 px-4 py-2 text-[11px] text-gray-500">
+          Este bloque se incluye en el Excel de pago (hoja "Roles de venta") y se congela junto con la tabla de asesores al cerrar la quincena.
+        </div>
+      </div>
+    </div>
+  </main>
+</section>
+
+  </div><!-- /flex-1 -->
+</div><!-- /chrome -->
+
+<script>
+  const pantallas = document.querySelectorAll('.pantalla');
+  const btnsPantalla = document.querySelectorAll('.btn-pantalla');
+  const btnsEstado = document.querySelectorAll('.btn-estado');
+  const btnsEscala = document.querySelectorAll('.btn-escala');
+  const miga = document.getElementById('miga-actual');
+  const navPorPantalla = {
+    equipos: document.getElementById('nav-equipos'),
+    config: document.getElementById('nav-config'),
+    liquidacion: document.getElementById('nav-liquidacion'),
+  };
+  const migaPorPantalla = { equipos: 'Equipos de venta', config: 'Configuración', liquidacion: 'Liquidación' };
+  let pantallaActual = 'config';
+  let estadoActual = 'normal';
+
+  function pintar() {
+    pantallas.forEach(p => p.classList.toggle('activa', p.id === 'pantalla-' + pantallaActual));
+    btnsPantalla.forEach(b => {
+      const activo = b.dataset.pantalla === pantallaActual;
+      b.className = 'btn-pantalla rounded-md px-2.5 py-1 text-xs font-medium ' + (activo ? 'bg-emerald-500 text-gray-900' : 'text-gray-400 hover:text-gray-200');
+    });
+    btnsEstado.forEach(b => {
+      const activo = b.dataset.estado === estadoActual;
+      b.className = 'btn-estado rounded-md px-2.5 py-1 text-xs font-medium ' + (activo ? 'bg-gray-200 text-gray-900' : 'text-gray-400 hover:text-gray-200');
+    });
+    document.querySelectorAll('#pantalla-' + pantallaActual + ' .estado-vista').forEach(v => {
+      v.classList.toggle('activa', v.dataset.para.split(' ').includes(estadoActual));
+    });
+    miga.textContent = migaPorPantalla[pantallaActual];
+    Object.entries(navPorPantalla).forEach(([clave, nav]) => {
+      nav.className = 'mb-0.5 flex items-center gap-2 rounded-lg px-2.5 py-2 ' + (pantallaActual === clave ? 'bg-gray-900 font-medium text-white' : 'text-gray-600');
+    });
+    document.getElementById('badge-cerrada').classList.toggle('hidden', estadoActual !== 'cerrada');
+  }
+
+  btnsPantalla.forEach(b => b.addEventListener('click', () => { pantallaActual = b.dataset.pantalla; pintar(); }));
+  btnsEstado.forEach(b => b.addEventListener('click', () => { estadoActual = b.dataset.estado; pintar(); }));
+  pintar();
+
+  // Contrato D19: una sola modalidad por escala (Tienda × Rol × Métrica).
+  const nombresRol = {
+    asesor: 'Asesor',
+    coordinador: 'Coordinador',
+    supervisor: 'Supervisor',
+    director: 'Director',
+  };
+  const pluralesRol = {
+    asesor: 'los asesores',
+    coordinador: 'los coordinadores con equipo activo',
+    supervisor: 'los supervisores con equipo activo',
+    director: 'los directores con equipo activo',
+  };
+  const nombresMetrica = { ventas: 'ventas', vpt: 'VPT', tcv: 'TCV' };
+  const configuraciones = {
+    asesor: {
+      ventas: { tipo: 'porcentaje', total: 21, filas: [['80', '0,67'], ['90', '0,82'], ['100', '1,00']] },
+      vpt: { tipo: 'porcentaje', total: 21, filas: [['80', '0,10'], ['90', '0,15'], ['100', '0,20']] },
+      tcv: { tipo: 'porcentaje', total: 1, filas: [['100', '0,10']] },
+    },
+    coordinador: {
+      ventas: { tipo: 'fijo', total: 3, filas: [['80', '400.000'], ['90', '600.000'], ['100', '800.000']] },
+      vpt: { tipo: 'fijo', total: 1, filas: [['100', '200.000']] },
+      tcv: { tipo: 'porcentaje', total: 1, filas: [['100', '0,05']] },
+    },
+    supervisor: {
+      ventas: { tipo: 'fijo', total: 2, filas: [['80', '500.000'], ['100', '900.000']] },
+      vpt: { tipo: 'fijo', total: 1, filas: [['100', '250.000']] },
+      tcv: { tipo: 'fijo', total: 1, filas: [['100', '250.000']] },
+    },
+    director: {
+      ventas: { tipo: 'fijo', total: 2, filas: [['80', '700.000'], ['100', '1.200.000']] },
+      vpt: { tipo: 'fijo', total: 1, filas: [['100', '300.000']] },
+      tcv: { tipo: 'fijo', total: 1, filas: [['100', '300.000']] },
+    },
+  };
+
+  const panelEscala = document.getElementById('panel-escala');
+  const panelBono = document.getElementById('panel-bono');
+  const filasEscala = document.getElementById('filas-escala');
+  const tituloEscala = document.getElementById('titulo-escala-contractual');
+  const alcanceEscala = document.getElementById('alcance-escala');
+  const encabezadoValor = document.getElementById('encabezado-valor');
+  const ayudaTipo = document.getElementById('ayuda-tipo-escala');
+  const tiendaConfig = document.getElementById('config-tienda');
+  const btnNuevaFila = document.getElementById('btn-nueva-fila');
+  let rolActual = 'coordinador';
+  let metricaActual = 'ventas';
+  let estadoEscala = 'configurada';
+  let tipoSeleccionado = 'fijo';
+  let editandoFila = false;
+  let filasDemo = [];
+
+  function reiniciarFilas() {
+    const configuracion = configuraciones[rolActual][metricaActual];
+    tipoSeleccionado = configuracion.tipo;
+    filasDemo = estadoEscala === 'configurada'
+      ? configuracion.filas.map(fila => [...fila])
+      : [];
+    editandoFila = false;
+  }
+
+  function pintarBotonesEscala() {
+    btnsEscala.forEach(boton => {
+      const activo = boton.dataset.escala === estadoEscala;
+      const disponible = metricaActual !== 'bono';
+      boton.disabled = !disponible;
+      boton.className = 'btn-escala rounded-md px-2.5 py-1 text-xs font-medium ' +
+        (activo ? 'bg-amber-300 text-gray-900' : 'text-gray-400 hover:text-gray-200') +
+        (disponible ? '' : ' opacity-40');
+    });
+  }
+
+  function pintarContexto() {
+    document.querySelectorAll('.btn-rol-contractual').forEach(boton => {
+      const activo = boton.dataset.rolContractual === rolActual;
+      boton.className = 'btn-rol-contractual rounded-md px-4 py-1.5 font-medium ' +
+        (activo ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500');
+      boton.setAttribute('aria-selected', String(activo));
+    });
+    document.querySelectorAll('.btn-metrica').forEach(boton => {
+      const activo = boton.dataset.metrica === metricaActual;
+      boton.className = 'btn-metrica w-full rounded-lg px-3 py-2 text-left text-sm font-medium ' +
+        (activo ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100');
+      boton.setAttribute('aria-current', activo ? 'true' : 'false');
+    });
+    ['ventas', 'vpt', 'tcv'].forEach(metrica => {
+      const total = configuraciones[rolActual][metrica].total;
+      document.getElementById('conteo-' + metrica).textContent =
+        estadoEscala === 'vacia' && metrica === metricaActual ? 'sin configurar' : total;
+    });
+    document.getElementById('conteo-bono').textContent = 'configurado';
+  }
+
+  function iconoAcciones(indice) {
+    return '<button type="button" class="mr-2 text-gray-400 hover:text-gray-600" aria-label="Editar fila ' + (indice + 1) + '">' +
+      '<svg class="inline h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>' +
+      '<button type="button" data-eliminar-fila="' + indice + '" class="text-red-400 hover:text-red-600" aria-label="Eliminar fila ' + (indice + 1) + '">' +
+      '<svg class="inline h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>';
+  }
+
+  function pintarTipo() {
+    const bloqueado = filasDemo.length > 0 || editandoFila;
+    document.querySelectorAll('.btn-tipo').forEach(boton => {
+      const activo = boton.dataset.tipo === tipoSeleccionado;
+      boton.disabled = bloqueado;
+      boton.setAttribute('aria-pressed', String(activo));
+      boton.className = 'btn-tipo rounded-md px-3 py-1.5 text-xs font-medium ' +
+        (activo ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500') +
+        (bloqueado ? ' opacity-60' : ' hover:text-gray-900');
+    });
+    ayudaTipo.innerHTML = bloqueado
+      ? '<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Elimina todas las filas para cambiar el tipo de comisión.'
+      : 'Selecciona el tipo antes de crear la primera fila.';
+  }
+
+  function pintarFilas() {
+    const simbolo = tipoSeleccionado === 'fijo' ? '$ ' : '';
+    const unidad = tipoSeleccionado === 'porcentaje' ? ' %' : '';
+    encabezadoValor.textContent = tipoSeleccionado === 'fijo' ? 'Valor fijo' : 'Porcentaje sobre ventas';
+    let contenido = '';
+
+    if (filasDemo.length === 0 && !editandoFila) {
+      contenido = '<tr><td colspan="3" class="px-4 py-10 text-center">' +
+        '<p class="text-sm font-medium text-gray-700">Esta escala todavía no tiene filas</p>' +
+        '<p class="mt-1 text-xs text-gray-500">Selecciona el tipo de comisión y crea la primera fila.</p></td></tr>';
+    } else {
+      contenido = filasDemo.map((fila, indice) =>
+        '<tr><td class="cifra px-4 py-2">' + fila[0] + '%</td>' +
+        '<td class="cifra px-4 py-2 text-right">' + simbolo + fila[1] + unidad + '</td>' +
+        '<td class="px-4 py-2 text-right">' + iconoAcciones(indice) + '</td></tr>'
+      ).join('');
+    }
+
+    if (editandoFila) {
+      contenido += '<tr class="bg-blue-50/60">' +
+        '<td class="px-4 py-2"><input id="nuevo-umbral" class="cifra w-20 rounded border border-gray-300 px-2 py-1 text-sm" value="' + (filasDemo.length ? '110' : '80') + '" aria-label="Cumplimiento de la nueva fila"> <span class="text-xs text-gray-400">%</span></td>' +
+        '<td class="px-4 py-2 text-right"><span class="text-xs text-gray-400">' + simbolo + '</span><input id="nuevo-valor" class="cifra w-28 rounded border border-gray-300 px-2 py-1 text-right text-sm" value="' + (tipoSeleccionado === 'fijo' ? '400000' : '0,50') + '" aria-label="Valor de la nueva fila"><span class="text-xs text-gray-400">' + unidad + '</span></td>' +
+        '<td class="px-4 py-2 text-right"><button id="guardar-fila" type="button" class="rounded-md bg-gray-900 px-3 py-1 text-xs font-medium text-white">Guardar</button> <button id="cancelar-fila" type="button" class="rounded-md border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-600">Cancelar</button></td></tr>';
+    }
+
+    filasEscala.innerHTML = contenido;
+    pintarTipo();
+
+    document.querySelectorAll('[data-eliminar-fila]').forEach(boton => boton.addEventListener('click', () => {
+      filasDemo.splice(Number(boton.dataset.eliminarFila), 1);
+      if (filasDemo.length === 0) estadoEscala = 'vacia';
+      pintarEditor();
+    }));
+    document.getElementById('cancelar-fila')?.addEventListener('click', () => {
+      editandoFila = false;
+      pintarEditor();
+    });
+    document.getElementById('guardar-fila')?.addEventListener('click', () => {
+      const umbral = document.getElementById('nuevo-umbral').value;
+      let valor = document.getElementById('nuevo-valor').value;
+      if (tipoSeleccionado === 'fijo') valor = Number(valor.replace(/\D/g, '') || 0).toLocaleString('es-CO');
+      filasDemo.push([umbral, valor]);
+      estadoEscala = 'configurada';
+      editandoFila = false;
+      pintarEditor();
+    });
+  }
+
+  function pintarBono() {
+    const esAsesor = rolActual === 'asesor';
+    document.getElementById('titulo-bono').textContent = 'Bono diario por meta cumplida · ' + nombresRol[rolActual];
+    document.getElementById('monto-bono').value = esAsesor ? '20000' : '50000';
+    document.getElementById('descripcion-bono').textContent = esAsesor
+      ? 'El asesor gana el bono del día cuando cumple todas las condiciones activas.'
+      : 'El equipo gana el bono del día cuando cumple todas las condiciones activas.';
+    const badge = document.getElementById('badge-bono');
+    badge.textContent = esAsesor ? 'EXISTENTE · SIN CAMBIOS (GW-47/51)' : 'NUEVO GW-116 · DATOS DEL EQUIPO';
+    badge.className = 'rounded px-2 py-0.5 text-[10px] font-medium ' +
+      (esAsesor ? 'bg-gray-100 text-gray-500' : 'bg-emerald-100 text-emerald-700');
+  }
+
+  function pintarEditor() {
+    pintarBotonesEscala();
+    pintarContexto();
+    const esBono = metricaActual === 'bono';
+    panelEscala.classList.toggle('hidden', esBono);
+    panelBono.classList.toggle('hidden', !esBono);
+    if (esBono) {
+      pintarBono();
+      return;
+    }
+    const tienda = tiendaConfig.options[tiendaConfig.selectedIndex].text;
+    tituloEscala.textContent = 'Comisión sobre ' + nombresMetrica[metricaActual] + ' · ' + nombresRol[rolActual] + ' · ' + tienda;
+    alcanceEscala.textContent = 'Aplica a ' + pluralesRol[rolActual] + ' en ' + tienda + '.';
+    pintarFilas();
+  }
+
+  document.querySelectorAll('.btn-rol-contractual').forEach(boton => boton.addEventListener('click', () => {
+    rolActual = boton.dataset.rolContractual;
+    if (metricaActual !== 'bono') reiniciarFilas();
+    pintarEditor();
+  }));
+  document.querySelectorAll('.btn-metrica').forEach(boton => boton.addEventListener('click', () => {
+    metricaActual = boton.dataset.metrica;
+    if (metricaActual !== 'bono') reiniciarFilas();
+    pintarEditor();
+  }));
+  document.querySelectorAll('.btn-tipo').forEach(boton => boton.addEventListener('click', () => {
+    if (!boton.disabled) {
+      tipoSeleccionado = boton.dataset.tipo;
+      pintarEditor();
+    }
+  }));
+  btnsEscala.forEach(boton => boton.addEventListener('click', () => {
+    estadoEscala = boton.dataset.escala;
+    if (metricaActual !== 'bono') reiniciarFilas();
+    pintarEditor();
+  }));
+  btnNuevaFila.addEventListener('click', () => {
+    editandoFila = true;
+    pintarEditor();
+  });
+  tiendaConfig.addEventListener('change', pintarEditor);
+  document.querySelectorAll('.btn-switch').forEach(boton => boton.addEventListener('click', () => {
+    const activo = boton.getAttribute('aria-checked') === 'true';
+    boton.setAttribute('aria-checked', String(!activo));
+    boton.className = 'btn-switch relative inline-flex h-6 w-11 shrink-0 items-center rounded-full ' + (activo ? 'bg-gray-200' : 'bg-blue-500');
+    const perilla = boton.querySelector('span');
+    perilla.className = 'absolute h-5 w-5 rounded-full bg-white shadow ' + (activo ? 'left-0.5' : 'right-0.5');
+    const fila = boton.parentElement;
+    fila.className = 'flex flex-wrap items-center gap-4 rounded-lg border px-4 py-3 ' +
+      (activo ? 'border-gray-100 bg-gray-50 text-gray-400' : 'border-gray-200 bg-white');
+    const input = fila.querySelector('.input-condicion');
+    input.disabled = activo;
+  }));
+  reiniciarFilas();
+  pintarEditor();
+
+  // Modal de historial de cambios
+  const modalHistorial = document.getElementById('modal-historial');
+  document.querySelectorAll('.btn-abrir-historial').forEach(b => b.addEventListener('click', () => { modalHistorial.classList.remove('hidden'); modalHistorial.classList.add('flex'); }));
+  document.querySelectorAll('.btn-cerrar-historial').forEach(b => b.addEventListener('click', () => { modalHistorial.classList.add('hidden'); modalHistorial.classList.remove('flex'); }));
+  modalHistorial.addEventListener('click', e => { if (e.target === modalHistorial) { modalHistorial.classList.add('hidden'); modalHistorial.classList.remove('flex'); } });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !modalHistorial.classList.contains('hidden')) {
+      modalHistorial.classList.add('hidden');
+      modalHistorial.classList.remove('flex');
+    }
+  });
+
+  // Modal de edición de titular
+  const modal = document.getElementById('modal-editar');
+  document.querySelectorAll('.btn-abrir-modal').forEach(b => b.addEventListener('click', () => { modal.classList.remove('hidden'); modal.classList.add('flex'); }));
+  document.querySelectorAll('.btn-cerrar-modal').forEach(b => b.addEventListener('click', () => { modal.classList.add('hidden'); modal.classList.remove('flex'); }));
+  modal.addEventListener('click', e => { if (e.target === modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); } });
+</script>
+</body>
+</html>

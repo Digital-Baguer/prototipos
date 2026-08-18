@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-117 · Mockup — Bloqueo manual de generación (Consulta de Planes QUAC)</title>
+<style>
+  :root { color-scheme: light; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #e5e7eb; color: #111827; padding: 32px 24px 64px; line-height: 1.5;
+  }
+  .page { max-width: 1240px; margin: 0 auto; }
+  .doc-header { margin-bottom: 28px; max-width: 900px; }
+  .doc-header h1 { font-size: 20px; font-weight: 700; }
+  .doc-header p { font-size: 13px; color: #4b5563; margin-top: 6px; }
+  .doc-header .chip { display: inline-block; background: #111827; color: #fff; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 9999px; margin-bottom: 8px; }
+
+  .screen { margin-bottom: 48px; }
+  .screen-tag { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 10px; }
+  .screen-tag .sub { font-weight: 400; color: #6b7280; }
+
+  .ui { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+
+  /* ===== fila de tabla (réplica) ===== */
+  .grid-row { display: grid; grid-template-columns: 44px 90px 150px minmax(230px,1.5fr) minmax(150px,1fr) 130px 110px 110px 80px 100px 56px; align-items: center; }
+  .thead { background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+  .thead span { font-size: 11px; font-weight: 600; letter-spacing: .05em; color: #6b7280; text-transform: uppercase; padding: 12px 8px; }
+  .trow { border-bottom: 1px solid #e5e7eb; }
+  .trow > div { padding: 16px 8px; font-size: 13px; }
+  .chev { color: #6b7280; text-align: center; font-size: 12px; }
+  .plan-id { font-weight: 700; font-size: 14px; }
+  .cell-cliente .nombre { font-weight: 500; font-size: 13px; }
+  .badge-empleado { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; border: 1px solid #bfdbfe; background: #eff6ff; color: #2563eb; font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 6px; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+  .pill { display: inline-block; font-size: 12px; font-weight: 500; padding: 2px 10px; border-radius: 9999px; }
+  .pill-plazo { background: #fef9c3; color: #854d0e; }
+  .pill-error { background: #fee2e2; color: #b91c1c; }
+  .pill-bloq { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+  .cuotas b { color: #15803d; }
+  .pdf-x { display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; border: 1px solid #e5e7eb; border-radius: 6px; color: #9ca3af; background: #f9fafb; font-size: 13px; }
+
+  /* ===== detalle expandido ===== */
+  .expand { background: rgba(249,250,251,.6); padding: 20px 24px 24px; }
+
+  .alert { border-radius: 8px; border: 1px solid; padding: 12px 16px; margin-bottom: 20px; display: flex; gap: 12px; align-items: flex-start; }
+  .alert .ic { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; }
+  .alert .t { font-weight: 600; font-size: 14px; }
+  .alert .d { font-size: 12.5px; margin-top: 3px; }
+  .alert .meta { margin-top: 8px; display: flex; gap: 20px; font-size: 11.5px; color: #6b7280; }
+  .alert .meta strong { color: #374151; }
+  .alert-error { background: #fef2f2; border-color: #fecaca; } .alert-error .t { color: #991b1b; } .alert-error .d { color: #b91c1c; } .alert-error .ic { color: #ef4444; }
+  .alert-blocked { background: #f3f4f6; border-color: #d1d5db; } .alert-blocked .t { color: #1f2937; } .alert-blocked .d { color: #4b5563; } .alert-blocked .ic { color: #6b7280; }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 20px; }
+  .col h3 { font-size: 12px; font-weight: 700; letter-spacing: .04em; color: #374151; text-transform: uppercase; margin-bottom: 10px; }
+  .col h3 .sub { font-weight: 400; text-transform: none; letter-spacing: 0; color: #9ca3af; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; font-size: 12.5px; }
+  .card-crm { background: rgba(239,246,255,.5); border-color: #bfdbfe; }
+  .kv { display: grid; grid-template-columns: 1fr 1.4fr; row-gap: 8px; }
+  .kv .k { color: #6b7280; }
+  .kv .v { font-weight: 500; color: #111827; }
+  .kv .v.rojo { color: #dc2626; }
+  .kv .v.azul { color: #1d4ed8; }
+  .card hr { border: none; border-top: 1px solid #e5e7eb; margin: 10px 0; }
+  .card-crm hr { border-top-color: #bfdbfe; }
+
+  .nota-empleado { background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #22c55e; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; }
+  .nota-empleado .t { font-weight: 600; font-size: 13.5px; color: #166534; display: flex; align-items: center; gap: 8px; }
+  .nota-empleado .d { font-size: 12.5px; color: #15803d; margin-top: 4px; }
+  .nota-empleado .meta { font-size: 11.5px; color: #4b5563; margin-top: 8px; display: flex; align-items: center; gap: 10px; }
+  .btn-reverif { border: 1px solid #86efac; background: #fff; color: #15803d; font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 6px; }
+
+  .switch-row { border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px; overflow: hidden; background: #fff; position: relative; }
+  .switch-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; }
+  .switch-head .lbl { font-size: 14px; font-weight: 500; color: #374151; }
+  .switch-head .hint { font-size: 12px; color: #9ca3af; margin-left: 8px; }
+  .toggle { position: relative; display: inline-flex; height: 24px; width: 44px; align-items: center; border-radius: 9999px; flex-shrink: 0; }
+  .toggle .knob { display: inline-block; height: 16px; width: 16px; border-radius: 9999px; background: #fff; }
+  .toggle-off { background: #d1d5db; } .toggle-off .knob { transform: translateX(4px); }
+  .toggle-red { background: #dc2626; } .toggle-red .knob { transform: translateX(24px); }
+
+  .switch-panel { border-top: 1px solid #e5e7eb; padding: 16px 20px; }
+  .panel-rojo { background: #fef2f2; } .panel-rojo .warn { color: #991b1b; }
+  .panel-ambar { background: #fffbeb; } .panel-ambar .warn { color: #92400e; }
+  .switch-panel .warn { font-size: 13.5px; margin-bottom: 12px; }
+  .switch-panel label { display: block; font-size: 13.5px; font-weight: 500; color: #374151; margin-bottom: 4px; }
+  .switch-panel label em { color: #ef4444; font-style: normal; }
+  .switch-panel textarea { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 8px 12px; font-size: 13.5px; font-family: inherit; resize: vertical; background: #fff; }
+  .acciones { display: flex; justify-content: flex-end; gap: 14px; margin-top: 12px; align-items: center; }
+  .btn-cancel { font-size: 13.5px; color: #6b7280; background: none; border: none; }
+  .btn-danger { background: #dc2626; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13.5px; font-weight: 500; }
+  .btn-dark { background: #374151; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13.5px; font-weight: 500; }
+
+  .tag-nuevo { position: absolute; top: -9px; right: 12px; background: #2563eb; color: #fff; font-size: 10px; font-weight: 700; letter-spacing: .05em; padding: 1px 8px; border-radius: 9999px; }
+  .anno { font-size: 12.5px; color: #1e40af; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; margin-top: 12px; max-width: 900px; }
+  .anno strong { color: #1d4ed8; }
+  .variant { margin-top: 16px; }
+  .variant-title { font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .04em; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="doc-header">
+    <span class="chip">GW-117 · Mockup contrato de interfaz</span>
+    <h1>Consulta de Planes QUAC — Bloqueo manual de generación</h1>
+    <p>Réplica de la pantalla actual (fila + detalle expandido) mostrando dónde se integra lo nuevo. Los elementos
+    existentes (dashboard, filtros, columnas, nota de empleado PD-1496, control de autorización) no cambian.
+    La excepción de empleados (parte 2 del REQ) no tiene interfaz: ocurre en el proceso de fondo.</p>
+  </div>
+
+  <!-- ============================================================================ -->
+  <!-- PANTALLA 1 -->
+  <!-- ============================================================================ -->
+  <div class="screen">
+    <div class="screen-tag">PANTALLA 1 · Plan en Error — el control nuevo se integra debajo del de autorización <span class="sub">(única adición a la vista actual)</span></div>
+    <div class="ui">
+      <div class="grid-row thead">
+        <span></span><span>Plan</span><span>Fecha</span><span>Cliente</span><span>Tienda</span><span>Factura</span><span>Total</span><span>Estrategia</span><span>Cuotas</span><span>Estado</span><span>PDF</span>
+      </div>
+      <div class="grid-row trow">
+        <div class="chev">▼</div>
+        <div class="plan-id">711768</div>
+        <div>14 de ago de 2026</div>
+        <div class="cell-cliente"><div class="nombre">FRANCISCO JOSE LIZCANO REYES</div><span class="badge-empleado">👤 Empleado</span></div>
+        <div>STIRPE QEC (BGA)</div>
+        <div class="mono">G315-92041</div>
+        <div>$ 704.568</div>
+        <div><span class="pill pill-plazo">Plazo</span></div>
+        <div class="cuotas"><b>9</b>/9</div>
+        <div><span class="pill pill-error">Error</span></div>
+        <div><span class="pdf-x">✕</span></div>
+      </div>
+      <div class="expand">
+
+        <div class="alert alert-error">
+          <svg class="ic" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+          <div>
+            <p class="t">Error en validacion del pagare</p>
+            <p class="d">Inconsistencia de estrategias V2: Plan indica sin interés pero transacción no coincide (esperado: sin_interes + condition=1)</p>
+            <div class="meta"><span>Reintentos: <strong>3 de 3</strong></span><span>Ultimo intento: <strong>14 de ago de 2026</strong></span></div>
+          </div>
+        </div>
+
+        <div class="cols">
+          <div class="col">
+            <h3>Datos de la transaccion <span class="sub">(lo que selecciono el cliente)</span></h3>
+            <div class="card">
+              <div class="kv">
+                <span class="k">Cliente</span><span class="v">FRANCISCO JOSE LIZCANO REYES</span>
+                <span class="k">Documento</span><span class="v">13745898</span>
+                <span class="k">Celular</span><span class="v">3173740696</span>
+              </div>
+              <hr>
+              <div class="kv">
+                <span class="k">Estrategia seleccionada</span><span class="v">aplica_plazo</span>
+                <span class="k">Cuotas seleccionadas</span><span class="v">9</span>
+                <span class="k">Condicion de pago</span><span class="v">R9</span>
+                <span class="k">Fecha 1ra cuota prometida</span><span class="v">17 de octubre, 2026</span>
+              </div>
+              <hr>
+              <div class="kv">
+                <span class="k">PDF generado</span><span class="v rojo">No</span>
+                <span class="k">Cargado a CRM</span><span class="v rojo">No</span>
+              </div>
+            </div>
+          </div>
+          <div class="col">
+            <h3>Plan generado por CRM <span class="sub">(servicio de cartera)</span></h3>
+            <div class="card card-crm">
+              <div class="kv">
+                <span class="k">Almacen</span><span class="v">STIRPE QEC (BGA)</span>
+                <span class="k">Factura</span><span class="v mono">G315-92041</span>
+                <span class="k">Valor capital</span><span class="v">$ 704.568</span>
+              </div>
+              <hr>
+              <div class="kv">
+                <span class="k">Estrategia (5SF)</span><span class="v azul">Si — Sin interes</span>
+                <span class="k">Nro de cuotas</span><span class="v">9</span>
+                <span class="k">Fecha 1ra cuota</span><span class="v">02 Sep 2026</span>
+              </div>
+              <hr>
+              <div class="kv">
+                <span class="k">Tasa financiacion</span><span class="v">2.07828%</span>
+                <span class="k">Valor cuota</span><span class="v">$ 78.285</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="nota-empleado">
+          <p class="t">✅ Autorizable — inconsistencia esperada por beneficio de empleado</p>
+          <p class="d">El cliente es <strong>empleado activo</strong>. Eligio <strong>"aplica_plazo"</strong> y el CRM genero el plan sin interes por el beneficio de empleado. La inconsistencia es legitima: se puede autorizar con seguridad.</p>
+          <div class="meta">Verificado <strong>28 de jul de 2026</strong> · estado <strong>Activo</strong> <button class="btn-reverif">↻ Re-verificar</button></div>
+        </div>
+
+        <div class="switch-row">
+          <div class="switch-head">
+            <div><span class="lbl">Autorizar generacion con datos del CRM</span><span class="hint">(irreversible mientras se procesa)</span></div>
+            <span class="toggle toggle-off"><span class="knob"></span></span>
+          </div>
+        </div>
+
+        <!-- ▼▼▼ NUEVO GW-117 ▼▼▼ -->
+        <div class="switch-row">
+          <span class="tag-nuevo">NUEVO GW-117</span>
+          <div class="switch-head">
+            <div><span class="lbl">Bloquear generacion del plan</span><span class="hint">(el proceso automatico dejara de revisarlo)</span></div>
+            <span class="toggle toggle-off"><span class="knob"></span></span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="anno"><strong>Integración:</strong> una sola fila nueva de switch, con el mismo formato del control de autorización, inmediatamente debajo de él. Aparece en los estados <strong>error</strong>, <strong>pendiente</strong>, <strong>autorizado</strong> e <strong>inconsistencia</strong> (siempre que el plan no esté cargado al CRM). Todo lo demás queda idéntico a la pantalla actual.</div>
+  </div>
+
+  <!-- ============================================================================ -->
+  <!-- PANTALLA 2 -->
+  <!-- ============================================================================ -->
+  <div class="screen">
+    <div class="screen-tag">PANTALLA 2 · Al activar el switch — panel de motivo <span class="sub">(mismo comportamiento del panel de autorización)</span></div>
+    <div class="ui">
+      <div class="expand" style="padding-top:24px">
+        <div style="border:1px dashed #d1d5db; border-radius:8px; padding:10px 16px; font-size:12px; color:#9ca3af; text-align:center; margin-bottom:16px">[ … fila, alerta, columnas y nota de empleado — idénticos a Pantalla 1 … ]</div>
+
+        <div class="switch-row">
+          <div class="switch-head">
+            <div><span class="lbl">Autorizar generacion con datos del CRM</span><span class="hint">(irreversible mientras se procesa)</span></div>
+            <span class="toggle toggle-off"><span class="knob"></span></span>
+          </div>
+        </div>
+
+        <div class="switch-row">
+          <span class="tag-nuevo">NUEVO GW-117</span>
+          <div class="switch-head">
+            <div><span class="lbl">Bloquear generacion del plan</span><span class="hint">(el proceso automatico dejara de revisarlo)</span></div>
+            <span class="toggle toggle-red"><span class="knob"></span></span>
+          </div>
+          <div class="switch-panel panel-rojo">
+            <p class="warn">El plan quedara bloqueado: el proceso automatico no lo volvera a verificar ni generara su pagare. Es reversible desde este mismo detalle.</p>
+            <label>Motivo del bloqueo <em>*</em></label>
+            <textarea rows="2" placeholder="Ej: Compra en proceso de devolucion, no generar pagare hasta confirmar con cartera."></textarea>
+            <div class="acciones">
+              <button class="btn-cancel">Cancelar</button>
+              <button class="btn-danger">Bloquear plan</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="anno"><strong>Comportamiento:</strong> igual al panel del override — motivo obligatorio (10–255 caracteres), "Bloquear plan" ejecuta y la fila pasa al estado Bloqueado sin recargar la página (evento <code>plan-updated</code>).</div>
+  </div>
+
+  <!-- ============================================================================ -->
+  <!-- PANTALLA 3 -->
+  <!-- ============================================================================ -->
+  <div class="screen">
+    <div class="screen-tag">PANTALLA 3 · Plan Bloqueado — un solo bloque de estado (alerta + auditoría fusionadas) <span class="sub">(sin controles de autorizar/token: el bloqueo domina)</span></div>
+    <div class="ui">
+      <div class="grid-row thead">
+        <span></span><span>Plan</span><span>Fecha</span><span>Cliente</span><span>Tienda</span><span>Factura</span><span>Total</span><span>Estrategia</span><span>Cuotas</span><span>Estado</span><span>PDF</span>
+      </div>
+      <div class="grid-row trow">
+        <div class="chev">▼</div>
+        <div class="plan-id">711768</div>
+        <div>14 de ago de 2026</div>
+        <div class="cell-cliente"><div class="nombre">FRANCISCO JOSE LIZCANO REYES</div><span class="badge-empleado">👤 Empleado</span></div>
+        <div>STIRPE QEC (BGA)</div>
+        <div class="mono">G315-92041</div>
+        <div>$ 704.568</div>
+        <div><span class="pill pill-plazo">Plazo</span></div>
+        <div class="cuotas"><b>9</b>/9</div>
+        <div><span class="pill pill-bloq">Bloqueado</span></div>
+        <div><span class="pdf-x">✕</span></div>
+      </div>
+      <div class="expand">
+
+        <!-- Un solo bloque: estado + motivo + quién + cuándo -->
+        <div class="alert alert-blocked">
+          <svg class="ic" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+          <div>
+            <p class="t">Plan bloqueado — no se generara pagare</p>
+            <p class="d"><strong>Motivo:</strong> Compra en proceso de devolucion, no generar pagare hasta confirmar con cartera.</p>
+            <div class="meta"><span>Bloqueado por: <strong>Maria Fernanda Rojas</strong></span><span>Fecha: <strong>17 de ago de 2026, 09:41</strong></span></div>
+          </div>
+        </div>
+
+        <div class="cols">
+          <div class="col">
+            <h3>Datos de la transaccion <span class="sub">(lo que selecciono el cliente)</span></h3>
+            <div class="card">
+              <div class="kv">
+                <span class="k">Cliente</span><span class="v">FRANCISCO JOSE LIZCANO REYES</span>
+                <span class="k">Documento</span><span class="v">13745898</span>
+                <span class="k">Celular</span><span class="v">3173740696</span>
+              </div>
+              <hr>
+              <div class="kv">
+                <span class="k">Estrategia seleccionada</span><span class="v">aplica_plazo</span>
+                <span class="k">Cuotas seleccionadas</span><span class="v">9</span>
+                <span class="k">Condicion de pago</span><span class="v">R9</span>
+                <span class="k">Fecha 1ra cuota prometida</span><span class="v">17 de octubre, 2026</span>
+              </div>
+              <hr>
+              <div class="kv">
+                <span class="k">PDF generado</span><span class="v rojo">No</span>
+                <span class="k">Cargado a CRM</span><span class="v rojo">No</span>
+              </div>
+            </div>
+          </div>
+          <div class="col">
+            <h3>Plan generado por CRM <span class="sub">(servicio de cartera)</span></h3>
+            <div class="card card-crm">
+              <div class="kv">
+                <span class="k">Almacen</span><span class="v">STIRPE QEC (BGA)</span>
+                <span class="k">Factura</span><span class="v mono">G315-92041</span>
+                <span class="k">Valor capital</span><span class="v">$ 704.568</span>
+              </div>
+              <hr>
+              <div class="kv">
+                <span class="k">Estrategia (5SF)</span><span class="v azul">Si — Sin interes</span>
+                <span class="k">Nro de cuotas</span><span class="v">9</span>
+                <span class="k">Fecha 1ra cuota</span><span class="v">02 Sep 2026</span>
+              </div>
+              <hr>
+              <div class="kv">
+                <span class="k">Tasa financiacion</span><span class="v">2.07828%</span>
+                <span class="k">Valor cuota</span><span class="v">$ 78.285</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="switch-row">
+          <span class="tag-nuevo">NUEVO GW-117</span>
+          <div class="switch-head">
+            <div><span class="lbl">Bloquear generacion del plan</span><span class="hint">(desactivar para desbloquear)</span></div>
+            <span class="toggle toggle-red"><span class="knob"></span></span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="anno"><strong>Menos saturación:</strong> la alerta de estado y los datos de auditoría (motivo, quién, cuándo) van en <strong>un solo bloque gris</strong>, con el mismo formato de la alerta de error actual (título + detalle + línea de metadatos). No hay caja separada. Los controles de autorizar/token no se muestran: el único control del estado bloqueado es el switch encendido.</div>
+
+    <!-- variante: panel de desbloqueo abierto -->
+    <div class="variant">
+      <div class="variant-title">Variante · al desactivar el switch — confirmación de desbloqueo</div>
+      <div class="ui"><div class="expand" style="padding:16px 24px">
+        <div class="switch-row" style="margin-bottom:0">
+          <div class="switch-head">
+            <div><span class="lbl">Bloquear generacion del plan</span><span class="hint">(desactivar para desbloquear)</span></div>
+            <span class="toggle toggle-off"><span class="knob"></span></span>
+          </div>
+          <div class="switch-panel panel-ambar">
+            <p class="warn">El plan volvera a su estado anterior y el proceso automatico lo retomara segun sus reintentos disponibles.</p>
+            <div class="acciones">
+              <button class="btn-cancel">Cancelar</button>
+              <button class="btn-dark">Desbloquear plan</button>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- variante: bloqueo automático -->
+    <div class="variant">
+      <div class="variant-title">Variante · bloqueo automático del sistema — solo cambia el contenido del bloque</div>
+      <div class="ui"><div class="expand" style="padding:16px 24px">
+        <div class="alert alert-blocked" style="margin-bottom:0">
+          <svg class="ic" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+          <div>
+            <p class="t">Plan bloqueado — no se generara pagare</p>
+            <p class="d"><strong>Motivo:</strong> Upload fallido despues de 5 reintentos: timeout del servicio CRM.</p>
+            <div class="meta"><span>Bloqueado por: <strong>Sistema (reintentos de carga agotados)</strong></span><span>Fecha: <strong>12 de ago de 2026, 03:15</strong></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="anno" style="margin-top:8px"><strong>Bloqueo automático:</strong> mismo bloque y mismo switch; el responsable muestra "Sistema (reintentos de carga agotados)". En este caso el texto de la confirmación de desbloqueo dice: <em>"Se reiniciaran los reintentos de carga y el proceso automatico volvera a intentar subir el pagare al CRM."</em></div>
+    </div>
+
+  </div>
+
+</div>
+</body>
+</html>
