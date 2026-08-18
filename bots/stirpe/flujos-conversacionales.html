@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}img{max-width:100%}</style>
+<title>Flujos conversacionales — Bot de ventas STIRPE</title>
+
+<style>
+  :root {
+    --paper: #F6F6F3; --card: #FFFFFF;
+    --ink: #14171A; --ink-2: #4A5058; --ink-3: #767D86;
+    --rule: #D8D8D2; --rule-strong: #14171A;
+    --accent: #1B4D8F; --accent-soft: #E8EEF6;
+    --ok: #1F6F4A; --ok-soft: #E4F0E9;
+    --warn: #B45309; --warn-soft: #FBF0E2;
+    --crit: #A4262C; --crit-soft: #F8E8E8;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #101215; --card: #181B1F;
+      --ink: #EDEEF0; --ink-2: #A8AEB6; --ink-3: #7C838C;
+      --rule: #2A2E34; --rule-strong: #4A5058;
+      --accent: #6FA3E0; --accent-soft: #17263A;
+      --ok: #63C08E; --ok-soft: #14251C;
+      --warn: #E0A45C; --warn-soft: #2A2015;
+      --crit: #E07A80; --crit-soft: #2C1618;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #101215; --card: #181B1F;
+    --ink: #EDEEF0; --ink-2: #A8AEB6; --ink-3: #7C838C;
+    --rule: #2A2E34; --rule-strong: #4A5058;
+    --accent: #6FA3E0; --accent-soft: #17263A;
+    --ok: #63C08E; --ok-soft: #14251C;
+    --warn: #E0A45C; --warn-soft: #2A2015;
+    --crit: #E07A80; --crit-soft: #2C1618;
+  }
+  :root[data-theme="light"] {
+    --paper: #F6F6F3; --card: #FFFFFF;
+    --ink: #14171A; --ink-2: #4A5058; --ink-3: #767D86;
+    --rule: #D8D8D2; --rule-strong: #14171A;
+    --accent: #1B4D8F; --accent-soft: #E8EEF6;
+    --ok: #1F6F4A; --ok-soft: #E4F0E9;
+    --warn: #B45309; --warn-soft: #FBF0E2;
+    --crit: #A4262C; --crit-soft: #F8E8E8;
+  }
+
+  body { background: var(--paper); color: var(--ink); font-family: var(--sans);
+         font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 56rem; margin: 0 auto; padding: 2.5rem 1.25rem 5rem;
+          display: flex; flex-direction: column; gap: 3rem; }
+
+  /* encabezado */
+  .head { display: flex; flex-direction: column; gap: 1.1rem; }
+  .stamp { display: inline-flex; align-items: center; gap: .5rem; align-self: flex-start;
+           font-family: var(--mono); font-size: .7rem; letter-spacing: .12em;
+           text-transform: uppercase; color: var(--accent);
+           border: 1.5px solid var(--accent); padding: .3rem .6rem; }
+  h1 { font-size: clamp(1.9rem, 5vw, 2.9rem); line-height: 1.05; letter-spacing: -.03em;
+       font-weight: 800; text-wrap: balance; margin: 0; }
+  .lede { font-size: 1.08rem; color: var(--ink-2); max-width: 62ch; margin: 0; }
+  .meta { display: flex; flex-wrap: wrap; gap: 1.5rem;
+          border-top: 1.5px solid var(--rule-strong); border-bottom: 1px solid var(--rule);
+          padding: .75rem 0; font-family: var(--mono); font-size: .78rem;
+          color: var(--ink-3); text-transform: uppercase; letter-spacing: .07em; }
+
+  /* secciones */
+  section { display: flex; flex-direction: column; gap: 1.2rem; }
+  .sec-head { border-top: 3px solid var(--rule-strong); padding-top: .9rem; }
+  .sec-head h2 { font-size: 1.45rem; letter-spacing: -.02em; font-weight: 750; margin: 0; text-wrap: balance; }
+  .sec-head p { margin: .45rem 0 0; color: var(--ink-2); max-width: 68ch; }
+  h4 { font-size: .76rem; font-family: var(--mono); text-transform: uppercase;
+       letter-spacing: .1em; color: var(--ink-3); font-weight: 600; margin: 0; }
+  p { margin: 0; }
+  .prose { max-width: 70ch; display: flex; flex-direction: column; gap: .9rem; }
+  strong { font-weight: 700; }
+  em { color: var(--ink-2); }
+  ul, ol { margin: 0; padding-left: 1.15rem; display: flex; flex-direction: column; gap: .4rem; max-width: 70ch; }
+  li::marker { color: var(--ink-3); }
+  code { font-family: var(--mono); font-size: .86em; background: var(--accent-soft);
+         padding: .08em .35em; border-radius: 3px; }
+
+  /* cifras */
+  .boxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+           border: 1.5px solid var(--rule-strong); background: var(--card); }
+  .box { padding: .95rem 1rem; display: flex; flex-direction: column; gap: .3rem;
+         border-right: 1px solid var(--rule); }
+  .box:last-child { border-right: 0; }
+  .box .k { font-family: var(--mono); font-size: .65rem; text-transform: uppercase;
+            letter-spacing: .1em; color: var(--ink-3); }
+  .box .v { font-family: var(--mono); font-size: 1.9rem; font-weight: 700;
+            letter-spacing: -.03em; font-variant-numeric: tabular-nums; line-height: 1; }
+  .box .n { font-size: .78rem; color: var(--ink-2); line-height: 1.35; }
+  .v.ok { color: var(--ok); } .v.warn { color: var(--warn); } .v.crit { color: var(--crit); }
+
+  /* notas */
+  .note { border: 1.5px solid var(--rule); border-left: 3px solid var(--ink-3);
+          background: var(--card); padding: .85rem 1.05rem; font-size: .92rem;
+          color: var(--ink-2); max-width: 72ch; }
+  .note.warn { border-left-color: var(--warn); background: var(--warn-soft); color: var(--ink); }
+  .note.ok   { border-left-color: var(--ok);   background: var(--ok-soft);   color: var(--ink); }
+  .note strong { color: var(--ink); }
+
+  /* tarjeta de flujo */
+  .flow { border: 1.5px solid var(--rule-strong); background: var(--card); }
+  .flow > .h { display: flex; align-items: baseline; gap: .8rem; padding: .85rem 1rem .3rem;
+               flex-wrap: wrap; }
+  .flow > .h .n { font-family: var(--mono); font-size: 1.4rem; font-weight: 700;
+                  color: var(--accent); line-height: 1; }
+  .flow > .h .t { font-size: 1.05rem; font-weight: 750; letter-spacing: -.01em; }
+  .flow > .ctx { padding: 0 1rem .7rem; font-family: var(--mono); font-size: .72rem;
+                 color: var(--ink-3); text-transform: uppercase; letter-spacing: .07em;
+                 border-bottom: 1.5px solid var(--rule-strong);
+                 display: flex; gap: .8rem; flex-wrap: wrap; align-items: center; }
+  .badge { display: inline-block; font-family: var(--mono); font-size: .62rem;
+           text-transform: uppercase; letter-spacing: .07em; font-weight: 700;
+           padding: .12em .5em; border: 1px solid var(--warn); color: var(--warn);
+           background: var(--warn-soft); }
+  .flow > .b { padding: 1rem; display: flex; flex-direction: column; gap: .85rem; }
+  .flow .intro { font-size: .92rem; color: var(--ink-2); max-width: 68ch; }
+
+  /* conversación */
+  .chat { display: flex; flex-direction: column; gap: .5rem; border: 1px solid var(--rule);
+          background: var(--paper); padding: .9rem; }
+  .msg { max-width: 46ch; padding: .5rem .75rem; font-size: .89rem; line-height: 1.45;
+         border: 1px solid var(--rule); background: var(--card); }
+  .msg.cli { align-self: flex-start; }
+  .msg.bot { align-self: flex-end; background: var(--accent-soft); border-color: var(--accent); }
+  .msg .who { display: block; font-family: var(--mono); font-size: .58rem; text-transform: uppercase;
+              letter-spacing: .1em; color: var(--ink-3); margin-bottom: .15rem; }
+  .tool { align-self: stretch; font-family: var(--mono); font-size: .74rem; line-height: 1.5;
+          color: var(--ink-2); background: var(--ok-soft);
+          border-left: 3px solid var(--ok); padding: .35rem .6rem; overflow-x: auto;
+          white-space: pre-wrap; }
+  .tool b { color: var(--ok); font-weight: 700; }
+  .orq { align-self: center; font-family: var(--mono); font-size: .68rem; color: var(--ink-3);
+         text-align: center; border-top: 1px dashed var(--rule); border-bottom: 1px dashed var(--rule);
+         padding: .35rem .6rem; width: 100%; }
+  .orq b { color: var(--accent); }
+
+  /* qué demuestra */
+  .demo { border-left: 3px solid var(--ok); background: var(--ok-soft);
+          padding: .6rem .85rem; font-size: .88rem; }
+  .demo .k { font-family: var(--mono); font-size: .6rem; text-transform: uppercase;
+             letter-spacing: .1em; color: var(--ink-3); display: block; margin-bottom: .2rem; }
+
+  /* tablas */
+  .tw { overflow-x: auto; border: 1.5px solid var(--rule-strong); background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--rule);
+           vertical-align: top; }
+  th { font-family: var(--mono); font-size: .66rem; text-transform: uppercase;
+       letter-spacing: .08em; color: var(--ink-3); font-weight: 600;
+       border-bottom: 1.5px solid var(--rule-strong); white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.c { text-align: center; color: var(--ok); font-weight: 700; }
+  td.tool-name { font-family: var(--mono); font-size: .78rem; white-space: nowrap; }
+
+  /* bloques de codigo / payload */
+  .codeblock { border: 1.5px solid var(--rule-strong); background: var(--card);
+               overflow-x: auto; padding: .9rem 1.1rem; }
+  .codeblock .cap { font-family: var(--mono); font-size: .62rem; text-transform: uppercase;
+                    letter-spacing: .1em; color: var(--ink-3); display: block;
+                    margin-bottom: .6rem; padding-bottom: .45rem; border-bottom: 1px solid var(--rule); }
+  .codeblock pre { margin: 0; font-family: var(--mono); font-size: .78rem; line-height: 1.55;
+                   white-space: pre; color: var(--ink); }
+  .codeblock .hl { color: var(--ok); font-weight: 700; }
+  .codeblock .cm { color: var(--ink-3); }
+
+  footer { border-top: 1.5px solid var(--rule); padding-top: 1.1rem; font-size: .82rem;
+           color: var(--ink-3); display: flex; flex-direction: column; gap: .5rem; }
+
+  .toggle { position: fixed; top: .9rem; right: .9rem; z-index: 10;
+            font-family: var(--mono); font-size: .68rem; text-transform: uppercase;
+            letter-spacing: .08em; background: var(--card); color: var(--ink-2);
+            border: 1.5px solid var(--rule-strong); padding: .4rem .6rem; cursor: pointer; }
+  .toggle:hover { color: var(--ink); }
+
+  @media print {
+    .toggle { display: none; }
+    body { background: #fff; color: #000; font-size: 10.5pt; }
+    .wrap { max-width: none; gap: 1.8rem; padding: 0; }
+    .flow, .tw, .boxes { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<button class="toggle" id="tt">Tema</button>
+
+<div class="wrap">
+
+  <header class="head">
+    <span class="stamp">Bot de ventas STIRPE · Documento de trabajo</span>
+    <h1>Flujos conversacionales de referencia</h1>
+    <p class="lede">Diez conversaciones realistas —los casos que de verdad ocurren según los chats
+      del equipo de ventas— resueltas turno a turno con las herramientas del prototipo, asumiendo
+      el backend conectado. Es la especificación viva del flujo, la semilla del corpus de pruebas
+      y el criterio de aceptación del prototipo.</p>
+    <div class="meta">
+      <span>2026-08-17</span>
+      <span>10 flujos · F1–F10</span>
+      <span>Supuesto: backend real conectado (D11)</span>
+    </div>
+  </header>
+
+  <!-- DÓNDE VAMOS -->
+  <section>
+    <div class="sec-head"><h2>Dónde vamos</h2>
+      <p>Lo que existe hoy, para leer estos flujos en contexto.</p></div>
+    <div class="boxes">
+      <div class="box"><span class="k">Capacidades mapeadas</span><span class="v">35</span><span class="n">Spec + 229 guiones + franja nocturna + conversaciones reales</span></div>
+      <div class="box"><span class="k">Ya existen</span><span class="v ok">16</span><span class="n">Endpoints reales en la API de la tienda</span></div>
+      <div class="box"><span class="k">Prototipo</span><span class="v ok">✓</span><span class="n">Multi-agente implementado: orquestador + 4 agentes + 22 tools con contrato</span></div>
+      <div class="box"><span class="k">Lo que falta</span><span class="v warn">D11</span><span class="n">Conectar las tools a un backend real — la decisión del martes</span></div>
+    </div>
+    <div class="note"><strong>El estado en una frase:</strong> el bot ya conversa con la voz de la
+      marca y ya sabe a qué especialista pasar cada mensaje; lo que no puede todavía es
+      <em>hacer</em> — sus 22 herramientas apuntan a un backend que no existe. Estos flujos
+      muestran cómo se comporta cuando lo tenga.</div>
+  </section>
+
+  <!-- CÓMO LEER -->
+  <section>
+    <div class="sec-head"><h2>Cómo leer los flujos</h2></div>
+    <div class="chat" style="max-width:44rem">
+      <div class="msg cli"><span class="who">Cliente</span>Lo que escribe el cliente (burbuja izquierda)</div>
+      <div class="orq"><b>ORQUESTADOR → AGENTE</b> · el enrutamiento — invisible para el cliente</div>
+      <div class="tool"><b>⚙ nombre_de_tool</b>(argumentos) → resultado resumido — una llamada a herramienta real</div>
+      <div class="msg bot"><span class="who">Bot</span>Lo que responde el bot (burbuja derecha)</div>
+    </div>
+    <p class="prose">Las etiquetas <span class="badge">requiere D2/D3</span> marcan flujos que
+      dependen de decisiones aún abiertas (identidad/habeas data, bandeja de pendientes, plantilla
+      HSM). Los flujos sin etiqueta solo necesitan el backend conectado. La voz sigue el manual:
+      tuteo, una pregunta por mensaje, 🖤 solo en saludo, carrito y cierre, cifras exactas y
+      urgencia únicamente verificable.</p>
+  </section>
+
+  <!-- F1 -->
+  <div class="flow">
+    <div class="h"><span class="n">F1</span><span class="t">Llega de un anuncio — atribución automática</span></div>
+    <div class="ctx"><span>Escenario A</span><span>martes 9:14 p. m.</span><span>cliente nueva</span></div>
+    <div class="b">
+      <p class="intro">La cliente tocó un anuncio click-to-WhatsApp. Meta adjunta al primer mensaje
+        el dato de qué anuncio fue — el bot sabe de qué viene <strong>sin preguntar</strong>.</p>
+      <div class="chat">
+        <div class="tool"><b>⚙ atribucion_campana</b>(referral) → campaña "Colección denim"</div>
+        <div class="orq"><b>ORQUESTADOR → COMERCIAL</b> · saludo con contexto de campaña</div>
+        <div class="msg bot"><span class="who">Bot</span>¡Hola! Soy el asesor de STIRPE 🖤 Vi que te interesó la colección denim. Antes de mostrarte los detalles, ¿cómo te llamas?</div>
+        <div class="msg cli"><span class="who">Cliente</span>Camila</div>
+        <div class="msg bot"><span class="who">Bot</span>Mucho gusto, Camila. ¿El jean lo buscas para ti?</div>
+        <div class="msg cli"><span class="who">Cliente</span>sí, uso talla 8</div>
+        <div class="tool"><b>⚙ search_catalog</b>(jeans, mujer, campaña denim) → 14 resultados
+<b>⚙ check_stock</b>(J-2841, talla 8) → disponible · <b>⚙ send_catalog_media</b>(2 imágenes)</div>
+        <div class="msg bot"><span class="who">Bot</span>Te seleccioné estas dos por lo que me cuentas [imágenes]. La primera tiene un fit ajustado y la segunda es más relajada — las dos están disponibles en talla 8. ¿Cuál va más contigo?</div>
+        <div class="msg cli"><span class="who">Cliente</span>la primera</div>
+        <div class="tool"><b>⚙ calculate_order_total</b>(J-2841 × 1, talla 8) → $189.900</div>
+        <div class="msg bot"><span class="who">Bot</span>Buena elección. El jean queda en $189.900. ¿Avanzamos con el pedido?</div>
+      </div>
+      <div class="demo"><span class="k">Qué demuestra</span>Atribución sin fricción (H2) · saludo 1.1
+        del manual · descubrimiento mínimo (2 preguntas) · opciones con razón · el precio sale
+        <strong>solo</strong> de la herramienta, nunca del prompt.</div>
+    </div>
+  </div>
+
+  <!-- ANEXO: CÓMO FUNCIONA LA ATRIBUCIÓN -->
+  <section>
+    <div class="sec-head"><h2>Cómo sabe el bot de qué anuncio vienes — el webhook por dentro</h2>
+      <p>La atribución de F1 no es inteligencia artificial: es leer un campo de un JSON que ya
+        llega al sistema. Aquí está la mecánica completa.</p></div>
+
+    <h4>1 · Cómo llegan los mensajes hoy</h4>
+    <p class="prose">Cada vez que un cliente escribe por WhatsApp, Infobip hace un <code>POST</code>
+      al webhook del bot con un JSON. Así funciona hoy en Quinta del Mar y así lo recibe también el
+      prototipo de STIRPE. Un mensaje normal se ve así:</p>
+    <div class="codeblock"><span class="cap">Webhook de Infobip · mensaje entrante normal</span><pre>{
+  "results": [{
+    "from": "573001234567",          <span class="cm">← el celular del cliente</span>
+    "to": "573213927795",            <span class="cm">← el número del bot</span>
+    "messageId": "ABGGf...",
+    "receivedAt": "2026-08-17T21:14:09Z",
+    "message": {
+      "type": "TEXT",
+      "text": "Hola, quiero más información"
+    }
+  }]
+}</pre></div>
+    <p class="prose">El sistema lee de ahí quién escribe, a quién, y qué dijo (texto, audio,
+      imagen, ubicación…). Con eso arma el turno de conversación. Todo lo que el bot "ve" del
+      mundo entra por este JSON.</p>
+
+    <h4>2 · El campo extra cuando el cliente viene de un anuncio</h4>
+    <p class="prose">Cuando el anuncio es <strong>click-to-WhatsApp</strong> (botón "Enviar
+      mensaje" en Facebook/Instagram), el cliente toca el botón, se le abre el chat y envía el
+      primer mensaje. Ese mensaje llega por el <strong>mismo webhook</strong> — pero Meta le
+      adjunta un objeto <code>referral</code> con la metadata del anuncio. <strong>El cliente no
+      comparte ningún link: viaja por debajo, invisible para él.</strong></p>
+    <div class="codeblock"><span class="cap">El mismo webhook · cliente que llegó tocando un anuncio</span><pre>{
+  "results": [{
+    "from": "573001234567",
+    "to": "573213927795",
+    "message": {
+      "type": "TEXT",
+      "text": "Hola, quiero más información"
+    },
+    <span class="hl">"referral": {</span>                    <span class="cm">← lo agrega Meta, no el cliente</span>
+      <span class="hl">"source_type": "ad",</span>
+      <span class="hl">"source_id": "120212345678901234",</span> <span class="cm">← id del anuncio</span>
+      <span class="hl">"headline": "Colección Denim STIRPE",</span> <span class="cm">← título literal del anuncio</span>
+      <span class="hl">"source_url": "https://fb.me/xxxx",</span>
+      <span class="hl">"ctwa_clid": "Afg..."</span>          <span class="cm">← click-id para medir conversión</span>
+    <span class="hl">}</span>
+  }]
+}</pre></div>
+    <p class="prose">La tool <code>atribucion_campana</code> es, literalmente: leer ese campo y
+      cruzar el <code>source_id</code> contra una tabla <em>anuncio → campaña interna</em> que
+      mantiene marketing. Cero LLM, cero pregunta al cliente.</p>
+    <div class="note ok"><strong>Hallazgo del repo:</strong> el normalizer del prototipo ya guarda
+      el <code>result</code> completo en el campo <code>raw</code> de cada mensaje en Mongo. Si
+      Infobip reenvía el referral, <strong>ya se está almacenando hoy sin que nadie lo lea</strong>
+      — la tool consiste en leer lo que ya se guarda.</div>
+    <div class="note warn"><strong>Verificación pendiente con Infobip:</strong> Meta entrega el
+      referral; Infobip está en el medio como proveedor. Hay que confirmar en qué campo exacto de
+      su webhook lo reenvía y si requiere habilitarse en la cuenta. Es la única incógnita de esta
+      vía.</div>
+
+    <h4>3 · Las cuatro vías de atribución, comparadas</h4>
+    <div class="tw"><table>
+      <thead><tr><th>Vía</th><th>Cómo llega</th><th>Quién lo resuelve</th><th>Costo</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Referral CTWA</strong> <em>(F1)</em></td><td>Metadata invisible en el webhook, adjunta por Meta al primer mensaje</td><td>Leer el JSON + tabla anuncio→campaña</td><td>Casi cero <em>(verificar formato con Infobip)</em></td></tr>
+        <tr><td><strong>Texto prellenado <code>wa.me</code></strong></td><td>El botón "Comprar por WhatsApp" de la web arma el link con la referencia ya escrita: el primer mensaje llega diciendo el producto</td><td>Nada — el mensaje mismo lo dice</td><td><strong>Cero en el bot; un ajuste de una línea en la web</strong></td></tr>
+        <tr><td><strong>Link pegado</strong> <em>(F2)</em></td><td>El cliente copia y pega la URL del producto o de la campaña como texto</td><td><code>resolver_url</code>: slug → SKU, <code>utm_campaign</code> → estrategia</td><td>Bajo (parser)</td></tr>
+        <tr><td><strong>Pantallazo</strong> <em>(F3)</em></td><td>Captura de pantalla de la página del producto</td><td>Visión del LLM lee el texto de la imagen</td><td>Medio</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note ok"><strong>La vía más barata es la que controlamos nosotros.</strong>
+      Cambiar el botón de WhatsApp de stirpe.co para que el texto prellenado incluya la referencia
+      del producto (<code>wa.me/…?text=Hola,+me+interesa+…+(ref+TZ-1104)</code>) le regala al bot
+      atribución perfecta en cada entrada desde la página — un cambio de frontend trivial que
+      mejora al bot más que cualquier prompt. Lo mismo aplica al texto prellenado que se configura
+      en los anuncios.</div>
+  </section>
+
+  <!-- F2 -->
+  <div class="flow">
+    <div class="h"><span class="n">F2</span><span class="t">Pega el link del producto</span></div>
+    <div class="ctx"><span>Escenario A2</span><span>jueves 8:47 p. m.</span></div>
+    <div class="b">
+      <p class="intro">Entró a la página, vio el producto y pegó la URL en WhatsApp. Un parser la
+        resuelve a SKU — <strong>sin pasar por el modelo</strong>.</p>
+      <div class="chat">
+        <div class="msg cli"><span class="who">Cliente</span>https://stirpe.co/product/tenis-adidas-vl-court-00s-hombre</div>
+        <div class="tool"><b>⚙ resolver_url</b>(url) → SKU TZ-1104 · <b>⚙ get_product</b> → Tenis Adidas VL Court 00s</div>
+        <div class="orq"><b>ORQUESTADOR → COMERCIAL</b> · intención: información de producto</div>
+        <div class="msg bot"><span class="who">Bot</span>¡Hola! Soy el asesor de STIRPE 🖤 Claro, te ayudo con los VL Court 00s. ¿Qué talla buscas?</div>
+        <div class="msg cli"><span class="who">Cliente</span>41</div>
+        <div class="tool"><b>⚙ check_stock</b>(TZ-1104, talla 41) → disponible (4 u.)
+<b>⚙ calculate_order_total</b> → $349.900</div>
+        <div class="msg bot"><span class="who">Bot</span>Sí, tenemos talla 41 disponible. Esta silueta queda en $349.900. ¿La dejamos lista para avanzar con el pago?</div>
+        <div class="msg cli"><span class="who">Cliente</span>dale</div>
+        <div class="orq"><b>ORQUESTADOR → CIERRE DE VENTA</b></div>
+        <div class="tool"><b>⚙ create_order</b>(confirmed: true) → enlace mágico de pago</div>
+        <div class="msg bot"><span class="who">Bot</span>Listo 🖤 Aquí tienes tu enlace de pago seguro: [link]. Ahí eliges cómo pagar: tarjeta, PSE, Efecty, Quac, Addi o Sistecrédito.</div>
+      </div>
+      <div class="demo"><span class="k">Qué demuestra</span>URL → SKU determinista (H1) · guion 1.5
+        (al que llega preguntando por producto no se le pide el nombre primero) · cierre vía
+        <strong>enlace mágico</strong>: el bot arma el carrito, el pago ocurre en la web con el
+        antifraude y los seis medios ya existentes.</div>
+    </div>
+  </div>
+
+  <!-- F3 -->
+  <div class="flow">
+    <div class="h"><span class="n">F3</span><span class="t">Manda pantallazo del producto</span></div>
+    <div class="ctx"><span>Escenario B</span><span>viernes 10:05 p. m.</span></div>
+    <div class="b">
+      <p class="intro">Vio unos tenis en la tienda y mandó captura de pantalla. La visión del
+        modelo <strong>lee el texto que la propia captura trae</strong> — sin infraestructura de
+        búsqueda visual.</p>
+      <div class="chat">
+        <div class="msg cli"><span class="who">Cliente</span>[imagen: captura de la página del producto]</div>
+        <div class="tool"><b>⚙ identificar_producto_imagen</b>(imagen) → lee: "TENIS LE COQ RACERONE 2 TRIPLE — $299.900"
+<b>⚙ search_catalog</b>("le coq racerone 2 triple") → match único LC-0872</div>
+        <div class="orq"><b>ORQUESTADOR → COMERCIAL</b></div>
+        <div class="msg bot"><span class="who">Bot</span>¡Hola! Soy el asesor de STIRPE 🖤 ¿Hablas de los Le Coq Racerone 2 Triple que están en $299.900?</div>
+        <div class="msg cli"><span class="who">Cliente</span>esos! hay talla 40?</div>
+        <div class="tool"><b>⚙ check_stock</b>(LC-0872, talla 40) → 1 unidad</div>
+        <div class="msg bot"><span class="who">Bot</span>Queda 1 unidad en talla 40. Si quieres llevarla, avanzamos con el pedido.</div>
+      </div>
+      <div class="demo"><span class="k">Qué demuestra</span>Visión sin embeddings (H3) ·
+        confirmación antes de asumir · <strong>urgencia solo verificable</strong>: "queda 1 unidad"
+        lo dijo la herramienta, no el guion.</div>
+      <div class="note"><strong>Variante — la imagen no da certeza</strong> (foto borrosa de la
+        prenda puesta): el bot no adivina. <em>"Quiero asegurarme de mostrarte la correcta. ¿Tienes
+        la referencia o el nombre que aparece en la página del producto?"</em></div>
+    </div>
+  </div>
+
+  <!-- F4 -->
+  <div class="flow">
+    <div class="h"><span class="n">F4</span><span class="t">"Estoy interesado en blusas" — categoría genérica</span></div>
+    <div class="ctx"><span>Escenario C</span><span>miércoles 9:30 p. m.</span></div>
+    <div class="b">
+      <p class="intro">Sin link, sin imagen, sin historial. El caso más común — y el que más
+        disciplina exige: descubrir sin interrogar.</p>
+      <div class="chat">
+        <div class="msg cli"><span class="who">Cliente</span>buenas, estoy interesado en blusas</div>
+        <div class="orq"><b>ORQUESTADOR → COMERCIAL</b> · intención: catálogo</div>
+        <div class="msg bot"><span class="who">Bot</span>¡Hola! Soy el asesor de STIRPE 🖤 Claro, te ayudo. ¿Son para ti o para regalar?</div>
+        <div class="msg cli"><span class="who">Cliente</span>para mi esposa, algo elegante</div>
+        <div class="msg bot"><span class="who">Bot</span>Perfecto. ¿Sabes qué talla usa?</div>
+        <div class="msg cli"><span class="who">Cliente</span>M</div>
+        <div class="tool"><b>⚙ search_catalog</b>(blusas, mujer) → ordenado por popularidad
+<b>⚙ check_stock</b>(talla M) → filtra disponibles · <b>⚙ send_catalog_media</b>(2 imágenes)</div>
+        <div class="msg bot"><span class="who">Bot</span>Te seleccioné estas dos pensando en algo arreglado [imágenes]. La primera es más clásica y fácil de combinar; la segunda tiene un detalle en el cuello que la hace más de ocasión. Las dos están en talla M. ¿Cuál le va más a ella?</div>
+        <div class="msg cli"><span class="who">Cliente</span>mmm no me convence la primera</div>
+        <div class="msg bot"><span class="who">Bot</span>De una, cambiemos de dirección. ¿Qué fue lo que menos te gustó: el estilo, el color o el fit?</div>
+      </div>
+      <div class="demo"><span class="k">Qué demuestra</span>Descubrimiento en 2 preguntas ·
+        recomendación por <strong>filtro + popularidad</strong>, sin prometer criterio de estilo
+        que el catálogo aún no soporta · rechazo manejado con el guion 3.9: preguntar qué falló,
+        no insistir.</div>
+    </div>
+  </div>
+
+  <!-- F5 -->
+  <div class="flow">
+    <div class="h"><span class="n">F5</span><span class="t">Cliente recurrente — memoria que se nota</span></div>
+    <div class="ctx"><span>lunes 8:52 p. m.</span><span class="badge">requiere D2/D3</span></div>
+    <div class="b">
+      <p class="intro">El número ya tiene historia y consentimiento registrado. La memoria se usa
+        para <strong>no repreguntar</strong> — se confirma.</p>
+      <div class="chat">
+        <div class="msg cli"><span class="who">Cliente</span>Hola, buenas noches</div>
+        <div class="tool"><b>⚙ get_customer_profile</b>(teléfono) → Andrés · recurrente · consentimiento ✓
+última compra: jean oscuro slim t32 (jun) · tallas: inferior 32, superior M</div>
+        <div class="orq"><b>ORQUESTADOR → COMERCIAL</b></div>
+        <div class="msg bot"><span class="who">Bot</span>¡Andrés, qué bueno tenerte de vuelta! 🖤 ¿Buscamos algo parecido a lo que llevaste la última vez o quieres probar algo diferente?</div>
+        <div class="msg cli"><span class="who">Cliente</span>necesito una camiseta para una comida el sábado</div>
+        <div class="msg bot"><span class="who">Bot</span>Listo. Tengo registrada tu talla M en camisetas, ¿sigue siendo esa?</div>
+        <div class="msg cli"><span class="who">Cliente</span>sí</div>
+        <div class="tool"><b>⚙ search_catalog</b>(camisetas, hombre) · <b>⚙ check_stock</b>(talla M)</div>
+        <div class="msg bot"><span class="who">Bot</span>Para una comida iría con algo arreglado sin perder lo urbano. Mira estas dos [imágenes]: la negra combina directo con el jean oscuro que llevaste, y la blanca es más fresca. ¿Cómo las ves?</div>
+      </div>
+      <div class="demo"><span class="k">Qué demuestra</span>Saludo 1.3 con contexto de compra · la
+        talla registrada se <strong>confirma, no se repregunta</strong> · recomendación conectada
+        al historial. Todo esto queda bloqueado hasta cerrar identidad y habeas data: sin
+        consentimiento, el bot saluda como a un cliente nuevo.</div>
+    </div>
+  </div>
+
+  <!-- F6 -->
+  <div class="flow">
+    <div class="h"><span class="n">F6</span><span class="t">Objeción de precio → cuotas QUAC → la trampa del envío gratis</span></div>
+    <div class="ctx"><span>martes 10:20 p. m.</span></div>
+    <div class="b">
+      <p class="intro">La regla más delicada del negocio, dicha bien: el envío gratis desde
+        $350.000 <strong>no aplica pagando con Quac</strong>.</p>
+      <div class="chat">
+        <div class="msg cli"><span class="who">Cliente</span>y esa chaqueta en cuánto está?</div>
+        <div class="tool"><b>⚙ calculate_order_total</b>(CH-5520, talla M) → $389.900</div>
+        <div class="msg bot"><span class="who">Bot</span>Está en $389.900. Por lo que me contaste vale la pena: es la que tiene membrana repelente al agua y la puedes usar diario.</div>
+        <div class="msg cli"><span class="who">Cliente</span>uy está muy cara</div>
+        <div class="orq"><b>COMERCIAL</b> · objeción de precio: valor → alternativa → cuotas (descuento jamás)</div>
+        <div class="msg bot"><span class="who">Bot</span>Te entiendo. Si quieres, puedo mostrarte opciones que mantengan el estilo en otra línea de precio — o si prefieres, te muestro cómo quedaría en cuotas.</div>
+        <div class="msg cli"><span class="who">Cliente</span>cómo serían las cuotas?</div>
+        <div class="tool"><b>⚙ simulate_quac_installments</b>($389.900) → 4 cuotas de ~$102.500</div>
+        <div class="msg bot"><span class="who">Bot</span>Con Quac te quedaría en 4 cuotas de aproximadamente $102.500. Es una simulación — la aprobación la confirma Quac directamente.</div>
+        <div class="msg cli"><span class="who">Cliente</span>y el envío me sale gratis no? porque es más de 350</div>
+        <div class="tool"><b>⚙ get_shipping_estimate</b>(Bucaramanga, pago: quac) → $8.900 · regla: gratis ≥$350k excepto Quac</div>
+        <div class="msg bot"><span class="who">Bot</span>Ahí hay un detalle importante: el envío gratis desde $350.000 no aplica pagando con Quac. Si pagas con tarjeta, PSE o Efecty sí te queda gratis; con Quac, para Bucaramanga el envío es de $8.900.</div>
+        <div class="msg cli"><span class="who">Cliente</span>ah ok, mejor tarjeta entonces</div>
+        <div class="orq"><b>ORQUESTADOR → CIERRE DE VENTA</b></div>
+        <div class="tool"><b>⚙ create_order</b> → enlace mágico de pago</div>
+        <div class="msg bot"><span class="who">Bot</span>Perfecto 🖤 Chaqueta talla M con envío gratis. Aquí tienes tu enlace de pago: [link].</div>
+      </div>
+      <div class="demo"><span class="k">Qué demuestra</span>Orden correcto ante el precio (valor →
+        otra línea → cuotas; <strong>descuento jamás</strong>) · simulación sin prometer aprobación
+        · la excepción Quac-envío con cifra exacta — vive en el Motor de Reglas, no en el texto
+        del agente, para que un cambio de política nunca deje al bot mintiendo.</div>
+    </div>
+  </div>
+
+  <!-- F7 -->
+  <div class="flow">
+    <div class="h"><span class="n">F7</span><span class="t">No hay talla — honestidad + alternativa inmediata</span></div>
+    <div class="ctx"><span>jueves 11:02 p. m.</span></div>
+    <div class="b">
+      <div class="chat">
+        <div class="msg cli"><span class="who">Cliente</span>tienen los combinados de suela alta en 38?</div>
+        <div class="tool"><b>⚙ search_catalog</b>("combinados suela alta") → DK-7733
+<b>⚙ check_stock</b>(DK-7733, talla 38) → sin stock (37 ✓ · 39 ✓)</div>
+        <div class="msg bot"><span class="who">Bot</span>En esa silueta no tenemos talla 38 disponible en este momento. Puedo mostrarte otras opciones con un estilo parecido que sí estén en tu talla, ¿te las busco?</div>
+        <div class="msg cli"><span class="who">Cliente</span>bueno</div>
+        <div class="tool"><b>⚙ search_catalog</b>(tenis, mujer, similar a DK-7733) · <b>⚙ check_stock</b>(talla 38) → 2 disponibles</div>
+        <div class="msg bot"><span class="who">Bot</span>Estas dos mantienen la idea de suela alta y están en 38 [imágenes]. La primera es más limpia; la segunda tiene más contraste. ¿Cuál te gusta más?</div>
+      </div>
+      <div class="demo"><span class="k">Qué demuestra</span>Nunca inventar disponibilidad · nunca
+        "te aviso cuando llegue" ni "te la guardo" (no existe reserva) · pivote inmediato a
+        alternativa — el guion 4.15 tal cual.</div>
+    </div>
+  </div>
+
+  <!-- F8 -->
+  <div class="flow">
+    <div class="h"><span class="n">F8</span><span class="t">El envío gratis como herramienta de ticket — con cifra exacta</span></div>
+    <div class="ctx"><span>domingo 9:47 p. m.</span></div>
+    <div class="b">
+      <div class="chat">
+        <div class="tool"><b>⚙ calculate_order_total</b>(carrito) → $312.000</div>
+        <div class="msg bot"><span class="who">Bot</span>Tu carrito va en $312.000 🖤 Te faltan $38.000 para el envío gratis. Tengo un par de opciones que combinan con lo que llevas, ¿te las muestro?</div>
+        <div class="msg cli"><span class="who">Cliente</span>a ver</div>
+        <div class="tool"><b>⚙ search_catalog</b>(complemento del carrito, ≤$60.000) · <b>⚙ send_catalog_media</b></div>
+        <div class="msg bot"><span class="who">Bot</span>Para esos jeans, esta correa queda muy bien [imagen], está en $49.900. Con ella tu pedido sube a $361.900 y el envío te queda gratis. ¿La sumamos?</div>
+        <div class="msg cli"><span class="who">Cliente</span>listo sí</div>
+        <div class="tool"><b>⚙ calculate_order_total</b> → $361.900, envío $0 · <b>⚙ create_order</b> → enlace mágico</div>
+        <div class="msg bot"><span class="who">Bot</span>Quedó: jeans + camiseta + correa, total $361.900 con envío gratis. Tu enlace de pago: [link] 🖤</div>
+      </div>
+      <div class="demo"><span class="k">Qué demuestra</span>"Te faltan $38.000" — jamás "te falta
+        poquito" · el complemento se deriva de la compra (correa para los jeans, no "también
+        tenemos correas") · y la contra-regla: si faltaran $120.000, <strong>el bot no menciona el
+        envío gratis</strong> — empujar compra sin sentido económico está prohibido por el manual.</div>
+    </div>
+  </div>
+
+  <!-- F9 -->
+  <div class="flow">
+    <div class="h"><span class="n">F9</span><span class="t">Postventa nocturna + "quiero hablar con una persona"</span></div>
+    <div class="ctx"><span>miércoles 11:23 p. m.</span><span class="badge">requiere bandeja</span></div>
+    <div class="b">
+      <p class="intro">El momento de la verdad de la franja nocturna: no hay humanos disponibles y
+        el bot <strong>no finge</strong> que los hay.</p>
+      <div class="chat">
+        <div class="msg cli"><span class="who">Cliente</span>no me ha llegado el pedido y ya van 4 días</div>
+        <div class="orq"><b>ORQUESTADOR → SERVICIO</b> · intención: estado de pedido</div>
+        <div class="msg bot"><span class="who">Bot</span>Lamento la demora, te reviso ya mismo. ¿Me confirmas los últimos 4 dígitos de tu cédula para validar el pedido?</div>
+        <div class="msg cli"><span class="who">Cliente</span>4417</div>
+        <div class="tool"><b>⚙ verify_identity</b>(teléfono, 4417) → ok
+<b>⚙ get_order_status</b>(#48213) → en ruta · Coordinadora · entrega estimada: mañana</div>
+        <div class="msg bot"><span class="who">Bot</span>Listo, lo encontré. Tu pedido #48213 va en camino con Coordinadora y la entrega está estimada para mañana. ¿Te ayudo con algo más?</div>
+        <div class="msg cli"><span class="who">Cliente</span>es que ya lo necesitaba hoy, quiero hablar con alguien</div>
+        <div class="msg bot"><span class="who">Bot</span>Te entiendo. Nuestro equipo entra a las 8 de la mañana — ya dejé tu caso de primero en la bandeja, con todo el contexto, para que te contacten apenas abran. No vas a tener que repetir nada.</div>
+        <div class="tool"><b>⚙ handoff_human</b>(resumen: #48213 en ruta, esperaba hoy, prioridad alta) → bandeja de pendientes</div>
+      </div>
+      <div class="demo"><span class="k">Qué demuestra</span>Verificación ligera antes de datos de
+        pedido · informa <strong>solo</strong> lo que devuelve la herramienta · handoff nocturno
+        honesto: no finge transferir en vivo — promete lo que sí va a pasar y encola con resumen.</div>
+    </div>
+  </div>
+
+  <!-- F10 -->
+  <div class="flow">
+    <div class="h"><span class="n">F10</span><span class="t">Viernes en la noche + la ventana de 24 horas</span></div>
+    <div class="ctx"><span>viernes 11:40 p. m. → lunes 8:15 a. m.</span><span class="badge">requiere bandeja</span><span class="badge">requiere plantilla HSM</span></div>
+    <div class="b">
+      <p class="intro">El caso borde que la operación de fin de semana obliga a prever: pasadas
+        24 horas sin respuesta, WhatsApp no permite escribir sin plantilla aprobada.</p>
+      <div class="chat">
+        <div class="orq">── viernes 11:40 p. m. ──</div>
+        <div class="msg cli"><span class="who">Cliente</span>me quedó grande la chaqueta que compré, cómo hago el cambio?</div>
+        <div class="tool"><b>⚙ get_post_sale_policy</b>(cambio) → 30 días · recogida a domicilio (3–5 días hábiles) o punto Coordinadora</div>
+        <div class="msg bot"><span class="who">Bot</span>Tranquilo, tienes 30 días para cambios. Hay dos opciones: recogemos el paquete en tu dirección, o te enviamos la guía al correo y lo dejas en un punto de Coordinadora. ¿Cuál prefieres?</div>
+        <div class="orq">el cliente no responde más · <b>⚙ handoff_human</b> → bandeja (cambio pendiente de modalidad)</div>
+        <div class="orq">── lunes 8:15 a. m. — pasaron más de 24 h: solo se puede reabrir con plantilla ──</div>
+        <div class="tool"><b>⚙ send_approved_template</b>("retomar_gestion", {nombre, caso})</div>
+        <div class="msg bot"><span class="who">Bot</span>Hola, Andrés. El viernes quedamos pendientes del cambio de talla de tu chaqueta. ¿Quieres que lo retomemos?</div>
+        <div class="msg cli"><span class="who">Cliente</span>sí, recojan en mi casa porfa</div>
+        <div class="orq">la ventana se reabrió — el asesor humano retoma desde la bandeja</div>
+      </div>
+      <div class="demo"><span class="k">Qué demuestra</span>De noche el bot resuelve lo resoluble y
+        encola lo demás · pasadas 24 h <strong>nadie puede escribir sin plantilla</strong> — por
+        eso la plantilla de reenganche es requisito del MVP, no de la segunda iteración.</div>
+    </div>
+  </div>
+
+  <!-- MATRIZ -->
+  <section>
+    <div class="sec-head"><h2>Matriz de cobertura — flujos × herramientas</h2>
+      <p>Qué herramienta ejercita cada flujo. Si una conversación no se puede armar con el
+        contrato actual de la tool, el contrato está incompleto — para eso sirve esta tabla en la
+        revisión con el developer.</p></div>
+    <div class="tw"><table>
+      <thead><tr><th>Herramienta</th><th>F1</th><th>F2</th><th>F3</th><th>F4</th><th>F5</th><th>F6</th><th>F7</th><th>F8</th><th>F9</th><th>F10</th></tr></thead>
+      <tbody>
+        <tr><td class="tool-name">atribucion_campana <em>(nueva)</em></td><td class="c">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="tool-name">resolver_url <em>(nueva)</em></td><td></td><td class="c">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="tool-name">identificar_producto_imagen <em>(nueva)</em></td><td></td><td></td><td class="c">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="tool-name">search_catalog</td><td class="c">●</td><td></td><td class="c">●</td><td class="c">●</td><td class="c">●</td><td></td><td class="c">●</td><td class="c">●</td><td></td><td></td></tr>
+        <tr><td class="tool-name">get_product</td><td></td><td class="c">●</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="tool-name">check_stock</td><td class="c">●</td><td class="c">●</td><td class="c">●</td><td class="c">●</td><td class="c">●</td><td></td><td class="c">●</td><td></td><td></td><td></td></tr>
+        <tr><td class="tool-name">calculate_order_total</td><td class="c">●</td><td class="c">●</td><td></td><td></td><td></td><td class="c">●</td><td></td><td class="c">●</td><td></td><td></td></tr>
+        <tr><td class="tool-name">get_shipping_estimate</td><td></td><td></td><td></td><td></td><td></td><td class="c">●</td><td></td><td class="c">●</td><td></td><td></td></tr>
+        <tr><td class="tool-name">simulate_quac_installments</td><td></td><td></td><td></td><td></td><td></td><td class="c">●</td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="tool-name">create_order → enlace mágico</td><td></td><td class="c">●</td><td></td><td></td><td></td><td class="c">●</td><td></td><td class="c">●</td><td></td><td></td></tr>
+        <tr><td class="tool-name">send_catalog_media</td><td class="c">●</td><td></td><td></td><td class="c">●</td><td class="c">●</td><td></td><td class="c">●</td><td class="c">●</td><td></td><td></td></tr>
+        <tr><td class="tool-name">get_customer_profile</td><td></td><td></td><td></td><td></td><td class="c">●</td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="tool-name">verify_identity</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="c">●</td><td></td></tr>
+        <tr><td class="tool-name">get_order_status</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="c">●</td><td></td></tr>
+        <tr><td class="tool-name">get_post_sale_policy</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="c">●</td></tr>
+        <tr><td class="tool-name">handoff_human → bandeja</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="c">●</td><td class="c">●</td></tr>
+        <tr><td class="tool-name">send_approved_template (HSM)</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td class="c">●</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note">Sin cubrir en estos diez, a propósito (no son del prototipo v1):
+      devoluciones (<code>create_return_request</code>), PQR (<code>create_support_case</code>),
+      cancelación, <code>record_consent</code> (aparecerá en el primer contacto real cuando se
+      defina el texto de habeas data), opciones de crédito y menú.</div>
+  </section>
+
+  <!-- CÓMO USAR -->
+  <section>
+    <div class="sec-head"><h2>Cómo usar este documento</h2></div>
+    <ol>
+      <li><strong>En la revisión técnica:</strong> cada flujo valida las entradas y salidas de la
+        tabla de herramientas v1 — si una conversación no se puede armar con el contrato actual,
+        el contrato está incompleto.</li>
+      <li><strong>Como semilla del corpus de pruebas:</strong> estos 10 flujos definen el
+        comportamiento <em>esperado</em>; las 20–30 conversaciones reales que se están extrayendo
+        aportan la variedad del mundo. Con ambos, el arnés de replay tiene contra qué comparar.</li>
+      <li><strong>Como criterio de aceptación del prototipo:</strong> el prototipo "funciona"
+        cuando F1–F4 y F6–F8 corren de punta a punta contra el backend real. F5, F9 y F10 entran
+        al cerrar sus dependencias (identidad/habeas data, bandeja, plantilla HSM).</li>
+    </ol>
+  </section>
+
+  <footer>
+    <p>Documento de trabajo · 17 de agosto de 2026. Los flujos asumen el backend conectado
+      (decisión D11); las etiquetas marcan dependencias de decisiones aún abiertas.</p>
+    <p>Detalle técnico en <span style="font-family:var(--mono)">docs/bots/</span>: la ruta hacia el
+      prototipo, el mapa de las 35 capacidades y el registro de decisiones.</p>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var b = document.getElementById('tt');
+    b.addEventListener('click', function () {
+      var cur = document.documentElement.getAttribute('data-theme');
+      if (!cur) {
+        cur = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+    });
+  })();
+</script>
+</body>
+</html>
