@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-124 · Mockup — Saldo pendiente y reparto del presupuesto diario en Configuración de comisiones</title>
+<style>
+  :root { color-scheme: light; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #e5e7eb; color: #111827; padding: 28px 24px 80px; line-height: 1.5;
+  }
+  .page { max-width: 1280px; margin: 0 auto; }
+
+  /* ===== encabezado del documento ===== */
+  .doc-header { margin-bottom: 24px; max-width: 940px; }
+  .doc-header .chip { display: inline-block; background: #111827; color: #fff; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 9999px; margin-bottom: 8px; }
+  .doc-header h1 { font-size: 20px; font-weight: 700; }
+  .doc-header p { font-size: 13px; color: #4b5563; margin-top: 6px; }
+  .doc-header .nota { margin-top: 12px; background: #fff; border: 1px solid #e5e7eb; border-left: 3px solid #6366f1; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; color: #374151; }
+
+  /* ===== índice pegajoso ===== */
+  .indice { position: sticky; top: 0; z-index: 40; background: rgba(229,231,235,.94); backdrop-filter: blur(6px); padding: 10px 0 12px; margin-bottom: 20px; border-bottom: 1px solid #d1d5db; }
+  .indice a { display: inline-block; font-size: 11.5px; font-weight: 500; color: #374151; background: #fff; border: 1px solid #d1d5db; border-radius: 9999px; padding: 4px 11px; margin: 3px 4px 3px 0; text-decoration: none; }
+  .indice a:hover { border-color: #6366f1; color: #4338ca; }
+
+  /* ===== bloques de pantalla ===== */
+  .screen { margin-bottom: 44px; scroll-margin-top: 72px; }
+  .screen-tag { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+  .screen-tag .sub { font-weight: 400; color: #6b7280; }
+  .screen-desc { font-size: 12.5px; color: #4b5563; margin-bottom: 12px; max-width: 900px; }
+  .ui { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+
+  /* ===== chrome de la app ===== */
+  .chrome { display: grid; grid-template-columns: 208px 1fr; min-height: 100%; }
+  .side { background: #111827; padding: 14px 10px; }
+  .side .marca { color: #f9fafb; font-size: 12.5px; font-weight: 700; padding: 4px 8px 12px; letter-spacing: .02em; }
+  .side .grupo { color: #6b7280; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding: 12px 8px 4px; }
+  .side .item { color: #d1d5db; font-size: 12px; padding: 6px 8px; border-radius: 6px; display: flex; align-items: center; gap: 7px; }
+  .side .item.on { background: #1f2937; color: #fff; font-weight: 600; }
+  .side .item .dot { width: 4px; height: 4px; border-radius: 9999px; background: #4b5563; }
+  .side .item.on .dot { background: #34d399; }
+  .main { background: #f8fafc; padding: 16px 20px 24px; }
+  .crumb { font-size: 11.5px; color: #6b7280; margin-bottom: 14px; }
+  .crumb b { color: #111827; font-weight: 600; }
+  .tabs { display: inline-flex; background: #e2e8f0; border-radius: 9px; padding: 3px; margin-bottom: 16px; }
+  .tabs span { font-size: 12px; padding: 5px 12px; border-radius: 7px; color: #64748b; }
+  .tabs span.on { background: #fff; color: #0f172a; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
+  /* ===== tarjeta de contenido ===== */
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; }
+  .card + .card { margin-top: 14px; }
+  .card h3 { font-size: 15px; font-weight: 600; }
+  .card .meta { margin-top: 4px; font-size: 11.5px; color: #64748b; }
+  .card .meta .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .banner-ok { margin-top: 14px; border: 1px solid #a7f3d0; background: rgba(236,253,245,.65); border-radius: 9px; padding: 13px 15px; }
+  .banner-ok .t { font-size: 12.5px; font-weight: 600; color: #065f46; }
+  .banner-ok .l { margin-top: 7px; font-size: 12px; color: #4b5563; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .badge-iva { border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 700; background: #ede9fe; color: #5b21b6; }
+  .lnk { color: #4f46e5; font-size: 11px; font-weight: 500; }
+
+  .tiendatabs { display: inline-flex; background: #e2e8f0; border-radius: 8px; padding: 3px; margin: 16px 0 12px; }
+  .tiendatabs span { font-size: 12px; padding: 4px 12px; border-radius: 6px; color: #64748b; }
+  .tiendatabs span.on { background: #fff; color: #0f172a; font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
+  /* ===== tabla diaria ===== */
+  table { width: 100%; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+  thead th { background: #f9fafb; border-bottom: 1px solid #e5e7eb; font-size: 11px; font-weight: 500; color: #6b7280; text-align: left; padding: 9px 12px; }
+  thead th.r { text-align: right; }
+  tbody td { border-top: 1px solid #f1f5f9; padding: 8px 12px; font-size: 12.5px; }
+  tbody td.r { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr.q2 td { border-top: 2px solid #cbd5e1; }
+  tfoot td { background: #f8fafc; border-top: 1px solid #e5e7eb; padding: 10px 12px; font-size: 12.5px; font-weight: 600; }
+  tfoot td.r { text-align: right; font-variant-numeric: tabular-nums; }
+  .dia { font-weight: 500; }
+  .badgeq { display: inline-block; background: #f1f5f9; color: #64748b; font-size: 10px; font-weight: 500; padding: 1px 7px; border-radius: 9999px; margin-left: 5px; }
+  .badge-edit { display: inline-block; background: #eff6ff; color: #2563eb; font-size: 10px; font-weight: 500; padding: 1px 7px; border-radius: 9999px; margin-left: 5px; }
+
+  /* ===== los 3 estados de la columna saldo (el corazón del REQ) ===== */
+  .pill { display: inline-block; font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: 9999px; font-variant-numeric: tabular-nums; }
+  .pill-pend { background: #fffbeb; color: #b45309; }              /* pendiente por repartir */
+  .pill-sobre { background: #fef2f2; color: #b91c1c; }             /* sobreasignado */
+  .txt-ok { color: #059669; font-size: 11.5px; font-weight: 500; } /* repartido completo */
+  .muted { color: #cbd5e1; }
+
+  /* ===== acciones de la fila ===== */
+  .acciones { display: flex; gap: 10px; justify-content: flex-end; align-items: center; }
+  .icobtn { width: 26px; height: 26px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; color: #64748b; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+  .icobtn:hover { border-color: #94a3b8; color: #0f172a; }
+  .icobtn.nuevo { border-color: #c7d2fe; color: #4f46e5; background: #eef2ff; }
+  .icobtn.off { opacity: .45; cursor: not-allowed; }
+  .lock { color: #cbd5e1; font-size: 13px; }
+
+
+  /* ===== iconos: lucide (misma libreria que get-web) ===== */
+  svg.ic { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  svg.ic-xs { width: 11px; height: 11px; }
+  svg.ic-sm { width: 13px; height: 13px; }
+  svg.ic-lg { width: 16px; height: 16px; }
+  .txt-ok svg, .badgeq svg, .banner-ok .t svg, .card .meta svg { vertical-align: -2px; }
+  .callout svg.ic { margin-top: 1px; }
+
+  /* ===== callouts ===== */
+  .callout { margin-top: 12px; border-radius: 8px; padding: 11px 14px; font-size: 12px; display: flex; gap: 9px; align-items: flex-start; }
+  .callout .ic { font-size: 13px; line-height: 1.3; }
+  .c-info { background: #eef2ff; border: 1px solid #c7d2fe; color: #3730a3; }
+  .c-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+  .c-err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+  .c-ok { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+
+  /* ===== modal ===== */
+  .modal-wrap { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 10px; padding: 26px; display: flex; justify-content: center; }
+  .modal { width: 512px; max-width: 100%; background: #fff; border-radius: 12px; box-shadow: 0 20px 50px rgba(15,23,42,.22); padding: 22px; }
+  .modal h4 { font-size: 16px; font-weight: 600; }
+  .modal .desc { font-size: 12.5px; color: #64748b; margin-top: 3px; }
+  .modal .x { float: right; color: #94a3b8; font-size: 15px; cursor: pointer; }
+  .resumen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px 0 4px; }
+  .rbox { border-radius: 9px; padding: 9px 6px; text-align: center; background: #f8fafc; }
+  .rbox .k { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; }
+  .rbox .v { font-size: 13.5px; font-weight: 600; margin-top: 2px; color: #1f2937; font-variant-numeric: tabular-nums; }
+  .rbox.asig .v { color: #047857; }
+  .rbox.ambar { background: #fffbeb; } .rbox.ambar .k { color: #b45309; opacity: .8; } .rbox.ambar .v { color: #b45309; }
+  .rbox.verde { background: #ecfdf5; } .rbox.verde .k { color: #047857; opacity: .8; } .rbox.verde .v { color: #047857; }
+  .rbox.gris .v { color: #64748b; }
+  .equit { text-align: right; margin: 6px 0 2px; }
+  .equit a { font-size: 12px; font-weight: 500; color: #2563eb; text-decoration: none; }
+  .equit a.off { color: #cbd5e1; }
+  .lista { border-top: 1px solid #f1f5f9; margin-top: 8px; max-height: 292px; overflow: auto; }
+  .fila { display: flex; align-items: center; gap: 11px; padding: 9px 2px; border-bottom: 1px solid #f1f5f9; }
+  .av { width: 31px; height: 31px; border-radius: 9999px; color: #fff; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .nom { flex: 1; font-size: 12.5px; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .inp { display: flex; align-items: center; gap: 5px; }
+  .inp .s { color: #94a3b8; font-size: 12.5px; }
+  .inp input { width: 122px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px 9px; text-align: right; font-size: 12.5px; font-family: inherit; font-variant-numeric: tabular-nums; }
+  .inp input:disabled { background: #f8fafc; color: #94a3b8; }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .btn { border-radius: 8px; padding: 7px 15px; font-size: 12.5px; font-weight: 500; border: 1px solid #e2e8f0; background: #fff; color: #334155; cursor: pointer; }
+  .btn-p { background: #0f172a; border-color: #0f172a; color: #fff; }
+  .btn-p.off { background: #cbd5e1; border-color: #cbd5e1; color: #f8fafc; cursor: not-allowed; }
+
+  /* ===== skeleton ===== */
+  .sk { background: linear-gradient(90deg,#eef2f7 25%,#e2e8f0 37%,#eef2f7 63%); background-size: 400% 100%; animation: sh 1.3s infinite; border-radius: 6px; }
+  @keyframes sh { 0% { background-position: 100% 50% } 100% { background-position: 0 50% } }
+
+  .par { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 1000px) { .par { grid-template-columns: 1fr } }
+  .nota-pie { font-size: 11.5px; color: #64748b; margin-top: 9px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; background: #f1f5f9; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-file-spreadsheet" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+  </defs>
+</svg>
+<div class="page">
+
+  <div class="doc-header">
+    <span class="chip">GW-124 · Mockup v1</span>
+    <h1>Configuración de comisiones: saldo pendiente de asignar a asesores y reparto del presupuesto del día</h1>
+    <p>
+      Contrato de interfaz de las dos cosas que cambian en <b>venta-asistida/comisiones/configuracion</b>, pestaña
+      «Presupuesto de ventas»: la columna de saldo pasa a mostrar los tres estados reales del día, y cada fila gana
+      un acceso al modal de reparto entre asesores que hoy solo existe en el dashboard de gestión de ventas y solo
+      para el día de hoy.
+    </p>
+    <div class="nota">
+      Las cifras son las de producción a 2026-08-19 (BD <code>get</code>, tienda STIRPE, agosto 2026): meta del mes
+      $1.174.530.000, días 1 al 18 repartidos y días 19 al 31 sin repartir, con <b>$512.095.080</b> de pendiente que
+      hoy la pantalla no muestra. El único dato construido es el día 21 en estado sobreasignado, que se usa para
+      validar ese estado.
+    </div>
+  </div>
+
+  <div class="indice">
+    <a href="#p0">0 · Cómo se ve hoy</a>
+    <a href="#p1">1 · Tabla con los tres estados</a>
+    <a href="#p2">2 · Modal — día sin repartir</a>
+    <a href="#p3">3 · Modal — reparto balanceado</a>
+    <a href="#p4">4 · Modal — solo lectura por permiso</a>
+    <a href="#p5">5 · Modal — solo lectura por quincena cerrada</a>
+    <a href="#p6">6 · Carga y falla</a>
+    <a href="#p7">7 · Guardado con éxito</a>
+    <a href="#p8">8 · Rechazo del guardado</a>
+  </div>
+
+  <!-- ══════════════════════════════ PANTALLA 0 ══════════════════════════════ -->
+  <div class="screen" id="p0">
+    <div class="screen-tag">Pantalla 0 · Cómo se ve hoy <span class="sub">— estado actual en producción, para contraste</span></div>
+    <div class="screen-desc">
+      La columna existe y el backend calcula bien el saldo, pero la vista solo la pinta cuando hay reparto parcial
+      (<code>dia.asignado &gt; 0 &amp;&amp; dia.saldo &gt; 0</code>). Como el modal solo deja guardar con saldo exacto en $0,
+      el reparto parcial no llega a existir: cada día está o sin repartir (y la primera condición lo apaga) o repartido
+      completo (y la segunda lo apaga). El total del pie usa la misma condición, así que también queda en $0.
+    </div>
+    <div class="ui"><div class="main" style="padding:18px 20px">
+      <table>
+        <thead><tr>
+          <th>Día</th><th class="r">Presupuesto del día</th><th class="r">Saldo pendiente de asignar a asesores</th><th class="r">Acciones</th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="dia">18 ago</td><td class="r">$ 49.330.260</td><td class="r"><span class="muted">—</span></td><td class="r"><span class="icobtn"><svg class="ic"><use href="#i-pencil"/></svg></span></td></tr>
+          <tr class="q2"><td class="dia">19 ago</td><td class="r">$ 45.806.670</td><td class="r"><span class="muted">—</span></td><td class="r"><span class="icobtn"><svg class="ic"><use href="#i-pencil"/></svg></span></td></tr>
+          <tr><td class="dia">20 ago</td><td class="r">$ 42.283.080</td><td class="r"><span class="muted">—</span></td><td class="r"><span class="icobtn"><svg class="ic"><use href="#i-pencil"/></svg></span></td></tr>
+        </tbody>
+        <tfoot><tr><td>Total del mes</td><td class="r">$ 1.174.530.000</td><td class="r"><span class="muted">—</span></td><td></td></tr></tfoot>
+      </table>
+      <div class="callout c-err"><svg class="ic ic-lg"><use href="#i-x"/></svg><div>
+        <b>$512.095.080 de presupuesto sin repartir</b> entre los días 19 y 31, invisibles tanto en la fila como en el
+        total. La columna no falla a veces: no puede mostrar valor en ningún caso.
+      </div></div>
+    </div></div>
+  </div>
+
+  <!-- ══════════════════════════════ PANTALLA 1 ══════════════════════════════ -->
+  <div class="screen" id="p1">
+    <div class="screen-tag">Pantalla 1 · Tabla del mes con los tres estados y el acceso al reparto <span class="sub">— pantalla completa</span></div>
+    <div class="screen-desc">
+      El saldo se lee siempre: ámbar cuando queda presupuesto por repartir, rojo cuando el reparto quedó por encima de
+      la meta (pasa cuando una recarga del mes o una corrección del día bajan la meta sin tocar el reparto), y verde
+      cuando el día está repartido completo. El ícono de asesores abre el modal de reparto de esa fila; el lápiz sigue
+      siendo corregir la meta del día. En quincena cerrada el candado reemplaza al lápiz y el ícono de asesores queda
+      en modo consulta.
+    </div>
+    <div class="ui"><div class="chrome">
+      <div class="side">
+        <div class="marca">GET · Panel interno</div>
+        <div class="grupo">Venta asistida</div>
+        <div class="item"><span class="dot"></span> Gestión de ventas</div>
+        <div class="item"><span class="dot"></span> Gestión de entregas</div>
+        <div class="item"><span class="dot"></span> Presupuesto</div>
+        <div class="item"><span class="dot"></span> Presupuesto asesor</div>
+        <div class="grupo">Comisiones</div>
+        <div class="item"><span class="dot"></span> Cargas de comisiones</div>
+        <div class="item on"><span class="dot"></span> Configuración comisiones</div>
+        <div class="item"><span class="dot"></span> Liquidación de comisiones</div>
+        <div class="item"><span class="dot"></span> Cierre de períodos</div>
+        <div class="item"><span class="dot"></span> Equipos de venta</div>
+      </div>
+      <div class="main">
+        <div class="crumb">Dashboard › Venta Asistida › <b>Configuración comisiones</b></div>
+        <div class="tabs">
+          <span>Métricas de cumplimiento</span><span class="on">Presupuesto de ventas</span><span>Métricas del mes</span>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+            <div>
+              <h3>Presupuesto de ventas · Agosto 2026</h3>
+              <div class="meta"><svg class="ic ic-xs"><use href="#i-file-spreadsheet"/></svg> Archivo: <span class="mono">presupuesto_agosto_2026.xlsx</span> (1 ago 2026) · Cargado el 1 ago 2026, 08:42 por Directora QEC</div>
+            </div>
+            <button class="btn">Reemplazar archivo</button>
+          </div>
+
+          <div class="banner-ok">
+            <div class="t"><svg class="ic ic-sm"><use href="#i-check-circle"/></svg> Ya hay presupuesto cargado para este mes</div>
+            <div class="l">
+              <span><b>stirpe:</b> 31 días · $ 1.174.530.000</span>
+              <span class="badge-iva">CON IVA</span>
+              <span class="lnk">Cambiar base</span>
+            </div>
+          </div>
+
+          <div class="tiendatabs"><span class="on">stirpe</span><span>derek</span></div>
+
+          <table>
+            <thead><tr>
+              <th>Día</th>
+              <th class="r">Presupuesto del día</th>
+              <th class="r">Saldo pendiente de asignar a asesores</th>
+              <th class="r">Acciones</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td class="dia">15 ago <span class="badgeq">Q1 · cerrada <svg class="ic ic-xs"><use href="#i-lock"/></svg></span></td>
+                <td class="r">$ 35.235.900</td>
+                <td class="r"><span class="txt-ok"><svg class="ic ic-sm"><use href="#i-check"/></svg> repartido</span></td>
+                <td class="r"><div class="acciones"><span class="icobtn nuevo" onclick="abrir('cerrada')" title="Ver reparto entre asesores"><svg class="ic"><use href="#i-users"/></svg></span><span class="lock" title="Período cerrado — la quincena ya fue liquidada"><svg class="ic"><use href="#i-lock"/></svg></span></div></td>
+              </tr>
+              <tr class="q2">
+                <td class="dia">16 ago <span class="badgeq">Q2</span></td>
+                <td class="r">$ 19.967.010</td>
+                <td class="r"><span class="txt-ok"><svg class="ic ic-sm"><use href="#i-check"/></svg> repartido</span></td>
+                <td class="r"><div class="acciones"><span class="icobtn nuevo" onclick="abrir('editar')" title="Asignar / editar reparto entre asesores"><svg class="ic"><use href="#i-users"/></svg></span><span class="icobtn" title="Editar presupuesto del día"><svg class="ic"><use href="#i-pencil"/></svg></span></div></td>
+              </tr>
+              <tr>
+                <td class="dia">17 ago</td>
+                <td class="r">$ 21.141.540</td>
+                <td class="r"><span class="txt-ok"><svg class="ic ic-sm"><use href="#i-check"/></svg> repartido</span></td>
+                <td class="r"><div class="acciones"><span class="icobtn nuevo" onclick="abrir('editar')"><svg class="ic"><use href="#i-users"/></svg></span><span class="icobtn"><svg class="ic"><use href="#i-pencil"/></svg></span></div></td>
+              </tr>
+              <tr>
+                <td class="dia">18 ago <span class="badge-edit">editado</span></td>
+                <td class="r">$ 49.330.260</td>
+                <td class="r"><span class="txt-ok"><svg class="ic ic-sm"><use href="#i-check"/></svg> repartido</span></td>
+                <td class="r"><div class="acciones"><span class="icobtn nuevo" onclick="abrir('editar')"><svg class="ic"><use href="#i-users"/></svg></span><span class="icobtn"><svg class="ic"><use href="#i-pencil"/></svg></span></div></td>
+              </tr>
+              <tr>
+                <td class="dia">19 ago</td>
+                <td class="r">$ 45.806.670</td>
+                <td class="r"><span class="pill pill-pend">$ 45.806.670</span></td>
+                <td class="r"><div class="acciones"><span class="icobtn nuevo" onclick="abrir('vacio')"><svg class="ic"><use href="#i-users"/></svg></span><span class="icobtn"><svg class="ic"><use href="#i-pencil"/></svg></span></div></td>
+              </tr>
+              <tr>
+                <td class="dia">20 ago</td>
+                <td class="r">$ 42.283.080</td>
+                <td class="r"><span class="pill pill-pend">$ 42.283.080</span></td>
+                <td class="r"><div class="acciones"><span class="icobtn nuevo" onclick="abrir('vacio')"><svg class="ic"><use href="#i-users"/></svg></span><span class="icobtn"><svg class="ic"><use href="#i-pencil"/></svg></span></div></td>
+              </tr>
+              <tr>
+                <td class="dia">21 ago <span class="badge-edit">editado</span></td>
+                <td class="r">$ 41.108.550</td>
+                <td class="r"><span class="pill pill-sobre">−$ 1.200.000</span></td>
+                <td class="r"><div class="acciones"><span class="icobtn nuevo" onclick="abrir('editar')"><svg class="ic"><use href="#i-users"/></svg></span><span class="icobtn"><svg class="ic"><use href="#i-pencil"/></svg></span></div></td>
+              </tr>
+              <tr>
+                <td class="dia">22 ago</td>
+                <td class="r">$ 35.235.900</td>
+                <td class="r"><span class="pill pill-pend">$ 35.235.900</span></td>
+                <td class="r"><div class="acciones"><span class="icobtn nuevo" onclick="abrir('vacio')"><svg class="ic"><use href="#i-users"/></svg></span><span class="icobtn"><svg class="ic"><use href="#i-pencil"/></svg></span></div></td>
+              </tr>
+              <tr>
+                <td class="dia">23 ago</td>
+                <td class="r">$ 18.792.480</td>
+                <td class="r"><span class="pill pill-pend">$ 18.792.480</span></td>
+                <td class="r"><div class="acciones"><span class="icobtn nuevo" onclick="abrir('vacio')"><svg class="ic"><use href="#i-users"/></svg></span><span class="icobtn"><svg class="ic"><use href="#i-pencil"/></svg></span></div></td>
+              </tr>
+            </tbody>
+            <tfoot><tr>
+              <td>Total del mes</td>
+              <td class="r">$ 1.174.530.000</td>
+              <td class="r"><span class="pill pill-pend">$ 512.095.080</span></td>
+              <td></td>
+            </tr></tfoot>
+          </table>
+
+          <div class="callout c-info"><span class="ic"><svg class="ic"><use href="#i-users"/></svg></span><div>
+            El ícono de asesores abre el reparto de ese día. Está disponible también en los días repartidos y en los
+            de quincena cerrada, porque consultar quién tiene qué meta es parte de lo que se pide.
+          </div></div>
+          <div class="nota-pie">
+            El total del pie suma el pendiente de todos los días de la tienda. Los días sobreasignados no lo reducen:
+            se muestran aparte en su fila para que un descuadre no quede escondido dentro de un neto.
+          </div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ══════════════════════════════ PANTALLA 2 ══════════════════════════════ -->
+  <div class="screen" id="p2">
+    <div class="screen-tag">Pantalla 2 · Modal de reparto — día sin repartir <span class="sub">— 19 de agosto, abierto desde la fila</span></div>
+    <div class="screen-desc">
+      Es el mismo modal del dashboard de gestión de ventas, con el título llevando además la fecha de la fila desde la
+      que se abrió. El saldo arranca en ámbar por el total de la meta y «Guardar reparto» permanece deshabilitado
+      hasta que el saldo quede exactamente en $0.
+    </div>
+    <div class="modal-wrap"><div class="modal">
+      <span class="x"><svg class="ic"><use href="#i-x"/></svg></span>
+      <h4>Asignar presupuesto del día · 19 ago · stirpe</h4>
+      <div class="desc">Distribuya la meta del día entre los asesores de la tienda.</div>
+      <div class="resumen">
+        <div class="rbox"><div class="k">Meta del día</div><div class="v">$ 45.806.670</div></div>
+        <div class="rbox asig"><div class="k">Asignado</div><div class="v">$ 0</div></div>
+        <div class="rbox ambar"><div class="k">Saldo por asignar</div><div class="v">$ 45.806.670</div></div>
+      </div>
+      <div class="equit"><a href="#p2">Repartir equitativo</a></div>
+      <div class="lista">
+        <div class="fila"><span class="av" style="background:#6366f1">AQ</span><span class="nom">andres felipe jimenez quintero</span><span class="inp"><span class="s">$</span><input value="0"></span></div>
+        <div class="fila"><span class="av" style="background:#8b5cf6">BF</span><span class="nom">brayan javier ardila florez</span><span class="inp"><span class="s">$</span><input value="0"></span></div>
+        <div class="fila"><span class="av" style="background:#ec4899">CM</span><span class="nom">carlos yorge cordoba murallas</span><span class="inp"><span class="s">$</span><input value="0"></span></div>
+        <div class="fila"><span class="av" style="background:#f59e0b">FR</span><span class="nom">fabian andres prada rueda</span><span class="inp"><span class="s">$</span><input value="0"></span></div>
+        <div class="fila"><span class="av" style="background:#10b981">JP</span><span class="nom">jhon alexander rodriguez patiño</span><span class="inp"><span class="s">$</span><input value="0"></span></div>
+        <div class="fila"><span class="av" style="background:#3b82f6">JA</span><span class="nom">juan camilo vergel acosta</span><span class="inp"><span class="s">$</span><input value="0"></span></div>
+        <div class="fila"><span class="av" style="background:#ef4444">MT</span><span class="nom">manuel humberto parra tapias</span><span class="inp"><span class="s">$</span><input value="0"></span></div>
+        <div class="fila"><span class="av" style="background:#14b8a6">MC</span><span class="nom">marlon stiven gelves carrillo</span><span class="inp"><span class="s">$</span><input value="0"></span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn">Cancelar</button>
+        <button class="btn btn-p off" title="El saldo debe quedar en $0 para guardar">Guardar reparto</button>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ══════════════════════════════ PANTALLA 3 ══════════════════════════════ -->
+  <div class="screen" id="p3">
+    <div class="screen-tag">Pantalla 3 · Modal de reparto — balanceado tras «Repartir equitativo» <span class="sub">— listo para guardar</span></div>
+    <div class="screen-desc">
+      El reparto equitativo entrega el residuo al último asesor para que la suma iguale la meta al peso: 7 asesores con
+      $5.725.833 y el último con $5.725.839. El saldo pasa a verde y el botón se habilita. Los montos son enteros; un
+      valor con centavos deja el guardado bloqueado con su propio aviso.
+    </div>
+    <div class="modal-wrap"><div class="modal">
+      <span class="x"><svg class="ic"><use href="#i-x"/></svg></span>
+      <h4>Asignar presupuesto del día · 19 ago · stirpe</h4>
+      <div class="desc">Distribuya la meta del día entre los asesores de la tienda.</div>
+      <div class="resumen">
+        <div class="rbox"><div class="k">Meta del día</div><div class="v">$ 45.806.670</div></div>
+        <div class="rbox asig"><div class="k">Asignado</div><div class="v">$ 45.806.670</div></div>
+        <div class="rbox verde"><div class="k">Saldo por asignar</div><div class="v">$ 0</div></div>
+      </div>
+      <div class="equit"><a href="#p3">Repartir equitativo</a></div>
+      <div class="lista">
+        <div class="fila"><span class="av" style="background:#6366f1">AQ</span><span class="nom">andres felipe jimenez quintero</span><span class="inp"><span class="s">$</span><input value="5725833"></span></div>
+        <div class="fila"><span class="av" style="background:#8b5cf6">BF</span><span class="nom">brayan javier ardila florez</span><span class="inp"><span class="s">$</span><input value="5725833"></span></div>
+        <div class="fila"><span class="av" style="background:#ec4899">CM</span><span class="nom">carlos yorge cordoba murallas</span><span class="inp"><span class="s">$</span><input value="5725833"></span></div>
+        <div class="fila"><span class="av" style="background:#f59e0b">FR</span><span class="nom">fabian andres prada rueda</span><span class="inp"><span class="s">$</span><input value="5725833"></span></div>
+        <div class="fila"><span class="av" style="background:#10b981">JP</span><span class="nom">jhon alexander rodriguez patiño</span><span class="inp"><span class="s">$</span><input value="5725833"></span></div>
+        <div class="fila"><span class="av" style="background:#3b82f6">JA</span><span class="nom">juan camilo vergel acosta</span><span class="inp"><span class="s">$</span><input value="5725833"></span></div>
+        <div class="fila"><span class="av" style="background:#ef4444">MT</span><span class="nom">manuel humberto parra tapias</span><span class="inp"><span class="s">$</span><input value="5725833"></span></div>
+        <div class="fila"><span class="av" style="background:#14b8a6">MC</span><span class="nom">marlon stiven gelves carrillo</span><span class="inp"><span class="s">$</span><input value="5725839"></span></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn">Cancelar</button>
+        <button class="btn btn-p">Guardar reparto</button>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ══════════════════════════════ PANTALLAS 4 y 5 ══════════════════════════════ -->
+  <div class="screen" id="p4">
+    <div class="screen-tag">Pantallas 4 y 5 · Los dos modos de solo lectura</div>
+    <div class="screen-desc">
+      El modal abre igual en ambos casos y muestra el reparto vigente, pero sin inputs editables, sin «Repartir
+      equitativo» y sin «Guardar reparto». Cada caso dice su motivo. A la izquierda, un usuario que entra a
+      Configuración sin la operación de reparto; a la derecha, cualquier usuario sobre un día cuya quincena ya cerró.
+    </div>
+    <div class="par">
+      <div class="modal-wrap" style="padding:20px"><div class="modal" style="width:100%">
+        <span class="x"><svg class="ic"><use href="#i-x"/></svg></span>
+        <h4>Presupuesto del día · 16 ago · stirpe</h4>
+        <div class="desc">Reparto de la meta del día entre los asesores de la tienda.</div>
+        <div class="resumen">
+          <div class="rbox"><div class="k">Meta del día</div><div class="v">$ 19.967.010</div></div>
+          <div class="rbox asig"><div class="k">Asignado</div><div class="v">$ 19.967.010</div></div>
+          <div class="rbox gris"><div class="k">Saldo por asignar</div><div class="v">$ 0</div></div>
+        </div>
+        <div class="callout c-info" style="margin-top:10px"><svg class="ic ic-lg"><use href="#i-eye"/></svg><div>
+          <b>Solo lectura.</b> No tienes el permiso para repartir el presupuesto entre asesores.
+        </div></div>
+        <div class="lista">
+          <div class="fila"><span class="av" style="background:#6366f1">AQ</span><span class="nom">andres felipe jimenez quintero</span><span class="inp"><span class="s">$</span><input value="2495876" disabled></span></div>
+          <div class="fila"><span class="av" style="background:#8b5cf6">BF</span><span class="nom">brayan javier ardila florez</span><span class="inp"><span class="s">$</span><input value="2495876" disabled></span></div>
+          <div class="fila"><span class="av" style="background:#ec4899">CM</span><span class="nom">carlos yorge cordoba murallas</span><span class="inp"><span class="s">$</span><input value="2495876" disabled></span></div>
+          <div class="fila"><span class="av" style="background:#f59e0b">FR</span><span class="nom">fabian andres prada rueda</span><span class="inp"><span class="s">$</span><input value="2495876" disabled></span></div>
+          <div class="fila"><span class="av" style="background:#10b981">JP</span><span class="nom">jhon alexander rodriguez patiño</span><span class="inp"><span class="s">$</span><input value="2495876" disabled></span></div>
+        </div>
+        <div class="modal-foot"><button class="btn">Cerrar</button></div>
+      </div></div>
+
+      <div class="modal-wrap" style="padding:20px" id="p5"><div class="modal" style="width:100%">
+        <span class="x"><svg class="ic"><use href="#i-x"/></svg></span>
+        <h4>Presupuesto del día · 15 ago · stirpe</h4>
+        <div class="desc">Reparto de la meta del día entre los asesores de la tienda.</div>
+        <div class="resumen">
+          <div class="rbox"><div class="k">Meta del día</div><div class="v">$ 35.235.900</div></div>
+          <div class="rbox asig"><div class="k">Asignado</div><div class="v">$ 35.235.900</div></div>
+          <div class="rbox gris"><div class="k">Saldo por asignar</div><div class="v">$ 0</div></div>
+        </div>
+        <div class="callout c-warn" style="margin-top:10px"><svg class="ic ic-lg"><use href="#i-lock"/></svg><div>
+          <b>Quincena cerrada.</b> La quincena del 1 al 15 de agosto ya fue liquidada; su reparto no se puede modificar.
+        </div></div>
+        <div class="lista">
+          <div class="fila"><span class="av" style="background:#6366f1">AQ</span><span class="nom">andres felipe jimenez quintero</span><span class="inp"><span class="s">$</span><input value="4404487" disabled></span></div>
+          <div class="fila"><span class="av" style="background:#8b5cf6">BF</span><span class="nom">brayan javier ardila florez</span><span class="inp"><span class="s">$</span><input value="4404487" disabled></span></div>
+          <div class="fila"><span class="av" style="background:#ec4899">CM</span><span class="nom">carlos yorge cordoba murallas</span><span class="inp"><span class="s">$</span><input value="4404487" disabled></span></div>
+          <div class="fila"><span class="av" style="background:#f59e0b">FR</span><span class="nom">fabian andres prada rueda</span><span class="inp"><span class="s">$</span><input value="4404487" disabled></span></div>
+          <div class="fila"><span class="av" style="background:#10b981">JP</span><span class="nom">jhon alexander rodriguez patiño</span><span class="inp"><span class="s">$</span><input value="4404487" disabled></span></div>
+        </div>
+        <div class="modal-foot"><button class="btn">Cerrar</button></div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ PANTALLA 6 ══════════════════════════════ -->
+  <div class="screen" id="p6">
+    <div class="screen-tag">Pantalla 6 · Mientras carga el día, y cuando la carga falla</div>
+    <div class="screen-desc">
+      Los datos del día se piden al abrir el modal. Mientras llegan, el resumen y la lista se dibujan en gris; si la
+      consulta falla, el modal muestra el motivo y ofrece reintentar, sin dejar campos editables con datos incompletos.
+    </div>
+    <div class="par">
+      <div class="modal-wrap" style="padding:20px"><div class="modal" style="width:100%">
+        <span class="x"><svg class="ic"><use href="#i-x"/></svg></span>
+        <h4>Asignar presupuesto del día · 20 ago · stirpe</h4>
+        <div class="desc">Distribuya la meta del día entre los asesores de la tienda.</div>
+        <div class="resumen">
+          <div class="rbox"><div class="k">Meta del día</div><div class="sk" style="height:15px;width:74%;margin:4px auto 0"></div></div>
+          <div class="rbox"><div class="k">Asignado</div><div class="sk" style="height:15px;width:56%;margin:4px auto 0"></div></div>
+          <div class="rbox"><div class="k">Saldo por asignar</div><div class="sk" style="height:15px;width:74%;margin:4px auto 0"></div></div>
+        </div>
+        <div class="lista" style="border-top:1px solid #f1f5f9;padding-top:6px">
+          <div class="fila"><span class="sk" style="width:31px;height:31px;border-radius:9999px"></span><span class="sk" style="height:11px;flex:1"></span><span class="sk" style="width:122px;height:28px"></span></div>
+          <div class="fila"><span class="sk" style="width:31px;height:31px;border-radius:9999px"></span><span class="sk" style="height:11px;flex:1"></span><span class="sk" style="width:122px;height:28px"></span></div>
+          <div class="fila"><span class="sk" style="width:31px;height:31px;border-radius:9999px"></span><span class="sk" style="height:11px;flex:1"></span><span class="sk" style="width:122px;height:28px"></span></div>
+          <div class="fila"><span class="sk" style="width:31px;height:31px;border-radius:9999px"></span><span class="sk" style="height:11px;flex:1"></span><span class="sk" style="width:122px;height:28px"></span></div>
+        </div>
+        <div class="modal-foot"><button class="btn">Cancelar</button><button class="btn btn-p off">Guardar reparto</button></div>
+      </div></div>
+
+      <div class="modal-wrap" style="padding:20px"><div class="modal" style="width:100%">
+        <span class="x"><svg class="ic"><use href="#i-x"/></svg></span>
+        <h4>Asignar presupuesto del día · 20 ago · stirpe</h4>
+        <div class="desc">Distribuya la meta del día entre los asesores de la tienda.</div>
+        <div class="callout c-err" style="margin-top:16px"><svg class="ic ic-lg"><use href="#i-alert"/></svg><div>
+          <b>No se pudo cargar el reparto de este día.</b> Vuelve a intentarlo; si sigue fallando, revisa que el día
+          tenga presupuesto cargado.
+        </div></div>
+        <div class="modal-foot"><button class="btn">Cerrar</button><button class="btn btn-p">Reintentar</button></div>
+      </div></div>
+    </div>
+    <div class="nota-pie">
+      Caso aparte: si el día no tiene meta cargada, el modal abre con el aviso «El día no tiene meta de presupuesto
+      configurada; no se puede repartir» — mensaje que ya existe hoy.
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ PANTALLA 7 ══════════════════════════════ -->
+  <div class="screen" id="p7">
+    <div class="screen-tag">Pantalla 7 · Guardado con éxito <span class="sub">— el modal cierra y la fila se actualiza</span></div>
+    <div class="screen-desc">
+      Al guardar, la fila del 19 pasa de ámbar a repartido y el total del pie baja de $512.095.080 a $466.288.410.
+      El aviso de la parte superior es el mismo mecanismo de mensajes que ya usa la pantalla.
+    </div>
+    <div class="ui"><div class="main" style="padding:18px 20px">
+      <div class="callout c-ok" style="margin:0 0 14px"><svg class="ic ic-lg"><use href="#i-check-circle"/></svg><div>
+        Reparto guardado. El presupuesto del <b>19 de agosto</b> quedó distribuido entre 8 asesores.
+      </div></div>
+      <table>
+        <thead><tr><th>Día</th><th class="r">Presupuesto del día</th><th class="r">Saldo pendiente de asignar a asesores</th><th class="r">Acciones</th></tr></thead>
+        <tbody>
+          <tr><td class="dia">18 ago</td><td class="r">$ 49.330.260</td><td class="r"><span class="txt-ok"><svg class="ic ic-sm"><use href="#i-check"/></svg> repartido</span></td><td class="r"><div class="acciones"><span class="icobtn nuevo"><svg class="ic"><use href="#i-users"/></svg></span><span class="icobtn"><svg class="ic"><use href="#i-pencil"/></svg></span></div></td></tr>
+          <tr><td class="dia">19 ago</td><td class="r">$ 45.806.670</td><td class="r"><span class="txt-ok"><svg class="ic ic-sm"><use href="#i-check"/></svg> repartido</span></td><td class="r"><div class="acciones"><span class="icobtn nuevo"><svg class="ic"><use href="#i-users"/></svg></span><span class="icobtn"><svg class="ic"><use href="#i-pencil"/></svg></span></div></td></tr>
+          <tr><td class="dia">20 ago</td><td class="r">$ 42.283.080</td><td class="r"><span class="pill pill-pend">$ 42.283.080</span></td><td class="r"><div class="acciones"><span class="icobtn nuevo"><svg class="ic"><use href="#i-users"/></svg></span><span class="icobtn"><svg class="ic"><use href="#i-pencil"/></svg></span></div></td></tr>
+        </tbody>
+        <tfoot><tr><td>Total del mes</td><td class="r">$ 1.174.530.000</td><td class="r"><span class="pill pill-pend">$ 466.288.410</span></td><td></td></tr></tfoot>
+      </table>
+    </div></div>
+  </div>
+
+  <!-- ══════════════════════════════ PANTALLA 8 ══════════════════════════════ -->
+  <div class="screen" id="p8">
+    <div class="screen-tag">Pantalla 8 · El guardado es rechazado <span class="sub">— la quincena se cerró mientras el modal estaba abierto</span></div>
+    <div class="screen-desc">
+      El servidor valida de nuevo al guardar. Si entre la apertura del modal y el clic alguien cerró la quincena, o si
+      el usuario perdió el permiso, el reparto no se escribe y el modal muestra el rechazo conservando lo digitado.
+    </div>
+    <div class="modal-wrap"><div class="modal">
+      <span class="x"><svg class="ic"><use href="#i-x"/></svg></span>
+      <h4>Asignar presupuesto del día · 19 ago · stirpe</h4>
+      <div class="desc">Distribuya la meta del día entre los asesores de la tienda.</div>
+      <div class="resumen">
+        <div class="rbox"><div class="k">Meta del día</div><div class="v">$ 45.806.670</div></div>
+        <div class="rbox asig"><div class="k">Asignado</div><div class="v">$ 45.806.670</div></div>
+        <div class="rbox verde"><div class="k">Saldo por asignar</div><div class="v">$ 0</div></div>
+      </div>
+      <div class="lista">
+        <div class="fila"><span class="av" style="background:#6366f1">AQ</span><span class="nom">andres felipe jimenez quintero</span><span class="inp"><span class="s">$</span><input value="5725833"></span></div>
+        <div class="fila"><span class="av" style="background:#8b5cf6">BF</span><span class="nom">brayan javier ardila florez</span><span class="inp"><span class="s">$</span><input value="5725833"></span></div>
+        <div class="fila"><span class="av" style="background:#ec4899">CM</span><span class="nom">carlos yorge cordoba murallas</span><span class="inp"><span class="s">$</span><input value="5725833"></span></div>
+      </div>
+      <div class="callout c-err" style="margin-top:12px"><svg class="ic ic-lg"><use href="#i-x"/></svg><div>
+        El período está cerrado y no se puede editar.
+      </div></div>
+      <div class="modal-foot"><button class="btn">Cancelar</button><button class="btn btn-p">Guardar reparto</button></div>
+    </div></div>
+  </div>
+
+</div>
+
+<script>
+  // El ícono de asesores de la Pantalla 1 lleva al modal correspondiente,
+  // para poder recorrer el flujo completo desde la tabla.
+  function abrir(modo) {
+    var destino = { vacio: '#p2', editar: '#p3', cerrada: '#p5' }[modo] || '#p2';
+    document.querySelector(destino).scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+</script>
+</body>
+</html>
