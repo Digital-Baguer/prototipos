@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PD-1515 · Listado de cupones con filtros — cms-stirpe</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500;1,600&display=swap" rel="stylesheet">
+<!-- flatpickr: el mismo datepicker que el panel ya carga en layouts/app.blade.php:161 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js"></script>
+<style>
+  /* Tokens tomados del CSS compilado de cms-stirpe (Vuexy / bootstrap-extended.css) */
+  :root{
+    --primary:#7367f0; --primary-soft:#e9e7fd;
+    --success:#28c76f; --danger:#ea5455; --warning:#ff9f43; --info:#00cfe8;
+    --body:#6e6b7b; --heading:#5e5873; --muted:#b9b9c3;
+    --bg:#f8f8f8; --line:#ebe9f1; --thead:#f3f2f7;
+  }
+  *{font-family:"Montserrat",Helvetica,Arial,sans-serif}
+  body{background:var(--bg);color:var(--body)}
+  .card{background:#fff;border-radius:.428rem;box-shadow:0 4px 24px 0 rgba(34,41,47,.1)}
+  .lbl{font-size:.857rem;color:var(--body);margin-bottom:.2857rem;display:block}
+  .ctl{width:100%;height:2.714rem;padding:.438rem 1rem;font-size:1rem;color:var(--body);
+       background:#fff;border:1px solid #d8d6de;border-radius:.357rem;outline:none}
+  .ctl:focus{border-color:var(--primary);box-shadow:0 3px 10px 0 rgba(34,41,47,.1)}
+  select.ctl{appearance:none;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%236e6b7b' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right .75rem center;background-size:1rem;padding-right:2.2rem}
+  .btn{height:2.714rem;padding:0 1.25rem;border-radius:.358rem;font-size:1rem;font-weight:500;
+       display:inline-flex;align-items:center;gap:.5rem;transition:box-shadow .2s,background .2s}
+  .btn-primary{background:var(--primary);color:#fff;border:1px solid var(--primary)}
+  .btn-primary:hover{box-shadow:0 8px 25px -8px var(--primary)}
+  .btn-outline{background:transparent;color:var(--primary);border:1px solid var(--primary)}
+  .btn-outline:hover{background:rgba(115,103,240,.04)}
+  .btn-flat{background:transparent;color:var(--body);border:1px solid #d8d6de}
+  .btn-flat:hover{background:#f3f2f7}
+  .btn-success{background:var(--success);color:#fff;border:1px solid var(--success)}
+  .btn-warning{background:var(--warning);color:#fff;border:1px solid var(--warning)}
+  table.vx{width:100%;border-collapse:collapse}
+  table.vx thead th{background:var(--thead);color:var(--body);font-size:.857rem;font-weight:600;
+       text-transform:uppercase;letter-spacing:.5px;padding:.7rem 1.2rem;text-align:left;white-space:nowrap;
+       border-bottom:1px solid var(--line)}
+  table.vx tbody td{padding:.85rem 1.2rem;border-bottom:1px solid var(--line);font-size:.95rem;vertical-align:top}
+  table.vx tbody tr:hover{background:#fafafc}
+  .badge{display:inline-block;padding:.3rem .55rem;border-radius:.358rem;font-size:.75rem;font-weight:600;line-height:1}
+  .b-success{background:rgba(40,199,111,.12);color:var(--success)}
+  .b-danger{background:rgba(234,84,85,.12);color:var(--danger)}
+  .b-info{background:rgba(0,207,232,.12);color:var(--info)}
+  .b-warning{background:rgba(255,159,67,.12);color:var(--warning)}
+  .b-primary{background:var(--primary-soft);color:var(--primary)}
+  /* replica de .cupon__codigo de resources/views/cupones/index.blade.php */
+  .cupon-codigo{padding:.4rem .8rem;color:#000;border:2px dashed #cccbcb;font-weight:700;letter-spacing:2px;
+       display:inline-block;font-size:.8rem;cursor:pointer}
+  .switch{width:2.6rem;height:1.4rem;border-radius:1rem;position:relative;display:inline-block;cursor:pointer;transition:background .2s}
+  .switch i{position:absolute;top:.2rem;left:.2rem;width:1rem;height:1rem;border-radius:50%;background:#fff;transition:left .2s;
+       box-shadow:0 2px 4px rgba(0,0,0,.2)}
+  .switch.on{background:var(--primary)} .switch.on i{left:1.4rem}
+  .switch.off{background:#d8d6de}
+  /* menu lateral Vuexy menu-light */
+  .side{width:260px;background:#fff;box-shadow:0 0 15px 0 rgba(34,41,47,.05)}
+  .side a{display:flex;align-items:center;gap:.75rem;padding:.6rem 1.35rem;color:#625f6e;font-size:.95rem;border-radius:0 2rem 2rem 0;margin-right:.9rem}
+  .side a:hover{background:#f5f5f5}
+  .side a.active{background:linear-gradient(118deg,var(--primary),rgba(115,103,240,.7));color:#fff;
+       box-shadow:0 0 10px 1px rgba(115,103,240,.7)}
+  .side .grp{padding:.6rem 1.35rem;font-size:.75rem;letter-spacing:.6px;color:var(--muted);text-transform:uppercase}
+  .sub a{padding-left:3rem;font-size:.9rem}
+  .skel{background:linear-gradient(90deg,#f3f2f7 25%,#eceaf3 37%,#f3f2f7 63%);background-size:400% 100%;
+       animation:sk 1.4s ease infinite;border-radius:.3rem}
+  @keyframes sk{0%{background-position:100% 50%}100%{background-position:0 50%}}
+  .alert-note{background:rgba(0,207,232,.12);border-left:3px solid var(--info);color:#0097a7}
+  .alert-warn{background:rgba(255,159,67,.12);border-left:3px solid var(--warning);color:#b26b1f}
+  /* barra del mockup (no es parte del producto) */
+  .mockbar{background:#1e1e2d;color:#fff}
+  .mockbar button{padding:.35rem .8rem;border-radius:.3rem;font-size:.8rem;color:#c2c6dc;border:1px solid transparent}
+  .mockbar button.on{background:var(--primary);color:#fff}
+  .mockbar button:hover:not(.on){background:#2b2b40}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ══════════ Barra de control del mockup (andamio, no es parte del panel) ══════════ -->
+<div class="mockbar sticky top-0 z-50 px-5 py-2.5 flex flex-wrap items-center gap-3">
+  <span class="text-xs font-semibold tracking-wide">PD-1515 · Listado de cupones (cms-stirpe)</span>
+  <span class="text-[11px] text-gray-400 hidden sm:inline">Mockup de validación · Vuexy / Montserrat / #7367f0</span>
+  <div class="flex flex-wrap gap-1 ml-auto">
+    <button data-go="s1" class="on">1 · Carga inicial (30 días)</button>
+    <button data-go="s2">2 · Filtros aplicados</button>
+    <button data-go="s3">3 · Búsqueda por código</button>
+    <button data-go="s4">4 · Sin resultados</button>
+    <button data-go="s5">5 · Cargando</button>
+    <button data-go="s6">6 · Antes / después</button>
+  </div>
+</div>
+
+<div class="flex">
+  <!-- ══════════ Menú lateral (chrome real del panel) ══════════ -->
+  <aside class="side min-h-screen py-4 hidden lg:block shrink-0">
+    <div class="px-5 pb-5 flex items-center gap-2">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold" style="background:var(--primary)">S</div>
+      <span class="font-semibold text-lg" style="color:var(--heading)">Stirpe</span>
+    </div>
+    <nav>
+      <a href="#">🏠 <span>Inicio</span></a>
+      <div class="grp">Menu</div>
+      <a href="#">💬 <span>Ventas</span></a>
+      <a href="#">📈 <span>Indicadores</span></a>
+      <a href="#">📊 <span>Informes</span></a>
+      <a href="#">🛍️ <span>Outfit</span></a>
+      <a href="#">📦 <span>Devoluciones</span></a>
+      <a href="#">🧾 <span>Pedidos</span></a>
+      <div class="grp">Comercial</div>
+      <a href="#" class="font-medium" style="color:var(--heading)">％ <span>Descuentos y promociones</span></a>
+      <div class="sub">
+        <a href="#" class="active">Todos los cupones</a>
+        <a href="#">Crear cupón</a>
+        <a href="#">Estrategias de ventas</a>
+        <a href="#">Eventos promocionales</a>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- ══════════ Contenido ══════════ -->
+  <main class="flex-1 min-w-0 px-4 sm:px-6 py-5">
+
+    <!-- Encabezado + breadcrumb (layouts/app.blade.php) -->
+    <div class="mb-5">
+      <h2 class="text-[1.45rem] font-medium inline-block mr-4 align-middle" style="color:var(--heading)">Cupones</h2>
+      <span class="text-sm align-middle" style="color:var(--body)">
+        <a href="#" style="color:var(--primary)">Inicio</a> / <span>Listado de cupones</span>
+      </span>
+    </div>
+
+    <!-- ─────────── BLOQUE DE FILTROS (lo nuevo de PD-1515) ─────────── -->
+    <div class="card p-5 mb-5">
+      <div class="flex items-center justify-between mb-4">
+        <h4 class="text-[1.07rem] font-medium" style="color:var(--heading)">Filtros</h4>
+        <button class="btn btn-outline text-sm" style="height:2.2rem">＋ Nuevo cupón</button>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-3">
+        <div>
+          <label class="lbl">Fecha de creación desde</label>
+          <input class="ctl flatpickr-date-time" id="f_desde" value="2026-07-20" placeholder="YYYY-MM-DD" readonly>
+        </div>
+        <div>
+          <label class="lbl">Fecha de creación hasta</label>
+          <input class="ctl flatpickr-date-time" id="f_hasta" value="2026-08-19" placeholder="YYYY-MM-DD" readonly>
+        </div>
+        <div>
+          <label class="lbl">Tipo de descuento</label>
+          <select class="ctl" id="f_tipo">
+            <option value="">Todos los tipos</option>
+            <option value="1">Porcentaje (%)</option>
+            <option value="2">Monto fijo ($)</option>
+            <option value="3">Envío gratis</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl">Masivo o único</label>
+          <select class="ctl" id="f_uso">
+            <option value="">Masivos y de uso único</option>
+            <option value="1">Masivo</option>
+            <option value="0">Uso único por cliente</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl">Estrategia</label>
+          <select class="ctl" id="f_estr">
+            <option value="">Todas las estrategias</option>
+            <option>Newsletter</option>
+            <option>Cupo no aprobado</option>
+            <option>Estrategia de reventa (abono de cupo)</option>
+            <option>Cumpleaños</option>
+            <option>Descuentos especiales</option>
+            <option>CRM Retención</option>
+            <option>CRM Alerta Activos</option>
+            <option>CRM Próximos Inactivos</option>
+            <option>CRM Venta Cruzada</option>
+            <option>CRM Compra Única</option>
+            <option>CRM Inactivos-Perdidos</option>
+            <option>CRM Cupos Nuevos</option>
+            <option>CRM Fidelización</option>
+            <option>CRM - Alianzas comerciales</option>
+            <option>Redes Sociales</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl">Tienda</label>
+          <select class="ctl" id="f_tienda">
+            <option value="">Todas las tiendas</option>
+            <option>STIRPE</option><option>DEREK</option><option>CLOVER</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl">Código cupón</label>
+          <input class="ctl" id="f_cod" placeholder="Código exacto">
+        </div>
+        <div>
+          <label class="lbl">ID de cupón</label>
+          <input class="ctl" id="f_id" placeholder="Ej: 1128432">
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 mt-4 pt-4" style="border-top:1px solid var(--line)">
+        <button class="btn btn-primary" id="btn-filtrar">🔍 Filtrar</button>
+        <button class="btn btn-flat" id="btn-limpiar">Limpiar</button>
+        <p class="text-[.8rem] ml-auto" style="color:var(--muted)">
+          Sin filtros, el listado muestra los cupones creados en los últimos 30 días.
+        </p>
+      </div>
+    </div>
+
+    <!-- Aviso: el código ignora el rango de fechas (decisión D2) -->
+    <div id="aviso-codigo" class="alert-note rounded px-4 py-3 mb-5 text-sm" hidden>
+      <b>Búsqueda por código:</b> se ignoró el rango de fechas y se buscó en todo el histórico.
+      El cupón <b>VERANO25</b> se creó el <b>2026-03-02</b>, fuera de la ventana de 30 días.
+    </div>
+
+    <!-- ─────────── LISTADO ─────────── -->
+    <div class="card overflow-hidden">
+      <div class="px-5 py-4 flex flex-wrap items-center gap-3" style="border-bottom:1px solid var(--line)">
+        <h4 class="text-[1.07rem] font-medium" style="color:var(--heading)">Listado de cupones</h4>
+        <span id="resumen" class="badge b-primary">14.085 cupones · 20 por página</span>
+        <span id="chips" class="flex flex-wrap gap-1.5"></span>
+      </div>
+
+      <!-- estado: cargando (skeleton) -->
+      <div id="estado-cargando" class="p-5 space-y-3" hidden>
+        <div class="skel h-9 w-full"></div>
+        <div class="skel h-14 w-full"></div><div class="skel h-14 w-full"></div>
+        <div class="skel h-14 w-full"></div><div class="skel h-14 w-full"></div>
+        <div class="skel h-14 w-3/4"></div>
+        <p class="text-center text-sm pt-2" style="color:var(--muted)">Consultando cupones…</p>
+      </div>
+
+      <!-- estado: vacío -->
+      <div id="estado-vacio" class="px-5 py-16 text-center" hidden>
+        <div class="text-5xl mb-3">🔍</div>
+        <h5 class="text-lg font-medium mb-1" style="color:var(--heading)">No se encontraron cupones</h5>
+        <p class="text-sm mb-5" style="color:var(--body)">
+          Ningún cupón coincide con los filtros aplicados.<br>
+          Revisa el código, amplía el rango de fechas o limpia los filtros.
+        </p>
+        <button class="btn btn-outline mx-auto" onclick="ir('s1')">Limpiar filtros</button>
+      </div>
+
+      <!-- estado: resultados -->
+      <div id="estado-tabla" class="overflow-x-auto">
+        <table class="vx">
+          <thead>
+            <tr>
+              <th>Estrategia</th><th>Tienda</th><th>Código</th><th>Tipo descuento</th>
+              <th>Valor</th><th>Beneficiario</th><th>Compra mínima</th>
+              <th>Fecha inicio</th><th>Fecha vencimiento</th><th colspan="2"></th>
+            </tr>
+          </thead>
+          <tbody id="filas"></tbody>
+        </table>
+      </div>
+
+      <div id="paginador" class="px-5 py-4 flex items-center justify-center gap-1" style="border-top:1px solid var(--line)">
+        <button class="btn btn-flat" style="height:2.2rem;padding:0 .75rem">‹</button>
+        <button class="btn btn-primary" style="height:2.2rem;padding:0 .85rem">1</button>
+        <button class="btn btn-flat" style="height:2.2rem;padding:0 .85rem">2</button>
+        <button class="btn btn-flat" style="height:2.2rem;padding:0 .85rem">3</button>
+        <span class="px-2" style="color:var(--muted)">…</span>
+        <button class="btn btn-flat" style="height:2.2rem;padding:0 .85rem" id="ult-pag">705</button>
+        <button class="btn btn-flat" style="height:2.2rem;padding:0 .75rem">›</button>
+      </div>
+    </div>
+
+    <!-- ─────────── PANTALLA 6: comparativa antes / después ─────────── -->
+    <div id="pant-comparativa" hidden>
+      <div class="card p-6 mb-5">
+        <h4 class="text-[1.07rem] font-medium mb-1" style="color:var(--heading)">Por qué la página tarda hoy</h4>
+        <p class="text-sm mb-5">Medido contra PROD (<code>baguer_pro</code>, túnel 3308) el 2026-08-19.</p>
+        <div class="grid md:grid-cols-2 gap-5">
+          <div class="rounded-lg p-5" style="background:rgba(234,84,85,.08);border:1px solid rgba(234,84,85,.25)">
+            <div class="badge b-danger mb-3">Hoy</div>
+            <table class="w-full text-sm">
+              <tr><td class="py-1">Datos (LIMIT 20)</td><td class="text-right font-semibold">58,08 s</td></tr>
+              <tr><td class="py-1">COUNT del paginador</td><td class="text-right font-semibold">21,00 s</td></tr>
+              <tr style="border-top:1px solid rgba(234,84,85,.3)">
+                <td class="pt-2 font-semibold">Total SQL por carga</td>
+                <td class="text-right pt-2 font-bold text-lg" style="color:var(--danger)">≈ 79 s</td></tr>
+            </table>
+            <p class="text-[.8rem] mt-3" style="color:#a33">
+              El <code>leftJoin</code> a <code>shop_cupon_codigos</code> (31.691.315 filas) se ejecuta
+              en cada carga, aunque solo sirva para buscar códigos.
+            </p>
+          </div>
+          <div class="rounded-lg p-5" style="background:rgba(40,199,111,.08);border:1px solid rgba(40,199,111,.25)">
+            <div class="badge b-success mb-3">Con PD-1515</div>
+            <table class="w-full text-sm">
+              <tr><td class="py-1">Datos (LIMIT 20)</td><td class="text-right font-semibold">0,075 s</td></tr>
+              <tr><td class="py-1">COUNT del paginador</td><td class="text-right font-semibold">0,071 s</td></tr>
+              <tr style="border-top:1px solid rgba(40,199,111,.3)">
+                <td class="pt-2 font-semibold">Total SQL por carga</td>
+                <td class="text-right pt-2 font-bold text-lg" style="color:var(--success)">≈ 0,15 s</td></tr>
+            </table>
+            <p class="text-[.8rem] mt-3" style="color:#1a7a45">
+              Sin el join a códigos y con ventana de 30 días. La tabla de 31,7M filas solo se toca
+              cuando el operador escribe un código, y por índice de igualdad. Sin tocar la BD.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card p-6">
+        <h4 class="text-[1.07rem] font-medium mb-1" style="color:var(--heading)">Qué encuentra el operador en esos 30 días</h4>
+        <p class="text-sm mb-4">14.085 cupones creados, de los cuales solo <b>70 son masivos</b> (los que se crean a mano en este CMS).</p>
+        <table class="vx" style="font-size:.9rem">
+          <thead><tr><th>Estrategia</th><th class="text-right">Cupones</th><th class="text-right">Masivos</th><th>Peso</th></tr></thead>
+          <tbody>
+            <tr><td>Newsletter</td><td class="text-right">13.943</td><td class="text-right">0</td>
+                <td><div class="h-2 rounded" style="width:99%;background:var(--danger)"></div></td></tr>
+            <tr><td>CRM Retención</td><td class="text-right">74</td><td class="text-right">65</td>
+                <td><div class="h-2 rounded" style="width:2%;background:var(--primary)"></div></td></tr>
+            <tr><td>Descuentos especiales</td><td class="text-right">48</td><td class="text-right">2</td>
+                <td><div class="h-2 rounded" style="width:1.5%;background:var(--primary)"></div></td></tr>
+            <tr><td>CRM Cupos Nuevos</td><td class="text-right">12</td><td class="text-right">0</td>
+                <td><div class="h-2 rounded" style="width:1%;background:var(--primary)"></div></td></tr>
+            <tr><td>CRM Fidelización</td><td class="text-right">7</td><td class="text-right">0</td>
+                <td><div class="h-2 rounded" style="width:1%;background:var(--primary)"></div></td></tr>
+            <tr><td>CRM Inactivos-Perdidos</td><td class="text-right">4</td><td class="text-right">4</td>
+                <td><div class="h-2 rounded" style="width:1%;background:var(--primary)"></div></td></tr>
+          </tbody>
+        </table>
+        <p class="text-sm mt-4 alert-warn rounded px-4 py-3">
+          El 99% del volumen es Newsletter automático. Por eso el bloque suma <b>Estrategia</b> y
+          <b>Tienda</b> a los cuatro filtros pedidos: filtrando por estrategia, el universo de
+          trabajo real cae de 14.085 a ~140 cupones.
+        </p>
+      </div>
+    </div>
+
+    <p class="text-center text-xs mt-6" style="color:var(--muted)">
+      Mockup de validación · PD-1515 · no es código de producción
+    </p>
+  </main>
+</div>
+
+<script>
+/* ═════════ Datos de ejemplo (realistas, tomados de la estructura real) ═════════ */
+const NL = (n)=>`<span style="color:var(--muted)">MÚLTIPLES CÓDIGOS</span>`;
+const DATA = {
+  // Carga inicial: mezcla real de los últimos 30 días (99% newsletter)
+  s1:[
+    ['Newsletter','STIRPE',null,'Porcentaje (%)','10%','unico','Ninguna','2026-08-19 14:02','2026-08-26 23:59',1],
+    ['Newsletter','DEREK',null,'Porcentaje (%)','10%','unico','Ninguna','2026-08-19 13:47','2026-08-26 23:59',1],
+    ['CRM Retención','STIRPE','RETENCION20','Porcentaje (%)','20%','masivo','$150.000','2026-08-19 09:15','2026-09-19 23:59',1],
+    ['Newsletter','STIRPE',null,'Porcentaje (%)','10%','unico','Ninguna','2026-08-19 08:31','2026-08-26 23:59',1],
+    ['Descuentos especiales','DEREK','QUINCENA30','Porcentaje (%)','30%','masivo','$200.000','2026-08-18 17:20','2026-08-31 23:59',1],
+    ['Newsletter','CLOVER',null,'Porcentaje (%)','10%','unico','Ninguna','2026-08-18 16:55','2026-08-25 23:59',1],
+    ['CRM Inactivos-Perdidos','STIRPE','VUELVE25','Porcentaje (%)','25%','masivo','Ninguna','2026-08-18 11:04','2026-09-18 23:59',0],
+    ['Newsletter','STIRPE',null,'Porcentaje (%)','10%','unico','Ninguna','2026-08-18 10:12','2026-08-25 23:59',1],
+  ],
+  // Filtros aplicados: Estrategia = Descuentos especiales + Masivo
+  s2:[
+    ['Descuentos especiales','DEREK','QUINCENA30','Porcentaje (%)','30%','masivo','$200.000','2026-08-18 17:20','2026-08-31 23:59',1],
+    ['Descuentos especiales','STIRPE','ENVIOGRATIS','Envío gratis','Con tope de: $15.000','masivo','$120.000','2026-08-12 09:00','2026-08-31 23:59',1],
+    ['Descuentos especiales','STIRPE','AHORRA50K','Valor fijo ($)','$50.000','masivo','$250.000','2026-08-05 15:40','2026-08-20 23:59',1],
+    ['Descuentos especiales','CLOVER','CLOVER15','Porcentaje (%)','15%','masivo','Ninguna','2026-07-29 12:10','2026-08-29 23:59',0],
+  ],
+  // Búsqueda por código: un cupón de marzo, fuera de la ventana
+  s3:[
+    ['Descuentos especiales','STIRPE','VERANO25','Porcentaje (%)','25%','masivo','$180.000','2026-03-02 08:00','2026-03-31 23:59',0],
+  ],
+  s4:[]
+};
+
+const badgeUso = u => u==='masivo'
+  ? '<span class="badge b-warning">MASIVO</span>'
+  : '<span class="badge b-info">Uso único</span>';
+
+function pintar(rows){
+  document.getElementById('filas').innerHTML = rows.map((r,i)=>{
+    const [estr,tienda,cod,tipo,valor,uso,minima,ini,fin,pub] = r;
+    const vencido = new Date(fin.replace(' ','T')) < new Date('2026-08-19T00:00:00');
+    return `<tr>
+      <td><b>${estr}</b><br>${pub
+        ? '<span class="badge b-success mt-1">ACTIVO</span>'
+        : '<span class="badge b-danger mt-1">INACTIVO</span>'}</td>
+      <td><b>${tienda}</b></td>
+      <td>${cod ? `<span class="cupon-codigo">${cod}</span>` : NL()}</td>
+      <td>${tipo}</td>
+      <td><b>${valor}</b></td>
+      <td>${badgeUso(uso)}</td>
+      <td>${minima==='Ninguna' ? '<em style="color:var(--muted)">Ninguna</em>' : minima}</td>
+      <td>${ini}</td>
+      <td><span style="color:${vencido?'var(--danger)':'var(--success)'}">${fin}</span></td>
+      <td><button class="btn btn-warning" style="height:2.1rem;padding:0 .7rem">✎</button></td>
+      <td><span class="switch ${pub?'on':'off'}"><i></i></span></td>
+    </tr>`;
+  }).join('');
+}
+
+const CHIP = t => `<span class="badge" style="background:#f3f2f7;color:var(--body)">${t} <b style="color:var(--danger)">×</b></span>`;
+
+/* ═════════ Navegación entre estados ═════════ */
+const el = id => document.getElementById(id);
+function mostrarPanel(v){
+  ['estado-tabla','paginador'].forEach(i=>el(i).hidden = v!=='tabla');
+  el('estado-vacio').hidden    = v!=='vacio';
+  el('estado-cargando').hidden = v!=='cargando';
+}
+function ir(s){
+  document.querySelectorAll('.mockbar button').forEach(b=>b.classList.toggle('on', b.dataset.go===s));
+  const comparativa = s==='s6';
+  el('pant-comparativa').hidden = !comparativa;
+  document.querySelectorAll('main > .card, main > #aviso-codigo').forEach(n=>n.hidden = comparativa);
+  if(comparativa) { window.scrollTo({top:0,behavior:'smooth'}); return; }
+
+  el('aviso-codigo').hidden = s!=='s3';
+  // reset de controles
+  fpDesde.setDate('2026-07-20'); fpHasta.setDate('2026-08-19');
+  el('f_tipo').value=''; el('f_uso').value=''; el('f_estr').value=''; el('f_tienda').value='';
+  el('f_cod').value=''; el('f_id').value='';
+  el('f_desde').disabled=false; el('f_hasta').disabled=false;
+  el('ult-pag').textContent='705';
+
+  if(s==='s1'){
+    mostrarPanel('tabla'); pintar(DATA.s1);
+    el('resumen').textContent='14.085 cupones · 20 por página';
+    el('chips').innerHTML = `<span class="badge b-info">Últimos 30 días (por defecto)</span>`;
+  }
+  if(s==='s2'){
+    mostrarPanel('tabla'); pintar(DATA.s2);
+    el('f_estr').value='Descuentos especiales'; el('f_uso').value='1';
+    el('resumen').textContent='4 cupones';
+    el('ult-pag').textContent='1';
+    el('chips').innerHTML = CHIP('Estrategia: Descuentos especiales')+CHIP('Masivo')+CHIP('20 jul – 19 ago');
+  }
+  if(s==='s3'){
+    mostrarPanel('tabla'); pintar(DATA.s3);
+    el('f_cod').value='VERANO25';
+    el('f_desde').disabled=true; el('f_hasta').disabled=true;
+    el('resumen').textContent='1 cupón';
+    el('ult-pag').textContent='1';
+    el('chips').innerHTML = CHIP('Código: VERANO25')+`<span class="badge b-warning">Rango de fechas ignorado</span>`;
+  }
+  if(s==='s4'){
+    mostrarPanel('vacio');
+    el('f_cod').value='NAVIDAD2024';
+    el('f_desde').disabled=true; el('f_hasta').disabled=true;
+    el('resumen').textContent='0 cupones';
+    el('chips').innerHTML = CHIP('Código: NAVIDAD2024');
+  }
+  if(s==='s5'){
+    mostrarPanel('cargando');
+    el('resumen').textContent='Consultando…';
+    el('chips').innerHTML='';
+  }
+}
+/* ═════════ Datepicker ═════════
+   Init del LISTADO = el de devoluciones/index.blade.php:168 → flatpickr({}).
+   NO se copia el de cupones/create.blade.php:331, que lleva minDate: new Date()
+   y dejaría el filtro incapaz de mirar hacia atrás. Sin enableTime: el
+   controlador ya fuerza 00:00:00 / 23:59:59 en los extremos del rango.        */
+flatpickr.localize(flatpickr.l10ns.es);
+const fpDesde = flatpickr('#f_desde', { dateFormat:'Y-m-d' });
+const fpHasta = flatpickr('#f_hasta', { dateFormat:'Y-m-d' });
+
+document.querySelectorAll('.mockbar button').forEach(b=>b.onclick=()=>ir(b.dataset.go));
+el('btn-limpiar').onclick = ()=>ir('s1');
+el('btn-filtrar').onclick = ()=>{
+  mostrarPanel('cargando');
+  setTimeout(()=>{ ir(el('f_cod').value ? 's3' : 's2'); }, 700);
+};
+// el código deshabilita el rango de fechas en vivo (decisión D2)
+el('f_cod').addEventListener('input', e=>{
+  const hay = e.target.value.trim().length>0;
+  el('f_desde').disabled=hay; el('f_hasta').disabled=hay;
+  el('aviso-codigo').hidden = !hay;
+});
+ir('s1');
+</script>
+</body>
+</html>
