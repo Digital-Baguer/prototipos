@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-125 · Mockup — Entregas devueltas en Gestión de Entregas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  @keyframes pulse { 50% { opacity: .5; } }
+  .skeleton { animation: pulse 1.6s cubic-bezier(.4,0,.6,1) infinite; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+<!-- ════════ Barra del mockup (no es parte de la UI real) ════════ -->
+<div class="bg-indigo-950 text-indigo-100 px-4 py-2 flex flex-wrap items-center gap-3 text-sm">
+  <span class="font-bold tracking-wide">GW-125 · MOCKUP</span>
+  <span class="text-indigo-300 hidden md:inline">Entregas con devolución total visibles como "Devuelta"</span>
+  <nav class="flex gap-1 ml-auto" id="nav-vistas">
+    <button data-vista="agenda" class="nav-btn px-3 py-1 rounded-md font-medium bg-white text-indigo-950">Agenda</button>
+    <button data-vista="tabla" class="nav-btn px-3 py-1 rounded-md font-medium text-indigo-200 hover:bg-indigo-900">Tabla</button>
+    <button data-vista="mensajero" class="nav-btn px-3 py-1 rounded-md font-medium text-indigo-200 hover:bg-indigo-900">Mensajero</button>
+  </nav>
+  <div class="flex items-center gap-1 text-xs border-l border-indigo-800 pl-3">
+    <span class="text-indigo-300">Estado:</span>
+    <button data-estado="normal" class="estado-btn px-2 py-0.5 rounded bg-white text-indigo-950 font-medium">Normal</button>
+    <button data-estado="carga" class="estado-btn px-2 py-0.5 rounded text-indigo-200 hover:bg-indigo-900">Cargando</button>
+    <button data-estado="error" class="estado-btn px-2 py-0.5 rounded text-indigo-200 hover:bg-indigo-900">Error</button>
+  </div>
+</div>
+
+<!-- ════════════════ VISTA ESCRITORIO (agenda / tabla) ════════════════ -->
+<div id="frame-desktop" class="flex min-h-screen">
+
+  <!-- Sidebar get-web (GW-115: superficie oscura) -->
+  <aside class="hidden lg:flex w-56 shrink-0 flex-col bg-[#101613] text-gray-300">
+    <div class="px-5 py-5 text-white font-bold text-lg tracking-tight">GET <span class="text-gray-500 font-normal text-sm">CMS</span></div>
+    <nav class="px-3 space-y-0.5 text-sm">
+      <div class="px-3 py-2 rounded-md hover:bg-white/5">Dashboard</div>
+      <div class="px-3 pt-4 pb-1 text-[11px] uppercase tracking-widest text-gray-500">Venta asistida</div>
+      <div class="px-3 py-2 rounded-md hover:bg-white/5">Ventas</div>
+      <div class="px-3 py-2 rounded-md bg-white/10 text-white font-medium">Gestión de Entregas</div>
+      <div class="px-3 py-2 rounded-md hover:bg-white/5">Comisiones</div>
+      <div class="px-3 py-2 rounded-md hover:bg-white/5">Gestión de ventas</div>
+    </nav>
+  </aside>
+
+  <main class="flex-1 min-w-0 p-6">
+    <!-- Breadcrumbs + título -->
+    <div class="text-xs text-gray-500 mb-1">Dashboard / Venta Asistida / <span class="text-gray-800">Gestión de Entregas</span></div>
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div>
+        <h1 class="text-xl font-bold">Gestión de Entregas</h1>
+        <p class="text-sm text-gray-500">Administra y agenda las entregas de venta asistida</p>
+      </div>
+      <!-- Switcher de vistas del módulo (real) -->
+      <div class="flex rounded-lg bg-gray-200/80 p-1 text-sm font-medium">
+        <button id="sw-agenda" class="sw-btn px-3 py-1.5 rounded-md bg-white text-gray-900 shadow-sm">Agenda</button>
+        <button class="px-3 py-1.5 rounded-md text-gray-500" title="Sin cambios en GW-125">Alistamiento</button>
+        <button id="sw-tabla" class="sw-btn px-3 py-1.5 rounded-md text-gray-600 hover:text-gray-900">Tabla</button>
+        <button class="px-3 py-1.5 rounded-md text-gray-500" title="Sin cambios en GW-125">Dashboard</button>
+      </div>
+    </div>
+
+    <!-- ── Estado ERROR (falla solo-alert, estándar GW-75/77) ── -->
+    <div id="bloque-error" class="hidden rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 mb-4">
+      No fue posible cargar las entregas. <button class="font-semibold underline">Reintentar</button>
+    </div>
+
+    <!-- ══════════ VISTA AGENDA ══════════ -->
+    <section id="vista-agenda">
+
+      <!-- Navegación de la agenda -->
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div class="flex items-center gap-1">
+          <button class="h-8 w-8 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-50">‹</button>
+          <button class="h-8 px-3 rounded-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">Hoy</button>
+          <button class="h-8 w-8 rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-50">›</button>
+          <span class="ml-2 text-sm font-semibold text-gray-800">19 — 25 ago 2026</span>
+        </div>
+        <div class="flex rounded-lg bg-gray-200/80 p-0.5 text-xs font-medium">
+          <button class="px-2.5 py-1 rounded-md bg-white shadow-sm">Móvil</button>
+          <button class="px-2.5 py-1 rounded-md text-gray-600">Semana</button>
+        </div>
+      </div>
+
+      <!-- Leyenda (con el estado nuevo "Devuelta") -->
+      <div class="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+        <span class="font-medium text-gray-600">Estado:</span>
+        <span class="inline-flex items-center gap-1.5 text-gray-700"><span class="h-3.5 w-3.5 rounded border bg-gray-100 border-gray-300"></span>Sin asignar</span>
+        <span class="inline-flex items-center gap-1.5 text-gray-700"><span class="h-3.5 w-3.5 rounded border bg-[#E1F5FE] border-[#B3E5FC]"></span>Asignada</span>
+        <span class="inline-flex items-center gap-1.5 text-gray-700"><span class="h-3.5 w-3.5 rounded border bg-amber-100 border-amber-200"></span>Recogida</span>
+        <span class="inline-flex items-center gap-1.5 text-gray-700"><span class="h-3.5 w-3.5 rounded border bg-[#F3E5F5] border-[#E1BEE7]"></span>En ruta</span>
+        <span class="inline-flex items-center gap-1.5 text-gray-700"><span class="h-3.5 w-3.5 rounded border bg-[#E6F4EA] border-[#A5D6A7]"></span>Entregada</span>
+        <span class="inline-flex items-center gap-1.5 text-gray-700 font-semibold"><span class="h-3.5 w-3.5 rounded border bg-[#FEEBEB] border-[#F5C2C2]"></span>Devuelta <span class="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 rounded px-1">NUEVO</span></span>
+      </div>
+
+      <!-- Skeleton de carga (estándar GW-75/77) -->
+      <div id="agenda-skeleton" class="hidden rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+        <div class="skeleton h-6 w-56 rounded bg-gray-200"></div>
+        <div class="grid grid-cols-4 gap-3">
+          <div class="skeleton h-28 rounded-lg bg-gray-200"></div><div class="skeleton h-28 rounded-lg bg-gray-100"></div>
+          <div class="skeleton h-28 rounded-lg bg-gray-200"></div><div class="skeleton h-28 rounded-lg bg-gray-100"></div>
+          <div class="skeleton h-28 rounded-lg bg-gray-100"></div><div class="skeleton h-28 rounded-lg bg-gray-200"></div>
+          <div class="skeleton h-28 rounded-lg bg-gray-100"></div><div class="skeleton h-28 rounded-lg bg-gray-200"></div>
+        </div>
+      </div>
+
+      <!-- Grilla de agenda (recorte: 4 días × 3 franjas representativas) -->
+      <div id="agenda-grilla" class="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+        <table class="w-full border-collapse text-sm min-w-[820px]">
+          <thead>
+            <tr>
+              <th class="w-24 border-b border-r border-gray-200 bg-gray-50 px-2 py-2"></th>
+              <th class="border-b border-r border-gray-200 bg-white px-2 py-2 text-center text-xs font-semibold text-gray-800">mié 19 ago</th>
+              <th class="border-b border-r border-gray-200 bg-white px-2 py-2 text-center text-xs font-semibold text-gray-800">jue 20 ago</th>
+              <th class="border-b border-r border-gray-200 bg-indigo-50 px-2 py-2 text-center text-xs font-semibold text-indigo-700">vie 21 ago <span class="ml-1 rounded bg-indigo-600 px-1 text-[10px] text-white">HOY</span></th>
+              <th class="border-b border-gray-200 bg-white px-2 py-2 text-center text-xs font-semibold text-gray-800">sáb 22 ago</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Franja 11:00 -->
+            <tr>
+              <td class="border-b border-r border-gray-200 bg-gray-50 px-2 py-2 align-top">
+                <div class="text-xs font-semibold text-gray-700">11:00 a. m. – 12:00 m.</div>
+                <div class="tabular-nums text-xs text-gray-400">cap. 3</div>
+              </td>
+              <!-- mié 19: DEVUELTA + entregada -->
+              <td class="border-b border-r border-gray-200 px-1.5 py-1.5 align-top w-[180px]">
+                <div class="mb-1 text-right"><span class="tabular-nums rounded-md border border-gray-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-gray-500">2/3</span></div>
+                <div class="min-h-[104px] space-y-1.5">
+                  <button onclick="abrirDetalle('devuelta')" class="block w-full rounded-md border bg-[#FEEBEB] border-[#F5C2C2] px-2.5 py-1.5 text-left hover:shadow-sm" style="border-right:3px solid #C53030" title="Devuelta">
+                    <div class="tabular-nums text-[13px] font-bold leading-tight text-blue-900">#175202</div>
+                    <div class="truncate text-xs capitalize leading-snug text-gray-800">maría fernanda rojas</div>
+                    <div class="truncate text-[11px] text-gray-600">📍 Provenza</div>
+                    <div class="truncate text-[11px] text-gray-600">🛵 Jorge</div>
+                  </button>
+                  <button class="block w-full rounded-md border bg-[#E6F4EA] border-[#A5D6A7] px-2.5 py-1.5 text-left hover:shadow-sm" style="border-right:3px solid #1E7E34" title="Entregada">
+                    <div class="tabular-nums text-[13px] font-bold leading-tight text-blue-900">#175198</div>
+                    <div class="truncate text-xs capitalize leading-snug text-gray-800">carlos duarte pinzón</div>
+                    <div class="truncate text-[11px] text-gray-600">📍 Cabecera</div>
+                    <div class="truncate text-[11px] text-gray-600">🛵 Jorge</div>
+                  </button>
+                </div>
+              </td>
+              <!-- jue 20: entregada -->
+              <td class="border-b border-r border-gray-200 px-1.5 py-1.5 align-top w-[180px]">
+                <div class="mb-1 text-right"><span class="tabular-nums rounded-md border border-gray-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-gray-500">1/3</span></div>
+                <div class="min-h-[104px] space-y-1.5">
+                  <button class="block w-full rounded-md border bg-[#E6F4EA] border-[#A5D6A7] px-2.5 py-1.5 text-left hover:shadow-sm" style="border-right:3px solid #1E7E34" title="Entregada">
+                    <div class="tabular-nums text-[13px] font-bold leading-tight text-blue-900">#175291</div>
+                    <div class="truncate text-xs capitalize leading-snug text-gray-800">paola andrea sierra</div>
+                    <div class="truncate text-[11px] text-gray-600">📍 San Francisco</div>
+                    <div class="truncate text-[11px] text-gray-600">🛵 Camilo</div>
+                  </button>
+                </div>
+              </td>
+              <!-- vie 21 (hoy): en ruta -->
+              <td class="border-b border-r border-gray-200 bg-indigo-50/40 px-1.5 py-1.5 align-top w-[180px]">
+                <div class="mb-1 text-right"><span class="tabular-nums rounded-md border border-gray-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-gray-500">1/3</span></div>
+                <div class="min-h-[104px] space-y-1.5">
+                  <button class="block w-full rounded-md border bg-[#F3E5F5] border-[#E1BEE7] px-2.5 py-1.5 text-left hover:shadow-sm" style="border-right:3px solid #7B1FA2" title="En ruta">
+                    <div class="tabular-nums text-[13px] font-bold leading-tight text-blue-900">#175344</div>
+                    <div class="truncate text-xs capitalize leading-snug text-gray-800">julián mantilla ortiz</div>
+                    <div class="truncate text-[11px] text-gray-600">📍 Sotomayor</div>
+                    <div class="truncate text-[11px] text-gray-600">🛵 Jorge</div>
+                  </button>
+                </div>
+              </td>
+              <td class="border-b border-gray-200 px-1.5 py-1.5 align-top w-[180px]">
+                <div class="mb-1 text-right"><span class="tabular-nums rounded-md border border-gray-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-gray-500">0/3</span></div>
+                <div class="min-h-[104px]"></div>
+              </td>
+            </tr>
+            <!-- Franja 16:00 -->
+            <tr>
+              <td class="border-b border-r border-gray-200 bg-gray-50 px-2 py-2 align-top">
+                <div class="text-xs font-semibold text-gray-700">4:00 p. m. – 5:00 p. m.</div>
+                <div class="tabular-nums text-xs text-gray-400">cap. 4</div>
+              </td>
+              <td class="border-b border-r border-gray-200 px-1.5 py-1.5 align-top">
+                <div class="mb-1 text-right"><span class="tabular-nums rounded-md border border-gray-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-gray-500">1/4</span></div>
+                <div class="min-h-[104px] space-y-1.5">
+                  <button class="block w-full rounded-md border bg-[#E6F4EA] border-[#A5D6A7] px-2.5 py-1.5 text-left hover:shadow-sm" style="border-right:3px solid #1E7E34" title="Entregada">
+                    <div class="tabular-nums text-[13px] font-bold leading-tight text-blue-900">#175215</div>
+                    <div class="truncate text-xs capitalize leading-snug text-gray-800">diana marcela vera</div>
+                    <div class="truncate text-[11px] text-gray-600">📍 Álvarez</div>
+                    <div class="truncate text-[11px] text-gray-600">🛵 Camilo</div>
+                  </button>
+                </div>
+              </td>
+              <!-- jue 20: DEVUELTA legacy (sin motivo) -->
+              <td class="border-b border-r border-gray-200 px-1.5 py-1.5 align-top">
+                <div class="mb-1 text-right"><span class="tabular-nums rounded-md border border-gray-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-gray-500">1/4</span></div>
+                <div class="min-h-[104px] space-y-1.5">
+                  <button onclick="abrirDetalle('devuelta-legacy')" class="block w-full rounded-md border bg-[#FEEBEB] border-[#F5C2C2] px-2.5 py-1.5 text-left hover:shadow-sm" style="border-right:3px solid #C53030" title="Devuelta">
+                    <div class="tabular-nums text-[13px] font-bold leading-tight text-blue-900">#175310</div>
+                    <div class="truncate text-xs capitalize leading-snug text-gray-800">édgar rueda cáceres</div>
+                    <div class="truncate text-[11px] text-gray-600">📍 Girardot</div>
+                    <div class="truncate text-[11px] text-gray-600">🛵 Camilo</div>
+                  </button>
+                </div>
+              </td>
+              <!-- vie 21 (hoy): recogida + asignada -->
+              <td class="border-b border-r border-gray-200 bg-indigo-50/40 px-1.5 py-1.5 align-top">
+                <div class="mb-1 text-right"><span class="tabular-nums rounded-md border border-gray-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-gray-500">2/4</span></div>
+                <div class="min-h-[104px] space-y-1.5">
+                  <button class="block w-full rounded-md border bg-amber-100 border-amber-200 px-2.5 py-1.5 text-left hover:shadow-sm" style="border-right:3px solid #D97706" title="Recogida">
+                    <div class="tabular-nums text-[13px] font-bold leading-tight text-blue-900">#175361</div>
+                    <div class="truncate text-xs capitalize leading-snug text-gray-800">laura ximena parra</div>
+                    <div class="truncate text-[11px] text-gray-600">📍 Cañaveral</div>
+                    <div class="truncate text-[11px] text-gray-600">🛵 Jorge</div>
+                  </button>
+                  <button class="block w-full rounded-md border bg-[#E1F5FE] border-[#B3E5FC] px-2.5 py-1.5 text-left hover:shadow-sm" style="border-right:3px solid #0288D1" title="Asignada">
+                    <div class="tabular-nums text-[13px] font-bold leading-tight text-blue-900">#175377</div>
+                    <div class="truncate text-xs capitalize leading-snug text-gray-800">óscar iván celis</div>
+                    <div class="truncate text-[11px] text-gray-600">📍 La Aurora</div>
+                    <div class="truncate text-[11px] text-gray-600">🛵 Camilo</div>
+                  </button>
+                </div>
+              </td>
+              <td class="border-b border-gray-200 px-1.5 py-1.5 align-top">
+                <div class="mb-1 text-right"><span class="tabular-nums rounded-md border border-gray-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-gray-500">0/4</span></div>
+                <div class="min-h-[104px] space-y-1.5">
+                  <button class="block w-full rounded-md border bg-gray-100 border-gray-300 px-2.5 py-1.5 text-left hover:shadow-sm" style="border-right:3px solid #9ca3af" title="Sin asignar">
+                    <div class="tabular-nums text-[13px] font-bold leading-tight text-blue-900">#175402</div>
+                    <div class="truncate text-xs capitalize leading-snug text-gray-800">sandra milena ardila</div>
+                    <div class="truncate text-[11px] text-gray-600">📍 Mutis</div>
+                    <div class="truncate text-[11px] text-gray-500">— sin asignar</div>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-2 text-xs text-gray-500">Recorte de la grilla (2 franjas × 4 días). La devuelta permanece en su casilla original y cuenta en la ocupación de la franja.</p>
+    </section>
+
+    <!-- ══════════ VISTA TABLA ══════════ -->
+    <section id="vista-tabla" class="hidden">
+
+      <!-- Tabs por estado (con el nuevo "Devueltas") -->
+      <div class="flex flex-wrap gap-1 rounded-lg bg-gray-200/60 p-1 text-sm mb-4 w-fit" id="tabs-estado">
+        <button data-tab="todas" class="tab-btn px-3 py-1.5 rounded-md bg-white shadow-sm font-medium">Todas <span class="tabular-nums text-gray-500">312</span></button>
+        <button data-tab="sin_asignar" class="tab-btn px-3 py-1.5 rounded-md text-gray-600 hover:text-gray-900">Sin asignar <span class="tabular-nums text-gray-500">6</span></button>
+        <button data-tab="asignada" class="tab-btn px-3 py-1.5 rounded-md text-gray-600 hover:text-gray-900">Asignadas <span class="tabular-nums text-gray-500">3</span></button>
+        <button data-tab="recogida" class="tab-btn px-3 py-1.5 rounded-md text-gray-600 hover:text-gray-900">Recogidas <span class="tabular-nums text-gray-500">4</span></button>
+        <button data-tab="en_ruta" class="tab-btn px-3 py-1.5 rounded-md text-gray-600 hover:text-gray-900">En ruta <span class="tabular-nums text-gray-500">2</span></button>
+        <button data-tab="entregada" class="tab-btn px-3 py-1.5 rounded-md text-gray-600 hover:text-gray-900">Entregadas <span class="tabular-nums text-gray-500">278</span></button>
+        <button data-tab="devuelta" class="tab-btn px-3 py-1.5 rounded-md text-gray-600 hover:text-gray-900 font-medium">Devueltas <span class="tabular-nums text-red-600 font-semibold">19</span> <span class="align-middle text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 rounded px-1">NUEVO</span></button>
+      </div>
+
+      <!-- Skeleton tabla -->
+      <div id="tabla-skeleton" class="hidden rounded-xl border border-gray-200 bg-white p-4 space-y-2">
+        <div class="skeleton h-9 rounded bg-gray-200"></div>
+        <div class="skeleton h-9 rounded bg-gray-100"></div>
+        <div class="skeleton h-9 rounded bg-gray-200"></div>
+        <div class="skeleton h-9 rounded bg-gray-100"></div>
+      </div>
+
+      <div id="tabla-contenido" class="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+        <table class="w-full text-sm min-w-[900px]">
+          <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+            <tr>
+              <th class="px-4 py-3">Carrito</th>
+              <th class="px-4 py-3">Cliente</th>
+              <th class="px-4 py-3">Entrega</th>
+              <th class="px-4 py-3">Cobro</th>
+              <th class="px-4 py-3">Total</th>
+              <th class="px-4 py-3">Estado</th>
+              <th class="px-4 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100" id="tabla-filas">
+            <tr data-estado="en_ruta" class="hover:bg-gray-50">
+              <td class="px-4 py-3 tabular-nums font-semibold text-blue-900">#175344</td>
+              <td class="px-4 py-3 capitalize">julián mantilla ortiz<div class="text-xs text-gray-500">Sotomayor · 301 456 8890</div></td>
+              <td class="px-4 py-3 text-xs text-gray-600">vie 21 ago · 11:00 a. m.<div>🛵 Jorge</div></td>
+              <td class="px-4 py-3"><span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Contra entrega</span></td>
+              <td class="px-4 py-3 tabular-nums">$ 189.900</td>
+              <td class="px-4 py-3"><span class="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">En ruta</span></td>
+              <td class="px-4 py-3 text-right"><button class="text-xs font-medium text-indigo-600 hover:underline">Ver detalle</button></td>
+            </tr>
+            <tr data-estado="devuelta" class="hover:bg-gray-50">
+              <td class="px-4 py-3 tabular-nums font-semibold text-blue-900">#175202</td>
+              <td class="px-4 py-3 capitalize">maría fernanda rojas<div class="text-xs text-gray-500">Provenza · 315 220 4471</div></td>
+              <td class="px-4 py-3 text-xs text-gray-600">mié 19 ago · 11:00 a. m.<div>🛵 Jorge</div></td>
+              <td class="px-4 py-3"><span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Contra entrega</span></td>
+              <td class="px-4 py-3 tabular-nums">$ 246.800</td>
+              <td class="px-4 py-3"><span class="rounded-full bg-[#FEEBEB] px-2.5 py-1 text-xs font-semibold text-[#C53030]">Devuelta</span></td>
+              <td class="px-4 py-3 text-right"><button onclick="abrirDetalle('devuelta')" class="text-xs font-medium text-indigo-600 hover:underline">Ver detalle</button></td>
+            </tr>
+            <tr data-estado="entregada" class="hover:bg-gray-50">
+              <td class="px-4 py-3 tabular-nums font-semibold text-blue-900">#175291</td>
+              <td class="px-4 py-3 capitalize">paola andrea sierra<div class="text-xs text-gray-500">San Francisco · 300 118 6752</div></td>
+              <td class="px-4 py-3 text-xs text-gray-600">jue 20 ago · 11:00 a. m.<div>🛵 Camilo</div></td>
+              <td class="px-4 py-3"><span class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">Anticipado</span></td>
+              <td class="px-4 py-3 tabular-nums">$ 312.750</td>
+              <td class="px-4 py-3"><span class="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">Entregada</span><div class="mt-0.5 text-[11px] text-green-700">A tiempo · 22 min en ruta</div></td>
+              <td class="px-4 py-3 text-right"><button class="text-xs font-medium text-indigo-600 hover:underline">Ver detalle</button></td>
+            </tr>
+            <tr data-estado="devuelta" class="hover:bg-gray-50">
+              <td class="px-4 py-3 tabular-nums font-semibold text-blue-900">#175310</td>
+              <td class="px-4 py-3 capitalize">édgar rueda cáceres<div class="text-xs text-gray-500">Girardot · 318 604 2215</div></td>
+              <td class="px-4 py-3 text-xs text-gray-600">jue 20 ago · 4:00 p. m.<div>🛵 Camilo</div></td>
+              <td class="px-4 py-3"><span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Contra entrega</span></td>
+              <td class="px-4 py-3 tabular-nums">$ 98.900</td>
+              <td class="px-4 py-3"><span class="rounded-full bg-[#FEEBEB] px-2.5 py-1 text-xs font-semibold text-[#C53030]">Devuelta</span></td>
+              <td class="px-4 py-3 text-right"><button onclick="abrirDetalle('devuelta-legacy')" class="text-xs font-medium text-indigo-600 hover:underline">Ver detalle</button></td>
+            </tr>
+            <tr data-estado="sin_asignar" class="hover:bg-gray-50">
+              <td class="px-4 py-3 tabular-nums font-semibold text-blue-900">#175402</td>
+              <td class="px-4 py-3 capitalize">sandra milena ardila<div class="text-xs text-gray-500">Mutis · 312 776 0934</div></td>
+              <td class="px-4 py-3 text-xs text-gray-600">sáb 22 ago · 4:00 p. m.<div class="text-gray-400">— sin asignar</div></td>
+              <td class="px-4 py-3"><span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Contra entrega</span></td>
+              <td class="px-4 py-3 tabular-nums">$ 154.850</td>
+              <td class="px-4 py-3"><span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-600">Sin asignar</span></td>
+              <td class="px-4 py-3 text-right"><button class="rounded-md bg-gray-900 px-2.5 py-1 text-xs font-medium text-white">Asignar</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <!-- Vacío del tab Devueltas -->
+        <div id="tabla-vacio" class="hidden px-6 py-14 text-center text-sm text-gray-500">
+          No hay entregas devueltas en el rango de fechas seleccionado.
+        </div>
+      </div>
+      <p class="mt-2 text-xs text-gray-500">La fila devuelta no ofrece acciones de asignación ni cobro. El tab "Entregadas" ya no incluye devoluciones.</p>
+    </section>
+  </main>
+</div>
+
+<!-- ══════════ VISTA MENSAJERO (móvil) ══════════ -->
+<section id="vista-mensajero" class="hidden py-8">
+  <div class="mx-auto w-[390px] rounded-[2rem] border-8 border-gray-900 bg-white overflow-hidden shadow-2xl">
+    <div class="bg-white px-4 pt-4 pb-2 border-b">
+      <div class="text-xs text-gray-500">Dashboard / Mis Entregas</div>
+      <h2 class="text-lg font-bold">Mis Entregas</h2>
+      <p class="text-xs text-gray-500">vie 21 de agosto · Jorge</p>
+    </div>
+    <div class="px-4 py-3 space-y-3 bg-gray-50 min-h-[560px]">
+
+      <!-- Pendientes -->
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Pendientes</span>
+        <span class="rounded bg-gray-200 px-1.5 text-xs text-gray-600">1</span>
+      </div>
+      <div class="rounded-xl border bg-white p-3.5 shadow-sm">
+        <div class="flex items-start justify-between">
+          <div class="tabular-nums font-bold text-blue-900">#175344</div>
+          <span class="rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-[10px] font-mono tracking-wide">EN RUTA</span>
+        </div>
+        <div class="capitalize text-sm font-medium mt-1">julián mantilla ortiz</div>
+        <div class="text-xs text-gray-600">Cra 27 # 51-24 · Sotomayor</div>
+        <div class="text-xs text-gray-500 mt-1">11:00 a. m. – 12:00 m. · Contra entrega</div>
+        <button class="mt-3 w-full rounded-lg bg-gray-900 py-2.5 text-sm font-bold text-white">COBRAR $ 189.900</button>
+      </div>
+
+      <!-- Completadas hoy -->
+      <button class="flex w-full items-center justify-between text-xs font-medium text-gray-500 uppercase tracking-wide pt-2">
+        <span>Completadas hoy (2)</span><span>▾</span>
+      </button>
+
+      <!-- Entregada -->
+      <div class="rounded-xl border bg-white p-3.5 opacity-90">
+        <div class="flex items-start justify-between">
+          <div class="tabular-nums font-bold text-blue-900">#175322</div>
+          <span class="rounded-full bg-emerald-100 text-emerald-700 px-2 py-0.5 text-[10px] font-mono tracking-wide">ENTREGADA</span>
+        </div>
+        <div class="capitalize text-sm font-medium mt-1">diana marcela vera</div>
+        <div class="text-xs text-gray-600">Cll 105 # 23-11 · Álvarez</div>
+        <div class="text-xs text-emerald-700 mt-1">✓ Entregada 10:42 a. m. · $ 176.500 cobrado</div>
+      </div>
+
+      <!-- DEVUELTA (nuevo) -->
+      <div class="rounded-xl border border-[#F5C2C2] bg-white p-3.5 opacity-90">
+        <div class="flex items-start justify-between">
+          <div class="tabular-nums font-bold text-blue-900">#175359</div>
+          <span class="rounded-full bg-[#FEEBEB] text-[#C53030] px-2 py-0.5 text-[10px] font-mono tracking-wide">DEVUELTA</span>
+        </div>
+        <div class="capitalize text-sm font-medium mt-1">héctor fabio niño</div>
+        <div class="text-xs text-gray-600">Cra 33 # 48-06 · Cabecera</div>
+        <div class="text-xs text-[#C53030] mt-1">El cliente no aceptó ningún producto · 2 prendas devueltas</div>
+        <!-- sin botones de acción -->
+      </div>
+
+      <p class="text-[11px] text-gray-400 text-center pt-2">La devuelta permanece hoy en la jornada; mañana sale de la lista.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ MODAL DETALLE (DetalleEntregaModal) ══════════ -->
+<div id="modal-detalle" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onclick="if(event.target===this)cerrarDetalle()">
+  <div class="w-full max-w-md rounded-2xl bg-white shadow-xl overflow-hidden">
+    <div class="flex items-start justify-between px-5 pt-5">
+      <div>
+        <div class="tabular-nums text-lg font-bold text-blue-900" id="det-carrito">#175202</div>
+        <div class="capitalize text-sm text-gray-700" id="det-cliente">maría fernanda rojas</div>
+      </div>
+      <span class="rounded-full bg-[#FEEBEB] px-2.5 py-1 text-xs font-semibold text-[#C53030]">Devuelta</span>
+    </div>
+
+    <!-- Bloque nuevo GW-125 -->
+    <div class="mx-5 mt-4 rounded-xl border border-[#F5C2C2] bg-[#FEEBEB]/60 p-3.5">
+      <div class="text-xs font-bold uppercase tracking-widest text-[#C53030]">Devolución total</div>
+      <div class="mt-1 text-sm font-semibold text-gray-800" id="det-fecha">Devuelta el 19 ago 2026, 11:47 a. m.</div>
+      <div class="mt-0.5 text-xs text-gray-700" id="det-motivo">Motivo: Cliente no aceptó ningún producto en la entrega</div>
+    </div>
+
+    <div class="px-5 py-4 text-sm space-y-2">
+      <div class="flex justify-between"><span class="text-gray-500">Entrega agendada</span><span id="det-agenda">mié 19 ago · 11:00 a. m. – 12:00 m.</span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Mensajero</span><span id="det-mensajero">Jorge</span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Cobro</span><span>Contra entrega</span></div>
+      <div class="flex justify-between"><span class="text-gray-500">Total</span><span class="tabular-nums" id="det-total">$ 246.800</span></div>
+      <div class="pt-2 border-t">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Productos devueltos</div>
+        <div class="flex justify-between text-xs"><span>CAMISA OXFORD STIRPE (M)</span><span class="tabular-nums line-through text-gray-400">$ 129.900</span></div>
+        <div class="flex justify-between text-xs mt-1"><span>JEAN SLIM DEREK (32)</span><span class="tabular-nums line-through text-gray-400">$ 116.900</span></div>
+      </div>
+    </div>
+    <div class="bg-gray-50 px-5 py-3 text-right">
+      <button onclick="cerrarDetalle()" class="rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-medium hover:bg-gray-100">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Navegación de vistas del mockup ──
+const vistas = { agenda: 'vista-agenda', tabla: 'vista-tabla', mensajero: 'vista-mensajero' };
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => activarVista(btn.dataset.vista));
+});
+document.getElementById('sw-agenda').addEventListener('click', () => activarVista('agenda'));
+document.getElementById('sw-tabla').addEventListener('click', () => activarVista('tabla'));
+
+function activarVista(v) {
+  document.getElementById('frame-desktop').classList.toggle('hidden', v === 'mensajero');
+  document.getElementById('vista-mensajero').classList.toggle('hidden', v !== 'mensajero');
+  if (v !== 'mensajero') {
+    document.getElementById('vista-agenda').classList.toggle('hidden', v !== 'agenda');
+    document.getElementById('vista-tabla').classList.toggle('hidden', v !== 'tabla');
+    document.getElementById('sw-agenda').className = 'sw-btn px-3 py-1.5 rounded-md ' + (v === 'agenda' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900');
+    document.getElementById('sw-tabla').className = 'sw-btn px-3 py-1.5 rounded-md ' + (v === 'tabla' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900');
+  }
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    b.className = 'nav-btn px-3 py-1 rounded-md font-medium ' + (b.dataset.vista === v ? 'bg-white text-indigo-950' : 'text-indigo-200 hover:bg-indigo-900');
+  });
+}
+
+// ── Tabs de estado (vista tabla) ──
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.className = 'tab-btn px-3 py-1.5 rounded-md ' + (b === btn ? 'bg-white shadow-sm font-medium' : 'text-gray-600 hover:text-gray-900') + (b.dataset.tab === 'devuelta' && b !== btn ? ' font-medium' : '');
+    });
+    let visibles = 0;
+    document.querySelectorAll('#tabla-filas tr').forEach(tr => {
+      const mostrar = tab === 'todas' || tr.dataset.estado === tab;
+      tr.classList.toggle('hidden', !mostrar);
+      if (mostrar) visibles++;
+    });
+    document.getElementById('tabla-vacio').classList.toggle('hidden', visibles > 0);
+  });
+});
+
+// ── Estados normal / carga / error ──
+document.querySelectorAll('.estado-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const e = btn.dataset.estado;
+    document.querySelectorAll('.estado-btn').forEach(b => {
+      b.className = 'estado-btn px-2 py-0.5 rounded ' + (b === btn ? 'bg-white text-indigo-950 font-medium' : 'text-indigo-200 hover:bg-indigo-900');
+    });
+    document.getElementById('bloque-error').classList.toggle('hidden', e !== 'error');
+    document.getElementById('agenda-skeleton').classList.toggle('hidden', e !== 'carga');
+    document.getElementById('agenda-grilla').classList.toggle('hidden', e !== 'normal');
+    document.getElementById('tabla-skeleton').classList.toggle('hidden', e !== 'carga');
+    document.getElementById('tabla-contenido').classList.toggle('hidden', e !== 'normal');
+  });
+});
+
+// ── Modal detalle (variantes: con motivo / legacy sin motivo) ──
+const detalles = {
+  'devuelta': {
+    carrito: '#175202', cliente: 'maría fernanda rojas', total: '$ 246.800', mensajero: 'Jorge',
+    agenda: 'mié 19 ago · 11:00 a. m. – 12:00 m.',
+    fecha: 'Devuelta el 19 ago 2026, 11:47 a. m.',
+    motivo: 'Motivo: Cliente no aceptó ningún producto en la entrega'
+  },
+  'devuelta-legacy': {
+    carrito: '#175310', cliente: 'édgar rueda cáceres', total: '$ 98.900', mensajero: 'Camilo',
+    agenda: 'jue 20 ago · 4:00 p. m. – 5:00 p. m.',
+    fecha: 'Devuelta el 20 ago 2026, 4:52 p. m.',
+    motivo: null   // legacy: anulado_motivo NULL → solo se muestra la fecha
+  }
+};
+function abrirDetalle(clave) {
+  const d = detalles[clave];
+  document.getElementById('det-carrito').textContent = d.carrito;
+  document.getElementById('det-cliente').textContent = d.cliente;
+  document.getElementById('det-total').textContent = d.total;
+  document.getElementById('det-mensajero').textContent = d.mensajero;
+  document.getElementById('det-agenda').textContent = d.agenda;
+  document.getElementById('det-fecha').textContent = d.fecha;
+  const motivoEl = document.getElementById('det-motivo');
+  motivoEl.textContent = d.motivo ?? '';
+  motivoEl.classList.toggle('hidden', !d.motivo);
+  document.getElementById('modal-detalle').classList.remove('hidden');
+}
+function cerrarDetalle() { document.getElementById('modal-detalle').classList.add('hidden'); }
+</script>
+</body>
+</html>
