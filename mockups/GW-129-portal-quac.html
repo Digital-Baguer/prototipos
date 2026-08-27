@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-129 · Portal Quac — contrato de interfaz</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Nunito+Sans:opsz,wght@6..12,300;6..12,400;6..12,600;6..12,700;6..12,900&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   GW-129 · Contrato de interfaz · Portal Quac — CONTRATO DE INTERFAZ APROBADO
+
+   Toma de la P1: header tematizado por nivel, paleta y tipografía de la app.
+   Toma de la P2: superficie plana. Los datos descansan sobre blanco, separados
+   por líneas; no hay tarjeta dentro de tarjeta dentro de fondo gris.
+
+   REGLA: una sola superficie. Un contenedor solo aparece cuando agrupa algo
+   accionable o comparable — nunca para "enmarcar" texto.
+   CSS autocontenido: sin CDN, sin dependencias. Abre offline.
+
+   Tokens reconciliados entre:
+     clientesquac-client/src/styles/variables.scss
+     app-quac-v2/lib/core/theme/colors.dart
+   ═══════════════════════════════════════════════════════════════════ */
+:root{
+  --quac:#7633FF; --quac-dark:#321185; --quac-light:#C5C5FF;
+  --lavender:#E9E8F1; --ink:#140F26; --muted:#A19EB5;
+  --surface:#F7F7FB; --line:rgba(20,15,38,.09); --line-soft:rgba(20,15,38,.06);
+  --ink2:#5C5A70;   /* etiquetas sobre gris: legible, no decorativo */
+  --anillo:#E5147E; --anillo-bg:rgba(255,255,255,.22);
+  /* quac.co/quac+ — src/views/QuacPlus.vue */
+  --dk:#160B38; --dk-ink:#F5F5F7; --dk-ink2:#A9A6C9; --dk-line:rgba(255,255,255,.08);
+  --purple-soft:#9D7BFF;
+  --grad-brand:linear-gradient(120deg,#615FEC,#7D2FEB,#CB1CE7);
+  --ok:#22C55E; --danger:#FF6464; --warn:#F59E0B;
+  --sh-card:0 1px 2px rgba(20,15,38,.04), 0 8px 24px rgba(20,15,38,.06);
+  --sh-pill:0 5px 8px rgba(0,0,0,.12);
+  --f-title:'Poppins', system-ui, sans-serif;
+  --f-base:'Nunito Sans', system-ui, sans-serif;
+}
+*{box-sizing:border-box; margin:0; padding:0}
+body{font-family:var(--f-base); background:#E8EAF0; color:var(--ink); -webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--f-title); font-weight:600}
+button,input,select{font:inherit; color:inherit}
+button{cursor:pointer; border:0; background:none}
+[hidden]{display:none !important}
+.tab-num{font-variant-numeric:tabular-nums}
+
+/* ─── Panel de control (fuera del prototipo) ─── */
+.ctl{position:sticky; top:0; z-index:50; background:var(--ink); color:rgba(255,255,255,.88); font-size:13px; box-shadow:0 2px 12px rgba(0,0,0,.2)}
+.ctl-in{max-width:1400px; margin:0 auto; padding:10px 20px; display:flex; flex-wrap:wrap; align-items:center; gap:8px 24px}
+.ctl b{font-family:var(--f-title); font-weight:600; color:#fff}
+.ctl label{display:flex; align-items:center; gap:8px; cursor:pointer}
+.ctl select{background:rgba(255,255,255,.12); border:0; border-radius:6px; padding:4px 8px; color:#fff}
+.ctl select option{color:#000}
+.ctl .dim{color:rgba(255,255,255,.45)}
+.ctl .right{margin-left:auto}
+.ctl input[type=checkbox]{accent-color:var(--quac); width:15px; height:15px}
+
+/* ─── Marco del prototipo ─── */
+.wrap{max-width:1400px; margin:0 auto; padding:32px 20px}
+.app{border-radius:24px; overflow:hidden; box-shadow:var(--sh-card); background:#fff}
+
+/* ─── Header tematizado por nivel ───
+   Estructura en dos bandas: nav (utilidades) e identidad (jerarquía).
+   El glow radial y el anillo son la firma visual de quac.co/quac+ */
+.hdr{position:relative; padding:24px 32px 40px; transition:background .5s, color .5s; overflow:hidden}
+.hdr::before{content:''; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(620px 320px at 78% -10%, rgba(255,255,255,.16), transparent 68%)}
+.hdr::after{content:''; position:absolute; left:76%; top:-58%; width:560px; height:560px;
+  border:1px solid rgba(255,255,255,.10); border-radius:50%; pointer-events:none}
+.hdr > *{position:relative; z-index:1}
+
+/* Banda 1 — nav */
+.hdr-nav{display:flex; align-items:center; justify-content:space-between; gap:16px}
+.brand{display:flex; align-items:center; gap:10px}
+.brand svg{width:30px; height:30px; flex:none}
+.brand span{font-family:var(--f-title); font-weight:600; font-size:19px; letter-spacing:-.02em}
+.userbtn{display:flex; align-items:center; gap:10px; padding:6px 14px 6px 6px; border-radius:999px;
+  background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.16); transition:background .2s}
+.userbtn:hover{background:rgba(255,255,255,.22)}
+.avatar{width:30px; height:30px; border-radius:999px; display:grid; place-items:center;
+  font-family:var(--f-title); font-size:12px; font-weight:600; background:rgba(255,255,255,.25)}
+.userbtn b{font-size:13px; font-weight:600}
+.userbtn svg{width:15px; height:15px; opacity:.55}
+
+/* Banda 2 — identidad a la izquierda, clave a la derecha */
+.hdr-id{display:flex; align-items:flex-end; justify-content:space-between; gap:32px; margin-top:38px}
+.saludo{font-family:var(--f-title); font-weight:300; font-size:38px; line-height:1.05; letter-spacing:-.03em}
+.saludo b{font-weight:800}
+.hdr-meta{display:flex; align-items:center; gap:10px; margin-top:12px}
+.badge{padding:5px 14px; border-radius:999px; font-family:var(--f-title); font-size:11px;
+  font-weight:600; letter-spacing:.14em}
+.hdr-meta .desde{font-size:12px; opacity:.62}
+
+/* ─── Clave dinámica ───
+   Dígitos en cápsulas separadas, anillo con el gradiente de marca. */
+.clave{display:flex; align-items:center; gap:16px; padding:12px 16px 12px 20px; border-radius:18px;
+  background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.20);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); flex:none}
+.clave .lbl{font-size:10px; text-transform:uppercase; letter-spacing:.16em; font-weight:700; opacity:.7;
+  display:block; margin-bottom:7px}
+.clave .digs{display:flex; gap:5px}
+.clave .digs i{font-style:normal; font-family:var(--f-title); font-size:20px; font-weight:700;
+  width:30px; height:36px; border-radius:9px; display:grid; place-items:center;
+  background:rgba(255,255,255,.18); font-variant-numeric:tabular-nums}
+.clave .ring{width:34px; height:34px; flex:none}
+.ring circle.seg{transition:stroke-dashoffset 1s linear}
+@media(max-width:820px){
+  .hdr-id{flex-direction:column; align-items:stretch; gap:24px}
+  .saludo{font-size:30px}
+  .clave{align-self:flex-start}
+}
+
+/* ─── Navegación ───
+   Poppins en vez de Nunito Sans: es navegación, no texto corrido.
+   Inactivo en --ink2 (legible), no en el gris decorativo. */
+.nav{padding:0 32px; border-bottom:1px solid var(--line); background:#fff}
+.nav-in{display:flex; gap:2px; overflow-x:auto}
+.tab{font-family:var(--f-title); font-size:13.5px; font-weight:600; letter-spacing:-.01em;
+  color:var(--ink2); white-space:nowrap; transition:color .16s, background .16s}
+
+/* El indicador se monta sobre la línea del contenedor, no flota encima */
+.tab{padding:15px 18px 14px; border-bottom:2.5px solid transparent; margin-bottom:-1px}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--quac); border-bottom-color:var(--quac); font-weight:700}
+
+main{min-height:560px}
+.fade{animation:fade .28s ease both}
+@keyframes fade{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+
+/* ─── Crédito ─── */
+.credito{border:1px solid var(--line); border-radius:16px; overflow:hidden}
+.cred-h{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:20px 24px; border-bottom:1px solid var(--line)}
+.cred-b{padding:24px}
+.cupo-n{font-family:var(--f-title); font-size:38px; font-weight:700; letter-spacing:-.02em; line-height:1.05; font-variant-numeric:tabular-nums}
+.medidor{margin-top:16px}
+.medidor .pista{height:10px; border-radius:5px; background:var(--lavender); overflow:hidden; display:flex}
+.medidor .pista > i{display:block; height:100%; transition:width .5s}
+.medidor .leyenda{display:flex; justify-content:space-between; gap:12px; padding-top:9px; font-size:12px; color:var(--ink2)}
+.medidor .leyenda b{color:var(--ink); font-weight:700}
+.medidor .leyenda .dot{display:inline-block; width:8px; height:8px; border-radius:3px; margin-right:6px; vertical-align:0}
+
+/* Mini cards de cifras, en vez de filas separadas */
+.minis{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:20px}
+.mini-c{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px}
+.mini-c .k{font-size:11px; letter-spacing:.07em; text-transform:uppercase; color:var(--ink2); font-weight:700}
+.mini-c .v{font-family:var(--f-title); font-size:19px; font-weight:700; padding-top:5px; font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+.mini-c .v.na{color:var(--muted); font-weight:400}
+.mini-c.alerta{background:#FFF6F6; border-color:#FFD9D9}
+.mini-c.alerta .v{color:#C2312B}
+@media(max-width:760px){.minis{grid-template-columns:1fr}}
+
+/* ─── Tabla mensual: la barra ocupa el espacio que antes quedaba vacío ─── */
+/* Tabla mensual — dentro del bloque oscuro */
+.meses-h,.mes{display:grid; grid-template-columns:1fr 92px 92px 104px; gap:16px; align-items:center}
+.meses-h{padding-bottom:11px; border-bottom:1px solid rgba(255,255,255,.14);
+  font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--dk-ink2); font-weight:700}
+.mes{padding:11px 0; border-bottom:1px solid rgba(255,255,255,.07); font-size:14px}
+.mes:last-child{border-bottom:0}
+.meses-h span:not(:first-child),.mes .n{text-align:right}
+.mes .m{font-weight:700; letter-spacing:-.01em}
+.mes .et{display:block; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding-top:2px}
+.mes .et.v{color:#FF6FB5} .mes .et.c{color:var(--purple-soft)} .mes .et.s{color:rgba(255,255,255,.32); font-weight:400; text-transform:none; letter-spacing:0}
+.mes .n{font-variant-numeric:tabular-nums; color:var(--dk-ink2)}
+.mes .n.z{color:rgba(255,255,255,.26)}
+.mes .n.t{font-weight:800; color:var(--dk-ink); font-size:15px}
+.mes.vence .m{color:#FF6FB5}
+@media(max-width:760px){
+  .meses-h{display:none}
+  .mes{grid-template-columns:1fr auto; gap:4px 12px}
+  .mes .n:not(.t){display:none}
+}
+
+/* ─── Bloque oscuro: el contrapunto de quac.co/quac+ ─── */
+.blk.dark{background:var(--dk); color:var(--dk-ink); border-bottom:0; position:relative; overflow:hidden}
+.blk.dark::before{content:''; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(520px 300px at 88% -20%, rgba(203,28,231,.20), transparent 70%),
+             radial-gradient(460px 280px at 4% 108%, rgba(97,95,236,.18), transparent 70%)}
+.blk.dark::after{content:''; position:absolute; left:82%; top:-90%; width:620px; height:620px;
+  border:1px solid rgba(255,255,255,.06); border-radius:50%; pointer-events:none}
+.blk.dark > *{position:relative; z-index:1}
+.blk.dark .sec-t{font-weight:300; font-size:26px; letter-spacing:-.03em; color:var(--dk-ink)}
+.blk.dark .sec-t b{font-weight:800}
+.blk.dark .sec-d{color:var(--dk-ink2); font-size:13px}
+.blk.dark .sec-d b{color:var(--dk-ink)}
+.dark-tot{text-align:right}
+.dark-tot .k{font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--purple-soft); font-weight:700}
+.dark-tot .v{font-family:var(--f-title); font-size:34px; font-weight:800; letter-spacing:-.02em;
+  line-height:1.1; font-variant-numeric:tabular-nums}
+
+/* ─── Bloques: separación por línea, no por caja ─── */
+.blk{padding:30px 32px; border-bottom:1px solid var(--line)}
+.blk:last-child{border-bottom:0}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:24px}
+.grid2{display:grid; grid-template-columns:repeat(2,1fr); gap:20px}
+.grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:20px 24px}
+@media(max-width:820px){.grid2,.grid3{grid-template-columns:1fr}}
+
+.sec-t{font-family:var(--f-title); font-size:17px; font-weight:600}
+.sec-d{font-size:13px; color:var(--muted); margin-top:4px}
+
+/* Etiqueta de formulario (solo en modales, donde sí se escribe) */
+.field label{display:block; font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--muted); font-weight:700; margin-bottom:7px}
+
+/* Rejilla de datos: divisores de 1px, sin caja por campo */
+.campos{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border-radius:14px; overflow:hidden; border:1px solid var(--line)}
+.campo{background:#fff; padding:16px 20px}
+.k-lbl{font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink2); font-weight:700}
+.campo .k{font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:700}
+.campo .v{font-size:15px; font-weight:700; padding-top:5px; letter-spacing:-.01em}
+.campo .v.na{color:var(--muted); font-weight:400}
+.span2{grid-column:span 2}
+@media(max-width:820px){.campos{grid-template-columns:1fr} .span2{grid-column:span 1}}
+
+/* Caja de contacto: sí lleva contenedor, porque agrupa un dato con su acción */
+.cbox{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px 22px;
+  display:flex; justify-content:space-between; gap:16px; align-items:flex-start}
+.cbox .k{font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:700}
+.cbox .v{font-size:17px; font-weight:700; padding-top:5px; word-break:break-all}
+.cbox .h{font-size:12px; color:var(--muted); padding-top:10px; line-height:1.5; max-width:34ch}
+
+.btn{padding:10px 20px; border-radius:999px; background:var(--quac); color:#fff; font-size:14px; font-weight:600; transition:background .18s}
+.btn:hover:not(:disabled){background:var(--quac-dark)}
+.btn:disabled{opacity:.4; cursor:not-allowed}
+.btn-g{display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:999px; border:1px solid rgba(20,15,38,.12); font-size:13px; font-weight:600; transition:border-color .18s, color .18s}
+.btn-g:hover{border-color:var(--quac); color:var(--quac)}
+.btn-g svg{width:16px; height:16px}
+.w100{width:100%}
+.f1{flex:1}
+.row{display:flex; gap:8px}
+
+.pill-ok{font-size:11px; font-weight:600; padding:4px 12px; border-radius:999px; background:rgba(34,197,94,.12); color:var(--ok)}
+.pill-ok.mora{background:rgba(245,158,11,.15); color:var(--warn)}
+
+/* Tarjeta de crédito */
+.com-h{display:flex; align-items:center; justify-content:space-between; margin-bottom:20px}
+.com-id{display:flex; align-items:center; gap:12px}
+.com-ico{width:40px; height:40px; border-radius:12px; background:var(--lavender); display:grid; place-items:center; font-family:var(--f-title); font-weight:700; color:var(--quac); font-size:15px}
+.com-n{font-family:var(--f-title); font-weight:600; font-size:15px}
+.com-nit{font-size:12px; color:var(--muted)}
+.kicker{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:600}
+.cifra{font-family:var(--f-title); font-size:32px; font-weight:600; line-height:1.1; margin-top:2px; font-variant-numeric:tabular-nums}
+.bar{height:6px; border-radius:999px; background:var(--lavender); overflow:hidden; margin-top:12px}
+.bar > i{display:block; height:100%; border-radius:999px; background:var(--quac); transition:width .5s}
+.mini{font-size:12px; color:var(--muted); margin-top:6px}
+.dl{margin-top:24px; padding-top:20px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:12px; font-size:13px}
+.dl > div{display:flex; justify-content:space-between}
+.dl dt{color:var(--muted)}
+.dl dd{font-weight:600; font-variant-numeric:tabular-nums}
+
+/* Movimientos */
+.filtros{display:flex; gap:4px; background:#fff; border-radius:999px; padding:4px; box-shadow:var(--sh-card)}
+.filtro{padding:6px 16px; border-radius:999px; font-size:13px; font-weight:600; color:var(--muted)}
+.filtro.on{background:var(--quac); color:#fff}
+.lista{border-top:1px solid var(--line)}
+.mov{padding:18px 0; display:flex; align-items:center; gap:16px; border-bottom:1px solid var(--line-soft)}
+.mov:last-child{border-bottom:0}
+.mov-ico{width:40px; height:40px; border-radius:12px; display:grid; place-items:center; flex:none}
+.mov-ico svg{width:20px; height:20px}
+.mov-ico.c{background:var(--lavender); color:var(--quac)}
+.mov-ico.a{background:rgba(34,197,94,.1); color:var(--ok)}
+.mov-b{flex:1; min-width:0}
+.mov-b p{font-weight:600; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.mov-b span{font-size:12px; color:var(--muted)}
+.mov-r{text-align:right; flex:none}
+.mov-r p{font-weight:600; font-size:15px; font-variant-numeric:tabular-nums}
+.mov-r p.abono{color:var(--ok)}
+.chip{display:inline-block; margin-top:4px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; background:var(--lavender); color:var(--quac)}
+.sin-chip{display:block; margin-top:4px; font-size:11px; color:var(--muted)}
+
+/* Estados */
+.estado{padding:56px 24px; text-align:center}
+.estado .ico{width:56px; height:56px; margin:0 auto 16px; border-radius:999px; display:grid; place-items:center}
+.estado .ico svg{width:28px; height:28px}
+.estado .ico.err{background:rgba(255,100,100,.1); color:var(--danger)}
+.estado .ico.neu{background:var(--lavender); color:var(--quac)}
+.estado h3{font-size:16px}
+.estado p{font-size:13px; color:var(--muted); margin:6px auto 0; max-width:340px}
+.estado .btn{margin-top:20px}
+.sk{background:linear-gradient(90deg,#e9e8f1 25%,#f3f2f8 37%,#e9e8f1 63%); background-size:400% 100%; animation:sk 1.3s ease infinite; border-radius:6px}
+@keyframes sk{0%{background-position:100% 50%} 100%{background-position:0 50%}}
+.sk-row{padding:20px; display:flex; gap:16px; align-items:center; border-top:1px solid var(--line-soft)}
+.sk-row:first-child{border-top:0}
+
+/* Quac+ */
+.memb{border-radius:16px; padding:28px; box-shadow:var(--sh-card); transition:background .5s, color .5s}
+.memb-top{display:flex; align-items:flex-start; justify-content:space-between; gap:16px}
+.memb .k{font-size:12px; text-transform:uppercase; letter-spacing:.12em; opacity:.7; font-weight:600}
+.memb .niv{font-family:var(--f-title); font-size:26px; font-weight:600; margin-top:4px}
+.memb .desde{font-size:12px; opacity:.7; margin-top:4px}
+.memb .tot{font-family:var(--f-title); font-size:38px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums}
+.memb .vence{margin-top:20px; font-size:12px; padding:6px 12px; border-radius:999px; display:inline-block; background:rgba(255,255,255,.18)}
+.link{font-size:12px; color:var(--quac); font-weight:600; text-decoration:none}
+.link:hover{text-decoration:underline}
+.chk{position:relative; height:52px; margin-top:-11px}
+.chk .h{position:absolute; top:0; transform:translateX(-50%); text-align:center; white-space:nowrap}
+.chk .b{width:22px; height:22px; margin:0 auto; border-radius:999px; display:grid; place-items:center;
+  font-size:10px; font-weight:700; background:#fff; border:2px solid var(--lavender); color:var(--muted)}
+.chk p{font-size:11px; font-weight:700; margin-top:5px; letter-spacing:.02em}
+.chk small{display:block; font-size:10px; color:var(--muted); font-variant-numeric:tabular-nums}
+.chk .h.on p{color:var(--ink)}
+.bens{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+@media(max-width:820px){.bens{grid-template-columns:1fr}}
+.ben{display:flex; gap:12px; align-items:flex-start; padding:16px; border-radius:12px; border:1px solid var(--line); background:#fff}
+.ben.off{border-style:dashed; background:var(--surface)}
+.ben .bi{width:32px; height:32px; border-radius:10px; display:grid; place-items:center; flex:none}
+.ben .bi svg{width:16px; height:16px}
+.ben.off .bi{background:rgba(20,15,38,.05); color:var(--muted)}
+.ben p{font-size:13.5px; font-weight:600}
+.ben.off p{color:var(--muted)}
+.ben span{font-size:12px; color:var(--muted); display:block}
+.ben .lv{display:inline-block; margin-top:6px; font-size:10px; font-weight:700; letter-spacing:.06em; padding:2px 8px; border-radius:999px; background:rgba(20,15,38,.06); color:var(--muted)}
+
+/* Modales */
+.mod{position:fixed; inset:0; z-index:60; display:grid; place-items:center; padding:20px; background:rgba(127,127,180,.55)}
+.mod-box{background:#fff; border-radius:24px; box-shadow:0 24px 64px rgba(0,0,0,.3); width:100%; max-width:420px; padding:32px}
+.mod-box.sm{max-width:360px; text-align:center}
+.mod-h{display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px}
+.mod-h .k{font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); font-weight:600}
+.mod-h h3{font-size:19px; margin-top:4px}
+.x{color:var(--muted); font-size:22px; line-height:1}
+.x:hover{color:var(--ink)}
+.pasos{display:flex; gap:6px; margin-bottom:24px}
+.pasos i{height:4px; border-radius:999px; flex:1; background:var(--lavender)}
+.pasos i.on{background:var(--quac)}
+.inp{width:100%; font-size:14px; padding:12px 14px; border-radius:12px; border:1px solid rgba(20,15,38,.12); outline:0; transition:border-color .18s}
+.inp:focus{border-color:var(--quac)}
+.otp{display:flex; gap:8px; justify-content:center}
+.otp input{width:44px; height:52px; text-align:center; font-size:19px; font-weight:700; border-radius:12px; border:1px solid rgba(20,15,38,.12); outline:0; font-variant-numeric:tabular-nums}
+.otp input:focus{border-color:var(--quac)}
+.mod-err{margin-top:16px; font-size:13px; color:var(--danger); background:rgba(255,100,100,.08); border-radius:12px; padding:12px 16px}
+.mod-f{display:flex; gap:8px; margin-top:28px}
+.mod-f .btn-g{justify-content:center}
+.ok-ico{width:56px; height:56px; margin:0 auto 16px; border-radius:999px; display:grid; place-items:center; background:rgba(34,197,94,.12); color:var(--ok)}
+.ok-ico svg{width:28px; height:28px}
+.center{text-align:center}
+.mt5{margin-top:20px} .mt7{margin-top:28px} .mt9{margin-top:36px} .mb5{margin-bottom:20px}
+.between{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
+.baseline{display:flex; align-items:baseline; justify-content:space-between; gap:12px}
+.stack{display:flex; flex-direction:column; gap:20px}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ PANEL DE CONTROL ═══════════ -->
+<div class="ctl">
+  <div class="ctl-in">
+    <b>GW-129 · Portal Quac · contrato de interfaz</b>
+    <label><span class="dim">Nivel</span>
+      <select id="ctlNivel">
+        <option value="quac">Quac</option><option value="plus">Plus</option>
+        <option value="silver" selected>Silver</option><option value="gold">Gold</option>
+        <option value="black">Black</option><option value="off">Programa apagado</option>
+      </select>
+    </label>
+    <label><span class="dim">Estado</span>
+      <select id="ctlEstado">
+        <option value="ok" selected>Con datos</option><option value="load">Cargando</option>
+        <option value="error">Error de servicio</option><option value="empty">Sin movimientos</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="ctlClave" checked> Clave dinámica <span class="dim">(var_env)</span></label>
+    <label><input type="checkbox" id="ctlMora"> Cliente en mora</label>
+    <span class="right dim">Datos de ejemplo reales · sin backend</span>
+  </div>
+</div>
+
+<div class="wrap">
+<div class="app">
+
+  <!-- ═══════════ HEADER ═══════════ -->
+  <header class="hdr" id="hdr">
+    <!-- Banda 1 · utilidades -->
+    <div class="hdr-nav">
+      <div class="brand">
+        <svg viewBox="0 0 62.351 55.6" fill="currentColor">
+          <path d="M75.322,59.494a2.737,2.737,0,0,0-5.024-.573,18.059,18.059,0,0,1-10.844,8.626,2.737,2.737,0,0,0,1.41,5.287l.063-.017.032-.008.287-.083v0a23.517,23.517,0,0,0,13.837-11.15,2.719,2.719,0,0,0,.238-2.081" transform="translate(-18.427 -17.816)"/>
+          <path d="M25.94,46.8a23.388,23.388,0,0,1-14.512-10.42l-.033-.052a23.942,23.942,0,0,1-3.308-16.34c0-.037.006-.081.006-.114A1.1,1.1,0,0,0,7,18.761H2.928a2.958,2.958,0,0,1-.418-5.882A22.9,22.9,0,0,0,9.1,10.772L6.053,9.707A2.965,2.965,0,0,1,4.23,5.958a2.911,2.911,0,0,1,3.318-1.95A23.105,23.105,0,0,0,20.931,2.4q.491-.238,1.034-.47A22.718,22.718,0,0,1,31.189,0,23.344,23.344,0,0,1,52.011,12.913a1.086,1.086,0,0,0,.963.608.739.739,0,0,0,.293-.061,17.2,17.2,0,0,0,4.008-2.616,3.017,3.017,0,0,1,2.662-.931,2.964,2.964,0,0,1,1.646,4.9l-5.831,5.925a4.326,4.326,0,0,0,0,5.934L61.584,32.6a2.963,2.963,0,0,1-1.646,4.9,3.014,3.014,0,0,1-2.665-.931,17.2,17.2,0,0,0-4.008-2.616.752.752,0,0,0-.293-.059,1.086,1.086,0,0,0-.963.608v-.01a23.775,23.775,0,0,1-4.59,6.265.069.069,0,0,1-.011.028v-.01A23.13,23.13,0,0,1,25.94,46.8Zm5.249-8.288a14.44,14.44,0,0,0,4.253-.637l.023-.007.026-.008a14.9,14.9,0,0,0,4.245-26.175l-.033-.024-.013-.01a14.59,14.59,0,0,0-7.313-2.713q-.588-.049-1.19-.048-.661,0-1.306.059h-.014l-.038,0a14.72,14.72,0,0,0-13.058,12.3v.015A14.969,14.969,0,0,0,18.588,31.2l.009.015.009.016a14.74,14.74,0,0,0,6.647,6l.017.008.036.017q.549.244,1.126.445.476.166.959.3a14.447,14.447,0,0,0,3.8.5"/>
+          <path d="M51.118,31.375a3.663,3.663,0,0,0,2.75-1.058,3.872,3.872,0,0,0,1.019-2.807,3.948,3.948,0,0,0-1.019-2.827,3.731,3.731,0,0,0-2.75-1.037,3.653,3.653,0,0,0-2.73,1.038,3.882,3.882,0,0,0-1.039,2.827,3.806,3.806,0,0,0,1.039,2.807,3.588,3.588,0,0,0,2.73,1.058" transform="translate(-15.181 -7.366)"/>
+        </svg>
+        <span>Quac</span>
+      </div>
+      <button class="userbtn">
+        <span class="avatar">FL</span>
+        <b>Francisco</b>
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+    </div>
+
+    <!-- Banda 2 · identidad (izq) y clave dinámica (der) -->
+    <div class="hdr-id">
+      <div>
+        <p class="saludo">Hola,<br><b>Francisco</b></p>
+        <div class="hdr-meta">
+          <span class="badge" id="badge">SILVER</span>
+          <span class="desde">Miembro desde junio de 2026</span>
+        </div>
+      </div>
+
+      <div class="clave" id="claveWrap">
+        <div>
+          <span class="lbl">Clave dinámica</span>
+          <div class="digs" id="claveDigs"><i>8</i><i>9</i><i>4</i><i>7</i></div>
+        </div>
+        <svg class="ring" viewBox="0 0 34 34" style="transform:rotate(-90deg)">
+          <defs>
+            <linearGradient id="gradAnillo" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#615FEC"/><stop offset="55%" stop-color="#7D2FEB"/><stop offset="100%" stop-color="#CB1CE7"/>
+            </linearGradient>
+          </defs>
+          <circle cx="17" cy="17" r="13" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="3"/>
+          <circle id="anillo" class="seg" cx="17" cy="17" r="13" fill="none" stroke="url(#gradAnillo)"
+                  stroke-width="3" stroke-linecap="round" stroke-dasharray="81.68" stroke-dashoffset="0"/>
+        </svg>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════ NAVEGACIÓN ═══════════ -->
+  <nav class="nav"><div class="nav-in">
+    <button class="tab" data-sec="datos">Mis datos</button>
+    <button class="tab" data-sec="credito">Mi crédito</button>
+    <button class="tab" data-sec="movimientos">Movimientos</button>
+    <button class="tab" data-sec="quacplus" id="tabQuacPlus">Quac+</button>
+  </div></nav>
+
+  <main>
+
+    <!-- ══════ 1 · MIS DATOS ══════ -->
+    <section data-panel="datos" class="fade">
+      <div class="blk">
+        <div class="between" style="align-items:flex-start; margin-bottom:20px">
+          <div>
+            <h2 class="sec-t">Datos básicos</h2>
+            <p class="sec-d">Vienen de tu documento de identidad. Puedes actualizar los que cambien, como tu dirección.</p>
+          </div>
+          <button class="btn-g" onclick="abrirModal('basicos')">
+            <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M11 4H4v16h16v-7M18.5 2.5a2.1 2.1 0 013 3L12 15l-4 1 1-4z"/></svg>Actualizar
+          </button>
+        </div>
+        <div class="campos">
+          <div class="campo"><div class="k">Tipo de documento</div><div class="v">Cédula de ciudadanía</div></div>
+          <div class="campo"><div class="k">Documento</div><div class="v tab-num">13.745.898</div></div>
+          <div class="campo"><div class="k">Fecha de expedición</div><div class="v">05 de junio, 2025</div></div>
+          <div class="campo"><div class="k">Nombre</div><div class="v">Francisco José</div></div>
+          <div class="campo"><div class="k">Apellidos</div><div class="v">Lizcano Reyes</div></div>
+          <div class="campo"><div class="k">Fecha de nacimiento</div><div class="v">03 de octubre, 1980</div></div>
+          <div class="campo"><div class="k">Género</div><div class="v na">Sin registrar</div></div>
+          <div class="campo span2"><div class="k">Dirección de residencia</div><div class="v">Calle 34 # 28-60</div></div>
+        </div>
+      </div>
+
+      <div class="blk">
+        <h2 class="sec-t">Datos de contacto</h2>
+        <p class="sec-d mb5">Cambiarlos exige verificar dos canales distintos. Es lo que protege tu cuenta.</p>
+        <div class="grid2">
+          <div class="cbox">
+            <div>
+              <div class="k">Correo electrónico</div>
+              <div class="v">flizcanor@icloud.com</div>
+              <div class="h">Enviamos un código al correo nuevo y otro por mensaje de texto a tu celular actual.</div>
+            </div>
+            <button class="btn-g" onclick="abrirModal('email')">Cambiar</button>
+          </div>
+          <div class="cbox">
+            <div>
+              <div class="k">Número celular</div>
+              <div class="v tab-num">317 374 0696</div>
+              <div class="h">Enviamos un código al celular nuevo y otro a tu correo actual.</div>
+            </div>
+            <button class="btn-g" onclick="abrirModal('tel')">Cambiar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════ 2 · MI CRÉDITO ══════ -->
+    <section data-panel="credito" hidden class="fade">
+      <div data-state="load" hidden class="grid2">
+        <div class="card"><div class="sk" style="height:16px;width:110px"></div><div class="sk" style="height:36px;width:190px;margin-top:14px"></div><div class="sk" style="height:12px;margin-top:18px"></div><div class="sk" style="height:12px;width:66%;margin-top:10px"></div></div>
+        <div class="card"><div class="sk" style="height:16px;width:110px"></div><div class="sk" style="height:36px;width:190px;margin-top:14px"></div><div class="sk" style="height:12px;margin-top:18px"></div><div class="sk" style="height:12px;width:66%;margin-top:10px"></div></div>
+      </div>
+
+      <div data-state="error" hidden class="estado">
+        <div class="ico err"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></div>
+        <h3>No pudimos cargar tu crédito</h3>
+        <p>El servicio no responde en este momento. Tus datos están seguros.</p>
+        <button class="btn">Reintentar</button>
+      </div>
+
+      <div data-state="ok">
+        <!-- Comercio principal: ancho completo. La mayoría de clientes tiene uno solo. -->
+        <div class="blk">
+          <div class="credito">
+            <div class="cred-h">
+              <div class="com-id"><span class="com-ico">B</span><div><p class="com-n">Baguer</p><p class="com-nit">NIT 890.900.000</p></div></div>
+              <span class="pill-ok" data-estado>Al día</span>
+            </div>
+            <div class="cred-b">
+              <div class="k-lbl">Cupo disponible</div>
+              <div class="cupo-n">$ 1.555.392</div>
+
+              <div class="medidor">
+                <div class="pista">
+                  <i style="width:31%; background:var(--quac)"></i>
+                  <i style="width:69%; background:transparent"></i>
+                </div>
+                <div class="leyenda">
+                  <span><span class="dot" style="background:var(--quac)"></span>Disponible <b>$ 1.555.392</b></span>
+                  <span>Cupo aprobado <b>$ 5.000.000</b></span>
+                </div>
+              </div>
+
+              <div class="minis">
+                <div class="mini-c"><div class="k">Deuda total</div><div class="v">$ 3.374.815</div></div>
+                <div class="mini-c" data-minipago><div class="k">Pago mínimo</div><div class="v">$ 678.167</div></div>
+                <div class="mini-c"><div class="k">Fecha límite</div><div class="v" data-fecha>02 Ago 2026</div></div>
+              </div>
+
+              <div class="row mt7">
+                <button class="btn" onclick="abrirModal('salida')">Pagar mi cuota ↗</button>
+                <button class="btn-g" onclick="abrirModal('cartera')">Ver detalle de la deuda</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comercios adicionales: solo aparecen si los hay -->
+        <div class="blk">
+          <h2 class="sec-t">Tus otros comercios</h2>
+          <p class="sec-d mb5">Cada comercio aliado maneja su propio cupo.</p>
+          <div class="credito">
+            <div class="cred-h">
+              <div class="com-id"><span class="com-ico">S</span><div><p class="com-n">Stirpe</p><p class="com-nit">NIT 900.824.903</p></div></div>
+              <span class="pill-ok">Al día</span>
+            </div>
+            <div class="cred-b">
+              <div class="k-lbl">Cupo disponible</div>
+              <div class="cupo-n">$ 2.000.000</div>
+              <div class="medidor">
+                <div class="pista"><i style="width:100%; background:var(--quac)"></i></div>
+                <div class="leyenda">
+                  <span><span class="dot" style="background:var(--quac)"></span>Tienes tu cupo completo</span>
+                  <span>Cupo aprobado <b>$ 2.000.000</b></span>
+                </div>
+              </div>
+              <div class="minis">
+                <div class="mini-c"><div class="k">Deuda total</div><div class="v na">$ 0</div></div>
+                <div class="mini-c"><div class="k">Pago mínimo</div><div class="v na">$ 0</div></div>
+                <div class="mini-c"><div class="k">Fecha límite</div><div class="v na">—</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════ 3 · MOVIMIENTOS ══════ -->
+    <section data-panel="movimientos" hidden class="fade">
+      <div class="blk">
+      <div class="between mb5">
+        <h2 class="sec-t">Tus movimientos</h2>
+        <div class="filtros"><button class="filtro on">Todos</button><button class="filtro">Compras</button><button class="filtro">Abonos</button></div>
+      </div>
+
+      <div data-state="load" hidden class="lista">
+        <div class="sk-row"><div class="sk" style="width:40px;height:40px;border-radius:12px"></div><div style="flex:1"><div class="sk" style="height:14px;width:220px"></div><div class="sk" style="height:11px;width:120px;margin-top:8px"></div></div><div class="sk" style="height:16px;width:100px"></div></div>
+        <div class="sk-row"><div class="sk" style="width:40px;height:40px;border-radius:12px"></div><div style="flex:1"><div class="sk" style="height:14px;width:170px"></div><div class="sk" style="height:11px;width:120px;margin-top:8px"></div></div><div class="sk" style="height:16px;width:100px"></div></div>
+        <div class="sk-row"><div class="sk" style="width:40px;height:40px;border-radius:12px"></div><div style="flex:1"><div class="sk" style="height:14px;width:260px"></div><div class="sk" style="height:11px;width:120px;margin-top:8px"></div></div><div class="sk" style="height:16px;width:100px"></div></div>
+      </div>
+
+      <div data-state="error" hidden class="estado">
+        <div class="ico err"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></div>
+        <h3>No pudimos cargar tus movimientos</h3>
+        <p>Vuelve a intentarlo en unos segundos.</p>
+        <button class="btn">Reintentar</button>
+      </div>
+
+      <div data-state="empty" hidden class="estado">
+        <div class="ico neu"><svg fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
+        <h3>Todavía no tienes movimientos</h3>
+        <p>Cuando compres o abones con tu cupo QUAC, lo verás aquí.</p>
+      </div>
+
+      <div data-state="ok" class="lista">
+        <div class="mov">
+          <span class="mov-ico c"><svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg></span>
+          <div class="mov-b"><p>STIRPE CACIQUE (BGA)</p><span>25 de junio, 2026 · Compra</span></div>
+          <div class="mov-r"><p>$ 968.800</p><span class="chip">+ 97 Quacs</span></div>
+        </div>
+        <div class="mov">
+          <span class="mov-ico a"><svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg></span>
+          <div class="mov-b"><p>Abono estado de cuenta BAGUER S.A.S.</p><span>10 de julio, 2026 · Abono</span></div>
+          <div class="mov-r"><p class="abono">− $ 394.433</p><span class="chip">+ 39 Quacs</span></div>
+        </div>
+        <div class="mov">
+          <span class="mov-ico c"><svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg></span>
+          <div class="mov-b"><p>DEREK CENTRO MAYOR</p><span>02 de julio, 2026 · Compra</span></div>
+          <div class="mov-r"><p>$ 215.900</p><span class="chip">+ 22 Quacs</span></div>
+        </div>
+        <div class="mov">
+          <span class="mov-ico a"><svg fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg></span>
+          <div class="mov-b"><p>Abono estado de cuenta BAGUER S.A.S.</p><span>10 de junio, 2026 · Abono</span></div>
+          <div class="mov-r"><p class="abono">− $ 512.000</p><span class="sin-chip">Sin Quacs</span></div>
+        </div>
+      </div>
+      </div>
+    </section>
+
+    <!-- ══════ 4 · QUAC+ ══════ -->
+    <section data-panel="quacplus" hidden class="fade">
+      <div data-state="load" hidden class="stack">
+        <div class="sk" style="height:176px; border-radius:16px"></div>
+        <div class="sk" style="height:128px; border-radius:16px"></div>
+      </div>
+
+      <div data-state="error" hidden class="estado">
+        <div class="ico err"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></div>
+        <h3>No pudimos cargar tu Status QUAC</h3>
+        <p>El resto de tu información sigue disponible.</p>
+        <button class="btn">Reintentar</button>
+      </div>
+
+      <div data-state="ok">
+        <div class="blk"><div class="memb" id="membresia">
+          <div class="memb-top">
+            <div>
+              <p class="k">Tu membresía</p>
+              <p class="niv" id="nivelNombre">QUAC SILVER</p>
+              <p class="desde">Miembro desde 23 de junio de 2026</p>
+            </div>
+            <div style="text-align:right">
+              <p class="tot" id="quacsTotal">8.733</p>
+              <p class="desde">Quacs vigentes</p>
+            </div>
+          </div>
+          <p class="vence" id="pastillaVence">1.268 vencen el 31 de agosto de 2026</p>
+        </div></div>
+
+        <div class="blk">
+          <div class="baseline mb5">
+            <h3 class="sec-t" style="font-size:15px">Tu camino al siguiente nivel</h3>
+            <a class="link" href="#">Cómo funciona Status Quac →</a>
+          </div>
+          <div class="bar" style="margin-bottom:0"><i id="barraProgreso" style="width:46.9%"></i></div>
+          <div class="chk" id="checkpoints"></div>
+        </div>
+
+        <div class="blk dark">
+          <div class="baseline mb5">
+            <div>
+              <h3 class="sec-t">Tus Quacs <b>mes a mes</b></h3>
+              <p class="sec-d">De dónde salió tu saldo. En agosto llevas <b>0 Quacs</b>.</p>
+            </div>
+            <div class="dark-tot">
+              <div class="k">Vigentes hoy</div>
+              <div class="v">8.733</div>
+            </div>
+          </div>
+
+          <div data-state="empty" hidden style="padding:36px 0; text-align:center">
+            <p class="sec-d">Todavía no tienes Quacs acumulados.</p>
+          </div>
+
+          <div data-state="ok">
+            <div class="meses-h"><span>Mes</span><span>Compras</span><span>Abonos</span><span>Total</span></div>
+            <div id="tablaMeses"></div>
+          </div>
+        </div>
+
+        <div class="blk">
+          <h3 class="sec-t" style="font-size:15px">Tus beneficios</h3>
+          <p class="sec-d mb5">En gris, los que desbloqueas al subir de nivel.</p>
+          <div class="bens" id="beneficios"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+</div>
+
+<!-- ═══════════ MODALES ═══════════ -->
+<div class="mod" id="modal" hidden>
+  <div class="mod-box fade">
+    <div class="mod-h">
+      <div><p class="k" id="mPaso">Paso 1 de 3</p><h3 id="mTitulo">Actualizar correo electrónico</h3></div>
+      <button class="x" onclick="cerrarModal()">&times;</button>
+    </div>
+    <div class="pasos" id="mBarras"><i class="on"></i><i></i><i></i></div>
+    <div id="mCuerpo"></div>
+    <div class="mod-err" id="mError" hidden>El código ingresado no es correcto.</div>
+    <div class="mod-f">
+      <button class="btn-g f1" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn f1" id="mAvanzar">Continuar</button>
+    </div>
+  </div>
+</div>
+
+<div class="mod" id="modalCartera" hidden>
+  <div class="mod-box fade">
+    <div class="mod-h"><h3>Detalle de tu deuda</h3><button class="x" onclick="cerrarModal()">&times;</button></div>
+    <dl class="dl" style="margin-top:0; padding-top:0; border-top:0; font-size:14px">
+      <div><dt>Capital</dt><dd>$ 3.310.412</dd></div>
+      <div><dt>Vencido</dt><dd>$ 0</dd></div>
+      <div><dt>Intereses de mora</dt><dd>$ 0</dd></div>
+      <div><dt>Honorarios</dt><dd>$ 0</dd></div>
+      <div><dt>Gastos</dt><dd>$ 64.403</dd></div>
+      <div style="padding-top:14px; border-top:1px solid var(--line)"><dt style="font-weight:600; color:var(--ink)">Deuda total</dt><dd style="font-family:var(--f-title); font-size:17px">$ 3.374.815</dd></div>
+    </dl>
+    <button class="btn w100 mt7" onclick="cerrarModal()">Entendido</button>
+  </div>
+</div>
+
+<div class="mod" id="modalSalida" hidden>
+  <div class="mod-box sm fade">
+    <div class="ico neu" style="width:56px;height:56px;margin:0 auto 16px;border-radius:999px;display:grid;place-items:center;background:var(--lavender);color:var(--quac)">
+      <svg style="width:28px;height:28px" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+    </div>
+    <h3 style="font-size:17px">Te llevamos al portal de pagos</h3>
+    <p class="sec-d">Vas a salir del Portal Quac para completar el pago en <b style="color:var(--ink)">portalpagos.quac.co</b>.</p>
+    <div class="mod-f"><button class="btn-g f1" onclick="cerrarModal()">Cancelar</button><button class="btn f1" onclick="cerrarModal()">Continuar</button></div>
+  </div>
+</div>
+
+<div class="mod" id="modalOk" hidden>
+  <div class="mod-box sm fade">
+    <div class="ok-ico"><svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+    <h3 style="font-size:17px" id="okTitulo">Correo actualizado</h3>
+    <p class="sec-d" id="okTexto">Te enviamos una confirmación a tu correo nuevo y un aviso al anterior.</p>
+    <button class="btn w100 mt7" onclick="cerrarModal()">Listo</button>
+  </div>
+</div>
+
+<script>
+/* ═══════ CATÁLOGO — valores reales de quacapi.status_quac_niveles ═══════ */
+const NIVELES = {
+  quac:   { nombre:'QUAC',        badge:null,     umbral:0,     bg:['#4197ED','#7D2FEB','#CB1CE7'], main:'#7633FF', txt:'#FFFFFF', bBg:null,      bFg:null },
+  plus:   { nombre:'QUAC PLUS',   badge:'PLUS',   umbral:3000,  bg:['#7D2EEA','#301281'],           main:'#912DF2', txt:'#FFFFFF', bBg:'#FFFFFF', bFg:'#7633FF' },
+  silver: { nombre:'QUAC SILVER', badge:'SILVER', umbral:7000,  bg:['#F8F8FB','#C8CCD2','#8E9299'], main:'#8E9299', txt:'#4D5159', bBg:'#2A2A30', bFg:'#FFFFFF' },
+  gold:   { nombre:'QUAC GOLD',   badge:'GOLD',   umbral:12000, bg:['#FFF1C2','#ECC66A','#B08A2E'], main:'#C89D3C', txt:'#5E480D', bBg:'#5E480D', bFg:'#FFF1C2' },
+  black:  { nombre:'QUAC BLACK',  badge:'BLACK',  umbral:20000, bg:['#2C2C2C','#0A0A0A'],           main:'#2C2C2C', txt:'#D8DCE0', bBg:'#FFFFFF', bFg:'#0A0A0A' },
+};
+const ORDEN = ['quac','plus','silver','gold','black'];
+const QUACS = { quac:840, plus:4210, silver:8733, gold:14620, black:23150 };
+
+/* Consolidado — suma exactamente 8.733, la invariante de AQ-004 */
+const MESES = [
+  { m:'Ago 2026', c:0,    a:0,    curso:true },
+  { m:'Jul 2026', c:312,  a:23 },
+  { m:'Jun 2026', c:980,  a:224 },
+  { m:'May 2026', c:512,  a:130 },
+  { m:'Abr 2026', c:0,    a:0,    vacio:true },
+  { m:'Mar 2026', c:1290, a:228 },
+  { m:'Feb 2026', c:700,  a:176 },
+  { m:'Ene 2026', c:890,  a:203 },
+  { m:'Dic 2025', c:1180, a:222 },
+  { m:'Nov 2025', c:0,    a:0,    vacio:true },
+  { m:'Oct 2025', c:320,  a:75 },
+  { m:'Sep 2025', c:0,    a:0,    vacio:true },
+  { m:'Ago 2025', c:136,  a:1132, vence:true },
+];
+
+/* Beneficios — quacapi.status_quac_beneficios_app, textos literales */
+const BENEFICIOS = {
+  quac:   [{t:'Hasta 10 cuotas', s:'Financiación estándar'}],
+  plus:   [{t:'Primera cuota a 60 días', s:'Máximo 9 cuotas'},{t:'Hasta 10 cuotas', s:'Financiación estándar'}],
+  silver: [{t:'5% de descuento siempre', s:'Al pagar con Quac'},{t:'Envío gratis', s:'En compras online desde $299.900'},{t:'Hasta 12 cuotas', s:'Financiación estándar'},{t:'Primera cuota a 60 días', s:'Máximo 9 cuotas'}],
+  gold:   [{t:'5% de descuento siempre', s:'Al pagar con Quac'},{t:'Envío gratis', s:'En compras online desde $199.900'},{t:'Hasta 15 cuotas', s:'Financiación estándar'},{t:'Primera cuota a 60 días', s:'Máximo 9 cuotas'}],
+  black:  [{t:'10% de descuento siempre', s:'El máximo del programa'},{t:'Envío gratis', s:'En todas tus compras'},{t:'Hasta 18 cuotas', s:'Financiación estándar'},{t:'Primera cuota a 60 días', s:'Máximo 9 cuotas'}],
+};
+const SIGUIENTES = {
+  quac:   [{t:'Primera cuota a 60 días', s:'Máximo 9 cuotas', et:'PLUS'},{t:'5% de descuento siempre', s:'Al pagar con Quac', et:'SILVER'},{t:'Envío gratis', s:'En compras online desde $299.900', et:'SILVER'},{t:'Hasta 12 cuotas', s:'Financiación estándar', et:'SILVER'}],
+  plus:   [{t:'5% de descuento siempre', s:'Al pagar con Quac', et:'SILVER'},{t:'Envío gratis', s:'En compras online desde $299.900', et:'SILVER'},{t:'Hasta 12 cuotas', s:'Financiación estándar', et:'SILVER'}],
+  silver: [{t:'Envío gratis', s:'En compras online desde $199.900', et:'GOLD'},{t:'Hasta 15 cuotas', s:'Financiación estándar', et:'GOLD'},{t:'10% de descuento siempre', s:'El máximo del programa', et:'BLACK'},{t:'Envío gratis', s:'En todas tus compras', et:'BLACK'},{t:'Hasta 18 cuotas', s:'Financiación estándar', et:'BLACK'}],
+  gold:   [{t:'10% de descuento siempre', s:'El máximo del programa', et:'BLACK'},{t:'Envío gratis', s:'En todas tus compras', et:'BLACK'},{t:'Hasta 18 cuotas', s:'Financiación estándar', et:'BLACK'}],
+  black:  [],
+};
+
+const fmt = n => n.toLocaleString('es-CO');
+const $ = id => document.getElementById(id);
+
+/* ═══════ TEMA POR NIVEL ═══════ */
+function pintarNivel(cod){
+  const apagado = cod === 'off';
+  const n = NIVELES[apagado ? 'quac' : cod];
+
+  $('hdr').style.background = `linear-gradient(135deg, ${n.bg.join(', ')})`;
+  $('hdr').style.color = n.txt;
+
+  const b = $('badge');
+  if (n.badge && !apagado){ b.hidden = false; b.textContent = n.badge; b.style.background = n.bBg; b.style.color = n.bFg; }
+  else b.hidden = true;
+
+  /* Con el programa apagado, la pestaña Quac+ no existe */
+  $('tabQuacPlus').hidden = apagado;
+  if (apagado && sec === 'quacplus') irA('datos');
+  if (apagado) return;
+
+  const memb = $('membresia');
+  memb.style.background = `linear-gradient(135deg, ${n.bg.join(', ')})`;
+  memb.style.color = n.txt;
+  $('nivelNombre').textContent = n.nombre;
+
+  const q = QUACS[cod];
+  $('quacsTotal').textContent = fmt(q);
+  $('barraProgreso').style.width = progreso(cod) + '%';
+  $('barraProgreso').style.background = n.main;
+  $('pastillaVence').hidden = (cod === 'quac');
+
+  /* Cada hito se ancla en su posición real dentro de la barra */
+  $('checkpoints').innerHTML = ORDEN.slice(1).map((c,idx) => {
+    const alc = q >= NIVELES[c].umbral;
+    const pos = (idx + 1) * 20;   /* _calculateProgress(): 1/5 por nivel superado */
+    return `<div class="h${alc ? ' on' : ''}" style="left:${pos}%">
+      <span class="b" ${alc ? `style="background:${n.main};color:#fff;border-color:${n.main}"` : ''}>${alc ? '✓' : ''}</span>
+      <p>${NIVELES[c].nombre.replace('QUAC ','')}</p>
+      <small>${fmt(NIVELES[c].umbral)}</small>
+    </div>`;
+  }).join('');
+
+  const act = BENEFICIOS[cod].map(x => ben(x.t, x.s, true, null, n.main));
+  const sig = SIGUIENTES[cod].map(x => ben(x.t, x.s, false, x.et, n.main));
+  $('beneficios').innerHTML = act.concat(sig).join('');
+}
+
+function ben(t, s, on, etiqueta, main){
+  return `<div class="ben${on ? '' : ' off'}">
+    <span class="bi" ${on ? `style="background:${main}1F;color:${main}"` : ''}>
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+    </span>
+    <div><p>${t}</p><span>${s}</span>${etiqueta ? `<span class="lv">${etiqueta}</span>` : ''}</div>
+  </div>`;
+}
+
+/* Port de _calculateProgress(): 0,1 fijo bajo el primer umbral; 1,0 en el último */
+function progreso(cod){
+  const q = QUACS[cod];
+  if (q < NIVELES.plus.umbral) return 10;
+  if (q >= NIVELES.black.umbral) return 100;
+  const i = ORDEN.indexOf(cod);
+  const desde = NIVELES[cod].umbral, hasta = NIVELES[ORDEN[i+1]].umbral;
+  return Math.round(((i/5) + ((q - desde)/(hasta - desde))/5) * 1000) / 10;
+}
+
+/* ═══════ CONSOLIDADO ═══════ */
+function pintarMeses(){
+  $('tablaMeses').innerHTML = MESES.map(m => {
+    const tot = m.c + m.a;
+    let et = '';
+    if (m.vence)      et = '<span class="et v">Vence el 31 de agosto</span>';
+    else if (m.curso) et = '<span class="et c">En curso</span>';
+    else if (m.vacio) et = '<span class="et s">Sin movimientos</span>';
+    return `<div class="mes${m.vence ? ' vence' : ''}">
+      <div><span class="m">${m.m}</span>${et}</div>
+      <span class="n${m.c ? '' : ' z'}">${fmt(m.c)}</span>
+      <span class="n${m.a ? '' : ' z'}">${fmt(m.a)}</span>
+      <span class="n t${tot ? '' : ' z'}">${fmt(tot)}</span>
+    </div>`;
+  }).join('');
+}
+
+/* ═══════ CLAVE DINÁMICA — TOTP real de 30 s ═══════ */
+const CIRC = 2 * Math.PI * 13;
+function tickClave(){
+  const s = 30 - (Math.floor(Date.now()/1000) % 30);
+  $('anillo').style.strokeDashoffset = CIRC * (1 - s/30);
+  const ventana = Math.floor(Date.now()/30000);
+  const cod = String((ventana * 7919) % 10000).padStart(4,'0');
+  $('claveDigs').innerHTML = [...cod].map(d => `<i>${d}</i>`).join('');
+}
+setInterval(tickClave, 1000);
+
+/* ═══════ NAVEGACIÓN Y ESTADOS ═══════ */
+let sec = 'datos';
+function irA(s){
+  sec = s;
+  document.querySelectorAll('[data-panel]').forEach(p => p.hidden = p.dataset.panel !== s);
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.sec === s));
+  aplicarEstado();
+}
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => irA(b.dataset.sec));
+
+function aplicarEstado(){
+  const e = $('ctlEstado').value;
+  /* Cada grupo de hermanos con data-state se resuelve solo: muestra el que
+     coincide; si ese panel no tiene ese estado, cae a "ok". */
+  const grupos = new Set();
+  document.querySelectorAll('[data-panel] [data-state]').forEach(n => grupos.add(n.parentElement));
+  grupos.forEach(g => {
+    const hijos = [...g.children].filter(n => n.dataset && n.dataset.state);
+    const hay = hijos.some(n => n.dataset.state === e);
+    hijos.forEach(n => n.hidden = hay ? n.dataset.state !== e : n.dataset.state !== 'ok');
+  });
+}
+
+function aplicarMora(){
+  const mora = $('ctlMora').checked;
+  const pill = document.querySelector('[data-estado]');
+  pill.textContent = mora ? 'En mora · 12 días' : 'Al día';
+  pill.classList.toggle('mora', mora);
+  document.querySelectorAll('[data-fecha]').forEach(el => el.textContent = mora ? 'Inmediato' : '02 Ago 2026');
+  document.querySelectorAll('[data-minipago]').forEach(el => el.classList.toggle('alerta', mora));
+}
+
+/* ═══════ MODALES ═══════ */
+let paso = 1, tipo = 'email';
+function otpHTML(txt){
+  return `<p class="sec-d" style="margin-bottom:20px">${txt}</p>
+    <div class="otp">${'<input maxlength="1">'.repeat(6)}</div>
+    <p class="mini center" style="margin-top:16px">¿No te llegó? <button class="link">Reenviar en 0:47</button></p>`;
+}
+const COPY = {
+  /* Datos basicos: dos pasos (formulario y codigo por SMS).
+     Endpoints: send-code-update-basic-information / update-basic-information */
+  basicos: [
+    { t:'Actualizar datos básicos', c:`
+      <div class="field"><label>Dirección de residencia</label><input class="inp" type="text" value="Calle 34 # 28-60"></div>
+      <div class="field" style="margin-top:14px"><label>Género</label>
+        <select class="inp"><option value="">Sin registrar</option><option>Femenino</option><option>Masculino</option><option>Otro</option></select>
+      </div>
+      <div class="field" style="margin-top:14px"><label>Fecha de nacimiento</label><input class="inp" type="text" value="03 de octubre, 1980"></div>
+      <p class="mini" style="margin-top:12px">Te enviaremos un código por mensaje de texto para confirmar el cambio.</p>` },
+    { t:'Confirma el cambio', c:otpHTML('Enviamos un código de 6 dígitos por mensaje de texto a tu celular <b style="color:var(--ink)">••• ••• 0696</b>') },
+  ],
+  email: [
+    { t:'Actualizar correo electrónico', c:`<div class="field"><label>Nuevo correo electrónico</label><input class="inp" type="email" placeholder="tucorreo@ejemplo.com"></div><p class="mini" style="margin-top:12px">Te enviaremos un código de verificación a este correo.</p>` },
+    { t:'Verifica tu correo nuevo', c:otpHTML('Enviamos un código de 6 dígitos a <b style="color:var(--ink)">tucorreo@ejemplo.com</b>') },
+    { t:'Verifica tu celular',      c:otpHTML('Ahora enviamos un código por mensaje de texto a tu celular <b style="color:var(--ink)">••• ••• 0696</b>') },
+  ],
+  tel: [
+    { t:'Actualizar número celular', c:`<div class="field"><label>Nuevo número celular</label><input class="inp tab-num" type="tel" placeholder="300 000 0000"></div><p class="mini" style="margin-top:12px">Te enviaremos un código por mensaje de texto a este número.</p>` },
+    { t:'Verifica tu celular nuevo', c:otpHTML('Enviamos un código de 6 dígitos por mensaje de texto') },
+    { t:'Verifica tu correo',        c:otpHTML('Ahora enviamos un código a tu correo <b style="color:var(--ink)">f•••••••@icloud.com</b>') },
+  ],
+};
+function abrirModal(t){
+  if (t === 'cartera'){ $('modalCartera').hidden = false; return; }
+  if (t === 'salida'){  $('modalSalida').hidden  = false; return; }
+  tipo = t; paso = 1; render(); $('modal').hidden = false;
+}
+function render(){
+  const pasos = COPY[tipo].length;          /* datos basicos: 2 · contacto: 3 */
+  const d = COPY[tipo][paso-1];
+  $('mPaso').textContent = `Paso ${paso} de ${pasos}`;
+  $('mTitulo').textContent = d.t;
+  $('mCuerpo').innerHTML = d.c;
+  $('mError').hidden = true;
+  const barras = $('mBarras');
+  barras.innerHTML = Array.from({length: pasos}, (_,i) => `<i class="${i < paso ? 'on' : ''}"></i>`).join('');
+  $('mAvanzar').textContent = paso === pasos ? 'Confirmar cambio' : 'Continuar';
+}
+function cerrarModal(){
+  ['modal','modalCartera','modalSalida','modalOk'].forEach(id => $(id).hidden = true);
+}
+
+/* ═══════ ARRANQUE ═══════ */
+$('mAvanzar').onclick = () => {
+  const pasos = COPY[tipo].length;
+  if (paso < pasos){ paso++; render(); }
+  else {
+    cerrarModal();
+    const fin = {
+      email:   ['Correo actualizado', 'Te enviamos una confirmación a tu correo nuevo y un aviso al anterior.'],
+      tel:     ['Celular actualizado', 'Te enviamos un aviso a tu número anterior y al nuevo.'],
+      basicos: ['Datos actualizados', 'Tus datos quedaron al día. Los usamos para tus entregas y comunicaciones.'],
+    }[tipo];
+    $('okTitulo').textContent = fin[0];
+    $('okTexto').textContent  = fin[1];
+    $('modalOk').hidden = false;
+  }
+};
+$('ctlNivel').onchange  = e => pintarNivel(e.target.value);
+$('ctlEstado').onchange = aplicarEstado;
+$('ctlMora').onchange   = aplicarMora;
+$('ctlClave').onchange  = e => $('claveWrap').hidden = !e.target.checked;
+
+pintarNivel('silver');
+pintarMeses();
+irA('datos');
+aplicarMora();
+tickClave();
+</script>
+</body>
+</html>
