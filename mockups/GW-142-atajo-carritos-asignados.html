@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-142 · Atajo a los carritos asignados en Mis Ventas (4 ubicaciones conmutables)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .cifra { font-variant-numeric: tabular-nums; }
+  @keyframes shimmer { 0% { background-position: -400px 0 } 100% { background-position: 400px 0 } }
+  .skeleton { background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%); background-size: 800px 100%; animation: shimmer 1.4s infinite linear; }
+
+  /* Variante de ubicación del atajo */
+  body:not(.var-a) [data-var="a"] { display: none !important; }
+  body:not(.var-b) [data-var="b"] { display: none !important; }
+  body:not(.var-c) [data-var="c"] { display: none !important; }
+  body:not(.var-d) [data-var="d"] { display: none !important; }
+
+  /* Estados de la cola */
+  body:not(.st-exito) .z-exito { display: none; }
+  body:not(.st-carga) .z-carga { display: none; }
+  body:not(.st-falla) .z-falla { display: none; }
+  body:not(.st-vacio) .z-vacio { display: none; }
+
+  /* Drawer */
+  #drawer { transform: translateX(100%); transition: transform .22s ease; }
+  body.drawer-abierto #drawer { transform: translateX(0); }
+  body:not(.drawer-abierto) #backdrop { display: none; }
+</style>
+</head>
+<body class="bg-neutral-100 text-slate-900 var-c st-exito">
+
+<div class="flex min-h-screen">
+
+  <!-- ══════════ SIDEBAR (GW-115) ══════════ -->
+  <aside class="w-14 bg-neutral-900 flex flex-col items-center py-4 gap-5 shrink-0">
+    <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <svg class="w-4 h-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+    <svg class="w-4 h-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <svg class="w-4 h-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+    <svg class="w-4 h-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+    <svg class="w-4 h-4 text-neutral-500 mt-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6V4.5a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+  </aside>
+
+  <div class="flex-1 min-w-0">
+
+    <!-- ══════════ TOPBAR + BREADCRUMB ══════════ -->
+    <div class="bg-white border-b border-slate-200 px-6 py-2.5 flex items-center gap-4">
+      <div class="flex items-center gap-2 bg-neutral-100 rounded-md px-3 py-1.5 w-72 text-sm text-slate-400">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        Filtrar menú...
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        <div class="w-7 h-7 rounded-full bg-emerald-700 text-white text-xs flex items-center justify-center font-semibold">SC</div>
+        <div class="text-xs leading-tight"><div class="font-semibold">Silvia A. Camacho</div><div class="text-slate-400">Asesora · STIRPE</div></div>
+      </div>
+    </div>
+    <div class="bg-white border-b border-slate-200 px-6 py-2 text-xs text-slate-500 flex items-center gap-1.5">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>›</span><span>Dashboard</span><span>›</span><span class="text-slate-700">Mis Ventas</span>
+    </div>
+
+    <!-- ══════════ ENCABEZADO ══════════ -->
+    <div class="bg-white border-b border-slate-200 px-6 pt-5 pb-0">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h1 class="text-3xl font-bold">Mis Ventas</h1>
+          <p class="text-sm text-slate-500 mt-1">Gestiona tus ventas asistidas</p>
+        </div>
+        <div class="flex items-center gap-2">
+
+          <!-- ░░░ VARIANTE D · botón junto a Nueva Venta ░░░ -->
+          <button data-var="d" onclick="abrirCola()" class="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+            Por gestionar
+            <span class="cifra rounded-full bg-amber-600 px-1.5 py-0.5 text-[11px] font-bold text-white">25</span>
+          </button>
+
+          <button class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            Nueva Venta
+          </button>
+        </div>
+      </div>
+      <div class="flex gap-6 mt-4 text-sm font-medium" id="tabs-pagina">
+        <button data-tab="dashboard" class="tab-btn pb-2.5 border-b-2 border-slate-900 text-slate-900">Dashboard cumplimiento</button>
+        <button data-tab="consultar" class="tab-btn pb-2.5 border-b-2 border-transparent text-slate-500 hover:text-slate-700">Consultar ventas</button>
+
+        <!-- ░░░ VARIANTE B · tercera pestaña ░░░ -->
+        <button data-var="b" data-tab="cola" class="tab-btn pb-2.5 border-b-2 border-transparent text-slate-500 hover:text-slate-700 inline-flex items-center gap-1.5">
+          Por gestionar
+          <span class="cifra rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold text-amber-800">25</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════ CONTROLES DE LA DEMO (no forman parte de la UI) ══════════ -->
+    <div class="px-6 pt-4">
+      <div class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-2.5 flex flex-wrap items-center gap-3">
+        <span class="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Mockup</span>
+        <span class="text-[11px] text-slate-400">Ubicación del atajo:</span>
+        <div class="flex rounded-lg border border-slate-200 p-0.5" id="ctrl-var">
+          <button data-v="a" class="px-3 py-1 text-xs rounded-md text-slate-600 hover:bg-slate-100">A · Chip en la cabecera</button>
+          <button data-v="b" class="px-3 py-1 text-xs rounded-md text-slate-600 hover:bg-slate-100">B · Tercera pestaña</button>
+          <button data-v="c" class="px-3 py-1 text-xs rounded-md bg-slate-900 text-white">C · Banda sobre el tablero</button>
+          <button data-v="d" class="px-3 py-1 text-xs rounded-md text-slate-600 hover:bg-slate-100">D · Botón del encabezado</button>
+        </div>
+        <span class="ml-2 text-[11px] text-slate-400">Estado de la cola:</span>
+        <div class="flex rounded-lg border border-slate-200 p-0.5" id="ctrl-estado">
+          <button data-st="exito" class="px-3 py-1 text-xs rounded-md bg-slate-900 text-white">Éxito</button>
+          <button data-st="carga" class="px-3 py-1 text-xs rounded-md text-slate-600 hover:bg-slate-100">Carga</button>
+          <button data-st="falla" class="px-3 py-1 text-xs rounded-md text-slate-600 hover:bg-slate-100">Falla</button>
+          <button data-st="vacio" class="px-3 py-1 text-xs rounded-md text-slate-600 hover:bg-slate-100">Vacío</button>
+        </div>
+        <button onclick="abrirCola()" class="ml-auto rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700">Abrir la cola</button>
+      </div>
+      <p class="mt-2 px-1 text-[11px] text-slate-400">
+        Datos reales de producción: asesora 5432100 (STIRPE), cola de hoy y ayer al 2026-09-02 — 25 carritos por $13.092.890 netos de envío.
+      </p>
+    </div>
+
+    <!-- ══════════════════ PESTAÑA 1 · DASHBOARD CUMPLIMIENTO ══════════════════ -->
+    <main id="tab-dashboard" class="p-6 space-y-4 max-w-[1400px]">
+
+      <!-- ░░░ VARIANTE C · banda sobre el tablero ░░░ -->
+      <div data-var="c" class="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-3.5 flex flex-wrap items-center gap-x-5 gap-y-2">
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-600 text-white">
+          <svg class="h-[18px] w-[18px] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3.5h2.2l2.3 11.1a1.6 1.6 0 0 0 1.6 1.3h9.1a1.6 1.6 0 0 0 1.6-1.3L20.8 7H6"/></svg>
+        </span>
+        <div class="min-w-0">
+          <p class="text-sm font-semibold text-amber-900">Tienes <span class="cifra">25</span> clientes por gestionar</p>
+          <p class="cifra text-xs text-amber-800">$13.092.890 en carritos que te asignaron y todavía no son venta · <span class="font-semibold">15 llegaron hoy</span> · 10 vienen de ayer</p>
+        </div>
+        <button onclick="abrirCola()" class="ml-auto inline-flex shrink-0 items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700">
+          Ver mis asignados
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+      </div>
+
+      <!-- Cabecera: tienda + período -->
+      <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-semibold tracking-wider text-slate-400">PERÍODO</span>
+          <div class="flex rounded-lg border border-slate-200 bg-white p-0.5">
+            <button class="px-3 py-1 text-sm rounded-md bg-slate-900 text-white">Quincena</button>
+            <button class="px-3 py-1 text-sm rounded-md text-slate-600 hover:bg-slate-100">Mes</button>
+            <button class="px-3 py-1 text-sm rounded-md text-slate-600 hover:bg-slate-100">Día</button>
+            <button class="px-3 py-1 text-sm rounded-md text-slate-600 hover:bg-slate-100">Personalizado</button>
+          </div>
+          <div class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-1 py-0.5">
+            <button class="px-2 py-0.5 text-sm text-slate-500 hover:bg-slate-100 rounded">‹</button>
+            <span class="px-1 text-sm font-medium whitespace-nowrap">Q2 · Ago 2026</span>
+            <button class="px-2 py-0.5 text-sm text-slate-300 rounded">›</button>
+          </div>
+          <button class="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-sm text-slate-500 hover:bg-slate-100">↻</button>
+        </div>
+
+        <div class="ml-auto flex items-center gap-2">
+          <!-- ░░░ VARIANTE A · chip al lado del chip de rango ░░░ -->
+          <button data-var="a" onclick="abrirCola()" class="inline-flex items-center gap-1.5 rounded-full border border-amber-400 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100">
+            <span class="flex h-4 w-4 items-center justify-center rounded-full bg-amber-600 text-[9px] font-bold text-white">!</span>
+            Por gestionar
+            <span class="cifra rounded-full bg-amber-600 px-1.5 text-[11px] font-bold text-white">25</span>
+          </button>
+
+          <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+            <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
+            <span class="cifra">Indicadores del 16 – 30 ago 2026</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Tablero de 3 tarjetas (contrato aprobado v5, sin cambios) -->
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+
+        <div class="rounded-2xl border bg-white p-4 shadow-sm">
+          <p class="mb-1 text-[11px] font-bold tracking-wide text-slate-500 uppercase">% Cump. presupuesto neto</p>
+          <div class="flex items-center gap-3">
+            <div class="w-[46%] shrink-0">
+              <svg viewBox="0 0 140 74" class="w-full max-w-[190px] mx-auto">
+                <path d="M 18 64 A 52 52 0 0 1 122 64" fill="none" stroke="#f1f5f9" stroke-width="11" stroke-linecap="round"/>
+                <path d="M 18 64 A 52 52 0 0 1 119.3 47.5" fill="none" stroke="#d9770644" stroke-width="11" stroke-linecap="round"/>
+                <path d="M 18 64 A 52 52 0 0 1 115.4 38.7" fill="none" stroke="#d97706" stroke-width="11" stroke-linecap="round"/>
+                <text x="70" y="58" text-anchor="middle" class="cifra" style="font-size:21px;font-weight:800;fill:#0f172a">83,8%</text>
+              </svg>
+              <p class="cifra text-center text-[11px] text-slate-600">(89,7%) proyectado con confirmados</p>
+              <p class="cifra mt-0.5 text-center text-[11px] text-slate-600">Meta $53.900.298</p>
+            </div>
+            <div class="min-w-0 flex-1 space-y-2">
+              <div class="rounded-md border border-slate-200 border-l-4 border-l-amber-500 bg-white px-3 py-2">
+                <p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Venta confirmada</p>
+                <p class="cifra text-xl font-extrabold leading-tight">$48.341.891</p>
+                <p class="cifra text-[10px] text-slate-600">($45.167.979) recaudada</p>
+              </div>
+              <div class="rounded-md border border-slate-200 border-l-4 border-l-red-500 bg-white px-3 py-2">
+                <p class="text-[10px] font-semibold tracking-wide text-red-600 uppercase">Por vender</p>
+                <p class="cifra text-xl font-extrabold leading-tight text-red-600">$5.558.407</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-2xl border bg-white p-4 shadow-sm">
+          <p class="mb-1 text-[11px] font-bold tracking-wide text-slate-500 uppercase">% Pedidos esperados</p>
+          <div class="flex items-center gap-3">
+            <div class="w-[46%] shrink-0">
+              <svg viewBox="0 0 140 74" class="w-full max-w-[190px] mx-auto">
+                <path d="M 18 64 A 52 52 0 0 1 122 64" fill="none" stroke="#f1f5f9" stroke-width="11" stroke-linecap="round"/>
+                <path d="M 18 64 A 52 52 0 0 1 122.0 62.5" fill="none" stroke="#059669" stroke-width="11" stroke-linecap="round"/>
+                <text x="70" y="58" text-anchor="middle" class="cifra" style="font-size:21px;font-weight:800;fill:#0f172a">109%</text>
+              </svg>
+              <p class="cifra text-center text-[11px] text-slate-600">103 esperados</p>
+            </div>
+            <div class="min-w-0 flex-1 space-y-2">
+              <div class="rounded-md border border-slate-200 border-l-4 border-l-emerald-600 bg-white px-3 py-2">
+                <p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Pedidos realizados</p>
+                <p class="cifra text-xl font-extrabold leading-tight">112</p>
+              </div>
+              <div class="rounded-md border border-slate-200 border-l-4 border-l-slate-300 bg-white px-3 py-2">
+                <p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Pedidos por realizar</p>
+                <p class="cifra text-xl font-extrabold leading-tight text-slate-500">0</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rounded-2xl border bg-white p-5 shadow-sm">
+          <p class="text-[11px] font-bold tracking-wider text-gray-500 uppercase">Tasa de conversión</p>
+          <div class="mt-3 rounded-xl bg-gray-50 px-4 py-3 text-center">
+            <p class="cifra text-3xl font-bold text-emerald-600 leading-none">36,2%</p>
+            <p class="mt-1 text-[11px] font-medium text-gray-600">Sobre 11 de 14 días con archivo cargado</p>
+            <p class="text-[11px] text-slate-600">meta del mes: 25%</p>
+          </div>
+          <div class="mt-3 space-y-1.5 text-sm">
+            <div class="flex items-center justify-between"><span class="text-gray-600">Tráfico atendido</span><span class="cifra font-bold">376</span></div>
+            <div class="flex items-center justify-between"><span class="text-gray-600">Carritos confirmados</span><span class="cifra font-bold">136</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detalle diario (recortado: solo para mostrar que el atajo no lo desplaza) -->
+      <div class="rounded-2xl border bg-white shadow-sm overflow-hidden">
+        <div class="px-5 py-3 border-b"><h2 class="text-sm font-semibold text-gray-700">Detalle diario</h2></div>
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
+            <tr><th class="px-4 py-2 text-left">Fecha</th><th class="px-4 py-2 text-right">Carritos confirmados</th><th class="px-4 py-2 text-right">Recaudado</th><th class="px-4 py-2 text-right">Facturado</th><th class="px-4 py-2 text-right">Archivado</th><th class="px-4 py-2 text-right">Cumplimiento</th></tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 cifra">
+            <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 font-medium">vie 29 ago</td><td class="px-4 py-2.5 text-right">$4.126.900</td><td class="px-4 py-2.5 text-right">$3.918.400</td><td class="px-4 py-2.5 text-right">$3.918.400</td><td class="px-4 py-2.5 text-right text-slate-400">$0</td><td class="px-4 py-2.5 text-right font-semibold text-emerald-700">104,3% <span class="text-slate-400 font-normal">(99,0%)</span></td></tr>
+            <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 font-medium">jue 28 ago</td><td class="px-4 py-2.5 text-right">$3.276.891</td><td class="px-4 py-2.5 text-right">$3.076.891</td><td class="px-4 py-2.5 text-right">$3.076.891</td><td class="px-4 py-2.5 text-right text-slate-400">$0</td><td class="px-4 py-2.5 text-right font-semibold text-amber-700">82,8% <span class="text-slate-400 font-normal">(77,8%)</span></td></tr>
+            <tr class="hover:bg-slate-50"><td class="px-4 py-2.5 font-medium">mié 27 ago</td><td class="px-4 py-2.5 text-right">$3.436.832</td><td class="px-4 py-2.5 text-right">$3.436.832</td><td class="px-4 py-2.5 text-right">$3.201.400</td><td class="px-4 py-2.5 text-right text-slate-400">$0</td><td class="px-4 py-2.5 text-right font-semibold text-emerald-700">86,9% <span class="text-slate-400 font-normal">(86,9%)</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <!-- ══════════════════ PESTAÑA 2 · CONSULTAR VENTAS (recortada) ══════════════════ -->
+    <main id="tab-consultar" class="hidden p-6 space-y-4 max-w-[1400px]">
+
+      <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-semibold tracking-wider text-slate-400">PERÍODO</span>
+          <div class="flex rounded-lg border border-slate-200 bg-white p-0.5">
+            <button class="px-3 py-1 text-sm rounded-md bg-slate-900 text-white">Quincena</button>
+            <button class="px-3 py-1 text-sm rounded-md text-slate-600 hover:bg-slate-100">Mes</button>
+            <button class="px-3 py-1 text-sm rounded-md text-slate-600 hover:bg-slate-100">Día</button>
+            <button class="px-3 py-1 text-sm rounded-md text-slate-600 hover:bg-slate-100">Personalizado</button>
+          </div>
+          <div class="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-1 py-0.5">
+            <button class="px-2 py-0.5 text-sm text-slate-500 hover:bg-slate-100 rounded">‹</button>
+            <span class="px-1 text-sm font-medium whitespace-nowrap">Q1 · Sep 2026</span>
+            <button class="px-2 py-0.5 text-sm text-slate-300 rounded">›</button>
+          </div>
+        </div>
+        <span class="ml-auto inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700">
+          <svg class="w-3.5 h-3.5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
+          <span class="cifra">Indicadores del 1 – 15 sep 2026</span>
+        </span>
+      </div>
+
+      <!-- Barra de filtros: el quinto select es lo nuevo -->
+      <div class="rounded-2xl border bg-white p-4 shadow-sm">
+        <div class="flex flex-wrap items-center gap-2">
+          <select class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"><option>Pago: todos</option><option>Pagado</option><option>Pendiente</option><option>Cancelado</option></select>
+          <select class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"><option>Logística: todas</option><option>Pendiente</option><option>Agendado</option><option>En ruta</option><option>Entregado</option></select>
+          <select class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"><option>Facturación: todas</option><option>Facturada</option><option>Sin facturar</option></select>
+          <select class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"><option>Mensajería: todas</option><option>Coordinadora</option><option>Servientrega</option><option>Mensajería interna</option></select>
+          <select class="rounded-lg border-2 border-amber-400 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+            <option>Origen: todos (9)</option>
+            <option>Asignados por coordinación (6)</option>
+            <option>WhatsApp (3)</option>
+          </select>
+          <div class="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-400">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            Buscar cliente, #carrito, documento…
+          </div>
+          <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">Buscar</button>
+        </div>
+        <p class="mt-2 text-[11px] text-amber-800">
+          Nuevo: <strong>Origen</strong> se cruza con los otros cuatro filtros —«asignados que siguen pendientes de pago» es una consulta,
+          no una vista aparte—. Sale de <code class="rounded bg-amber-100 px-1">cod_vendedor_asignadopor</code>, que el clon hereda del carrito asignado.
+        </p>
+      </div>
+
+      <!-- Chips de vista: siguen siendo tres, no se les agrega Origen -->
+      <div class="flex items-center gap-1 border-b border-slate-200">
+        <button class="rounded-t-lg border border-b-0 border-slate-200 bg-white px-4 py-2 text-sm font-semibold">Resultados <span class="cifra ml-1 rounded-full bg-slate-100 px-1.5 text-xs">9</span></button>
+        <button class="px-4 py-2 text-sm text-slate-500 hover:text-slate-700">Pendientes de pago <span class="cifra ml-1 rounded-full bg-amber-100 px-1.5 text-xs text-amber-800">2</span></button>
+        <button class="px-4 py-2 text-sm text-slate-500 hover:text-slate-700">Archivados <span class="cifra ml-1 rounded-full bg-slate-100 px-1.5 text-xs">0</span></button>
+      </div>
+
+      <div class="overflow-x-auto rounded-2xl border bg-white shadow-sm">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
+            <tr>
+              <th class="px-4 py-2.5 text-left">Carrito ID</th>
+              <th class="px-4 py-2.5 text-left">Cliente</th>
+              <th class="px-4 py-2.5 text-left">Origen</th>
+              <th class="px-4 py-2.5 text-left">Mensajería</th>
+              <th class="px-4 py-2.5 text-left">Pago</th>
+              <th class="px-4 py-2.5 text-left">Factura</th>
+              <th class="px-4 py-2.5 text-right">Ítems</th>
+              <th class="px-4 py-2.5 text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            <tr class="hover:bg-slate-50"><td class="px-4 py-2.5"><span class="cifra font-semibold text-slate-900">191481</span><br><span class="cifra text-[11px] text-slate-400">1 sep · 4:41 p. m.</span></td><td class="px-4 py-2.5">manuel alejandro</td><td class="px-4 py-2.5"><span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">WhatsApp</span></td><td class="px-4 py-2.5 text-slate-600">Coordinadora</td><td class="px-4 py-2.5"><span class="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">Pagado</span></td><td class="px-4 py-2.5 text-slate-400">Sin facturar</td><td class="cifra px-4 py-2.5 text-right">3</td><td class="cifra px-4 py-2.5 text-right font-semibold">$778.657</td></tr>
+            <tr class="hover:bg-slate-50"><td class="px-4 py-2.5"><span class="cifra font-semibold text-slate-900">191056</span><br><span class="cifra text-[11px] text-slate-400">1 sep · 9:44 a. m.</span></td><td class="px-4 py-2.5">Erika Johanna</td><td class="px-4 py-2.5"><span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">Asignado</span></td><td class="px-4 py-2.5 text-slate-600">Coordinadora</td><td class="px-4 py-2.5"><span class="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">Pagado</span></td><td class="px-4 py-2.5 text-slate-400">Sin facturar</td><td class="cifra px-4 py-2.5 text-right">1</td><td class="cifra px-4 py-2.5 text-right font-semibold">$418.907</td></tr>
+            <tr class="hover:bg-slate-50"><td class="px-4 py-2.5"><span class="cifra font-semibold text-slate-900">191338</span><br><span class="cifra text-[11px] text-slate-400">1 sep · 2:23 p. m.</span></td><td class="px-4 py-2.5">brayan alexander</td><td class="px-4 py-2.5"><span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">WhatsApp</span></td><td class="px-4 py-2.5 text-slate-600">Mensajería interna</td><td class="px-4 py-2.5"><span class="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Pendiente</span></td><td class="px-4 py-2.5 text-slate-400">—</td><td class="cifra px-4 py-2.5 text-right">1</td><td class="cifra px-4 py-2.5 text-right font-semibold">$309.950</td></tr>
+            <tr class="hover:bg-slate-50"><td class="px-4 py-2.5"><span class="cifra font-semibold text-slate-900">188517</span><br><span class="cifra text-[11px] text-slate-400">29 ago · 3:50 p. m.</span></td><td class="px-4 py-2.5">tatiana</td><td class="px-4 py-2.5"><span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">Asignado</span></td><td class="px-4 py-2.5 text-slate-600">Coordinadora</td><td class="px-4 py-2.5"><span class="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">Pagado</span></td><td class="px-4 py-2.5 text-slate-600">Facturada</td><td class="cifra px-4 py-2.5 text-right">3</td><td class="cifra px-4 py-2.5 text-right font-semibold">$667.807</td></tr>
+            <tr class="hover:bg-slate-50"><td class="px-4 py-2.5"><span class="cifra font-semibold text-slate-900">188314</span><br><span class="cifra text-[11px] text-slate-400">29 ago · 1:22 p. m.</span></td><td class="px-4 py-2.5">Luisa Fernanda</td><td class="px-4 py-2.5"><span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">Asignado</span></td><td class="px-4 py-2.5 text-slate-600">Coordinadora</td><td class="px-4 py-2.5"><span class="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Pendiente</span></td><td class="px-4 py-2.5 text-slate-400">—</td><td class="cifra px-4 py-2.5 text-right">1</td><td class="cifra px-4 py-2.5 text-right font-semibold">$405.950</td></tr>
+            <tr class="hover:bg-slate-50"><td class="px-4 py-2.5"><span class="cifra font-semibold text-slate-900">186109</span><br><span class="cifra text-[11px] text-slate-400">27 ago · 9:08 a. m.</span></td><td class="px-4 py-2.5">Edwar</td><td class="px-4 py-2.5"><span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">Asignado</span></td><td class="px-4 py-2.5 text-slate-600">Coordinadora</td><td class="px-4 py-2.5"><span class="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">Pagado</span></td><td class="px-4 py-2.5 text-slate-600">Facturada</td><td class="cifra px-4 py-2.5 text-right">4</td><td class="cifra px-4 py-2.5 text-right font-semibold">$959.490</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs text-slate-400">Carritos reales de la asesora 5432100. «Asignado» = el carrito nació de una asignación de coordinación, directamente o por el clon que lo heredó.</p>
+    </main>
+
+    <!-- ══════════════════ PESTAÑA 3 · POR GESTIONAR (solo variante B) ══════════════════ -->
+    <main id="tab-cola" class="hidden p-6 max-w-[1400px]">
+      <div id="pagina-slot"></div>
+    </main>
+
+    <!-- ══════════ NOTAS DE DISEÑO (fuera de la UI) ══════════ -->
+    <div class="px-6 pb-10">
+      <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-sm">
+        <p class="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Notas de diseño · no forman parte de la interfaz</p>
+        <dl class="mt-3 grid gap-3 md:grid-cols-2">
+          <div><dt class="font-semibold text-slate-800">A · Chip en la cabecera</dt><dd class="text-slate-600">El atajo más barato: vive al lado del chip de rango. Se lee como un aviso, no como navegación. Riesgo: compite visualmente con «Indicadores del…» y se pierde cuando el asesor baja al detalle diario.</dd></div>
+          <div><dt class="font-semibold text-slate-800">B · Tercera pestaña</dt><dd class="text-slate-600">La cola pasa a ser un lugar, no un aviso. Es lo más parecido a lo que existía antes de GW-142. Cuesta más código y le quita protagonismo al dashboard de comisión.</dd></div>
+          <div><dt class="font-semibold text-slate-800">C · Banda sobre el tablero <span class="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">recomendada</span></dt><dd class="text-slate-600">Es lo primero que ve el asesor al entrar y dice la cifra que importa (25 clientes, $13,1M netos, 10 de ayer). Cuando la cola queda en cero, la banda desaparece y el dashboard queda igual que hoy.</dd></div>
+          <div><dt class="font-semibold text-slate-800">D · Botón del encabezado</dt><dd class="text-slate-600">Queda junto a «Nueva Venta», que es donde el asesor va a crear la venta. Ventaja: visible desde las dos pestañas. Desventaja: no puede mostrar el monto ni la antigüedad.</dd></div>
+        </dl>
+        <p class="mt-5 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">La cola muestra hoy y ayer</p>
+        <p class="mt-2 text-slate-600">
+          Decisión del 2026-09-02, tomada contra producción: <strong>sin ventana la cola de un asesor llega a
+          1.703 carritos por $734,9 M, y el 73 % lleva más de 90 días</strong>. La razón de fondo es que
+          <strong>ninguna columna marca un carrito como ya gestionado</strong>: <code class="rounded bg-slate-100 px-1">cod_vendedor_carrito_cerrado</code>
+          existe para eso y dejó de escribirse el 3 de marzo de 2026 (246 filas en toda la tabla), igual que
+          <code class="rounded bg-slate-100 px-1">tipo_asignacion</code>. Con hoy y ayer la cola queda entre 15 y 51
+          carritos por asesor, que es el ritmo real del reparto. La ventana es un parámetro: abrirla es cambiar un número.
+        </p>
+
+        <p class="mt-5 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Cuándo sale un carrito de la cola · medido sobre los 4.016 asignados de agosto 2026</p>
+        <table class="mt-2 w-full text-[13px]">
+          <thead class="text-[11px] uppercase tracking-wide text-slate-500">
+            <tr><th class="py-1 text-left">Salida</th><th class="py-1 text-right">Carritos</th><th class="py-1 text-right">Valor</th><th class="py-1 pl-4 text-left">Señal en la base</th></tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 text-slate-700">
+            <tr><td class="py-1.5">El asesor lo clona y arma la venta asistida</td><td class="cifra py-1.5 text-right">201</td><td class="cifra py-1.5 text-right">$108,1 M</td><td class="py-1.5 pl-4"><code class="rounded bg-slate-100 px-1">carrito_destino_id</code></td></tr>
+            <tr><td class="py-1.5">Se confirma como venta asistida sobre el mismo carrito</td><td class="cifra py-1.5 text-right">135</td><td class="cifra py-1.5 text-right">$81,1 M</td><td class="py-1.5 pl-4"><code class="rounded bg-slate-100 px-1">carrito_asistido_confirmado</code></td></tr>
+            <tr><td class="py-1.5">El cliente paga solo, sin que el asesor intervenga</td><td class="cifra py-1.5 text-right">163</td><td class="cifra py-1.5 text-right">$79,8 M</td><td class="py-1.5 pl-4"><code class="rounded bg-slate-100 px-1">estado_pedido_id = 1</code></td></tr>
+            <tr><td class="py-1.5">El pedido se cancela</td><td class="cifra py-1.5 text-right">910</td><td class="cifra py-1.5 text-right">$388,6 M</td><td class="py-1.5 pl-4"><code class="rounded bg-slate-100 px-1">pedido_cancelado = 1</code></td></tr>
+            <tr><td class="py-1.5">El asesor lo archiva (GW-142)</td><td class="cifra py-1.5 text-right text-red-600">0</td><td class="cifra py-1.5 text-right text-red-600">$0</td><td class="py-1.5 pl-4 text-red-700">hoy el botón solo aparece en carritos ya confirmados</td></tr>
+            <tr class="bg-amber-50 font-semibold"><td class="py-1.5">No sale nunca: sigue abierto</td><td class="cifra py-1.5 text-right">2.578</td><td class="cifra py-1.5 text-right">$1.079,4 M</td><td class="py-1.5 pl-4 font-normal">64 % de lo asignado</td></tr>
+          </tbody>
+        </table>
+        <p class="mt-2 text-slate-600">
+          Clonar es <strong>una</strong> de las salidas, y es la menos frecuente (5 %). La decisión pendiente es la sexta fila:
+          hoy 2.578 carritos de agosto siguen abiertos y, sin regla de caducidad, la cola crece para siempre.
+          Opciones: ventana fija desde la asignación (p. ej. 7 días), o dejarlos hasta que el asesor los archive —lo que exige
+          ampliar la elegibilidad de archivar de GW-142, que hoy solo admite confirmados.
+        </p>
+
+        <p class="mt-4 text-slate-600">
+          En A, C y D el atajo abre un <strong>panel lateral</strong>; en B abre la pestaña. En los cuatro casos el contenido es el mismo bloque
+          y <strong>no toca el universo del dashboard</strong>: la cola se consulta aparte
+          (<code class="rounded bg-slate-100 px-1 text-[12px]">cod_vendedor</code> propio +
+          <code class="rounded bg-slate-100 px-1 text-[12px]">cod_vendedor_asignadopor &gt; 0</code>, sin confirmar, sin convertir, sin archivar),
+          así que ninguna cifra de comisión cambia.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════ BACKDROP + DRAWER ══════════ -->
+<div id="backdrop" onclick="cerrarCola()" class="fixed inset-0 z-30 bg-slate-900/30"></div>
+<aside id="drawer" class="fixed top-0 right-0 z-40 h-full w-full max-w-[620px] bg-neutral-50 shadow-2xl flex flex-col">
+  <div class="flex items-start gap-3 border-b border-slate-200 bg-white px-5 py-4">
+    <div class="min-w-0 flex-1">
+      <h2 class="text-lg font-bold">Clientes por gestionar</h2>
+      <p class="cifra text-xs text-slate-500">Carritos que te asignaron y todavía no son venta · última asignación hoy 8:38 a. m.</p>
+      <p class="mt-1 text-xs text-slate-500">Cuando abres uno y lo clonas, sale de esta lista y pasa a «Consultar ventas».</p>
+    </div>
+    <button onclick="cerrarCola()" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    </button>
+  </div>
+  <div id="drawer-slot" class="flex-1 overflow-y-auto"></div>
+</aside>
+
+<!-- ══════════ CONTENIDO DE LA COLA (se monta en el drawer o en la pestaña) ══════════ -->
+<div id="cola-contenido" class="p-5 space-y-4">
+
+  <!-- Resumen + chips -->
+  <div class="z-exito space-y-3">
+    <div class="grid grid-cols-3 gap-3">
+      <div class="rounded-xl border bg-white px-3 py-2.5 shadow-sm">
+        <p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Por gestionar</p>
+        <p class="cifra text-2xl font-extrabold leading-tight">25</p>
+      </div>
+      <div class="rounded-xl border bg-white px-3 py-2.5 shadow-sm">
+        <p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Valor en juego</p>
+        <p class="cifra text-2xl font-extrabold leading-tight">$13.092.890</p>
+      </div>
+      <div class="rounded-xl border border-l-4 border-l-red-500 bg-white px-3 py-2.5 shadow-sm">
+        <p class="text-[10px] font-semibold tracking-wide text-red-600 uppercase">De ayer</p>
+        <p class="cifra text-2xl font-extrabold leading-tight text-red-600">10</p>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <button class="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">Todos <span class="cifra">25</span></button>
+      <button class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100">Carrito abandonado <span class="cifra">23</span></button>
+      <button class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100">Pedido pendiente de pago <span class="cifra">2</span></button>
+      <button class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100">Asignados hoy <span class="cifra">15</span></button>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <div class="flex flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-400">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        Buscar por nombre, celular o carrito…
+      </div>
+      <select class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+        <option>Mayor valor primero</option>
+        <option>Más antiguos primero</option>
+        <option>Asignación más reciente</option>
+      </select>
+    </div>
+
+    <!-- Grupo 1 -->
+    <p class="pt-1 text-[11px] font-bold tracking-wider text-slate-400 uppercase">De ayer · 10</p>
+    <div class="space-y-2">
+
+      <div class="rounded-xl border border-l-4 border-l-red-400 bg-white p-3 shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <p class="truncate font-semibold">Jhonatan</p>
+              <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">Carrito abandonado</span>
+              <span class="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">hace 4 días</span>
+            </div>
+            <p class="cifra mt-0.5 text-xs text-slate-500">Carrito 187950 · 3168319965 · 2 ítems</p>
+          </div>
+          <div class="text-right">
+            <p class="cifra text-lg font-extrabold leading-tight">$1.999.900</p>
+          </div>
+        </div>
+        <div class="mt-2.5 flex gap-2">
+          <button class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+            Abrir el carrito
+          </button>
+          <button class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></svg>
+            WhatsApp
+          </button>
+          <button class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Actividad del cliente</button>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-l-4 border-l-red-400 bg-white p-3 shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <p class="truncate font-semibold">Samuel</p>
+              <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">Carrito abandonado</span>
+              <span class="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">hace 6 días</span>
+            </div>
+            <p class="cifra mt-0.5 text-xs text-slate-500">Carrito 185926 · 3132168443 · 2 ítems</p>
+          </div>
+          <p class="cifra text-lg font-extrabold leading-tight">$1.306.900</p>
+        </div>
+        <div class="mt-2.5 flex gap-2">
+          <button class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">Abrir el carrito</button>
+          <button class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100">WhatsApp</button>
+          <button class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Actividad del cliente</button>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-l-4 border-l-amber-400 bg-white p-3 shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <p class="truncate font-semibold">Pablo</p>
+              <span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">Pedido pendiente de pago</span>
+              <span class="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">hace 4 días</span>
+            </div>
+            <p class="cifra mt-0.5 text-xs text-slate-500">Carrito 187001 · pedido 720753 · 3142694570 · 1 ítem</p>
+          </div>
+          <p class="cifra text-lg font-extrabold leading-tight">$1.099.900</p>
+        </div>
+        <div class="mt-2.5 flex gap-2">
+          <button class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">Abrir el carrito</button>
+          <button class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100">WhatsApp</button>
+          <button class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Actividad del cliente</button>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-l-4 border-l-red-400 bg-white p-3 shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <p class="truncate font-semibold">Lorena</p>
+              <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">Carrito abandonado</span>
+              <span class="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">hace 7 días</span>
+            </div>
+            <p class="cifra mt-0.5 text-xs text-slate-500">Carrito 184928 · 3234258277 · 1 ítem</p>
+          </div>
+          <p class="cifra text-lg font-extrabold leading-tight">$1.236.950</p>
+        </div>
+        <div class="mt-2.5 flex gap-2">
+          <button class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">Abrir el carrito</button>
+          <button class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100">WhatsApp</button>
+          <button class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Actividad del cliente</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grupo 2 -->
+    <p class="pt-2 text-[11px] font-bold tracking-wider text-slate-400 uppercase">Asignados hoy · 15</p>
+    <div class="space-y-2">
+
+      <div class="rounded-xl border border-l-4 border-l-amber-400 bg-white p-3 shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <p class="truncate font-semibold">Andrés</p>
+              <span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">Pedido pendiente de pago</span>
+            </div>
+            <p class="cifra mt-0.5 text-xs text-slate-500">Carrito 190961 · pedido 721799 · 3016906746 · 1 ítem</p>
+          </div>
+          <p class="cifra text-lg font-extrabold leading-tight">$799.950</p>
+        </div>
+        <div class="mt-2.5 flex gap-2">
+          <button class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">Abrir el carrito</button>
+          <button class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100">WhatsApp</button>
+          <button class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Actividad del cliente</button>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-l-4 border-l-amber-400 bg-white p-3 shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <p class="truncate font-semibold">Leonefer</p>
+              <span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">Pedido pendiente de pago</span>
+            </div>
+            <p class="cifra mt-0.5 text-xs text-slate-500">Carrito 191010 · pedido 721807 · 3125047702 · 2 ítems</p>
+          </div>
+          <p class="cifra text-lg font-extrabold leading-tight">$489.850</p>
+        </div>
+        <div class="mt-2.5 flex gap-2">
+          <button class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">Abrir el carrito</button>
+          <button class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100">WhatsApp</button>
+          <button class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Actividad del cliente</button>
+        </div>
+      </div>
+
+      <div class="rounded-xl border bg-white p-3 shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <p class="truncate font-semibold">Charles</p>
+              <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">Carrito abandonado</span>
+            </div>
+            <p class="cifra mt-0.5 text-xs text-slate-500">Carrito 191820 · 3197711445 · 2 ítems</p>
+          </div>
+          <p class="cifra text-lg font-extrabold leading-tight">$460.857</p>
+        </div>
+        <div class="mt-2.5 flex gap-2">
+          <button class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">Abrir el carrito</button>
+          <button class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100">WhatsApp</button>
+          <button class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Actividad del cliente</button>
+        </div>
+      </div>
+
+      <div class="rounded-xl border bg-white p-3 shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <p class="truncate font-semibold">Alejandra</p>
+              <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">Carrito abandonado</span>
+            </div>
+            <p class="cifra mt-0.5 text-xs text-slate-500">Carrito 191892 · 3237723298 · 1 ítem</p>
+          </div>
+          <p class="cifra text-lg font-extrabold leading-tight">$457.941</p>
+        </div>
+        <div class="mt-2.5 flex gap-2">
+          <button class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">Abrir el carrito</button>
+          <button class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100">WhatsApp</button>
+          <button class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Actividad del cliente</button>
+        </div>
+      </div>
+
+      <div class="rounded-xl border bg-white p-3 shadow-sm">
+        <div class="flex items-start gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <p class="truncate font-semibold">Yined</p>
+              <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">Carrito abandonado</span>
+            </div>
+            <p class="cifra mt-0.5 text-xs text-slate-500">Carrito 191812 · 3128386363 · 1 ítem</p>
+          </div>
+          <p class="cifra text-lg font-extrabold leading-tight">$428.950</p>
+        </div>
+        <div class="mt-2.5 flex gap-2">
+          <button class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800">Abrir el carrito</button>
+          <button class="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-100">WhatsApp</button>
+          <button class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100">Actividad del cliente</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-1 pb-2 text-center">
+      <button class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">Ver los 16 restantes</button>
+    </div>
+  </div>
+
+  <!-- ── CARGA ── -->
+  <div class="z-carga space-y-3">
+    <div class="grid grid-cols-3 gap-3">
+      <div class="rounded-xl border bg-white px-3 py-2.5 shadow-sm space-y-2"><div class="h-3 w-20 rounded skeleton"></div><div class="h-7 w-16 rounded skeleton"></div></div>
+      <div class="rounded-xl border bg-white px-3 py-2.5 shadow-sm space-y-2"><div class="h-3 w-20 rounded skeleton"></div><div class="h-7 w-28 rounded skeleton"></div></div>
+      <div class="rounded-xl border bg-white px-3 py-2.5 shadow-sm space-y-2"><div class="h-3 w-20 rounded skeleton"></div><div class="h-7 w-12 rounded skeleton"></div></div>
+    </div>
+    <div class="rounded-xl border bg-white p-3 shadow-sm space-y-2"><div class="h-4 w-48 rounded skeleton"></div><div class="h-3 w-64 rounded skeleton"></div><div class="h-7 w-40 rounded skeleton"></div></div>
+    <div class="rounded-xl border bg-white p-3 shadow-sm space-y-2"><div class="h-4 w-40 rounded skeleton"></div><div class="h-3 w-56 rounded skeleton"></div><div class="h-7 w-40 rounded skeleton"></div></div>
+    <div class="rounded-xl border bg-white p-3 shadow-sm space-y-2"><div class="h-4 w-44 rounded skeleton"></div><div class="h-3 w-60 rounded skeleton"></div><div class="h-7 w-40 rounded skeleton"></div></div>
+  </div>
+
+  <!-- ── FALLA ── -->
+  <div class="z-falla">
+    <div class="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5">
+      <span class="shrink-0 text-red-600"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
+      <p class="min-w-0 flex-1 text-sm font-medium text-red-900">No pudimos cargar tus clientes por gestionar.</p>
+      <button class="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100">Reintentar</button>
+    </div>
+  </div>
+
+  <!-- ── VACÍO ── -->
+  <div class="z-vacio">
+    <div class="rounded-2xl border bg-white p-5 shadow-sm">
+      <div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-12 text-center">
+        <p class="text-3xl leading-none">✓</p>
+        <p class="mt-3 text-sm font-semibold text-gray-700">No tienes clientes por gestionar</p>
+        <p class="mt-1 text-xs text-gray-500">Trabajaste todo lo que te asignaron. La próxima asignación llega mañana a las 8:30 a. m.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const cola = document.getElementById('cola-contenido');
+
+function setVar(v) {
+  document.body.classList.remove('var-a','var-b','var-c','var-d');
+  document.body.classList.add('var-' + v);
+  document.querySelectorAll('#ctrl-var button').forEach(b => {
+    const on = b.dataset.v === v;
+    b.className = 'px-3 py-1 text-xs rounded-md ' + (on ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100');
+  });
+  if (v === 'b') {
+    document.getElementById('pagina-slot').appendChild(cola);
+    cerrarCola();
+  } else {
+    document.getElementById('drawer-slot').appendChild(cola);
+    if (document.querySelector('[data-tab="cola"]').classList.contains('border-slate-900')) setTab('dashboard');
+  }
+}
+
+function setTab(t) {
+  ['dashboard','consultar','cola'].forEach(x => {
+    document.getElementById('tab-' + x).classList.toggle('hidden', x !== t);
+  });
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    const on = b.dataset.tab === t;
+    b.classList.toggle('border-slate-900', on);
+    b.classList.toggle('text-slate-900', on);
+    b.classList.toggle('border-transparent', !on);
+    b.classList.toggle('text-slate-500', !on);
+  });
+}
+
+function abrirCola() {
+  if (document.body.classList.contains('var-b')) { setTab('cola'); return; }
+  document.body.classList.add('drawer-abierto');
+}
+function cerrarCola() { document.body.classList.remove('drawer-abierto'); }
+
+document.querySelectorAll('#ctrl-var button').forEach(b => b.onclick = () => setVar(b.dataset.v));
+document.querySelectorAll('.tab-btn').forEach(b => b.onclick = () => setTab(b.dataset.tab));
+document.querySelectorAll('#ctrl-estado button').forEach(b => b.onclick = () => {
+  document.body.classList.remove('st-exito','st-carga','st-falla','st-vacio');
+  document.body.classList.add('st-' + b.dataset.st);
+  document.querySelectorAll('#ctrl-estado button').forEach(x => {
+    const on = x === b;
+    x.className = 'px-3 py-1 text-xs rounded-md ' + (on ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100');
+  });
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarCola(); });
+
+setVar('c');
+</script>
+</body>
+</html>
