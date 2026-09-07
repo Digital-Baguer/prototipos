@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C-02 · Los 6 árboles de continuidad</title>
+<style>
+  :root{
+    --violet:#7633FF; --navy:#20196C; --lavender:#E7E6FC; --ice:#EFF4FF;
+    --green:#10B981; --amber:#F59E0B; --red:#EC4899; --gray:#8B87A8;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ice);color:var(--navy);
+       font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;
+       -webkit-font-smoothing:antialiased;line-height:1.55}
+  .layout{display:flex;min-height:100vh}
+
+  /* ── Navegación ── */
+  aside{width:290px;flex-shrink:0;background:#fff;border-right:1px solid var(--lavender);
+        padding:22px 16px;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .kicker{font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+          color:#A5A1C4;font-weight:700}
+  aside h1{font-size:19px;margin:6px 0 2px;line-height:1.25}
+  .sub{font-size:12px;color:var(--gray)}
+  nav{margin-top:22px;display:flex;flex-direction:column;gap:3px}
+  nav button{all:unset;cursor:pointer;padding:9px 12px;border-radius:9px;font-size:13.5px;
+             border:1px solid transparent;color:#4A4470;display:flex;gap:9px;align-items:center}
+  nav button:hover{background:var(--ice)}
+  nav button.on{background:#fff;border-color:var(--violet);color:var(--navy);font-weight:650}
+  nav .sep{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:#B8B4D0;
+           margin:16px 0 5px;padding-left:12px;font-weight:700}
+  .tag{font-family:var(--mono);font-size:10.5px;background:var(--lavender);
+       color:var(--violet);border-radius:5px;padding:1px 6px;font-weight:700}
+
+  /* ── Contenido ── */
+  main{flex:1;padding:34px 40px 70px;max-width:1080px}
+  section{display:none} section.on{display:block}
+  h2{font-size:25px;margin:0 0 6px;letter-spacing:-.01em}
+  h3{font-size:16px;margin:32px 0 10px}
+  .lead{color:#5A5480;font-size:15px;margin:0 0 8px;max-width:70ch}
+  p{max-width:74ch}
+
+  .card{background:#fff;border:1px solid var(--lavender);border-radius:15px;padding:19px 21px;margin:14px 0}
+  .card.tight{padding:15px 18px}
+  .rotulo{font-size:11px;text-transform:uppercase;letter-spacing:.07em;
+          color:#A5A1C4;font-weight:700;margin-bottom:9px}
+
+  pre{font-family:var(--mono);font-size:12.5px;line-height:1.62;margin:0;
+      white-space:pre;overflow-x:auto}
+  .arbol{background:#fff;border:1px solid var(--lavender);border-radius:15px;padding:19px 21px}
+  .arbol pre{color:#3C3766}
+
+  .json{background:#1E1B3A;border-radius:15px;padding:18px 20px;overflow-x:auto}
+  .json pre{color:#C9C4E8;font-size:12.5px}
+  .k{color:#9DE2FF} .s{color:#B8F5C8} .n{color:#FFD79A} .nl{color:#FF9DC4}
+  .clave{background:rgba(118,51,255,.34);border-radius:4px;padding:1px 3px;
+         box-shadow:0 0 0 1px rgba(157,226,255,.4)}
+
+  .porque{background:var(--ice);border-left:3px solid var(--violet);
+          border-radius:0 10px 10px 0;padding:13px 16px;margin:12px 0}
+  .porque b{color:var(--navy)}
+  .porque p{margin:5px 0 0;font-size:14px;color:#5A5480}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:12px 0}
+  th{text-align:left;background:var(--ice);color:#6A6494;font-weight:700;
+     font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:9px 12px}
+  td{padding:10px 12px;border-top:1px solid var(--lavender);vertical-align:top}
+  code{font-family:var(--mono);font-size:12.5px;background:var(--ice);
+       border:1px solid var(--lavender);border-radius:5px;padding:1px 5px}
+
+  .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;
+        padding:3px 11px;font-size:12px;font-weight:650}
+  .p-fin{background:#FCE7F3;color:#9D174D}
+  .p-detalle{background:var(--lavender);color:var(--violet)}
+  .p-mini{background:#FEF3C7;color:#92400E}
+
+  .grid{display:grid;gap:13px}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+
+  .num{font-size:30px;font-weight:800;color:var(--violet);line-height:1}
+  .paso-aqui{color:var(--violet);font-weight:700}
+
+  /* ══ UI simulada ══ */
+  .ui{background:#fff;border:1px solid var(--lavender);border-radius:14px;overflow:hidden;
+      box-shadow:0 12px 34px -18px rgba(32,25,108,.32)}
+  .ui-chrome{background:#F7F6FE;border-bottom:1px solid var(--lavender);padding:9px 14px;
+             display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+  .ui-tab{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--lavender);
+          border-radius:8px;padding:5px 11px;font-size:12px;color:#7B76A0;background:#fff}
+  .ui-tab.act{border-color:var(--violet);color:var(--navy);font-weight:650}
+  .ui-tab .dot{width:8px;height:8px;border-radius:50%;background:var(--violet)}
+  .ui-tab .x{color:#B8B4D0;margin-left:2px}
+  .ui-body{padding:16px 18px 20px}
+  .migas{font-size:12px;color:#8B87A8;margin-bottom:12px}
+  .migas b{color:var(--navy)}
+
+  .cab{border:1px solid var(--lavender);border-radius:12px;padding:13px 15px;display:flex;
+       gap:12px;align-items:center;flex-wrap:wrap}
+  .avatar{width:38px;height:38px;border-radius:11px;background:var(--lavender);color:var(--violet);
+          display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px}
+  .cab .nom{font-size:15px;font-weight:700;line-height:1.2}
+  .cab .meta{font-family:var(--mono);font-size:11.5px;color:#8B87A8;margin-top:2px}
+  .badge{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:700}
+  .b-proc{background:var(--lavender);color:#5B54A8}
+  .b-ok{background:#D1FAE5;color:#065F46}
+  .b-red{background:#FCE7F3;color:#9D174D}
+  .b-amb{background:#FEF3C7;color:#92400E}
+  .espera{font-family:var(--mono);font-size:11.5px;font-weight:700}
+  .e-g{color:#059669} .e-a{color:#B45309}
+
+  .turno{border-radius:11px;padding:11px 14px;margin:12px 0;font-size:13px}
+  .t-info{background:var(--lavender);border:1px solid rgba(118,51,255,.28)}
+  .t-sis{background:var(--ice);border:1px solid var(--lavender)}
+  .t-ok{background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46}
+  .t-red{background:#FDF2F8;border:1px solid #FBCFE8;color:#9D174D}
+  .t-amb{background:#FFFBEB;border:1px solid #FDE68A;color:#92400E}
+  .turno b{display:block;font-size:13.5px;margin-bottom:2px}
+  .turno span{color:#5A5480;font-size:12.5px}
+
+  .cols{display:grid;grid-template-columns:1.9fr 1fr;gap:13px;margin-top:12px}
+  @media(max-width:760px){.cols{grid-template-columns:1fr}}
+
+  .riel{border-left:1px solid var(--lavender);margin-left:7px;padding-left:0}
+  .paso{position:relative;padding-left:17px;margin-bottom:11px}
+  .paso .pt{position:absolute;left:-6px;top:3px;width:11px;height:11px;border-radius:50%;
+            box-shadow:0 0 0 3px #fff}
+  .p-hecho .pt{background:#10B981} .p-act .pt{background:var(--violet)}
+  .p-pend .pt{background:var(--lavender)} .p-desv .pt{background:#F59E0B}
+  .paso .tt{font-size:12.5px;display:flex;gap:7px;align-items:center}
+  .p-hecho .tt{color:#3C3766} .p-act .tt{font-weight:700}
+  .p-pend .tt{color:#B0ACC8}
+  .paso .nn{font-family:var(--mono);font-size:11px;color:#B0ACC8}
+  .contenido{background:#FAFAFF;border:1px solid var(--lavender);border-radius:10px;
+             padding:12px 13px;margin-top:8px;font-size:12.5px}
+
+  .lateral{border:1px solid var(--lavender);border-radius:11px;padding:12px 13px}
+  .lateral .rot{font-size:11px;font-weight:700;color:#A5A1C4;text-transform:uppercase;
+                letter-spacing:.05em;margin-bottom:8px}
+  .dl{display:flex;justify-content:space-between;font-size:12px;padding:3px 0}
+  .dl .k2{color:#8B87A8} .dl .v2{font-family:var(--mono);font-size:11.5px}
+  .bit{display:flex;gap:7px;font-size:11.5px;margin-bottom:8px}
+  .bit .bp{width:6px;height:6px;border-radius:50%;margin-top:5px;flex-shrink:0}
+  .bit .bt{font-weight:650;line-height:1.3} .bit .bd{color:#8B87A8;font-size:11px}
+
+  .foto{border:1.5px dashed var(--lavender);border-radius:9px;padding:12px;text-align:center;
+        font-size:11.5px}
+  .foto b{display:block;font-size:12px;margin-bottom:2px}
+  .ok-txt{color:#059669;font-weight:650}
+  .g2c{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .g3c{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+
+  .inp{border:1px solid var(--lavender);border-radius:8px;padding:7px 9px;font-size:12px;
+       background:#fff;color:#3C3766}
+  .lab{font-size:11px;color:#8B87A8;margin-bottom:3px;display:block}
+  .otp{display:flex;gap:6px}
+  .otp i{width:32px;height:38px;border:1px solid var(--lavender);border-radius:8px;
+         display:flex;align-items:center;justify-content:center;font-family:var(--mono);
+         font-size:15px;font-weight:700;font-style:normal;background:#fff}
+  .btn{display:inline-block;background:var(--violet);color:#fff;border-radius:8px;
+       padding:7px 14px;font-size:12.5px;font-weight:650}
+  .btn.gh{background:#fff;color:#6A6494;border:1px solid var(--lavender)}
+  .spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--lavender);
+        border-top-color:var(--violet);display:inline-block;animation:sp 800ms linear infinite;
+        vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  .mini-step{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px}
+  .mini-n{width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;
+          display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .mn-act{background:var(--violet);color:#fff} .mn-pend{background:var(--lavender);color:#8B87A8}
+  .mn-ok{background:#10B981;color:#fff}
+
+  .final-card{border-radius:12px;padding:16px 18px;text-align:left}
+  .fc-ok{background:#ECFDF5;border:1px solid #A7F3D0}
+  .fc-red{background:#FDF2F8;border:1px solid #FBCFE8}
+  .fc-amb{background:#FFFBEB;border:1px solid #FDE68A}
+  .final-card b{font-size:14.5px;display:block;margin-bottom:4px}
+  .final-card p{margin:0;font-size:13px;color:#5A5480;max-width:none}
+
+  .leyenda{font-size:12px;color:#8B87A8;margin-top:9px;display:flex;gap:7px;align-items:baseline}
+  .leyenda .fl{color:var(--violet);font-weight:800}
+
+  .variantes{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+  .variantes button{all:unset;cursor:pointer;border:1px solid var(--lavender);border-radius:8px;
+                    padding:5px 11px;font-size:12px;color:#6A6494;background:#fff}
+  .variantes button.on{border-color:var(--violet);color:var(--navy);font-weight:700}
+  .vpanel{display:none} .vpanel.on{display:block}
+
+  tr.f4 td{background:#FDF2F8}
+  tr.f4 td:first-child{border-left:3px solid #F9A8D4}
+
+  /* colores del árbol de decisión */
+  .res{color:var(--violet);font-weight:700}
+  .fin{color:#BE185D;font-weight:700}
+  .goto{color:#8B87A8}
+  .mini{color:#B45309;font-weight:700}
+  .regla{color:var(--navy);font-weight:800}
+  .cond{color:#5A5480}
+
+  .aviso{background:#FEF3C7;border:1px solid #FCD34D;border-radius:11px;
+         padding:13px 16px;margin:13px 0;font-size:14px;color:#78350F}
+  .aviso b{color:#451A03}
+
+  @media(max-width:900px){
+    .layout{flex-direction:column} aside{width:100%;height:auto;position:static}
+    main{padding:24px 20px 60px}
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<aside>
+  <div class="kicker">Contrato C-02</div>
+  <h1>Los 6 árboles de continuidad</h1>
+  <div class="sub">5 árboles de pasos + 1 tarjeta final · qué monta el front según lo que devuelve el servicio</div>
+
+  <nav id="nav">
+    <div class="sep">Antes de los árboles</div>
+    <button data-ir="idea" class="on">Cómo funciona</button>
+    <button data-ir="reglas">El árbol de decisión</button>
+    <button data-ir="mapa">De la acción a la vista</button>
+
+    <div class="sep">Los seis árboles</div>
+    <button data-ir="a"><span class="tag">A</span> Cliente nuevo</button>
+    <button data-ir="b"><span class="tag">B</span> Re-estudio</button>
+    <button data-ir="c"><span class="tag">C</span> Retomar</button>
+    <button data-ir="d"><span class="tag">D</span> Desbloqueo</button>
+    <button data-ir="e"><span class="tag">E</span> Reactivación</button>
+    <button data-ir="f"><span class="tag">F</span> Tarjeta final</button>
+
+    <div class="sep">Para cerrar</div>
+    <button data-ir="ab">A y B se confunden</button>
+    <button data-ir="tabla">Tabla de referencia</button>
+  </nav>
+</aside>
+
+<main>
+
+<!-- ══════════ IDEA ══════════ -->
+<section id="idea" class="on">
+  <h2>Cómo funciona</h2>
+  <p class="lead">El asesor digita un documento. El front hace <b>una sola llamada</b> a C-02. Lo que recibe le dice qué pantalla armar y por dónde seguir.</p>
+
+  <div class="card">
+    <pre>   El asesor digita el documento
+            │
+            ▼
+   ┌──────────────┐    1 llamada     ┌────────────────────────┐
+   │    FRONT     │ ───────────────► │   C-02                 │
+   │              │ ◄─────────────── │   clasifica y decide   │
+   └──────────────┘   1 instrucción  └────────────────────────┘
+            │
+            ▼
+   arma UNO de 6 árboles posibles</pre>
+  </div>
+
+  <div class="porque">
+    <b>La regla de oro</b>
+    <p>El front <b>no lee el escenario para decidir</b>. Lee el campo <code>accion</code>. Los textos, el tono y el punto de entrada vienen redactados desde el back. Si el front tuviera que escribir un <code>switch</code> sobre el nombre del escenario, el contrato estaría mal diseñado.</p>
+  </div>
+
+  <h3>Los tres números que importan</h3>
+  <div class="grid g3">
+    <div class="card tight"><div class="num">9</div>
+      <div style="font-weight:650;margin-top:5px">Resultados posibles</div>
+      <div class="sub" style="margin-top:3px">Lo que C-02 puede devolver</div></div>
+    <div class="card tight"><div class="num">4</div>
+      <div style="font-weight:650;margin-top:5px">Acciones</div>
+      <div class="sub" style="margin-top:3px">El switch del front</div></div>
+    <div class="card tight"><div class="num">6</div>
+      <div style="font-weight:650;margin-top:5px">Formas</div>
+      <div class="sub" style="margin-top:3px">5 árboles de pasos + 1 tarjeta final</div></div>
+  </div>
+
+  <div class="aviso">
+    <b>No son 9 pantallas distintas.</b> Nueve resultados se resuelven con 6 formas:
+    <b>cinco árboles de pasos</b> (A–E), uno por resultado, y <b>una tarjeta final</b> (F) que
+    comparten los cuatro finales informativos.
+  </div>
+</section>
+
+<!-- ══════════ ÁRBOL DE DECISIÓN ══════════ -->
+<section id="reglas">
+  <h2>El árbol de decisión del servicio</h2>
+  <p class="lead">Cinco reglas, en orden. <b>La primera que aplica gana.</b> Toda rama o termina la atención o dice explícitamente a qué regla pasa — ninguna queda colgando.</p>
+
+  <div class="arbol"><pre>Recepción del documento (C-02)
+│   <span class="cond">entrada: tipo + número de documento + contexto (tienda · caja · asesor)</span>
+│
+├─ <span class="regla">R1</span>  ¿El documento existe en el sistema?
+│       ├─ NO ..................................... <span class="res">cliente_nuevo</span>   ▶ 8 pasos
+│       └─ SÍ ......................................................... <span class="goto">→ R2</span>
+│
+├─ <span class="regla">R2</span>  ¿El estado del cupo obliga a terminar la atención?
+│       │   <span class="cond">(consulta única del cupo · su resultado se reutiliza en R4)</span>
+│       ├─ R2a  Cupo activo sin bloqueo ........... <span class="res">cupo_activo</span>     <span class="fin">⛔ fin</span>
+│       ├─ R2b  Cupo bloqueado con mora vigente ... <span class="res">no_aplica_mora</span>  <span class="fin">⛔ fin</span>
+│       └─ R2c  Ninguna de las dos .................................... <span class="goto">→ R3</span>
+│
+├─ <span class="regla">R3</span>  ¿Existe solicitud ABIERTA para el documento?
+│       │   <span class="cond">(en curso · pausada · en fábrica · autogestión)</span>
+│       ├─ R3a  Sí, pausada sin retomar en 90 días  <span class="res">expirada</span>        <span class="fin">⛔ fin</span>
+│       ├─ R3b  Sí ................................ <span class="res">retomar_solicitud</span>
+│       │                                           <span class="cond">vuelve al paso exacto, mismo ID</span>
+│       └─ R3c  No ................................................... <span class="goto">→ R4</span>
+│
+├─ <span class="regla">R4</span>  ¿El cliente puede recuperar su cupo sin un estudio nuevo?
+│       │   <span class="cond">las dos ramas son excluyentes: una exige cupo bloqueado,
+│       │   la otra exige no tener cupo</span>
+│       ├─ R4a  Cupo bloqueado por inactividad · sin mora ·
+│       │       docs+selfie vigentes · sin cambio de celular/correo
+│       │                                     ▶ <span class="mini">mini-flujo DESBLOQUEO</span>
+│       ├─ R4b  Sin cupo · eliminado hace ≤ X días · datos sin cambios
+│       │       ├─ R4b-i   sin mora histórica > Y días
+│       │       │                              ▶ <span class="mini">mini-flujo REACTIVACIÓN</span>
+│       │       └─ R4b-ii  con mora histórica > Y días
+│       │                                      ▶ <span class="mini">mini-flujo REACTIVACIÓN</span>
+│       │                                        <span class="cond">con requiere_validacion_previa</span>
+│       └─ R4c  Ninguno aplica ........................................ <span class="goto">→ R5</span>
+│               <span class="cond">· cupo bloqueado por otra causa
+│               · sin soportes o selfie vencidos
+│               · cambió el contacto
+│               · eliminado hace > X días
+│               · los datos cambiaron
+│               · nunca tuvo cupo</span>
+│
+└─ <span class="regla">R5</span>  ¿Existe estudio en los últimos 90 días?
+        ├─ R5a  Sí, cerrado y NO permite retomar . <span class="res">cierre_reciente</span>  <span class="fin">⛔ fin</span>
+        └─ R5b  No ............................... <span class="res">re_estudio</span>       ▶ 8 pasos</pre></div>
+
+  <h3>Por qué existe <code>R4</code> y qué son los dos mini-flujos</h3>
+
+  <div class="porque">
+    <b>La idea de negocio detrás de la regla</b>
+    <p>Las dos ramas de <code>R4</code> hacen lo mismo: <b>recuperan un cupo que ya existió</b>.
+    Este cliente ya pasó por el estudio completo alguna vez — sus documentos, su selfie y su
+    historial están en el sistema. Hacerle repetir los ocho pasos sería pedirle dos veces lo mismo.
+    <code>R4</code> pregunta si el caso se resuelve con una <b>validación corta</b> en lugar de un
+    estudio nuevo.</p>
+  </div>
+
+  <p>Lo que separa las dos ramas es <b>qué le pasó al cupo</b>: en una el cupo existe pero está
+  bloqueado; en la otra el cupo ya no existe. Por eso nunca pueden aplicar las dos.</p>
+
+  <div class="grid g2">
+    <div class="card">
+      <div class="rotulo">R4a · mini-flujo DESBLOQUEO <span style="color:var(--violet)">→ árbol D</span></div>
+      <p style="margin:0 0 11px;font-size:13.5px;color:#5A5480">
+        El cupo <b>existe</b> pero está bloqueado porque el cliente no lo usó en mucho tiempo.</p>
+
+      <div style="font-size:12px;color:#A5A1C4;font-weight:700;text-transform:uppercase;
+                  letter-spacing:.05em;margin-bottom:6px">Entra solo si se cumplen las cuatro</div>
+      <ul style="margin:0 0 14px;padding-left:18px;font-size:13px;color:#5A5480">
+        <li>Bloqueado <b>por inactividad</b>, no por otra causa</li>
+        <li>Sin mora</li>
+        <li>Documentos y selfie vigentes</li>
+        <li>No cambió el celular ni el correo</li>
+      </ul>
+
+      <div style="border-top:1px solid var(--lavender);padding-top:12px">
+        <div class="mini-step">
+          <div class="mini-n mn-act">1</div>
+          <div><b style="font-size:13px">Validación simplificada</b>
+            <div style="font-size:12.5px;color:#8B87A8">Antecedentes y reportes. Corre en segundo
+            plano; el asesor ve «validando» y nunca el detalle.</div>
+            <div style="font-size:12px;color:#BE185D;margin-top:3px">No supera → No viable antecedentes ⛔</div></div>
+        </div>
+        <div class="mini-step">
+          <div class="mini-n mn-act">2</div>
+          <div><b style="font-size:13px">Prueba de vida</b>
+            <div style="font-size:12.5px;color:#8B87A8">Contra la selfie que ya está almacenada.
+            <b>No se captura el documento</b> — tenerlo vigente fue condición de entrada.</div>
+            <div style="font-size:12px;color:#059669;margin-top:3px">Supera → <b>Desbloqueado</b> ✅ cupo disponible al instante</div>
+            <div style="font-size:12px;color:#B45309">No supera → En fábrica de soporte</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="rotulo">R4b · mini-flujo REACTIVACIÓN <span style="color:var(--violet)">→ árbol E</span></div>
+      <p style="margin:0 0 11px;font-size:13.5px;color:#5A5480">
+        El cupo <b>ya no existe</b>: se lo eliminaron hace poco y sus datos siguen iguales.</p>
+
+      <div style="font-size:12px;color:#A5A1C4;font-weight:700;text-transform:uppercase;
+                  letter-spacing:.05em;margin-bottom:6px">Entra solo si se cumplen las tres</div>
+      <ul style="margin:0 0 14px;padding-left:18px;font-size:13px;color:#5A5480">
+        <li>No tiene cupo</li>
+        <li>Eliminado hace <b>≤ X días</b></li>
+        <li>Los datos del cliente no cambiaron</li>
+      </ul>
+
+      <div style="border-top:1px solid var(--lavender);padding-top:12px">
+        <div class="mini-step">
+          <div class="mini-n mn-pend">0</div>
+          <div><b style="font-size:13px">Validación simplificada</b>
+            <span style="font-size:11.5px;background:var(--lavender);color:var(--violet);
+                         border-radius:5px;padding:1px 6px;font-weight:700">solo si tuvo mora histórica</span>
+            <div style="font-size:12.5px;color:#8B87A8">Es <b>el mismo proceso</b> que usa el desbloqueo.</div>
+            <div style="font-size:12px;color:#BE185D;margin-top:3px">No supera → No viable antecedentes ⛔</div></div>
+        </div>
+        <div class="mini-step">
+          <div class="mini-n mn-act">1</div>
+          <div><b style="font-size:13px">Token de identidad</b>
+            <div style="font-size:12.5px;color:#8B87A8">Al celular registrado. <b>El envío no es
+            automático</b>: la pantalla lo ofrece y el asesor lo dispara después de explicarle al cliente.</div>
+            <div style="font-size:12px;color:#B45309;margin-top:3px">Inválido → Pendiente cliente previo</div></div>
+        </div>
+        <div class="mini-step">
+          <div class="mini-n mn-act">2</div>
+          <div><b style="font-size:13px">Prueba de vida</b>
+            <div style="font-size:12px;color:#059669;margin-top:3px">Supera → <b>Reactivado</b> ✅</div>
+            <div style="font-size:12px;color:#B45309">No supera → En fábrica de soporte</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="aviso">
+    <b>El token de reactivación no es el token del paso 4.</b> Se ve igual —las mismas seis
+    casillas— pero significa otra cosa: el del paso 4 <b>firma los términos y condiciones</b> y hace
+    nacer la solicitud; este solo <b>valida que la persona es quien dice ser</b>. Se reutiliza el
+    componente, no la semántica.
+  </div>
+
+  <h4 style="font-size:14px;margin:24px 0 8px">Lo que los dos tienen en común</h4>
+  <table>
+    <tr><th></th><th>Qué implica</th></tr>
+    <tr><td><b>No crean solicitud</b></td>
+        <td>No hay número, no hay árbol de 8 pasos, no hay panel lateral. La traza queda en el <code>atencion_id</code></td></tr>
+    <tr><td><b>Comparten la validación simplificada</b></td>
+        <td>Es un único proceso, no dos. Consulta centrales: lenta y con costo, por eso corre asíncrona</td></tr>
+    <tr><td><b>Los dos pueden terminar en fábrica</b></td>
+        <td>Si la prueba de vida no supera, el caso pasa al equipo de soporte</td></tr>
+    <tr><td><b>Son contratos aparte</b></td>
+        <td><b>C-12</b> desbloqueo y <b>C-13</b> reactivación. C-02 solo devuelve la instrucción que los inicia</td></tr>
+  </table>
+
+  <h3>De cada regla sale un resultado, y de cada resultado su forma</h3>
+  <p>La regla que gana determina el resultado, y el resultado determina qué pantalla arma el front.
+  <b>No es uno a uno:</b> hay <b>9 resultados</b> y solo <b>6 formas</b>, porque los cuatro finales
+  informativos comparten la misma tarjeta.</p>
+
+  <table>
+    <tr><th>Regla</th><th>Resultado</th><th>Forma que arma el front</th></tr>
+    <tr><td><code>R1</code> · no existe</td><td><code>cliente_nuevo</code></td>
+        <td><span class="tag">A</span> 8 pasos, formulario vacío</td></tr>
+    <tr class="f4"><td><code>R2a</code> · cupo sin bloqueo</td><td><code>cupo_activo</code></td>
+        <td><span class="tag">F</span> tarjeta, sin trámite</td></tr>
+    <tr class="f4"><td><code>R2b</code> · bloqueado con mora</td><td><code>no_aplica_mora</code></td>
+        <td><span class="tag">F</span> tarjeta, sin trámite</td></tr>
+    <tr class="f4"><td><code>R3a</code> · pausada +90 días</td><td><code>expirada</code></td>
+        <td><span class="tag">F</span> tarjeta, sin trámite</td></tr>
+    <tr><td><code>R3b</code> · solicitud abierta</td><td><code>retomar_solicitud</code></td>
+        <td><span class="tag">C</span> 8 pasos, entra donde quedó</td></tr>
+    <tr><td><code>R4a</code> · bloqueado por inactividad</td><td><code>desbloqueo</code></td>
+        <td><span class="tag">D</span> mini-flujo de 2 pasos</td></tr>
+    <tr><td><code>R4b</code> · eliminado hace poco</td><td><code>reactivacion</code></td>
+        <td><span class="tag">E</span> mini-flujo de 2 o 3 pasos</td></tr>
+    <tr class="f4"><td><code>R5a</code> · estudio cerrado reciente</td><td><code>cierre_reciente</code></td>
+        <td><span class="tag">F</span> tarjeta, sin trámite</td></tr>
+    <tr><td><code>R5b</code> · nada vigente</td><td><code>re_estudio</code></td>
+        <td><span class="tag">B</span> 8 pasos, formulario precargado</td></tr>
+  </table>
+
+  <div class="leyenda"><span class="fl">↑</span>
+    <span>Las <b>cuatro filas sombreadas</b> son las que colapsan: cuatro resultados distintos,
+    una sola tarjeta. Por eso 9 resultados caben en 6 formas — y por eso <b>F no es un árbol de
+    pasos</b>, es la pantalla que se pinta cuando no hay trámite que hacer.</span></div>
+
+  <h3>Cuatro reglas de implementación que no son negociables</h3>
+
+  <div class="porque">
+    <b>1 · El cupo se consulta UNA sola vez</b>
+    <p><code>R2</code> y <code>R4</code> usan el mismo resultado. Consultarlo dos veces no solo cuesta
+    una llamada extra: abre la puerta a que las dos lecturas difieran y el servicio decida con datos
+    inconsistentes.</p>
+  </div>
+
+  <div class="porque">
+    <b>2 · <code>R4a</code> y <code>R4b</code> nunca pueden aplicar las dos</b>
+    <p>Una exige tener cupo bloqueado, la otra exige no tener cupo. Si el código permite que ambas
+    evalúen verdadero, hay un error en las condiciones.</p>
+  </div>
+
+  <div class="porque">
+    <b>3 · <code>R4c</code> concentra las seis condiciones de degradación</b>
+    <p>No se pregunta «¿cambiaron los datos?» en cada rama. Es una sola guardia que manda el caso a
+    <code>R5</code>. Menos árbol, misma lógica.</p>
+  </div>
+
+  <div class="porque">
+    <b>4 · <code>X</code>, <code>Y</code> y los 90 días se leen de configuración</b>
+    <p>No van como constantes en el código. El catálogo de Reglas de negocio ya existe en
+    Administración.</p>
+  </div>
+
+  <div class="aviso">
+    <b>Si <code>R5</code> encuentra un estudio que permite retomar, es incoherencia de datos.</b>
+    <code>R3b</code> debió haber cortado antes. El back registra una alerta operativa y continúa —
+    no se crea una rama de negocio para eso.
+  </div>
+
+  <h3>Por qué el cupo va antes que la retoma</h3>
+  <p>Fue la decisión más discutida del diseño. El orden anterior evaluaba primero la solicitud abierta; se cambió por tres razones:</p>
+
+  <table>
+    <tr><th>Razón</th><th>Detalle</th></tr>
+    <tr><td>El servicio necesita el cupo igual</td>
+        <td><code>R4</code> no es evaluable sin conocerlo. Poner la retoma primero solo posterga una consulta obligatoria</td></tr>
+    <tr><td>Las incoherencias se resuelven solas</td>
+        <td>Cupo activo con una solicitud colgada devuelve <code>cupo_activo</code>, que es lo correcto. No hace falta una guarda de integridad</td></tr>
+    <tr><td>No se pierde nada</td>
+        <td>Con <code>R5</code> como sumidero universal y la retoma en <code>R3</code>, una solicitud pausada ayer se sigue detectando temprano</td></tr>
+  </table>
+
+  <div class="aviso">
+    <b>Descartado:</b> que la mora pueda coexistir con una gestión abierta reciente. La mora exige
+    cupo activo, compras hechas, primera cuota vencida a los 15 días y 10 días de gracia — mínimo
+    unos 25 días de uso. Un estudio pausado hace tres días no puede haber entrado en mora. Y si hay
+    mora, entonces hay cupo, lo que ya lo pone dentro de <code>R2</code>.
+  </div>
+</section>
+
+<!-- ══════════ MAPA ══════════ -->
+<section id="mapa">
+  <h2>De la acción a la vista, y de la vista al árbol</h2>
+  <p class="lead">Tres saltos: el resultado determina la acción, la acción determina la vista, y algunos datos afinan qué árbol concreto se arma dentro de esa vista.</p>
+
+  <div class="card">
+    <pre>  RESULTADO                 ACCIÓN               VISTA                      FORMA
+
+  cliente_nuevo      ──►  activar_paso     ──►  Detalle solicitud   ──►  <b>A</b>
+  re_estudio         ──►  activar_paso     ──►  Detalle solicitud   ──►  <b>B</b>   (cambia «modo»)
+
+  retomar_solicitud  ──►  abrir_solicitud  ──►  Detalle solicitud   ──►  <b>C</b>
+
+  desbloqueo         ──►  iniciar_proceso  ──►  Mini-flujo          ──►  <b>D</b>
+  reactivacion       ──►  iniciar_proceso  ──►  Mini-flujo          ──►  <b>E</b>
+
+  cupo_activo        ──┐
+  no_aplica_mora     ──┤
+  expirada           ──┼►  mostrar_resultado ►  Resultado           ──►  <b>F</b>
+  cierre_reciente    ──┘</pre>
+  </div>
+
+  <h3>Qué significa cada acción, en simple</h3>
+  <table>
+    <tr><th>Acción</th><th>Lo que le está diciendo al front</th><th>Vista</th></tr>
+    <tr><td><code>mostrar_resultado</code></td>
+        <td>«No hay trámite que hacer. Dale este mensaje al cliente y cierra la atención.»</td>
+        <td><span class="pill p-fin">Resultado</span></td></tr>
+    <tr><td><code>activar_paso</code></td>
+        <td>«Hay que hacer el trámite completo de 8 pasos. Empieza en este paso.»</td>
+        <td><span class="pill p-detalle">Detalle</span></td></tr>
+    <tr><td><code>abrir_solicitud</code></td>
+        <td>«Ya había un trámite empezado. Acá está todo lo que lleva. Retómalo en este paso.»</td>
+        <td><span class="pill p-detalle">Detalle</span></td></tr>
+    <tr><td><code>iniciar_proceso</code></td>
+        <td>«No es el trámite normal, es un camino corto. Móntalo y arráncalo.»</td>
+        <td><span class="pill p-mini">Mini-flujo</span></td></tr>
+  </table>
+
+  <div class="porque">
+    <b>¿Por qué dos acciones montan la misma vista?</b>
+    <p>Porque cambia <b>si la solicitud ya existe</b>. Con <code>activar_paso</code> todavía no hay
+    solicitud: la pantalla se identifica con el <code>atencion_id</code> y muestra «— preliminar» donde
+    iría el número. Con <code>abrir_solicitud</code> la solicitud existe, trae su número y su historia.</p>
+  </div>
+</section>
+
+<!-- ══════════ A ══════════ -->
+<section id="a">
+  <h2><span class="tag">A</span> Cliente nuevo — los 8 pasos completos</h2>
+  <p class="lead">El documento no existe en el sistema. Se hace el trámite entero desde cero.</p>
+
+  <div class="rotulo">Cómo sabe el front que entra a este árbol</div>
+  <div class="json"><pre>{
+  "atencion_id": <span class="s">"a7f3c9e1-4b2d-4a88-9c31-5e7f0d8a2b64"</span>,
+  "accion": <span class="clave s">"activar_paso"</span>,
+  "escenario": <span class="s">"cliente_nuevo"</span>,
+  "datos": {
+    "paso": <span class="clave n">2</span>,
+    "modo": <span class="clave s">"crear"</span>,
+    "tono": <span class="s">"info"</span>,
+    "titulo": <span class="s">"Cliente nuevo"</span>,
+    "mensaje": <span class="s">"No existe registro para CC 1.098.765.432. Captura las fotos del documento para empezar."</span>
+  }
+}</pre></div>
+
+  <div class="porque">
+    <b>Los tres campos resaltados son los que deciden</b>
+    <p><code>accion</code> monta la vista de Detalle · <code>paso</code> dice dónde enfocar ·
+    <code>modo: "crear"</code> hace que el formulario del cliente nazca <b>vacío</b>.</p>
+  </div>
+
+  <div class="rotulo" style="margin-top:26px">El árbol que se arma</div>
+  <div class="arbol"><pre>[1] Identificación del cliente          ✔ resuelto al abrir la atención
+ │
+[2] Creación del cliente                <span class="paso-aqui">◀── ENTRA AQUÍ · modo «crear»</span>
+ │    fotos → OCR → formulario → validar celular y correo
+[3] Tipo de gestión y asesor
+ │    ├─ asistida en tienda → código + rostro del asesor → sigue
+ │    └─ autogestión ─────────────────────► SALE del canal tienda
+ │                                          enlace por WhatsApp · fin en tienda
+[4] Aceptación y firma electrónica       ★ NACE LA SOLICITUD · aparece el #
+ │    └─ el cliente se retira ───────────► Pausada (recuperable)
+[5] Iniciar estudio          ┐
+ │                           │ EN PARALELO
+[6] Registro de dirección    ┘
+ │    └─ el estudio corta ───────────────► No viable antecedentes ⛔
+ │                                         No viable centrales    ⛔
+ │                                         No aplica para cupo    ⛔
+[7] Validación de identidad
+ │    ├─ nombre difiere → actualiza y re-evalúa → sigue
+ │    ├─ número no coincide ─────────────► Fraude / inconsistencia ⛔
+ │    └─ escala ─────────────────────────► En fábrica de soporte
+ │                                          ├ desatasque → sigue
+ │                                          └ freno → Devuelto por fábrica
+ │                                                     └ reintento → vuelve a [7]
+[8] Activación de cupo                   → Cupo activado ✅</pre></div>
+
+  <div class="rotulo" style="margin-top:26px">Lo que ve el asesor</div>
+  <div class="ui">
+    <div class="ui-chrome">
+      <span class="ui-tab">☰ Mesa de estudios</span>
+      <span class="ui-tab act"><span class="dot"></span> CC 1098765432 · Creación del cliente <span class="x">×</span></span>
+    </div>
+    <div class="ui-body">
+      <div class="migas">Mesa de estudios / <b>Atención de cliente</b></div>
+
+      <div class="cab">
+        <div class="avatar">?</div>
+        <div style="flex:1">
+          <div class="nom">Atención de cliente <span class="badge b-proc">En proceso</span></div>
+          <div class="meta">AT0005 · CC 1098765432 · Caja 01</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:10.5px;color:#A5A1C4">Espera en caja</div>
+          <div class="espera e-g">● 0:42</div>
+        </div>
+      </div>
+
+      <div class="turno t-info">
+        <b>Turno del asesor</b>
+        <span>Cargá las dos caras del documento para extraer los datos.</span>
+      </div>
+
+      <div class="cols">
+        <div class="riel">
+          <div class="paso p-hecho"><span class="pt"></span>
+            <div class="tt"><span class="nn">✓</span> Identificación del cliente</div></div>
+
+          <div class="paso p-act"><span class="pt"></span>
+            <div class="tt"><span class="nn">2</span> Creación del cliente</div>
+            <div class="contenido">
+              <div class="g2c">
+                <div class="foto"><b>Cara frontal</b><span style="color:#B0ACC8">Sin cargar</span></div>
+                <div class="foto"><b>Cara posterior</b><span style="color:#B0ACC8">Sin cargar</span></div>
+              </div>
+              <div style="margin-top:11px;color:#8B87A8">
+                Formulario <b style="color:var(--violet)">vacío</b> — el cliente no existe en el sistema.
+              </div>
+              <div style="margin-top:10px;text-align:right"><span class="btn">Procesar con OCR</span></div>
+            </div></div>
+
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">3</span> Tipo de gestión y asesor</div></div>
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">4</span> Aceptación y firma electrónica</div></div>
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">5</span> Iniciar estudio</div></div>
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">6</span> Registro de dirección</div></div>
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">7</span> Validación de identidad</div></div>
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">8</span> Activación de cupo</div></div>
+        </div>
+
+        <div>
+          <div class="lateral">
+            <div class="rot">Datos de la solicitud</div>
+            <div class="dl"><span class="k2">Solicitud</span><span class="v2" style="color:#B0ACC8">— preliminar</span></div>
+            <div class="dl"><span class="k2">Atención</span><span class="v2">AT0005</span></div>
+            <div class="dl"><span class="k2">Documento</span><span class="v2">CC 1098765432</span></div>
+            <div class="dl"><span class="k2">Cliente</span><span class="v2" style="color:#B0ACC8">—</span></div>
+          </div>
+          <div class="lateral" style="margin-top:11px">
+            <div class="rot">Bitácora</div>
+            <div class="bit"><span class="bp" style="background:var(--lavender)"></span>
+              <div><div class="bt">Cliente identificado</div>
+                   <div class="bd">CC 1098765432 · no existe — se crea el cliente</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="leyenda"><span class="fl">↑</span>
+    <span>Fijate en el panel derecho: <b>«— preliminar»</b> donde iría el número, porque
+    <code>activar_paso</code> no trae solicitud. Y el formulario nace vacío por <code>modo: "crear"</code>.</span></div>
+
+  <div class="aviso">
+    <b>Ojo con el paso 4.</b> Hasta ahí no existe número de solicitud: la pantalla muestra
+    «— preliminar». El <code>#</code> nace cuando el cliente valida el token de firma.
+  </div>
+</section>
+
+<!-- ══════════ B ══════════ -->
+<section id="b">
+  <h2><span class="tag">B</span> Re-estudio — el mismo árbol, otro modo</h2>
+  <p class="lead">Cliente que ya existe pero no tiene nada vigente: ni cupo, ni gestión abierta, ni estudio reciente. Hace el trámite completo, pero con sus datos ya cargados.</p>
+
+  <div class="rotulo">Cómo sabe el front que entra a este árbol</div>
+  <div class="json"><pre>{
+  "atencion_id": <span class="s">"3d0b7f25-4e91-4c6b-9f38-6b2d0e5a9c74"</span>,
+  "accion": <span class="clave s">"activar_paso"</span>,
+  "escenario": <span class="s">"re_estudio"</span>,
+  "datos": {
+    "paso": <span class="clave n">2</span>,
+    "modo": <span class="clave s">"verificar_y_actualizar"</span>,
+    "tono": <span class="s">"info"</span>,
+    "titulo": <span class="s">"Verificar y actualizar datos"</span>,
+    "mensaje": <span class="s">"El cliente ya existe. Confirma o corrige sus datos para continuar."</span>
+  }
+}</pre></div>
+
+  <div class="porque">
+    <b>Compará con el árbol A: es idéntico salvo un dato</b>
+    <p>Misma <code>accion</code>, mismo <code>paso</code>. <b>Lo único que cambia es <code>modo</code></b>,
+    y con eso el front decide si el formulario nace vacío o precargado. No son dos pantallas: son
+    dos modos de la misma.</p>
+  </div>
+
+  <div class="rotulo" style="margin-top:26px">El árbol que se arma</div>
+  <div class="arbol"><pre>[1] Identificación del cliente          ✔ el cliente YA existe
+ │
+[2] Creación del cliente                <span class="paso-aqui">◀── ENTRA AQUÍ · modo «verificar y actualizar»</span>
+ │    el formulario llega PRECARGADO con lo que el sistema ya tiene
+ │    el asesor confirma o corrige — no captura de cero
+ │
+[3] … [8]   idénticos al árbol A</pre></div>
+
+  <div class="rotulo" style="margin-top:26px">Lo que ve el asesor</div>
+  <div class="ui">
+    <div class="ui-chrome">
+      <span class="ui-tab">☰ Mesa de estudios</span>
+      <span class="ui-tab act"><span class="dot"></span> Andrés · Creación del cliente <span class="x">×</span></span>
+    </div>
+    <div class="ui-body">
+      <div class="migas">Mesa de estudios / <b>Atención de cliente</b></div>
+
+      <div class="cab">
+        <div class="avatar">A</div>
+        <div style="flex:1">
+          <div class="nom">Andrés Quintero <span class="badge b-proc">En proceso</span></div>
+          <div class="meta">AT0009 · CC 1098776554 · Caja 01</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:10.5px;color:#A5A1C4">Espera en caja</div>
+          <div class="espera e-g">● 1:15</div>
+        </div>
+      </div>
+
+      <div class="turno t-info">
+        <b>Turno del asesor</b>
+        <span>El cliente ya existe. Confirmá o corregí sus datos para continuar.</span>
+      </div>
+
+      <div class="cols">
+        <div class="riel">
+          <div class="paso p-hecho"><span class="pt"></span>
+            <div class="tt"><span class="nn">✓</span> Identificación del cliente</div></div>
+
+          <div class="paso p-act"><span class="pt"></span>
+            <div class="tt"><span class="nn">2</span> Verificar y actualizar datos</div>
+            <div class="contenido">
+              <div class="g2c">
+                <div><span class="lab">Nombres</span>
+                     <div class="inp">Andrés Felipe</div></div>
+                <div><span class="lab">Apellidos</span>
+                     <div class="inp">Quintero Ramírez</div></div>
+              </div>
+              <div class="g2c" style="margin-top:9px">
+                <div><span class="lab">Celular</span>
+                     <div class="inp">3145678901</div></div>
+                <div><span class="lab">Correo</span>
+                     <div class="inp">andres.q@gmail.com</div></div>
+              </div>
+              <div style="margin-top:11px;color:#8B87A8">
+                Formulario <b style="color:var(--violet)">precargado</b> con lo que el sistema ya tiene.
+              </div>
+              <div style="margin-top:10px;text-align:right"><span class="btn">Confirmar y continuar</span></div>
+            </div></div>
+
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">3</span> Tipo de gestión y asesor</div></div>
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">4</span> Aceptación y firma electrónica</div></div>
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">5</span> Iniciar estudio</div></div>
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">6</span> Registro de dirección</div></div>
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">7</span> Validación de identidad</div></div>
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">8</span> Activación de cupo</div></div>
+        </div>
+
+        <div>
+          <div class="lateral">
+            <div class="rot">Datos de la solicitud</div>
+            <div class="dl"><span class="k2">Solicitud</span><span class="v2" style="color:#B0ACC8">— preliminar</span></div>
+            <div class="dl"><span class="k2">Atención</span><span class="v2">AT0009</span></div>
+            <div class="dl"><span class="k2">Documento</span><span class="v2">CC 1098776554</span></div>
+            <div class="dl"><span class="k2">Cliente</span><span class="v2">Andrés Q.</span></div>
+          </div>
+          <div class="lateral" style="margin-top:11px">
+            <div class="rot">Bitácora</div>
+            <div class="bit"><span class="bp" style="background:var(--lavender)"></span>
+              <div><div class="bt">Cliente identificado</div>
+                   <div class="bd">CC 1098776554 · ya registrado — sin cupo ni estudio vigente</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="leyenda"><span class="fl">↑</span>
+    <span>Compará con el árbol A: <b>misma pantalla, mismo paso</b>. Lo único distinto es que el
+    formulario llega lleno, y eso lo decide un solo campo: <code>modo</code>.</span></div>
+</section>
+
+<!-- ══════════ C ══════════ -->
+<section id="c">
+  <h2><span class="tag">C</span> Retomar — entra donde quedó</h2>
+  <p class="lead">El cliente tenía un trámite a medias. Vuelve a la tienda —quizá otro día, quizá con otro asesor— y sigue exactamente donde lo dejó.</p>
+
+  <div class="rotulo">Cómo sabe el front que entra a este árbol</div>
+  <div class="json"><pre>{
+  "atencion_id": <span class="s">"e2c74b19-6a05-4d38-9b71-3f8c0a5e2d64"</span>,
+  "accion": <span class="clave s">"abrir_solicitud"</span>,
+  "escenario": <span class="s">"retomar_solicitud"</span>,
+  "datos": {
+    "tono": <span class="s">"info"</span>,
+    "titulo": <span class="s">"Solicitud recuperada"</span>,
+    "mensaje": <span class="s">"El cliente tenía un registro en curso. La información capturada se conserva."</span>,
+    "solicitud": {
+      "solicitud_id": <span class="n">1055</span>,
+      "numero": <span class="clave nl">null</span>,
+      "estado_gestion": <span class="s">"pausada"</span>,
+      "turno": <span class="s">"cliente"</span>,
+      "paso_actual": <span class="clave n">4</span>,
+      "pasos": [
+        { "n": <span class="n">1</span>, "estado": <span class="clave s">"completado"</span> },
+        { "n": <span class="n">2</span>, "estado": <span class="clave s">"completado"</span> },
+        { "n": <span class="n">3</span>, "estado": <span class="clave s">"completado"</span> },
+        { "n": <span class="n">4</span>, "estado": <span class="clave s">"pendiente"</span>  },
+        { "n": <span class="n">5</span>, "estado": <span class="s">"bloqueado"</span>  },
+        { "n": <span class="n">6</span>, "estado": <span class="s">"bloqueado"</span>  },
+        { "n": <span class="n">7</span>, "estado": <span class="s">"bloqueado"</span>  },
+        { "n": <span class="n">8</span>, "estado": <span class="s">"bloqueado"</span>  }
+      ],
+      "capturado": { <span class="nl">…cliente, gestión, firma…</span> },
+      "bitacora_reciente": [ <span class="nl">…</span> ]
+    }
+  }
+}</pre></div>
+
+  <div class="porque">
+    <b>Por qué viene tan cargado</b>
+    <p>Porque el front tiene que pintar la pantalla completa <b>en una sola llamada</b>: con el cliente
+    parado en la caja no puede quedarse en blanco haciendo una segunda consulta.
+    <code>pasos[]</code> le da el color de cada paso sin deducirlo, y <code>capturado</code> precarga
+    los formularios de lo ya resuelto.</p>
+  </div>
+
+  <div class="rotulo" style="margin-top:26px">El árbol que se arma</div>
+  <div class="arbol"><pre>[1]…[N-1]   ✔ completados · se muestran como filas de resumen
+ │
+[N]         <span class="paso-aqui">◀── ENTRA AQUÍ · con todo lo capturado</span>
+ │
+[N+1]…[8]   pendientes</pre></div>
+
+  <div class="rotulo" style="margin-top:26px">Lo que ve el asesor</div>
+  <div class="ui">
+    <div class="ui-chrome">
+      <span class="ui-tab">☰ Mesa de estudios</span>
+      <span class="ui-tab act"><span class="dot"></span>
+María · Firma <span class="x">×</span></span>
+    </div>
+    <div class="ui-body">
+      <div class="migas">Mesa de estudios / <b>Atención de cliente</b></div>
+
+      <div class="cab">
+        <div class="avatar">M</div>
+        <div style="flex:1">
+          <div class="nom">María Alejandra Rodríguez <span class="badge b-amb">Pausada</span></div>
+          <div class="meta">AT0013 · CC 1098765432 · Caja 01</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:10.5px;color:#A5A1C4">Espera en caja</div>
+          <div class="espera e-a">● 9:04</div>
+        </div>
+      </div>
+
+      <div class="turno t-info">
+        <b>Solicitud recuperada</b>
+        <span>El cliente tenía un registro en curso. La información capturada se conserva —
+        continúa en la firma con token.</span>
+      </div>
+
+      <div class="cols">
+        <div class="riel">
+          <div class="paso p-hecho"><span class="pt"></span><div class="tt"><span class="nn">✓</span> Identificación del cliente</div></div>
+          <div class="paso p-hecho"><span class="pt"></span><div class="tt"><span class="nn">✓</span> Creación del cliente</div></div>
+          <div class="paso p-hecho"><span class="pt"></span><div class="tt"><span class="nn">✓</span> Tipo de gestión y asesor</div></div>
+
+          <div class="paso p-act"><span class="pt"></span>
+            <div class="tt"><span class="nn">4</span> Aceptación y firma electrónica</div>
+            <div class="contenido">
+              <div style="color:#5A5480">Código de 6 dígitos enviado al celular ••• 8901 vía SMS.</div>
+              <div class="otp" style="margin-top:10px">
+                <i>4</i><i>7</i><i>2</i><i>9</i><i>1</i><i>8</i>
+              </div>
+              <div style="margin-top:11px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <span style="font-size:11.5px;color:#8B87A8">Reenviar por: SMS · IVR · WhatsApp</span>
+                <span class="btn" style="margin-left:auto">Verificar token</span>
+              </div>
+            </div></div>
+
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">5</span> Iniciar estudio</div></div>
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">6</span> Registro de dirección</div></div>
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">7</span> Validación de identidad</div></div>
+          <div class="paso p-pend"><span class="pt"></span><div class="tt"><span class="nn">8</span> Activación de cupo</div></div>
+        </div>
+
+        <div>
+          <div class="lateral">
+            <div class="rot">Datos de la solicitud</div>
+            <div class="dl"><span class="k2">Solicitud</span><span class="v2" style="color:#B0ACC8">— preliminar</span></div>
+            <div class="dl"><span class="k2">Documento</span><span class="v2">CC 1098765432</span></div>
+            <div class="dl"><span class="k2">Cliente</span><span class="v2">María A. Rodríguez</span></div>
+            <div class="dl"><span class="k2">Celular</span><span class="v2">3145678901</span></div>
+            <div class="dl"><span class="k2">Asesor</span><span class="v2">1015425789</span></div>
+          </div>
+          <div class="lateral" style="margin-top:11px">
+            <div class="rot">Bitácora</div>
+            <div class="bit"><span class="bp" style="background:#10B981"></span>
+              <div><div class="bt">Cliente creado</div><div class="bd">María Alejandra Rodríguez López</div></div></div>
+            <div class="bit"><span class="bp" style="background:#10B981"></span>
+              <div><div class="bt">Asesor validado</div><div class="bd">código + rostro</div></div></div>
+            <div class="bit"><span class="bp" style="background:#F59E0B"></span>
+              <div><div class="bt">El cliente se retiró</div><div class="bd">la solicitud quedó pausada</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="leyenda"><span class="fl">↑</span>
+    <span>Todo esto se pinta con <b>una sola respuesta</b>: los tres pasos en verde vienen de
+    <code>pasos[]</code>, los datos del panel de <code>capturado</code>, y los sucesos de
+    <code>bitacora_reciente</code>. Sin segunda llamada.<br>
+    Y fijate que <b>tampoco hay número</b>: esta solicitud quedó pausada <i>antes</i> de firmar, así que
+    <code>numero</code> llega en <code>null</code> y la ficha muestra «— preliminar». <b>Retomar no
+    implica tener número.</b></span></div>
+
+  <h3>Dónde entra depende de cómo quedó la solicitud</h3>
+  <table>
+    <tr><th>Estado</th><th>Entra en</th><th>Qué muestra</th></tr>
+    <tr><td>Pausada antes de firmar</td><td><code>[4]</code></td><td>Sin número todavía</td></tr>
+    <tr><td>En curso</td><td>el paso que corresponda</td><td>Con número si ya pasó el 4</td></tr>
+    <tr><td>En fábrica</td><td><code>[7]</code> desviado</td><td>Tarjeta de fábrica con sus salidas</td></tr>
+    <tr><td>En autogestión</td><td>⚠️ sin definir</td><td>La gestión en tienda ya había terminado</td></tr>
+  </table>
+
+  <div class="aviso">
+    <b>Decisión pendiente (D8).</b> Si la solicitud abierta está en autogestión, el cliente la está
+    haciendo desde su celular. ¿Se la quitamos para retomarla en tienda, o le informamos al asesor
+    que está en manos del cliente? Hoy el servicio la devolvería como una retoma normal.
+  </div>
+</section>
+
+<!-- ══════════ D ══════════ -->
+<section id="d">
+  <h2><span class="tag">D</span> Desbloqueo — camino corto de 2 pasos</h2>
+  <p class="lead">El cliente tiene cupo pero está bloqueado por inactividad, y sus soportes siguen vigentes. No necesita un estudio nuevo: se valida y se desbloquea.</p>
+
+  <div class="rotulo">Cómo sabe el front que entra a este árbol</div>
+  <div class="json"><pre>{
+  "atencion_id": <span class="s">"f9b3d1e6-5c82-4a70-b1d4-8e2f6a0c3b95"</span>,
+  "accion": <span class="clave s">"iniciar_proceso"</span>,
+  "escenario": <span class="s">"desbloqueo"</span>,
+  "datos": {
+    "mini_flujo": <span class="clave s">"desbloqueo"</span>,
+    "paso": <span class="clave s">"validacion_simplificada"</span>,
+    "proceso_id": <span class="clave s">"prc_8a41c7e2"</span>,
+    "tono": <span class="s">"info"</span>,
+    "titulo": <span class="s">"Desbloqueo de cupo"</span>,
+    "mensaje": <span class="s">"El cupo se puede desbloquear sin un nuevo estudio. Se está validando la información del cliente."</span>
+  }
+}</pre></div>
+
+  <div class="porque">
+    <b>Qué hace el front con cada campo</b>
+    <p><code>mini_flujo</code> elige cuál de los dos steppers cortos pintar ·
+    <code>paso</code> enfoca el primero · <code>proceso_id</code> es lo que sondea hasta que
+    la validación aterrice.</p>
+  </div>
+
+  <div class="rotulo" style="margin-top:26px">El árbol que se arma</div>
+  <div class="arbol"><pre>SIN stepper de 8 · SIN número de solicitud · no existe solicitud
+
+[1] Validación simplificada             <span class="paso-aqui">◀── ENTRA AQUÍ</span>
+ │    antecedentes + reportes · asíncrona · el asesor ve «validando»
+ │    └─ no supera ──────────────────────► No viable antecedentes  ⛔
+[2] Prueba de vida
+ │    contra la selfie almacenada · sin captura de documento
+ │    ├─ supera ─────────────────────────► Desbloqueado ✅
+ │    └─ no supera ─────────────────────► En fábrica de soporte</pre></div>
+
+  <div class="rotulo" style="margin-top:26px">Lo que ve el asesor</div>
+  <div class="ui">
+    <div class="ui-chrome">
+      <span class="ui-tab">☰ Mesa de estudios</span>
+      <span class="ui-tab act"><span class="dot" style="background:#F59E0B"></span> Jorge · Desbloqueo <span class="x">×</span></span>
+    </div>
+    <div class="ui-body">
+      <div class="migas">Mesa de estudios / <b>Desbloqueo de cupo</b></div>
+
+      <div class="cab">
+        <div class="avatar" style="background:#FEF3C7;color:#92400E">J</div>
+        <div style="flex:1">
+          <div class="nom">Jorge Ramírez <span class="badge b-amb">Desbloqueo en curso</span></div>
+          <div class="meta">AT0011 · CC 80221443 · Caja 01</div>
+        </div>
+      </div>
+
+      <div class="turno t-amb">
+        <b>Desbloqueo de cupo</b>
+        <span>El cupo se puede desbloquear sin un nuevo estudio. Se está validando la información del cliente.</span>
+      </div>
+
+      <div style="border:1px solid var(--lavender);border-radius:11px;padding:15px 17px;margin-top:12px">
+        <div class="mini-step">
+          <div class="mini-n mn-act">1</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700">Validación simplificada</div>
+            <div style="font-size:12px;color:#8B87A8;margin-top:2px">Antecedentes y reportes</div>
+            <div class="contenido" style="margin-top:9px;display:flex;gap:9px;align-items:center">
+              <span class="spin"></span>
+              <span>Validando la información del cliente…</span>
+            </div>
+          </div>
+        </div>
+        <div class="mini-step">
+          <div class="mini-n mn-pend">2</div>
+          <div>
+            <div style="font-size:13px;color:#B0ACC8;font-weight:650">Prueba de vida</div>
+            <div style="font-size:12px;color:#B0ACC8;margin-top:2px">Contra la selfie almacenada</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;border:1px dashed var(--lavender);border-radius:10px;
+                  padding:11px 14px;font-size:12px;color:#8B87A8;text-align:center">
+        Sin stepper de 8 pasos · sin número de solicitud — <b style="color:#6A6494">no existe solicitud</b>
+      </div>
+    </div>
+  </div>
+
+  <div class="leyenda"><span class="fl">↑</span>
+    <span>El <code>proceso_id</code> es lo que mantiene ese spinner girando: el front sondea
+    hasta que la validación aterrice. Y no hay panel lateral ni bitácora porque no hay solicitud
+    que mostrar.</span></div>
+
+  <div class="aviso">
+    <b>No enciende el árbol de 8 pasos.</b> Reutiliza el modal de prueba de vida del paso 7,
+    pero no hay solicitud ni stepper largo. Es otro camino, no un atajo dentro del mismo.
+  </div>
+</section>
+
+<!-- ══════════ E ══════════ -->
+<section id="e">
+  <h2><span class="tag">E</span> Reactivación — camino corto de 2 o 3 pasos</h2>
+  <p class="lead">Al cliente le eliminaron el cupo hace poco y sus datos no cambiaron. Se le valida la identidad y se reactiva. Tiene dos puntos de entrada según su historial de mora.</p>
+
+  <div class="rotulo">Entrada normal — sin validación previa</div>
+  <div class="json"><pre>{
+  "accion": <span class="clave s">"iniciar_proceso"</span>,
+  "escenario": <span class="s">"reactivacion"</span>,
+  "datos": {
+    "mini_flujo": <span class="clave s">"reactivacion"</span>,
+    "paso": <span class="clave s">"token_identidad"</span>,
+    "requiere_validacion_previa": <span class="clave n">false</span>,
+    "celular_enmascarado": <span class="s">"••• 8901"</span>,
+    "titulo": <span class="s">"Reactivación de cupo"</span>
+  }
+}</pre></div>
+
+  <div class="rotulo" style="margin-top:20px">Entrada con validación previa — tuvo mora histórica alta</div>
+  <div class="json"><pre>{
+  "accion": <span class="clave s">"iniciar_proceso"</span>,
+  "escenario": <span class="s">"reactivacion"</span>,
+  "datos": {
+    "mini_flujo": <span class="clave s">"reactivacion"</span>,
+    "paso": <span class="clave s">"validacion_simplificada"</span>,
+    "requiere_validacion_previa": <span class="clave n">true</span>,
+    "proceso_id": <span class="clave s">"prc_c15b9f37"</span>,
+    "titulo": <span class="s">"Reactivación de cupo"</span>
+  }
+}</pre></div>
+
+  <div class="porque">
+    <b>Es el mismo escenario, no dos</b>
+    <p>Por eso <code>requiere_validacion_previa</code> viaja como <b>dato</b> y no como escenario aparte:
+    el front no debe tener dos ramas de código para «reactivación», solo un punto de entrada distinto.</p>
+  </div>
+
+  <div class="rotulo" style="margin-top:26px">El árbol que se arma</div>
+  <div class="arbol"><pre>SIN stepper de 8 · SIN número de solicitud
+
+[0] Validación simplificada             <span class="paso-aqui">◀── entra aquí SOLO si requiere_validacion_previa</span>
+ │    └─ no supera ──────────────────────► No viable antecedentes  ⛔
+[1] Token de identidad                  <span class="paso-aqui">◀── entra aquí en el caso normal</span>
+ │    al celular registrado · lo inicia el asesor, NO es automático
+ │    valida IDENTIDAD, no firma términos y condiciones
+ │    └─ inválido ───────────────────────► Pendiente cliente previo
+[2] Prueba de vida
+ │    ├─ supera ─────────────────────────► Reactivado ✅
+ │    └─ no supera ─────────────────────► En fábrica de soporte</pre></div>
+
+  <div class="rotulo" style="margin-top:26px">Lo que ve el asesor — entrada normal</div>
+  <div class="ui">
+    <div class="ui-chrome">
+      <span class="ui-tab">☰ Mesa de estudios</span>
+      <span class="ui-tab act"><span class="dot" style="background:#F59E0B"></span> Laura · Reactivación <span class="x">×</span></span>
+    </div>
+    <div class="ui-body">
+      <div class="migas">Mesa de estudios / <b>Reactivación de cupo</b></div>
+
+      <div class="cab">
+        <div class="avatar" style="background:#FEF3C7;color:#92400E">L</div>
+        <div style="flex:1">
+          <div class="nom">Laura Daniela Pérez <span class="badge b-amb">Reactivación en curso</span></div>
+          <div class="meta">AT0014 · CC 43778901 · Caja 01</div>
+        </div>
+      </div>
+
+      <div class="turno t-amb">
+        <b>Reactivación de cupo</b>
+        <span>El cupo se puede reactivar. Informá al cliente que recibirá un código para validar su identidad.</span>
+      </div>
+
+      <div style="border:1px solid var(--lavender);border-radius:11px;padding:15px 17px;margin-top:12px">
+        <div class="mini-step">
+          <div class="mini-n mn-act">1</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700">Token de identidad</div>
+            <div style="font-size:12px;color:#8B87A8;margin-top:2px">Al celular registrado ••• 8901</div>
+            <div class="contenido" style="margin-top:9px">
+              <div style="color:#5A5480">Se enviará un código de 6 dígitos para validar la identidad del cliente.</div>
+              <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+                <span style="font-size:11.5px;color:#8B87A8">El asesor decide cuándo enviarlo</span>
+                <span class="btn" style="margin-left:auto">Enviar token</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mini-step">
+          <div class="mini-n mn-pend">2</div>
+          <div>
+            <div style="font-size:13px;color:#B0ACC8;font-weight:650">Prueba de vida</div>
+            <div style="font-size:12px;color:#B0ACC8;margin-top:2px">Contra la selfie almacenada</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;border:1px dashed var(--lavender);border-radius:10px;
+                  padding:11px 14px;font-size:12px;color:#8B87A8;text-align:center">
+        Sin stepper de 8 pasos · sin número de solicitud — <b style="color:#6A6494">no existe solicitud</b>
+      </div>
+    </div>
+  </div>
+
+  <div class="leyenda"><span class="fl">↑</span>
+    <span><b>Botón, no spinner.</b> Como no llega <code>proceso_id</code>, no hay nada corriendo:
+    la pantalla ofrece el envío y espera a que el asesor le explique al cliente.</span></div>
+
+  <div class="rotulo" style="margin-top:24px">Con validación previa — el primer paso sí arranca solo</div>
+  <div class="ui">
+    <div class="ui-body">
+      <div style="border:1px solid var(--lavender);border-radius:11px;padding:15px 17px">
+        <div class="mini-step">
+          <div class="mini-n mn-act">0</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700">Validación simplificada</div>
+            <div style="font-size:12px;color:#8B87A8;margin-top:2px">Por mora histórica sobre el umbral</div>
+            <div class="contenido" style="margin-top:9px;display:flex;gap:9px;align-items:center">
+              <span class="spin"></span>
+              <span>Validando la información del cliente…</span>
+            </div>
+          </div>
+        </div>
+        <div class="mini-step">
+          <div class="mini-n mn-pend">1</div>
+          <div><div style="font-size:13px;color:#B0ACC8;font-weight:650">Token de identidad</div></div>
+        </div>
+        <div class="mini-step">
+          <div class="mini-n mn-pend">2</div>
+          <div><div style="font-size:13px;color:#B0ACC8;font-weight:650">Prueba de vida</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="leyenda"><span class="fl">↑</span>
+    <span>Mismo escenario, un paso más adelante. Lo decide <code>requiere_validacion_previa</code>,
+    y acá sí llega <code>proceso_id</code> porque la validación corre en segundo plano.</span></div>
+
+  <div class="aviso">
+    <b>Acá el front pinta un botón, no un spinner.</b> En la entrada normal <b>no llega</b>
+    <code>proceso_id</code> porque no arranca nada solo: la pantalla <i>ofrece</i> el envío del token
+    y el asesor lo dispara después de explicarle al cliente.
+  </div>
+</section>
+
+<!-- ══════════ F ══════════ -->
+<section id="f">
+  <h2><span class="tag">F</span> Tarjeta final — la atención termina acá</h2>
+  <p class="lead">Cuatro resultados distintos comparten la misma forma: una tarjeta, sin stepper, sin trámite. Cambian solo el tono y el texto.</p>
+
+  <div class="rotulo">Cómo sabe el front que no hay árbol</div>
+  <div class="json"><pre>{
+  "atencion_id": <span class="s">"b1d4e8a2-7c65-4f19-8e03-2a9b6c4d1f57"</span>,
+  "accion": <span class="clave s">"mostrar_resultado"</span>,
+  "escenario": <span class="s">"cupo_activo"</span>,
+  "datos": {
+    "tono": <span class="clave s">"exito"</span>,
+    "titulo": <span class="s">"Cupo ya activo"</span>,
+    "mensaje": <span class="s">"El cliente ya tiene cupo QUAC disponible. Puede comprar en caja sin solicitar de nuevo."</span>
+  }
+}</pre></div>
+
+  <div class="porque">
+    <b>Un solo campo decide todo</b>
+    <p><code>accion: "mostrar_resultado"</code> y el front ya sabe que no monta stepper.
+    <code>tono</code> le da el color de la tarjeta. El resto es texto que el back ya redactó.</p>
+  </div>
+
+  <div class="rotulo" style="margin-top:26px">Lo que ve el asesor — la misma forma, cuatro contenidos</div>
+  <div class="variantes">
+    <button data-var="v-cupo" class="on">cupo_activo</button>
+    <button data-var="v-mora">no_aplica_mora</button>
+    <button data-var="v-exp">expirada</button>
+    <button data-var="v-cierre">cierre_reciente</button>
+  </div>
+
+  <div class="ui">
+    <div class="ui-chrome">
+      <span class="ui-tab">☰ Mesa de estudios</span>
+      <span class="ui-tab act">CC 1098776554 · Consulta <span class="x">×</span></span>
+    </div>
+    <div class="ui-body">
+      <div class="migas">Mesa de estudios / <b>Atención de cliente</b></div>
+
+      <div class="vpanel on" id="v-cupo">
+        <div class="cab" style="margin-bottom:12px">
+          <div class="avatar" style="background:#D1FAE5;color:#065F46">A</div>
+          <div style="flex:1">
+            <div class="nom">Andrés Quintero <span class="badge b-ok">Cupo activo</span></div>
+            <div class="meta">AT0007 · CC 1098776554 · Caja 01</div>
+          </div>
+        </div>
+        <div class="final-card fc-ok">
+          <b>Cupo ya activo</b>
+          <p>El cliente ya tiene cupo QUAC disponible. Puede comprar en caja sin solicitar de nuevo.</p>
+        </div>
+        <div style="margin-top:13px;text-align:right"><span class="btn gh">Volver a la mesa</span></div>
+      </div>
+
+      <div class="vpanel" id="v-mora">
+        <div class="cab" style="margin-bottom:12px">
+          <div class="avatar" style="background:#FCE7F3;color:#9D174D">C</div>
+          <div style="flex:1">
+            <div class="nom">Carlos Martínez <span class="badge b-red">No aplica</span></div>
+            <div class="meta">AT0008 · CC 79554120 · Caja 01</div>
+          </div>
+        </div>
+        <div class="final-card fc-red">
+          <b>No aplica por mora</b>
+          <p>El cupo del cliente está bloqueado. Invitalo a comunicarse con la línea de servicio.</p>
+        </div>
+        <div style="margin-top:11px;border:1px dashed #FBCFE8;border-radius:9px;padding:9px 12px;
+                    font-size:11.5px;color:#9D174D;text-align:center">
+          Sin cifras · sin días de mora · sin detalle de la deuda
+        </div>
+        <div style="margin-top:13px;text-align:right"><span class="btn gh">Volver a la mesa</span></div>
+      </div>
+
+      <div class="vpanel" id="v-exp">
+        <div class="cab" style="margin-bottom:12px">
+          <div class="avatar" style="background:#FEF3C7;color:#92400E">R</div>
+          <div style="flex:1">
+            <div class="nom">Rosa Elena Gómez <span class="badge b-amb">Expirada</span></div>
+            <div class="meta">AT0012 · CC 51334778 · Caja 01</div>
+          </div>
+        </div>
+        <div class="final-card fc-amb">
+          <b>Gestión expirada</b>
+          <p>La solicitud que quedó pendiente superó los 90 días y no se puede retomar.</p>
+        </div>
+        <div style="margin-top:13px;display:flex;gap:9px;justify-content:flex-end">
+          <span class="btn gh">Volver a la mesa</span>
+          <span class="btn">Iniciar solicitud nueva</span>
+        </div>
+      </div>
+
+      <div class="vpanel" id="v-cierre">
+        <div class="cab" style="margin-bottom:12px">
+          <div class="avatar" style="background:#FEF3C7;color:#92400E">D</div>
+          <div style="flex:1">
+            <div class="nom">Diego Sanabria <span class="badge b-amb">Cierre reciente</span></div>
+            <div class="meta">AT0015 · CC 1022334556 · Caja 01</div>
+          </div>
+        </div>
+        <div class="final-card fc-amb">
+          <b>No puede aplicar por ahora</b>
+          <p>El cliente tuvo un estudio cerrado recientemente.</p>
+          <div style="margin-top:10px;display:flex;gap:22px;flex-wrap:wrap;font-size:12px">
+            <div><span style="color:#A5A1C4">Estado previo</span><br>
+                 <b style="font-size:12.5px">No viable centrales</b></div>
+            <div><span style="color:#A5A1C4">Podrá intentar desde</span><br>
+                 <b style="font-size:12.5px;font-family:var(--mono)">2026-09-12</b></div>
+          </div>
+        </div>
+        <div style="margin-top:13px;text-align:right"><span class="btn gh">Volver a la mesa</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="leyenda"><span class="fl">↑</span>
+    <span>Cambiá entre las cuatro pestañas de arriba: <b>la estructura es idéntica</b>. Solo cambian
+    el tono, los textos y algún dato extra. El front tiene una sola plantilla para los cuatro.</span></div>
+
+  <h3>Los cuatro finales que usan esta forma</h3>
+  <table>
+    <tr><th>Escenario</th><th>Tono</th><th>Qué se le dice al cliente</th><th>Extra</th></tr>
+    <tr><td><code>cupo_activo</code></td><td>éxito</td>
+        <td>Ya tiene cupo, puede comprar</td><td>Monto: pendiente de decidir</td></tr>
+    <tr><td><code>no_aplica_mora</code></td><td>peligro</td>
+        <td>Que se comunique con la línea de servicio</td><td><b>Sin cifras jamás</b></td></tr>
+    <tr><td><code>expirada</code></td><td>alerta</td>
+        <td>La gestión superó los 90 días</td><td><code>ofrecer_nueva</code> pinta el botón</td></tr>
+    <tr><td><code>cierre_reciente</code></td><td>alerta</td>
+        <td>No puede aplicar por ahora</td><td>Estado previo + fecha de habilitación</td></tr>
+  </table>
+
+  <div class="aviso">
+    <b>Estos cuatro no crean solicitud, pero sí dejan rastro.</b> Toda atención genera
+    <code>atencion_id</code>, exista o no una solicitud después. Ese es justamente su propósito:
+    poder medir cuánta gente llegó y en qué terminó cada consulta.
+  </div>
+</section>
+
+<!-- ══════════ A vs B ══════════ -->
+<section id="ab">
+  <h2>Los dos que más se confunden</h2>
+  <p class="lead">Los árboles A y B tienen la misma acción, el mismo paso y el mismo stepper. Se distinguen por un solo campo.</p>
+
+  <div class="grid g2">
+    <div>
+      <div class="rotulo">Árbol A · cliente nuevo</div>
+      <div class="json"><pre>"accion": <span class="s">"activar_paso"</span>,
+"datos": {
+  "paso": <span class="n">2</span>,
+  "modo": <span class="clave s">"crear"</span>
+}</pre></div>
+      <div class="card tight" style="margin-top:11px">
+        <b style="font-size:14px">Formulario vacío</b>
+        <p style="margin:5px 0 0;font-size:13.5px;color:#5A5480">
+          El cliente no existe. Se capturan las fotos, el OCR extrae los datos y el asesor completa.</p>
+      </div>
+    </div>
+    <div>
+      <div class="rotulo">Árbol B · re-estudio</div>
+      <div class="json"><pre>"accion": <span class="s">"activar_paso"</span>,
+"datos": {
+  "paso": <span class="n">2</span>,
+  "modo": <span class="clave s">"verificar_y_actualizar"</span>
+}</pre></div>
+      <div class="card tight" style="margin-top:11px">
+        <b style="font-size:14px">Formulario precargado</b>
+        <p style="margin:5px 0 0;font-size:13.5px;color:#5A5480">
+          El cliente ya existe. Llega con sus datos cargados y el asesor confirma o corrige.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="porque">
+    <b>Por qué importa no confundirlos</b>
+    <p>Si el front ignora <code>modo</code>, un cliente que ya existe tendría que dictar todos sus
+    datos otra vez — con el agravante de que el sistema ya los tenía. Es un solo campo, pero es la
+    diferencia entre una atención de un minuto y una de cinco.</p>
+  </div>
+
+  <h3>Y los dos mini-flujos también se parecen</h3>
+  <table>
+    <tr><th></th><th>Desbloqueo</th><th>Reactivación</th></tr>
+    <tr><td>Condición de entrada</td><td>Tiene cupo, bloqueado por inactividad</td><td><b>No</b> tiene cupo, se lo eliminaron hace poco</td></tr>
+    <tr><td>Pasos</td><td>2</td><td>2 o 3</td></tr>
+    <tr><td>Token de identidad</td><td>No lleva</td><td>Sí</td></tr>
+    <tr><td>Llega <code>proceso_id</code></td><td>Siempre</td><td>Solo si hay validación previa</td></tr>
+  </table>
+
+  <div class="aviso">
+    <b>Nunca pueden aplicar los dos.</b> Uno exige tener cupo y el otro exige no tenerlo.
+    Si alguna vez el servicio devolviera ambos como posibles, hay un error en las reglas.
+  </div>
+</section>
+
+<!-- ══════════ TABLA ══════════ -->
+<section id="tabla">
+  <h2>Tabla de referencia</h2>
+  <p class="lead">Los nueve resultados, con su acción, su árbol y por dónde entra cada uno.</p>
+
+  <table>
+    <tr><th>Resultado</th><th>Acción</th><th>Vista</th><th>Árbol</th><th>Entra en</th><th>Número visible</th></tr>
+    <tr><td><code>cliente_nuevo</code></td><td><code>activar_paso</code></td>
+        <td><span class="pill p-detalle">Detalle</span></td><td><span class="tag">A</span></td>
+        <td>paso 2 · crear</td><td>no, hasta el paso 4</td></tr>
+    <tr><td><code>re_estudio</code></td><td><code>activar_paso</code></td>
+        <td><span class="pill p-detalle">Detalle</span></td><td><span class="tag">B</span></td>
+        <td>paso 2 · verificar</td><td>no, hasta el paso 4</td></tr>
+    <tr><td><code>retomar_solicitud</code></td><td><code>abrir_solicitud</code></td>
+        <td><span class="pill p-detalle">Detalle</span></td><td><span class="tag">C</span></td>
+        <td>el paso donde quedó</td><td>sí, si ya pasó el 4</td></tr>
+    <tr><td><code>desbloqueo</code></td><td><code>iniciar_proceso</code></td>
+        <td><span class="pill p-mini">Mini-flujo</span></td><td><span class="tag">D</span></td>
+        <td>validación simplificada</td><td>no — no hay solicitud</td></tr>
+    <tr><td><code>reactivacion</code></td><td><code>iniciar_proceso</code></td>
+        <td><span class="pill p-mini">Mini-flujo</span></td><td><span class="tag">E</span></td>
+        <td>validación o token</td><td>no — no hay solicitud</td></tr>
+    <tr><td><code>cupo_activo</code></td><td><code>mostrar_resultado</code></td>
+        <td><span class="pill p-fin">Resultado</span></td><td><span class="tag">F</span></td>
+        <td>—</td><td>no</td></tr>
+    <tr><td><code>no_aplica_mora</code></td><td><code>mostrar_resultado</code></td>
+        <td><span class="pill p-fin">Resultado</span></td><td><span class="tag">F</span></td>
+        <td>—</td><td>no</td></tr>
+    <tr><td><code>expirada</code></td><td><code>mostrar_resultado</code></td>
+        <td><span class="pill p-fin">Resultado</span></td><td><span class="tag">F</span></td>
+        <td>—</td><td>no</td></tr>
+    <tr><td><code>cierre_reciente</code></td><td><code>mostrar_resultado</code></td>
+        <td><span class="pill p-fin">Resultado</span></td><td><span class="tag">F</span></td>
+        <td>—</td><td>no</td></tr>
+  </table>
+
+  <h3>Dos familias de final que no llegan por el mismo lado</h3>
+  <table>
+    <tr><th>Familia</th><th>Ejemplos</th><th>Llega desde</th></tr>
+    <tr><td><b>Finales de clasificación</b></td>
+        <td>cupo activo · no aplica por mora · expirada · cierre reciente</td>
+        <td>C-02, en la primera llamada</td></tr>
+    <tr><td><b>Finales de flujo</b></td>
+        <td>en fábrica de soporte · no viable antecedentes · fraude · cupo activado · desbloqueado · reactivado</td>
+        <td>Llamadas posteriores, ya dentro de un árbol montado</td></tr>
+  </table>
+
+  <div class="porque">
+    <b>Para el front son cosas distintas</b>
+    <p>Los primeros llegan con <code>mostrar_resultado</code> desde la clasificación y cierran la
+    atención. Los segundos son transiciones dentro de una pantalla ya montada, que llegan por el
+    sondeo o como respuesta a una acción del asesor.</p>
+  </div>
+
+  <div class="card tight" style="margin-top:26px">
+    <div class="rotulo">De dónde sale este documento</div>
+    <p style="margin:0;font-size:13.5px;color:#5A5480">
+      Detalle completo en <code>docs/tasks/planes/T-QUAC-011-c02-clasificacion-atencion-todo.md</code> §7
+      · Requerimiento para front y back en
+      <code>docs/playbook/REQ-C02-SERVICIO-CLASIFICACION-ATENCION.md</code></p>
+  </div>
+</section>
+
+</main>
+</div>
+
+<script>
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-ir]');
+  if (b) {
+    document.querySelectorAll('section').forEach(s => s.classList.toggle('on', s.id === b.dataset.ir));
+    document.querySelectorAll('#nav button').forEach(x => x.classList.toggle('on', x === b));
+    window.scrollTo(0, 0);
+    return;
+  }
+  const v = e.target.closest('[data-var]');
+  if (v) {
+    const grupo = v.parentElement;
+    grupo.querySelectorAll('[data-var]').forEach(x => x.classList.toggle('on', x === v));
+    grupo.querySelectorAll('[data-var]').forEach(x =>
+      document.getElementById(x.dataset.var).classList.toggle('on', x === v));
+  }
+});
+</script>
+</body>
+</html>
