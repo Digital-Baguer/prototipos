@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-151 · Mockup — el saldo a favor activa el descuento en el checkout</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: { extend: { colors: {
+    primary: { 400:'#293148', 500:'#101628', 600:'#06070A' },
+    oceano:  { 100:'#BFD7F2', 400:'#0076FF' },
+    ceniza:  { 50:'#F5F5F5', 300:'#F1F3F5', 400:'#ECEFF1' },
+    niebla:  { 100:'#CCCECF', 200:'#999C9F', 300:'#676B70', 400:'#343A40' },
+    nieve:   { 200:'#EFF4FF' },
+    exito:   { 500:'#2F7A54', 100:'#C9E0D6' },
+    danger:  { 500:'#C0392B', 100:'#F6E0DD' },
+  }, fontFamily: { rob: ['Roboto','sans-serif'] } } }
+}
+</script>
+<style>
+  body { font-family: 'Roboto', sans-serif; }
+  .skl { position: relative; color: transparent !important; border-radius: 4px; overflow: hidden; background: #ECEFF1; }
+  .skl::after { content:''; position:absolute; inset:0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.7), transparent);
+                animation: shimmer 1.1s infinite; }
+  @keyframes shimmer { 0% { transform: translateX(-100%);} 100% { transform: translateX(100%);} }
+  .chip-dcto { font-size: 10px; font-weight: 700; letter-spacing: .02em; background:#101628; color:#fff; border-radius:3px; padding:2px 6px; }
+</style>
+</head>
+<body class="bg-white text-[#101628]">
+
+<!-- ══════════ BARRA DEL MOCKUP (no es parte de la UI) ══════════ -->
+<div class="fixed bottom-0 inset-x-0 z-50 bg-[#101628] text-white text-xs px-4 py-3 flex flex-wrap gap-2 items-center">
+  <span class="font-bold mr-2">GW-151 · Estados:</span>
+  <button onclick="setEstado('e1')" data-e="e1" class="btn-e px-3 py-1.5 rounded bg-white/10 hover:bg-white/25">1 · Antes de aplicar</button>
+  <button onclick="setEstado('e2')" data-e="e2" class="btn-e px-3 py-1.5 rounded bg-white/10 hover:bg-white/25">2 · Aplicando…</button>
+  <button onclick="setEstado('e3')" data-e="e3" class="btn-e px-3 py-1.5 rounded bg-white/10 hover:bg-white/25">3 · Cubre todo → $0</button>
+  <button onclick="setEstado('e4')" data-e="e4" class="btn-e px-3 py-1.5 rounded bg-white/10 hover:bg-white/25">4 · Saldo parcial</button>
+  <button onclick="setEstado('e5')" data-e="e5" class="btn-e px-3 py-1.5 rounded bg-white/10 hover:bg-white/25">5 · Error</button>
+  <span class="mx-3 opacity-40">|</span>
+  <span class="font-bold">Anuncio del dcto:</span>
+  <button onclick="setVariante('A')" data-v="A" class="btn-v px-3 py-1.5 rounded bg-white/10 hover:bg-white/25">A · Aviso en el bloque</button>
+  <button onclick="setVariante('B')" data-v="B" class="btn-v px-3 py-1.5 rounded bg-white/10 hover:bg-white/25">B · Chip como medio de pago</button>
+</div>
+
+<!-- ══════════ CHROME DE LA TIENDA ══════════ -->
+<div class="text-right text-[11px] text-niebla-400 px-6 py-2 space-x-4 border-b border-ceniza-400">
+  <span>Rastrear pedido</span><span>Encuentra una tienda</span><span>Devoluciones</span>
+</div>
+<header class="flex items-center justify-between px-8 py-4 border-b border-ceniza-400">
+  <nav class="flex gap-5 text-[13px] font-medium"><span>Nuevo</span><span>Hombre</span><span>Mujer</span><span>Marcas</span><span>Sale</span></nav>
+  <div class="font-black text-2xl tracking-[0.35em] select-none">STIRPE</div>
+  <div class="flex gap-4 text-niebla-300 text-sm"><span>⌕</span><span>♡</span><span>👤</span><span>🛍</span></div>
+</header>
+
+<main class="max-w-6xl mx-auto grid md:grid-cols-[1fr_400px] gap-10 px-6 py-8 pb-32">
+
+  <!-- ════════ COLUMNA IZQUIERDA · MEDIOS DE PAGO ════════ -->
+  <section>
+    <h2 class="text-lg font-bold mb-1">¿Cómo quieres pagar?</h2>
+    <p class="text-[13px] text-niebla-300 mb-5">Promoción vigente: <b>20 % de dcto.</b> pagando con los medios marcados.</p>
+
+    <!-- Bloque de SALDO A FAVOR -->
+    <div id="bloque-saldo" class="rounded-md border-2 border-oceano-400 bg-nieve-200 p-4 mb-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="text-xl">🎁</span>
+          <div>
+            <p class="text-[14px] font-bold">Saldo a favor / GiftCard</p>
+            <p class="text-[12px] text-niebla-300">Bono <span class="font-mono">DEV23423-ZJGT-PPPQ-JBWR</span> · disponible <b id="saldo-disponible">$400.000</b></p>
+          </div>
+        </div>
+        <span class="var-B chip-dcto hidden">20% Dcto.</span>
+      </div>
+
+      <!-- Variante A: aviso dentro del bloque -->
+      <div class="var-A mt-3 flex items-center gap-2 text-[12.5px] text-exito-500 font-medium hidden" id="aviso-activa">
+        <span class="inline-block w-2 h-2 rounded-full bg-exito-500"></span>
+        Al aplicar tu saldo se activa el <b>20 % de descuento</b> de la promoción.
+      </div>
+
+      <!-- e1: botón aplicar -->
+      <div class="solo-e1 mt-3">
+        <button class="bg-primary-500 text-white text-[13px] font-medium rounded px-5 py-2.5">Aplicar saldo</button>
+      </div>
+
+      <!-- e2: aplicando -->
+      <div class="solo-e2 mt-3 hidden">
+        <button class="bg-primary-400 text-white text-[13px] font-medium rounded px-5 py-2.5 opacity-70 cursor-wait">Aplicando…</button>
+      </div>
+
+      <!-- e3/e4: aplicado -->
+      <div class="solo-e3 solo-e4 mt-3 hidden items-center gap-2 flex-wrap" style="display:none">
+        <span class="inline-flex items-center gap-2 text-[12px] border border-niebla-100 rounded-full bg-white px-3 py-1.5">
+          🎁 <span class="font-mono">DEV23423-ZJGT-PPPQ-JBWR</span>
+          <button class="text-niebla-300 hover:text-danger-500 font-bold">✕</button>
+        </span>
+        <span class="text-[12px] text-exito-500 font-bold">✓ Saldo aplicado — descuento del 20 % activo</span>
+      </div>
+
+      <!-- e5: error -->
+      <div class="solo-e5 mt-3 hidden">
+        <div class="flex items-start gap-2 bg-danger-100 text-danger-500 text-[12.5px] rounded p-3">
+          <b>!</b>
+          <div>No pudimos validar tu saldo a favor en este momento. Tu carrito no cambió: intenta de nuevo o finaliza con otro medio de pago.</div>
+        </div>
+        <button class="mt-2 text-[13px] text-oceano-400 font-medium underline">Reintentar</button>
+      </div>
+    </div>
+
+    <!-- Medios de pago -->
+    <div class="space-y-3" id="lista-medios">
+      <label class="medio flex items-center justify-between border border-ceniza-400 rounded-md p-4 cursor-pointer">
+        <div class="flex items-center gap-3"><input type="radio" name="mp"><span class="text-[14px] font-medium">PSE — débito bancario</span></div>
+        <span class="chip-dcto">20% Dcto.</span>
+      </label>
+      <label class="medio flex items-center justify-between border border-ceniza-400 rounded-md p-4 cursor-pointer">
+        <div class="flex items-center gap-3"><input type="radio" name="mp"><span class="text-[14px] font-medium">Tarjeta de crédito / débito</span></div>
+      </label>
+      <label class="medio flex items-center justify-between border border-ceniza-400 rounded-md p-4 cursor-pointer">
+        <div class="flex items-center gap-3"><input type="radio" name="mp"><span class="text-[14px] font-medium">Cupo QUAC</span></div>
+      </label>
+    </div>
+    <p class="solo-e4 hidden text-[12.5px] text-niebla-300 mt-3" id="nota-mixto">Elige un medio para pagar el restante. <b>El descuento del 20 % se mantiene</b> con cualquier medio porque tu saldo ya lo activó.</p>
+    <p class="solo-e3 hidden text-[12.5px] text-exito-500 font-medium mt-3">Tu saldo cubre el total: no necesitas otro medio de pago.</p>
+  </section>
+
+  <!-- ════════ COLUMNA DERECHA · RESUMEN ════════ -->
+  <aside class="border border-ceniza-400 rounded-md p-6 h-fit">
+    <h3 class="font-bold text-[15px] mb-4">Resumen de compra</h3>
+
+    <p class="text-[13px] font-bold mb-2">¿Tienes un cupón de descuento?</p>
+    <div class="flex gap-2 mb-5">
+      <input class="flex-1 border border-niebla-100 rounded px-3 py-2.5 text-[13px]" placeholder="Cupón de descuento">
+      <button class="bg-primary-500 text-white text-[13px] font-medium rounded px-5">Aplicar</button>
+    </div>
+
+    <div class="text-[13.5px] space-y-2.5 border-t border-ceniza-400 pt-4">
+      <div class="flex justify-between"><span>Subtotal (3 productos)</span><span class="cifra font-medium">$437.850</span></div>
+      <div class="flex justify-between"><span>Envío</span><span class="cifra font-medium" id="r-envio">$7.530</span></div>
+      <div class="flex justify-between" id="fila-dcto" style="display:none">
+        <span>Descuentos <span class="text-[11px] text-exito-500 font-bold" id="dcto-origen">(20 % · activado por tu saldo)</span></span>
+        <span class="cifra font-medium text-exito-500">-$87.570</span>
+      </div>
+    </div>
+
+    <div class="flex justify-between items-baseline border-t border-primary-500 mt-4 pt-3">
+      <span class="font-bold text-[16px]">Total compra</span>
+      <span class="cifra font-bold text-[16px]" id="r-total">$445.380</span>
+    </div>
+
+    <div id="seccion-parciales" class="mt-5" style="display:none">
+      <p class="font-bold text-[13.5px] mb-2">Pagos parciales</p>
+      <div class="flex justify-between text-[13.5px]">
+        <span>Saldo a favor/GiftCard</span>
+        <span class="cifra font-medium" id="r-saldo">-$357.810</span>
+      </div>
+      <div class="flex justify-between items-baseline border-t border-primary-500 mt-3 pt-3">
+        <span class="font-bold text-[16px]">Saldo a pagar</span>
+        <span class="cifra font-bold text-[16px]" id="r-pendiente">$0</span>
+      </div>
+    </div>
+
+    <button id="btn-finalizar" class="w-full bg-primary-500 text-white font-bold rounded py-3.5 mt-6 disabled:opacity-40" disabled>Finalizar compra</button>
+    <p class="solo-e3 hidden text-center text-[11.5px] text-niebla-300 mt-2">Se pagará todo con tu saldo a favor.</p>
+    <button class="w-full border border-niebla-100 rounded py-3 mt-3 text-[13.5px] font-medium">💬 Comprar por WhatsApp</button>
+  </aside>
+</main>
+
+<script>
+const $  = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+let estado = 'e1', variante = 'A';
+
+// Cifras del ejemplo (promo 20% solo-PSE; regla GW-151: el saldo SIEMPRE la activa)
+const D = {
+  e1: { envio:'$7.530', total:'$445.380', dcto:false, parciales:false, fin:false, skl:false, disp:'$400.000' },
+  e2: { envio:'$7.530', total:'$445.380', dcto:false, parciales:false, fin:false, skl:true, disp:'$400.000' },
+  e3: { envio:'$7.530', total:'$357.810', dcto:true,  parciales:true, saldo:'-$357.810', pend:'$0',       fin:true,  skl:false, disp:'$400.000' },
+  e4: { envio:'$7.530', total:'$357.810', dcto:true,  parciales:true, saldo:'-$142.950', pend:'$214.860', fin:false, skl:false, disp:'$142.950' },
+  e5: { envio:'$7.530', total:'$445.380', dcto:false, parciales:false, fin:false, skl:false, disp:'$400.000' },
+};
+
+function setEstado(e){
+  estado = e; const d = D[e];
+  $$('.btn-e').forEach(b => b.classList.toggle('bg-white/40', b.dataset.e === e));
+  ['e1','e2','e3','e4','e5'].forEach(k => $$('.solo-'+k).forEach(el => {
+    const on = (k === e) || (k==='e4' && e==='e3' && el.classList.contains('solo-e3')) ;
+    el.style.display = el.classList.contains('solo-'+e) ? (el.classList.contains('flex')||el.classList.contains('items-center') ? 'flex' : 'block') : 'none';
+  }));
+  $('#r-envio').textContent = d.envio;
+  $('#r-total').textContent = d.total;
+  $('#fila-dcto').style.display = d.dcto ? 'flex' : 'none';
+  $('#seccion-parciales').style.display = d.parciales ? 'block' : 'none';
+  if (d.saldo) $('#r-saldo').textContent = d.saldo;
+  if (d.pend)  $('#r-pendiente').textContent = d.pend;
+  if (d.disp)  $('#saldo-disponible').textContent = d.disp;
+  $('#btn-finalizar').disabled = !d.fin;
+  $$('.cifra').forEach(el => el.classList.toggle('skl', d.skl));
+  // aviso de variante A solo tiene sentido antes de aplicar
+  $('#aviso-activa').style.display = (variante==='A' && (e==='e1'||e==='e2'||e==='e5')) ? 'flex' : 'none';
+  // medios atenuados cuando el saldo cubre todo
+  $$('#lista-medios .medio').forEach(m => m.classList.toggle('opacity-40', e==='e3'));
+  $('#nota-mixto').style.display = (e==='e4') ? 'block' : 'none';
+}
+
+function setVariante(v){
+  variante = v;
+  $$('.btn-v').forEach(b => b.classList.toggle('bg-white/40', b.dataset.v === v));
+  $$('.var-A').forEach(el => el.style.display = 'none');
+  $$('.var-B').forEach(el => el.classList.toggle('hidden', v!=='B'));
+  setEstado(estado);
+}
+
+setVariante('A'); setEstado('e1');
+</script>
+</body>
+</html>
