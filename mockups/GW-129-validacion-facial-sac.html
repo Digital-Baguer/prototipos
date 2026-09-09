@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Validación facial en cambio de datos · escalamiento a SAC — Portal Quac</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Nunito+Sans:opsz,wght@6..12,300;6..12,400;6..12,600;6..12,700;6..12,900&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   Validación facial en el cambio de correo / celular — Portal Quac
+
+   Extiende el contrato aprobado GW-129 (docs/mockups/GW-129-portal-quac.html).
+   Ese archivo sigue mandando para el portal completo; este solo dibuja el
+   paso nuevo y sus cuatro desenlaces.
+
+   Qué muestra:
+     · El paso de selfie insertado al final del flujo de cambio de contacto.
+     · Los cuatro desenlaces: éxito, sin foto de referencia, no coincide,
+       captura fallida.
+     · La anotación interna (quacapi.log_activity) al lado de cada desenlace.
+
+   Regla que este mockup existe para hacer visible:
+     los dos desenlaces de fallo muestran al cliente EXACTAMENTE el mismo
+     texto. La diferencia vive solo en la anotación interna. Conmuta entre
+     «Sin foto de referencia» y «No coincide» y compara las dos columnas.
+
+   Tokens y componentes tomados de:
+     docs/mockups/GW-129-portal-quac.html  (contrato aprobado 2026-08-24)
+     clientesquac-client/src/views/AcountToken.vue  (modal SAC ya desplegado)
+   CSS autocontenido: sin CDN, sin dependencias. Abre offline.
+   ═══════════════════════════════════════════════════════════════════ */
+:root{
+  --quac:#7633FF; --quac-dark:#321185; --quac-light:#C5C5FF;
+  --lavender:#E9E8F1; --ink:#140F26; --muted:#A19EB5;
+  --surface:#F7F7FB; --line:rgba(20,15,38,.09); --line-soft:rgba(20,15,38,.06);
+  --ink2:#5C5A70;
+  --anillo:#E5147E;
+  --dk:#160B38; --dk-ink:#F5F5F7; --dk-ink2:#A9A6C9; --dk-line:rgba(255,255,255,.08);
+  --purple-soft:#9D7BFF;
+  --ok:#22C55E; --danger:#FF6464;
+  --sh-card:0 1px 2px rgba(20,15,38,.04), 0 8px 24px rgba(20,15,38,.06);
+  --f-title:'Poppins', system-ui, sans-serif;
+  --f-base:'Nunito Sans', system-ui, sans-serif;
+  --f-mono:ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+*{box-sizing:border-box; margin:0; padding:0}
+body{font-family:var(--f-base); background:#E8EAF0; color:var(--ink); -webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--f-title); font-weight:600}
+button,input,select{font:inherit; color:inherit}
+button{cursor:pointer; border:0; background:none}
+[hidden]{display:none !important}
+.tab-num{font-variant-numeric:tabular-nums}
+
+/* ─── Panel de control (fuera del prototipo) ─── */
+.ctl{position:sticky; top:0; z-index:50; background:var(--ink); color:rgba(255,255,255,.88); font-size:13px; box-shadow:0 2px 12px rgba(0,0,0,.2)}
+.ctl-in{max-width:1460px; margin:0 auto; padding:10px 20px; display:flex; flex-wrap:wrap; align-items:center; gap:8px 24px}
+.ctl b{font-family:var(--f-title); font-weight:600; color:#fff}
+.ctl label{display:flex; align-items:center; gap:8px; cursor:pointer}
+.ctl select{background:rgba(255,255,255,.12); border:0; border-radius:6px; padding:4px 8px; color:#fff}
+.ctl select option{color:#000}
+.ctl .dim{color:rgba(255,255,255,.45)}
+.ctl .right{margin-left:auto}
+.ctl input[type=checkbox]{accent-color:var(--quac); width:15px; height:15px}
+
+/* ─── Marco ─── */
+.wrap{max-width:1460px; margin:0 auto; padding:28px 20px 56px}
+.split{display:grid; grid-template-columns:minmax(0,1fr) 420px; gap:24px; align-items:start}
+@media(max-width:1180px){.split{grid-template-columns:1fr}}
+.app{position:relative; border-radius:24px; overflow:hidden; box-shadow:var(--sh-card); background:#fff; min-height:600px}
+
+/* ─── Header tematizado (nivel Silver, como el contrato) ─── */
+.hdr{position:relative; padding:22px 30px 34px; overflow:hidden;
+  background:linear-gradient(135deg,#F8F8FB,#C8CCD2 55%,#8E9299); color:#4D5159}
+.hdr::before{content:''; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(620px 320px at 78% -10%, rgba(255,255,255,.16), transparent 68%)}
+.hdr::after{content:''; position:absolute; left:76%; top:-58%; width:560px; height:560px;
+  border:1px solid rgba(255,255,255,.10); border-radius:50%; pointer-events:none}
+.hdr > *{position:relative; z-index:1}
+.hdr-nav{display:flex; align-items:center; justify-content:space-between; gap:16px}
+.brand{display:flex; align-items:center; gap:10px}
+.brand svg{width:28px; height:28px; flex:none}
+.brand span{font-family:var(--f-title); font-weight:600; font-size:18px; letter-spacing:-.02em}
+.userbtn{display:flex; align-items:center; gap:10px; padding:6px 14px 6px 6px; border-radius:999px;
+  background:rgba(255,255,255,.20); border:1px solid rgba(255,255,255,.22)}
+.avatar{width:28px; height:28px; border-radius:999px; display:grid; place-items:center;
+  font-family:var(--f-title); font-size:11px; font-weight:600; background:rgba(255,255,255,.32)}
+.userbtn b{font-size:13px; font-weight:600}
+.hdr-id{display:flex; align-items:flex-end; justify-content:space-between; gap:32px; margin-top:30px}
+.saludo{font-family:var(--f-title); font-weight:300; font-size:34px; line-height:1.05; letter-spacing:-.03em}
+.saludo b{font-weight:800}
+.hdr-meta{display:flex; align-items:center; gap:10px; margin-top:10px}
+.badge{font-family:var(--f-title); font-size:10px; font-weight:700; letter-spacing:.14em;
+  padding:4px 11px; border-radius:999px; background:#2A2A30; color:#fff}
+.desde{font-size:12px; opacity:.72}
+.clave{display:flex; align-items:center; gap:14px; padding:10px 14px 10px 18px; border-radius:18px;
+  background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.28); flex:none}
+.clave .lbl{font-size:10px; text-transform:uppercase; letter-spacing:.16em; font-weight:700; opacity:.7; display:block; margin-bottom:6px}
+.clave .digs{display:flex; gap:5px}
+.clave .digs i{font-style:normal; font-family:var(--f-title); font-size:18px; font-weight:700;
+  width:28px; height:33px; border-radius:9px; display:grid; place-items:center;
+  background:rgba(255,255,255,.34); font-variant-numeric:tabular-nums}
+
+/* Criterio de aceptación 10 de GW-129: sin desbordamiento horizontal entre
+   1.280 px y 380 px. La banda de identidad se apila; la clave no compite
+   con el saludo por el ancho. */
+@media(max-width:820px){
+  .hdr{padding:20px 18px 28px}
+  .hdr-id{flex-direction:column; align-items:stretch; gap:22px; margin-top:24px}
+  .saludo{font-size:28px}
+  .clave{align-self:flex-start}
+  .nav{padding:0 18px}
+  .blk{padding:22px 18px}
+  .mod{padding:14px; align-items:start}
+  .mod-box{padding:24px 20px}
+  .nota{position:static}
+}
+
+/* ─── Navegación ─── */
+.nav{padding:0 30px; border-bottom:1px solid var(--line); background:#fff}
+.nav-in{display:flex; gap:2px; overflow-x:auto}
+.tab{font-family:var(--f-title); font-size:13.5px; font-weight:600; letter-spacing:-.01em;
+  color:var(--ink2); white-space:nowrap; padding:15px 18px 14px; border-bottom:2.5px solid transparent; margin-bottom:-1px}
+.tab.on{color:var(--quac); border-bottom-color:var(--quac); font-weight:700}
+
+/* ─── Bloque Mis datos (telón de fondo) ─── */
+.blk{padding:28px 30px; border-bottom:1px solid var(--line)}
+.blk:last-child{border-bottom:0}
+.sec-t{font-family:var(--f-title); font-size:17px; font-weight:600}
+.sec-d{font-size:13px; color:var(--muted); margin-top:4px; line-height:1.55}
+.grid2{display:grid; grid-template-columns:repeat(2,1fr); gap:18px}
+@media(max-width:820px){.grid2{grid-template-columns:1fr}}
+.cbox{background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px 20px;
+  display:flex; justify-content:space-between; gap:14px; align-items:flex-start}
+.cbox .k{font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:700}
+.cbox .v{font-size:16px; font-weight:700; padding-top:5px; word-break:break-all}
+.cbox .h{font-size:12px; color:var(--muted); padding-top:9px; line-height:1.5; max-width:32ch}
+.campos{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border-radius:14px; overflow:hidden; border:1px solid var(--line)}
+.campo{background:#fff; padding:15px 18px}
+.campo .k{font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:700}
+.campo .v{font-size:15px; font-weight:700; padding-top:5px; letter-spacing:-.01em}
+@media(max-width:820px){.campos{grid-template-columns:1fr}}
+
+.btn{padding:10px 20px; border-radius:999px; background:var(--quac); color:#fff; font-size:14px; font-weight:600; transition:background .18s}
+.btn:hover:not(:disabled){background:var(--quac-dark)}
+.btn:disabled{opacity:.4; cursor:not-allowed}
+.btn-g{display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:9px 16px; border-radius:999px;
+  border:1px solid rgba(20,15,38,.12); font-size:13px; font-weight:600; transition:border-color .18s, color .18s}
+.btn-g:hover{border-color:var(--quac); color:var(--quac)}
+.btn-g.lg{padding:12px 20px; font-size:14px}
+.w100{width:100%} .f1{flex:1} .center{text-align:center}
+.mt5{margin-top:20px} .mt7{margin-top:28px}
+
+/* ─── Modal: anclado dentro del marco, no a la ventana ─── */
+.mod{position:absolute; inset:0; z-index:20; display:grid; place-items:safe center; padding:20px;
+  background:rgba(127,127,180,.55); overflow-y:auto}
+.mod-box{background:#fff; border-radius:24px; box-shadow:0 24px 64px rgba(0,0,0,.3); width:100%; max-width:420px; padding:30px}
+.mod-box{position:relative}
+.mod-box.sm{max-width:380px}
+.x.cerrar{position:absolute; top:14px; right:18px}
+.mod-h{display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:18px}
+.mod-h .k{font-size:11px; text-transform:uppercase; letter-spacing:.12em; color:var(--muted); font-weight:600}
+.mod-h h3{font-size:19px; margin-top:4px; letter-spacing:-.01em}
+.x{color:var(--muted); font-size:22px; line-height:1}
+.x:hover{color:var(--ink)}
+.pasos{display:flex; gap:6px; margin-bottom:22px}
+.pasos i{height:4px; border-radius:999px; flex:1; background:var(--lavender)}
+.pasos i.on{background:var(--quac)}
+.mod-f{display:flex; gap:8px; margin-top:26px}
+.mini{font-size:12px; color:var(--muted); line-height:1.6}
+.fade{animation:fade .28s ease both}
+@keyframes fade{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+
+/* ─── Captura de selfie ─── */
+.visor{position:relative; height:230px; border-radius:18px; overflow:hidden; background:var(--dk);
+  display:grid; place-items:center}
+.visor::before{content:''; position:absolute; inset:0;
+  background:radial-gradient(280px 200px at 50% 42%, rgba(157,123,255,.30), transparent 72%)}
+.visor .oval{position:relative; width:132px; height:170px; border-radius:50%/46%;
+  border:2px dashed rgba(255,255,255,.42); display:grid; place-items:center}
+.visor .oval svg{width:56px; height:56px; color:rgba(255,255,255,.34)}
+.visor .hint{position:absolute; bottom:14px; left:0; right:0; text-align:center;
+  font-size:12px; color:rgba(255,255,255,.66)}
+.visor.on .oval{border-style:solid; border-color:var(--purple-soft)}
+
+/* Estado de validación en curso: negro/neutro, nunca ámbar */
+.spin{width:34px; height:34px; border-radius:999px; border:3px solid var(--lavender);
+  border-top-color:var(--quac); animation:gira .8s linear infinite; margin:0 auto}
+@keyframes gira{to{transform:rotate(360deg)}}
+
+/* ─── Iconos de desenlace ─── */
+.ico{width:56px; height:56px; margin:0 auto 16px; border-radius:999px; display:grid; place-items:center}
+.ico svg{width:27px; height:27px}
+.ico.ok{background:rgba(34,197,94,.12); color:var(--ok)}
+.ico.neu{background:var(--lavender); color:var(--quac)}
+.ico.gris{background:rgba(20,15,38,.06); color:var(--ink2)}
+
+/* ─── Bloque de contacto del modal (calcado de AcountToken.vue) ─── */
+.sac{margin-top:20px; border:1px solid var(--line); border-radius:14px; background:var(--surface); padding:16px 18px; text-align:left}
+.sac .k{font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:700}
+.sac .wa{display:flex; align-items:center; gap:10px; margin-top:8px}
+.sac .wa svg{width:20px; height:20px; color:#25D366; flex:none}
+.sac .wa b{font-family:var(--f-title); font-size:17px; font-weight:700; letter-spacing:-.01em}
+.sac .hor{font-size:12px; line-height:1.65; color:var(--ink2); margin-top:10px; padding-top:10px; border-top:1px solid var(--line)}
+
+/* ─── Columna de anotación interna ─── */
+.nota{background:#fff; border-radius:20px; box-shadow:var(--sh-card); overflow:hidden; position:sticky; top:64px}
+.nota-h{padding:18px 20px; border-bottom:1px solid var(--line); display:flex; align-items:flex-start; justify-content:space-between; gap:12px}
+.nota-h h4{font-size:14px}
+.nota-h p{font-size:11.5px; color:var(--muted); margin-top:3px}
+.chip{font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:4px 10px; border-radius:999px; white-space:nowrap}
+.chip.gris{background:rgba(20,15,38,.06); color:var(--ink2)}
+.chip.ok{background:rgba(34,197,94,.12); color:#15803D}
+.chip.rosa{background:rgba(229,20,126,.10); color:var(--anillo)}
+.chip.negro{background:var(--ink); color:#fff}
+.nota-b{padding:18px 20px}
+.campo-log{margin-bottom:16px}
+.campo-log:last-child{margin-bottom:0}
+.campo-log .k{font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:700; display:block; margin-bottom:6px}
+.campo-log .val{font-size:13px; line-height:1.6}
+.suceso{font-family:var(--f-mono); font-size:12px; line-height:1.65; background:var(--dk); color:#E4E0F5;
+  border-radius:12px; padding:14px 15px; white-space:pre-wrap; word-break:break-word}
+.suceso .hl{color:#FF6FB5}
+.json{font-family:var(--f-mono); font-size:11.5px; line-height:1.6; background:var(--surface);
+  border:1px solid var(--line); border-radius:12px; padding:12px 14px; white-space:pre-wrap; color:var(--ink2); overflow-x:auto}
+.igual{display:flex; gap:10px; align-items:flex-start; background:rgba(229,20,126,.06); border:1px solid rgba(229,20,126,.18);
+  border-radius:12px; padding:12px 14px; font-size:12.5px; line-height:1.55; color:var(--ink)}
+.igual svg{width:16px; height:16px; color:var(--anillo); flex:none; margin-top:2px}
+.asesor{font-size:12.5px; line-height:1.6; color:var(--ink2)}
+.asesor b{color:var(--ink)}
+.nunca{margin-top:24px; border-top:1px solid var(--line); padding-top:16px}
+.nunca ul{list-style:none; margin-top:10px}
+.nunca li{font-size:12.5px; color:var(--ink2); padding:5px 0 5px 20px; position:relative; line-height:1.5}
+.nunca li::before{content:'×'; position:absolute; left:4px; top:4px; color:var(--danger); font-weight:700}
+
+/* ─── Pie ─── */
+.pie{max-width:1460px; margin:0 auto; padding:0 20px 40px; font-size:12.5px; color:var(--ink2); line-height:1.7}
+.pie b{color:var(--ink); font-family:var(--f-title)}
+.pie ul{margin:8px 0 0 18px}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ PANEL DE CONTROL ═══════════ -->
+<div class="ctl">
+  <div class="ctl-in">
+    <b>Validación facial · escalamiento a SAC</b>
+    <label><span class="dim">Flujo</span>
+      <select id="ctlFlujo">
+        <option value="email" selected>Cambio de correo</option>
+        <option value="tel">Cambio de celular</option>
+      </select>
+    </label>
+    <label><span class="dim">Resultado</span>
+      <select id="ctlCaso">
+        <option value="captura">Paso de selfie (antes de validar)</option>
+        <option value="ok">Validación exitosa</option>
+        <option value="sinfoto" selected>Sin foto de referencia</option>
+        <option value="nocoincide">No coincide con la foto</option>
+        <option value="fallo">No se pudo capturar la selfie</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="ctlNota" checked> Anotación interna</label>
+    <span class="right dim">Datos de ejemplo reales · sin backend</span>
+  </div>
+</div>
+
+<div class="wrap">
+<div class="split">
+
+  <!-- ═══════════ PROTOTIPO ═══════════ -->
+  <div class="app">
+
+    <header class="hdr">
+      <div class="hdr-nav">
+        <div class="brand">
+          <svg viewBox="0 0 62.351 55.6" fill="currentColor">
+            <path d="M75.322,59.494a2.737,2.737,0,0,0-5.024-.573,18.059,18.059,0,0,1-10.844,8.626,2.737,2.737,0,0,0,1.41,5.287l.063-.017.032-.008.287-.083v0a23.517,23.517,0,0,0,13.837-11.15,2.719,2.719,0,0,0,.238-2.081" transform="translate(-18.427 -17.816)"/>
+            <path d="M25.94,46.8a23.388,23.388,0,0,1-14.512-10.42l-.033-.052a23.942,23.942,0,0,1-3.308-16.34c0-.037.006-.081.006-.114A1.1,1.1,0,0,0,7,18.761H2.928a2.958,2.958,0,0,1-.418-5.882A22.9,22.9,0,0,0,9.1,10.772L6.053,9.707A2.965,2.965,0,0,1,4.23,5.958a2.911,2.911,0,0,1,3.318-1.95A23.105,23.105,0,0,0,20.931,2.4q.491-.238,1.034-.47A22.718,22.718,0,0,1,31.189,0,23.344,23.344,0,0,1,52.011,12.913a1.086,1.086,0,0,0,.963.608.739.739,0,0,0,.293-.061,17.2,17.2,0,0,0,4.008-2.616,3.017,3.017,0,0,1,2.662-.931,2.964,2.964,0,0,1,1.646,4.9l-5.831,5.925a4.326,4.326,0,0,0,0,5.934L61.584,32.6a2.963,2.963,0,0,1-1.646,4.9,3.014,3.014,0,0,1-2.665-.931,17.2,17.2,0,0,0-4.008-2.616.752.752,0,0,0-.293-.059,1.086,1.086,0,0,0-.963.608v-.01a23.775,23.775,0,0,1-4.59,6.265.069.069,0,0,1-.011.028v-.01A23.13,23.13,0,0,1,25.94,46.8Zm5.249-8.288a14.44,14.44,0,0,0,4.253-.637l.023-.007.026-.008a14.9,14.9,0,0,0,4.245-26.175l-.033-.024-.013-.01a14.59,14.59,0,0,0-7.313-2.713q-.588-.049-1.19-.048-.661,0-1.306.059h-.014l-.038,0a14.72,14.72,0,0,0-13.058,12.3v.015A14.969,14.969,0,0,0,18.588,31.2l.009.015.009.016a14.74,14.74,0,0,0,6.647,6l.017.008.036.017q.549.244,1.126.445.476.166.959.3a14.447,14.447,0,0,0,3.8.5"/>
+            <path d="M51.118,31.375a3.663,3.663,0,0,0,2.75-1.058,3.872,3.872,0,0,0,1.019-2.807,3.948,3.948,0,0,0-1.019-2.827,3.731,3.731,0,0,0-2.75-1.037,3.653,3.653,0,0,0-2.73,1.038,3.882,3.882,0,0,0-1.039,2.827,3.806,3.806,0,0,0,1.039,2.807,3.588,3.588,0,0,0,2.73,1.058" transform="translate(-15.181 -7.366)"/>
+          </svg>
+          <span>Quac</span>
+        </div>
+        <button class="userbtn"><span class="avatar">FL</span><b>Francisco</b></button>
+      </div>
+      <div class="hdr-id">
+        <div>
+          <p class="saludo">Hola,<br><b>Francisco</b></p>
+          <div class="hdr-meta">
+            <span class="badge">SILVER</span>
+            <span class="desde">Miembro desde junio de 2026</span>
+          </div>
+        </div>
+        <div class="clave">
+          <div>
+            <span class="lbl">Clave dinámica</span>
+            <div class="digs"><i>8</i><i>9</i><i>4</i><i>7</i></div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <nav class="nav"><div class="nav-in">
+      <button class="tab on">Mis datos</button>
+      <button class="tab">Mi crédito</button>
+      <button class="tab">Movimientos</button>
+      <button class="tab">Quac+</button>
+    </div></nav>
+
+    <main>
+      <div class="blk">
+        <p class="sec-t">Datos de contacto</p>
+        <p class="sec-d">Los usamos para avisarte de tus compras, tus pagos y tu clave dinámica.</p>
+        <div class="grid2" style="margin-top:20px">
+          <div class="cbox">
+            <div>
+              <p class="k">Correo electrónico</p>
+              <p class="v" id="bgEmail">f•••••••@icloud.com</p>
+              <p class="h">Verificamos el correo nuevo y tu celular actual.</p>
+            </div>
+            <button class="btn-g">Cambiar</button>
+          </div>
+          <div class="cbox">
+            <div>
+              <p class="k">Número celular</p>
+              <p class="v tab-num">••• ••• 0696</p>
+              <p class="h">Verificamos el número nuevo y tu correo actual.</p>
+            </div>
+            <button class="btn-g">Cambiar</button>
+          </div>
+        </div>
+      </div>
+      <div class="blk">
+        <p class="sec-t">Datos de tu documento</p>
+        <p class="sec-d">Vienen de tu cédula. Si algo no está bien, un asesor lo corrige contigo.</p>
+        <div class="campos" style="margin-top:20px">
+          <div class="campo"><p class="k">Nombre</p><p class="v">Francisco Lizcano</p></div>
+          <div class="campo"><p class="k">Documento</p><p class="v tab-num">CC 79•••••4</p></div>
+          <div class="campo"><p class="k">Fecha de nacimiento</p><p class="v">03 de octubre, 1980</p></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ══════ PASO 4 · CAPTURA DE SELFIE ══════ -->
+    <div class="mod" id="mCaptura" hidden>
+      <div class="mod-box fade">
+        <div class="mod-h">
+          <div><p class="k">Paso 4 de 4</p><h3>Confirma que eres tú</h3></div>
+          <button class="x">&times;</button>
+        </div>
+        <div class="pasos"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></div>
+        <p class="sec-d" style="margin-bottom:16px">Tómate una selfie para confirmar que eres el titular de la cuenta. Es el último paso del cambio.</p>
+        <div class="visor" id="visor">
+          <div class="oval">
+            <svg fill="none" stroke="currentColor" stroke-width="1.4" viewBox="0 0 24 24">
+              <circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c0-4.1 3.4-6.5 7.5-6.5s7.5 2.4 7.5 6.5"/>
+            </svg>
+          </div>
+          <p class="hint">Busca buena luz y mira de frente a la cámara</p>
+        </div>
+        <div class="mod-f">
+          <button class="btn-g f1" onclick="ir('reposo')">Cancelar</button>
+          <button class="btn f1" onclick="validar()">Tomar selfie</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════ VALIDANDO ══════ -->
+    <div class="mod" id="mValidando" hidden>
+      <div class="mod-box sm fade center">
+        <div class="spin" style="margin-bottom:18px"></div>
+        <h3 style="font-size:17px">Validando tu selfie</h3>
+        <p class="sec-d">Esto toma unos segundos. No cierres esta ventana.</p>
+      </div>
+    </div>
+
+    <!-- ══════ DESENLACE · ÉXITO ══════ -->
+    <div class="mod" id="mOk" hidden>
+      <div class="mod-box sm fade center">
+        <div class="ico ok"><svg fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+        <h3 style="font-size:17px" id="okT">Correo actualizado</h3>
+        <p class="sec-d" id="okD">Te enviamos una confirmación a tu correo nuevo y un aviso al anterior.</p>
+        <button class="btn w100 mt7" onclick="ir('reposo')">Listo</button>
+      </div>
+    </div>
+
+    <!-- ══════ DESENLACE · ESCALAMIENTO A SAC ══════
+         Un solo modal para los dos fallos de validación. El texto no dice
+         cuál de los dos ocurrió: si lo dijera, revelaría qué cédulas no
+         tienen foto de referencia. -->
+    <div class="mod" id="mSac" hidden>
+      <div class="mod-box fade center">
+        <div class="ico neu">
+          <svg fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
+            <path d="M12 2.5l7.5 3v5.6c0 4.6-3.1 8.4-7.5 9.9-4.4-1.5-7.5-5.3-7.5-9.9V5.5z"/>
+            <circle cx="12" cy="10" r="2.3"/><path d="M8.2 16.4c.6-1.9 2-2.9 3.8-2.9s3.2 1 3.8 2.9"/>
+          </svg>
+        </div>
+        <button class="x cerrar" onclick="ir('reposo')" aria-label="Cerrar">&times;</button>
+        <h3 style="font-size:19px">Necesitamos confirmar que eres tú</h3>
+        <p class="sec-d" style="margin-top:8px" id="sacTexto">
+          Para cambiar tu correo electrónico, la validación con tu selfie no fue suficiente esta vez.
+          Un asesor de servicio al cliente puede completar el cambio contigo.
+        </p>
+        <p class="mini" style="margin-top:14px">
+          Ten a la mano tu documento de identidad.<br>
+          Tus datos siguen igual: no se hizo ningún cambio.
+        </p>
+        <div class="sac">
+          <p class="k">Servicio al cliente</p>
+          <p class="wa">
+            <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1012 2zm0 18.2a8.2 8.2 0 01-4.2-1.2l-.3-.2-2.9.8.8-2.8-.2-.3A8.2 8.2 0 1112 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.2-.6.8-.8 1-.1.2-.3.2-.5.1-1.4-.7-2.3-1.2-3.2-2.7-.2-.4.2-.4.6-1.2.1-.1 0-.3 0-.4 0-.1-.6-1.4-.8-1.9-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.7.3-.9.9-.9 2.1 0 3.4.9 1.4 1.9 2.9 4.3 4 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.1-.2-.2-.4-.3z"/></svg>
+            <b class="tab-num">312 460 5748</b>
+          </p>
+          <p class="hor">Lunes a viernes, 8:00 a.m. a 6:30 p.m.<br>Sábados, 8:30 a.m. a 5:30 p.m.</p>
+        </div>
+        <div class="mod-f">
+          <button class="btn-g lg w100" onclick="ir('reposo')">Contactar a soporte</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════ DESENLACE · NO SE PUDO CAPTURAR (reintento, no escala) ══════ -->
+    <div class="mod" id="mFallo" hidden>
+      <div class="mod-box sm fade center">
+        <div class="ico gris">
+          <svg fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
+            <path d="M3 8.5h3.2l1.6-2.3h8.4l1.6 2.3H21v10H3z"/><circle cx="12" cy="13.2" r="3.2"/><path d="M4 4l16 16"/>
+          </svg>
+        </div>
+        <h3 style="font-size:17px">No pudimos tomar tu selfie</h3>
+        <p class="sec-d" style="margin-top:8px">
+          Busca un lugar con buena luz, quítate las gafas o el gorro y mira de frente a la cámara.
+        </p>
+        <div class="mod-f">
+          <button class="btn-g f1" onclick="ir('reposo')">Cancelar</button>
+          <button class="btn f1" onclick="ir('captura')">Intentar de nuevo</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════ ANOTACIÓN INTERNA ═══════════ -->
+  <aside class="nota" id="panelNota">
+    <div class="nota-h">
+      <div>
+        <h4>Anotación interna</h4>
+        <p><code>quacapi.log_activity</code> · la consulta el asesor, no el cliente</p>
+      </div>
+      <span class="chip gris" id="notaChip">Sin resultado</span>
+    </div>
+    <div class="nota-b">
+      <div id="notaVacia">
+        <p class="asesor">Conmuta el resultado en el panel de arriba para ver qué queda escrito en el log en cada desenlace.</p>
+      </div>
+
+      <div id="notaCuerpo" hidden>
+        <div class="campo-log">
+          <span class="k">proceso</span>
+          <p class="val"><b>Actualización de datos</b> <span style="color:var(--muted)">— el mismo valor que ya usa el flujo, para que el asesor vea la secuencia completa con un solo filtro</span></p>
+        </div>
+        <div class="campo-log">
+          <span class="k">suceso</span>
+          <div class="suceso" id="notaSuceso"></div>
+        </div>
+        <div class="campo-log">
+          <span class="k">respuesta</span>
+          <div class="json" id="notaJson"></div>
+        </div>
+        <div class="campo-log" id="notaIgualWrap" hidden>
+          <div class="igual">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+            <span id="notaIgualTxt"></span>
+          </div>
+        </div>
+        <div class="campo-log">
+          <span class="k">Qué hace el asesor</span>
+          <p class="asesor" id="notaAsesor"></p>
+        </div>
+      </div>
+
+      <div class="nunca">
+        <span class="k" style="font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:700">Nunca en pantalla</span>
+        <ul>
+          <li>«No eres el titular de la cuenta»</li>
+          <li>«Tu rostro no coincide con el registrado»</li>
+          <li>«Detectamos un posible intento de suplantación»</li>
+          <li>«No tenemos una foto tuya en el sistema»</li>
+          <li>Porcentajes de similitud, umbrales o nombres del proveedor</li>
+        </ul>
+      </div>
+    </div>
+  </aside>
+
+</div>
+</div>
+
+<div class="pie">
+  <p><b>Cubierto:</b></p>
+  <ul>
+    <li>Paso de selfie insertado como paso 4 de 4 en el cambio de correo y de celular.</li>
+    <li>Estado de validación en curso.</li>
+    <li>Cuatro desenlaces: éxito, sin foto de referencia, no coincide, captura fallida.</li>
+    <li>Anotación interna por desenlace, con el mensaje de suceso literal.</li>
+  </ul>
+  <p style="margin-top:12px"><b>Fuera:</b> el flujo completo de cambio de contacto (pasos 1 a 3) y el resto del portal — los define <code>GW-129-portal-quac.html</code>, que sigue siendo el contrato del portal. La pantalla de permisos de cámara del navegador tampoco se dibuja: la pinta el sistema operativo.</p>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+/* Contenido de la anotación por desenlace.
+   El suceso es literal: lo que debe quedar escrito en quacapi.log_activity. */
+const CASOS = {
+  ok: {
+    chip:['ok','Validación exitosa'],
+    suceso:'Se completa validación facial del titular contra foto de referencia registrada (similitud 96%, mínimo requerido 85%) desde el portal de clientes quac.',
+    json:'{\n  "resultado": "APROBADA",\n  "similitud": 96.4,\n  "umbral": 85,\n  "request_id": "b1f0-…-9ac2"\n}',
+    asesor:'Nada. El cambio se aplicó solo. El registro existe para poder auditar después <b>quién autorizó qué</b>: sin la línea de éxito, el log solo prueba los fallos.',
+    igual:null,
+  },
+  sinfoto: {
+    chip:['rosa','Escala a SAC'],
+    suceso:'No se puede completar proceso de validación facial, sistema no retorna foto de referencia para realizar comparación. Cambio de datos no aplicado desde el portal de clientes quac.',
+    json:'{\n  "resultado": "SIN_REFERENCIA",\n  "similitud": null,\n  "umbral": 85,\n  "request_id": "7d3a-…-41b8"\n}',
+    asesor:'Verifica identidad por los canales de siempre y, si el cliente es quien dice ser, <b>enrola su foto</b> para que la próxima vez la validación sí tenga contra qué comparar. Sin ese enrolamiento el cliente vuelve a caer aquí en cada cambio.',
+    igual:'Hoy solo 148.623 de 458.820 clientes tienen selfie guardada (32%): el registro fotográfico arranca en noviembre de 2024. Este es el desenlace <b>mayoritario</b>, no la excepción.',
+  },
+  nocoincide: {
+    chip:['rosa','Escala a SAC'],
+    suceso:'No se puede completar proceso de validación facial, la selfie capturada no corresponde con la foto de referencia registrada para el documento (similitud 41%, mínimo requerido 85%). Cambio de datos no aplicado desde el portal de clientes quac.',
+    json:'{\n  "resultado": "NO_COINCIDE",\n  "similitud": 41.2,\n  "umbral": 85,\n  "request_id": "e90c-…-2f57"\n}',
+    asesor:'Verificación reforzada antes de tocar los datos; <b>no actualizar por autoservicio</b>. El porcentaje decide el trato: un 41% es otra cosa que un 84%, que suele ser el mismo titular con mala luz o una foto de referencia vieja.',
+    igual:'El cliente ve <b>exactamente el mismo modal</b> que en «Sin foto de referencia», palabra por palabra. Si el texto distinguiera los dos casos, cualquiera podría averiguar qué cédulas no tienen foto — y esas son las fáciles de suplantar.',
+  },
+  fallo: {
+    chip:['negro','Reintento — no escala'],
+    suceso:'No se puede completar proceso de validación facial, no fue posible capturar la selfie del cliente (cámara no disponible o imagen no legible). Cliente puede reintentar.',
+    json:'{\n  "resultado": "CAPTURA_FALLIDA",\n  "motivo": "NoFaceDetected",\n  "request_id": "0c47-…-8e13"\n}',
+    asesor:'Nada. No es una validación reprobada sino un intento incompleto. <b>Si este caso escalara a SAC</b>, el canal se llenaría de gente que solo tenía mala luz.',
+    igual:null,
+  },
+};
+
+let caso = 'sinfoto', flujo = 'email';
+
+function ir(estado){
+  ['mCaptura','mValidando','mOk','mSac','mFallo'].forEach(id => $(id).hidden = true);
+  if (estado === 'reposo') return;
+  if (estado === 'captura'){ $('mCaptura').hidden = false; $('visor').classList.remove('on'); return; }
+  if (estado === 'validando'){ $('mValidando').hidden = false; return; }
+  if (estado === 'ok'){ $('mOk').hidden = false; return; }
+  if (estado === 'fallo'){ $('mFallo').hidden = false; return; }
+  $('mSac').hidden = false;                       /* sinfoto y nocoincide comparten modal */
+}
+
+/* Recorrido real: capturar, esperar, desenlace. */
+function validar(){
+  $('visor').classList.add('on');
+  setTimeout(() => { ir('validando'); setTimeout(() => ir(caso === 'captura' ? 'captura' : caso), 1400); }, 350);
+}
+
+function pintarFlujo(){
+  const esEmail = flujo === 'email';
+  $('sacTexto').innerHTML = `Para cambiar tu ${esEmail ? 'correo electrónico' : 'número celular'}, la validación con tu selfie no fue suficiente esta vez. Un asesor de servicio al cliente puede completar el cambio contigo.`;
+  $('okT').textContent = esEmail ? 'Correo actualizado' : 'Celular actualizado';
+  $('okD').textContent = esEmail
+    ? 'Te enviamos una confirmación a tu correo nuevo y un aviso al anterior.'
+    : 'Te enviamos un aviso a tu número anterior y al nuevo.';
+}
+
+function pintarNota(){
+  const d = CASOS[caso];
+  const hayNota = !!d && $('ctlNota').checked;
+  $('notaCuerpo').hidden = !hayNota;
+  $('notaVacia').hidden  = hayNota;
+  const chip = $('notaChip');
+  if (!d){ chip.className = 'chip gris'; chip.textContent = 'Sin resultado'; return; }
+  chip.className = 'chip ' + d.chip[0];
+  chip.textContent = d.chip[1];
+  if (!hayNota) return;
+  $('notaSuceso').textContent = d.suceso;
+  $('notaJson').textContent = d.json;
+  $('notaAsesor').innerHTML = d.asesor;
+  $('notaIgualWrap').hidden = !d.igual;
+  if (d.igual) $('notaIgualTxt').innerHTML = d.igual;
+}
+
+$('ctlCaso').onchange = e => {
+  caso = e.target.value;
+  pintarNota();
+  ir(caso === 'captura' ? 'captura' : caso);
+};
+$('ctlFlujo').onchange = e => { flujo = e.target.value; pintarFlujo(); };
+$('ctlNota').onchange = pintarNota;
+
+pintarFlujo();
+pintarNota();
+ir('sinfoto');
+</script>
+</body>
+</html>
