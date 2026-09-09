@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-143 · Gestión de Ventas: archivar un carrito desde el modal de detalle del asesor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .cifra { font-variant-numeric: tabular-nums; }
+  @keyframes shimmer { 0% { background-position: -400px 0 } 100% { background-position: 400px 0 } }
+  .skeleton { background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%); background-size: 800px 100%; animation: shimmer 1.4s infinite linear; }
+</style>
+</head>
+<body class="bg-neutral-100 text-slate-900">
+
+<!-- ══════════ BARRA DE CONTROLES DEL MOCKUP (no es parte de la UI) ══════════ -->
+<div class="sticky top-0 z-50 flex flex-wrap items-center gap-3 bg-slate-900 px-4 py-2 text-xs text-white">
+  <span class="font-bold tracking-wide">MOCKUP GW-143 · Modal de detalle del asesor</span>
+  <span class="text-slate-400">Estado:</span>
+  <div class="flex gap-1" id="ctrl-estado">
+    <button data-estado="exito" class="rounded bg-emerald-600 px-2 py-0.5">Éxito</button>
+    <button data-estado="carga" class="rounded bg-slate-700 px-2 py-0.5 hover:bg-slate-600">Carga</button>
+    <button data-estado="falla" class="rounded bg-slate-700 px-2 py-0.5 hover:bg-slate-600">Falla</button>
+    <button data-estado="vacio" class="rounded bg-slate-700 px-2 py-0.5 hover:bg-slate-600">Vacío</button>
+  </div>
+  <span class="text-slate-400">Permiso:</span>
+  <button id="ctrl-permiso" class="rounded bg-emerald-600 px-2 py-0.5" title="Operación de módulo asignable por rol. Sin ella el backend no marca las filas como accionables y la columna no se dibuja.">archivar_carrito_asesor ✓</button>
+  <span class="ml-auto text-slate-500">STIRPE QEC · Q2 · 16 – 31 ago 2026 · asesora Nicol Dayana Pinzon Peña</span>
+</div>
+
+<div class="flex min-h-screen">
+
+  <!-- ══════════ SIDEBAR (GW-115, superficie oscura) ══════════ -->
+  <aside class="flex w-14 shrink-0 flex-col items-center gap-5 bg-neutral-900 py-4">
+    <svg class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <svg class="h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+    <svg class="h-4 w-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+    <svg class="h-4 w-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+  </aside>
+
+  <div class="min-w-0 flex-1">
+    <!-- ══════════ TOPBAR ══════════ -->
+    <header class="flex items-center gap-3 border-b border-slate-200 bg-white px-6 py-3">
+      <div>
+        <h1 class="text-base font-bold">Gestión de Ventas</h1>
+        <p class="text-xs text-slate-400">Venta asistida · STIRPE QEC · Q2 · 16 – 31 ago 2026</p>
+      </div>
+      <div class="ml-auto flex items-center gap-2 text-xs text-slate-500">
+        <span class="rounded-md bg-slate-100 px-2 py-1">Fredy Alexander Puerto Ruiz</span>
+        <span class="rounded-md bg-neutral-900 px-2 py-1 text-white">Coordinador</span>
+      </div>
+    </header>
+
+    <!-- ══════════ FONDO: tabla de asesores (contexto, no es el objeto del REQ) ══════════ -->
+    <main class="p-6">
+      <div class="rounded-lg border border-slate-200 bg-white">
+        <div class="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
+          <h2 class="text-sm font-bold">Asesores del período</h2>
+          <span class="text-xs text-slate-400">clic en una fila abre el detalle</span>
+        </div>
+        <table class="w-full text-[13px] cifra">
+          <thead>
+            <tr class="border-b border-slate-100 text-[11px] uppercase tracking-wide text-slate-400">
+              <th class="px-4 py-2 text-left font-medium">Asesor</th>
+              <th class="px-4 py-2 text-right font-medium">Presupuesto</th>
+              <th class="px-4 py-2 text-right font-medium">Venta confirmada</th>
+              <th class="px-4 py-2 text-center font-medium">Cumplimiento</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-fondo"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ══════════ MODAL DETALLE DEL ASESOR ══════════ -->
+<div id="modal-asesor" class="fixed inset-0 z-40">
+  <div class="absolute inset-0 bg-slate-900/40"></div>
+  <div class="absolute inset-x-4 top-16 flex max-h-[82vh] flex-col rounded-lg border border-slate-200 bg-white shadow-xl md:inset-x-auto md:left-1/2 md:w-[900px] md:-translate-x-1/2">
+
+    <!-- Cabecera -->
+    <div class="flex items-center gap-3 border-b border-slate-200 px-5 py-3.5">
+      <span class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700 text-sm font-bold text-white">ND</span>
+      <div>
+        <div class="font-bold">Nicol Dayana Pinzon Peña</div>
+        <div class="text-xs text-slate-400">STIRPE QEC · 16 – 25 ago 2026</div>
+      </div>
+      <div class="ml-auto flex items-center gap-4 text-sm cifra">
+        <div class="text-right"><div class="text-[10px] uppercase text-slate-400">Venta confirmada</div><div class="font-bold" id="cab-confirmada">$21.350.470</div></div>
+        <div class="text-right"><div class="text-[10px] uppercase text-slate-400">Comisión proy.</div><div class="font-bold">$213.504</div></div>
+        <span class="rounded-md bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800">79,0%</span>
+      </div>
+      <button class="flex h-7 w-7 items-center justify-center rounded-md hover:bg-neutral-100"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+
+    <!-- Pestañas -->
+    <div class="flex gap-4 border-b border-slate-100 px-5 pt-2 text-sm font-medium" id="modal-tabs">
+      <button data-mtab="resumen" class="border-b-2 border-transparent pb-2 text-slate-500 hover:text-slate-700">Resumen diario</button>
+      <button data-mtab="ventas" class="border-b-2 border-slate-900 pb-2 text-slate-900">Ventas del período</button>
+    </div>
+
+    <div class="overflow-y-auto p-5">
+
+      <!-- Tarjetas de contexto (las del componente desplegado) -->
+      <div class="mb-4 grid grid-cols-3 gap-2 text-xs">
+        <div class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+          <p class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">Confirmada</p>
+          <p class="text-base font-bold cifra" id="tar-confirmada">$21.350.470</p>
+          <p class="text-[10px] leading-snug text-emerald-700/70">carritos con ✓ — no incluye archivados</p>
+        </div>
+        <div class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2">
+          <p class="text-[10px] font-bold uppercase tracking-wide text-emerald-700">Recaudada</p>
+          <p class="text-base font-bold cifra">$14.208.900</p>
+          <p class="text-[10px] leading-snug text-emerald-700/70">pagos recibidos + facturados</p>
+        </div>
+        <div class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+          <p class="text-[10px] font-bold uppercase tracking-wide text-gray-500">Facturada</p>
+          <p class="text-base font-bold cifra">$9.870.300</p>
+          <p class="text-[10px] leading-snug text-gray-500">facturas con ✓ (2 de 3 emitidas) — base de la comisión oficial</p>
+        </div>
+      </div>
+
+      <!-- ─── Estado: carga ─── -->
+      <div id="zona-carga" class="hidden space-y-2">
+        <div class="skeleton h-9 rounded-md"></div>
+        <div class="skeleton h-9 rounded-md"></div>
+        <div class="skeleton h-9 rounded-md"></div>
+        <div class="skeleton h-9 rounded-md"></div>
+      </div>
+
+      <!-- ─── Estado: falla ─── -->
+      <div id="zona-falla" class="hidden rounded-lg border border-rose-200 bg-rose-50 px-4 py-5 text-center">
+        <p class="text-sm font-medium text-rose-900">No se pudo cargar el detalle de la asesora.</p>
+        <p class="mt-1 text-xs text-rose-700">La consulta del período no respondió. Ninguna acción de archivado quedó a medias.</p>
+        <button class="mt-3 rounded-lg border border-rose-300 bg-white px-4 py-2 text-xs font-medium text-rose-900 hover:bg-rose-50">Reintentar</button>
+      </div>
+
+      <!-- ─── Estado: éxito / vacío ─── -->
+      <div id="zona-tabla" class="overflow-x-auto rounded-lg border border-gray-100">
+        <table class="w-full text-sm cifra">
+          <thead>
+            <tr class="bg-gray-50">
+              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Carrito</th>
+              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Pedido web</th>
+              <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Factura</th>
+              <th class="px-3 py-2 text-center text-xs font-medium text-gray-500">Estado</th>
+              <th class="px-3 py-2 text-right text-xs font-medium text-gray-500" title="Unidades del carrito">Ítems</th>
+              <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Valor</th>
+              <th class="col-acciones px-3 py-2 text-right text-xs font-medium text-gray-500">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-ventas"></tbody>
+          <tfoot id="pie-ventas"></tfoot>
+        </table>
+      </div>
+
+      <p id="nota-permiso" class="mt-3 hidden text-xs text-slate-400">
+        Sin la operación <span class="font-mono">archivar_carrito_asesor</span> la columna de acciones no se dibuja: el modal queda exactamente como está hoy en producción.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL ARCHIVAR (copia de coordinación — D8) ══════════ -->
+<div id="modal-archivar" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+  <div class="w-full max-w-md rounded-2xl bg-white shadow-xl">
+    <div class="border-b px-5 py-4">
+      <h3 class="text-base font-bold text-gray-900">Archivar <span id="arch-carrito" class="cifra"></span></h3>
+      <p class="mt-0.5 text-xs text-slate-500">Venta de <span id="arch-asesor" class="font-medium text-slate-700"></span></p>
+    </div>
+    <div class="space-y-3 px-5 py-4">
+      <div class="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
+        <div>
+          <p class="text-sm font-medium text-gray-800" id="arch-cliente"></p>
+          <p class="text-[11px] text-gray-500 cifra" id="arch-fecha"></p>
+        </div>
+        <span class="text-lg font-bold text-gray-900 cifra" id="arch-valor"></span>
+      </div>
+      <div>
+        <select id="arch-motivo" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:ring-1 focus:ring-gray-900 focus:outline-none">
+          <option value="">Motivo…</option>
+          <option value="1">Desiste de la compra</option>
+          <option value="2">No responde</option>
+          <option value="3">No pagó a tiempo</option>
+          <option value="4">Carrito repetido</option>
+          <option value="5">Pruebas de desarrollo</option>
+        </select>
+        <p id="arch-error" class="mt-1.5 hidden text-xs font-medium text-rose-600">Elige un motivo.</p>
+      </div>
+      <input id="arch-nota" type="text" maxlength="255" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:ring-1 focus:ring-gray-900 focus:outline-none" placeholder="Nota (opcional)">
+      <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        Sale de la venta y de la comisión de la asesora. El link de pago del cliente seguirá activo: si paga, el carrito vuelve solo a sus ventas.
+      </p>
+      <p id="arch-rechazo" class="hidden rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800"></p>
+    </div>
+    <div class="flex justify-end gap-2 border-t px-5 py-3.5">
+      <button onclick="cerrar('modal-archivar')" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancelar</button>
+      <button onclick="confirmarArchivar()" class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">Archivar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL DESARCHIVAR (con rastro — D5/D8) ══════════ -->
+<div id="modal-desarchivar" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+  <div class="w-full max-w-md rounded-2xl bg-white shadow-xl">
+    <div class="border-b px-5 py-4">
+      <h3 class="text-base font-bold text-gray-900">Desarchivar <span id="des-carrito" class="cifra"></span></h3>
+      <p class="mt-0.5 text-xs text-slate-500">Venta de <span id="des-asesor" class="font-medium text-slate-700"></span></p>
+    </div>
+    <div class="px-5 py-4">
+      <div class="rounded-xl bg-gray-50 px-4 py-3">
+        <p class="text-sm text-gray-800" id="des-cliente"></p>
+        <p class="mt-1 text-[11px] text-gray-500 cifra" id="des-rastro"></p>
+      </div>
+      <p class="mt-3 text-xs text-slate-600">El carrito vuelve a sumar a la venta y a la comisión de la asesora. El rastro de quién lo archivó y por qué se conserva.</p>
+    </div>
+    <div class="flex justify-end gap-2 border-t px-5 py-3.5">
+      <button onclick="cerrar('modal-desarchivar')" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancelar</button>
+      <button onclick="confirmarDesarchivar()" class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">Desarchivar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ TOAST ══════════ -->
+<div id="toast" class="fixed bottom-6 left-1/2 z-[60] hidden -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-lg"></div>
+
+<!-- ══════════ ANEXO: el rastro en Mis Ventas del asesor (D5) ══════════ -->
+<section class="border-t-4 border-slate-900 bg-white px-6 py-6">
+  <h2 class="text-sm font-bold">Anexo · La fila archivada en Mis Ventas del asesor (GW-142, ya en producción)</h2>
+  <p class="mt-1 text-xs text-slate-500">D5 cambia lo que el asesor lee cuando la coordinación archiva un carrito suyo. Misma fila, antes y después.</p>
+  <div class="mt-4 grid gap-4 md:grid-cols-2">
+    <div class="rounded-lg border border-slate-200 p-4">
+      <p class="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-400">Hoy</p>
+      <div class="rounded-md border border-slate-100 px-3 py-2">
+        <div class="flex items-center gap-2">
+          <span class="rounded bg-gray-300 px-1.5 py-0.5 text-[11px] font-bold text-gray-700">Archivado</span>
+          <span class="text-sm font-medium text-gray-800">Yeimy Carolina Rueda</span>
+        </div>
+        <p class="mt-0.5 text-[11px] text-gray-400">«cliente no contesta desde el 28»</p>
+      </div>
+      <p class="mt-2 text-[11px] text-slate-500">Solo la nota libre. El asesor no sabe si lo archivó él o la coordinación, ni cuál fue el motivo del catálogo.</p>
+    </div>
+    <div class="rounded-lg border border-slate-900 p-4">
+      <p class="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-900">Con GW-143</p>
+      <div class="rounded-md border border-slate-100 px-3 py-2">
+        <div class="flex items-center gap-2">
+          <span class="rounded bg-gray-300 px-1.5 py-0.5 text-[11px] font-bold text-gray-700">Archivado</span>
+          <span class="text-sm font-medium text-gray-800">Yeimy Carolina Rueda</span>
+        </div>
+        <p class="mt-0.5 text-[11px] text-gray-500">Archivado por Fredy Alexander Puerto Ruiz · No responde</p>
+        <p class="text-[11px] text-gray-400">«cliente no contesta desde el 28»</p>
+      </div>
+      <p class="mt-2 text-[11px] text-slate-500">Autor, motivo del catálogo y nota. Mismo componente, tres líneas.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+// ═══════════════ DATOS DE EJEMPLO (STIRPE QEC · Q2 agosto 2026) ═══════════════
+const fmt = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+const $ = v => fmt.format(v).replace('COP', '$').trim();
+
+const ASESORA = 'Nicol Dayana Pinzon Peña';
+
+const MOTIVOS = { 1: 'Desiste de la compra', 2: 'No responde', 3: 'No pagó a tiempo', 4: 'Carrito repetido', 5: 'Pruebas de desarrollo' };
+const BADGE = {
+  pendiente: ['Pendiente', 'bg-slate-400 text-white'],
+  pagado:    ['Pagado', 'bg-emerald-600 text-white'],
+  facturado: ['Facturado', 'bg-emerald-800 text-white'],
+  cancelado: ['Cancelado', 'bg-rose-400 text-white'],
+  archivado: ['Archivado', 'bg-gray-300 text-gray-700'],
+};
+
+// estado: el que ya calcula VentaAsistidaRepository::estadoDetalle
+// elegible: es_elegible_archivar del payload
+const VENTAS = [
+  { id: 171243, fecha: '21 ago', pedido: null,   fpedido: null,     factura: null,     ffactura: null,   estado: 'pendiente', items: 3, valor: 5140900, elegible: true,  cliente: 'Yeimy Carolina Rueda',   cel: '300 412 8877' },
+  { id: 171280, fecha: '22 ago', pedido: 715048, fpedido: '22 ago', factura: null,     ffactura: null,   estado: 'pendiente', items: 2, valor: 3872000, elegible: true,  cliente: 'Andrea Milena Sepúlveda', cel: '311 208 4410' },
+  { id: 171305, fecha: '23 ago', pedido: null,   fpedido: null,     factura: null,     ffactura: null,   estado: 'archivado', items: 4, valor: 2410500, elegible: false, cliente: 'Diana Patricia Ospina',  cel: '320 771 9033',
+    archivadoPor: 'Fredy Alexander Puerto Ruiz', archivadoFecha: '24 ago 09:14', motivoId: 2, nota: 'cliente no contesta desde el 28' },
+  { id: 171188, fecha: '19 ago', pedido: 715012, fpedido: '19 ago', factura: null,     ffactura: null,   estado: 'pagado',    items: 5, valor: 6338800, elegible: false, cliente: 'Luz Marina Cárdenas',    cel: '317 664 2001', rechazo: 'El pedido ya está pagado y no se puede archivar.' },
+  { id: 171150, fecha: '18 ago', pedido: 714980, fpedido: '18 ago', factura: 'G-108114', ffactura: '19 ago', estado: 'facturado', items: 6, valor: 9870300, elegible: false, cliente: 'Sandra Liliana Mora', cel: '312 900 5512', facturaCargada: true, rechazo: 'El pedido ya está facturado y no se puede archivar.' },
+  { id: 171099, fecha: '17 ago', pedido: 714941, fpedido: '17 ago', factura: null,     ffactura: null,   estado: 'cancelado', items: 2, valor: 1980000, elegible: false, cliente: 'Erika Johana Villamizar', cel: '316 330 7742', rechazo: 'El pedido está cancelado y no se puede archivar.' },
+];
+
+const FONDO = [
+  ['Jhon Alexander Rodriguez', 25549610, 27116980, 106.1],
+  ['Nicol Dayana Pinzon Peña', 27578680, 21350470, 79.0],
+  ['Brayan Javier Ardila Florez', 24181360, 23596940, 97.6],
+  ['Valentina Nuñez Caballero', 27274470, 17310910, 63.5],
+];
+
+let permiso = true;
+let estado = 'exito';
+let filaActiva = null;
+
+const ICONO_ARCHIVAR = '<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="5" rx="2"/><path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg>';
+const ICONO_DESARCHIVAR = '<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>';
+
+// ═══════════════ RENDER ═══════════════
+function semaforo(p) {
+  const cls = p >= 100 ? 'bg-emerald-100 text-emerald-800' : p >= 80 ? 'bg-slate-100 text-slate-700' : 'bg-rose-100 text-rose-800';
+  return `<span class="rounded-md px-2 py-0.5 text-xs font-bold ${cls}">${p.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>`;
+}
+
+function renderFondo() {
+  document.getElementById('tabla-fondo').innerHTML = FONDO.map(([n, p, v, c]) => `
+    <tr class="border-b border-slate-50 ${n === ASESORA ? 'bg-slate-50' : ''}">
+      <td class="px-4 py-2 text-left font-medium">${n}</td>
+      <td class="px-4 py-2 text-right">${$(p)}</td>
+      <td class="px-4 py-2 text-right font-semibold">${$(v)}</td>
+      <td class="px-4 py-2 text-center">${semaforo(c)}</td>
+    </tr>`).join('');
+}
+
+// Suma a la venta confirmada: todo lo que no está archivado ni cancelado (filaSumaAConfirmada)
+const suma = v => v.estado !== 'archivado' && v.estado !== 'cancelado';
+
+function celdaAcciones(v) {
+  if (!permiso) return '';
+  let boton = '';
+  if (v.estado === 'archivado') {
+    boton = `<button onclick="abrirDesarchivar(${v.id})" title="Desarchivar" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">${ICONO_DESARCHIVAR}Desarchivar</button>`;
+  } else if (v.elegible) {
+    boton = `<button onclick="abrirArchivar(${v.id})" title="Archivar" class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">${ICONO_ARCHIVAR}Archivar</button>`;
+  } else {
+    boton = `<span class="text-xs text-gray-300" title="${v.rechazo || ''}">—</span>`;
+  }
+  return `<td class="px-3 py-2 text-right">${boton}</td>`;
+}
+
+function renderVentas() {
+  const cuerpo = document.getElementById('tabla-ventas');
+  const pie = document.getElementById('pie-ventas');
+  const nCols = permiso ? 7 : 6;
+
+  document.querySelectorAll('.col-acciones').forEach(th => th.classList.toggle('hidden', !permiso));
+  document.getElementById('nota-permiso').classList.toggle('hidden', permiso);
+
+  if (estado === 'vacio') {
+    cuerpo.innerHTML = `<tr><td colspan="${nCols}" class="px-3 py-8 text-center text-sm text-gray-400">Sin ventas en el período.</td></tr>`;
+    pie.innerHTML = '';
+    return;
+  }
+
+  cuerpo.innerHTML = VENTAS.map(v => {
+    const [txt, cls] = BADGE[v.estado];
+    const pedido = v.pedido
+      ? `#${v.pedido}<div class="text-[11px] text-gray-400">${v.fpedido}</div>`
+      : '<span class="text-gray-300">sin pedido</span>';
+    const factura = v.factura
+      ? `<span class="mr-1 text-emerald-600" title="Ya cargada en liquidar comisiones">✓</span>${v.factura}<div class="text-[11px] text-gray-400">${v.ffactura}</div>`
+      : '<span class="text-gray-300">sin facturar</span>';
+    const rastro = v.estado === 'archivado'
+      ? `<div class="text-[11px] text-gray-500">Archivado por ${v.archivadoPor} · ${MOTIVOS[v.motivoId]}</div><div class="text-[11px] text-gray-400">«${v.nota}»</div>`
+      : '';
+    const valor = suma(v)
+      ? `<span class="mr-1 text-emerald-600" title="Suma a la Venta confirmada">✓</span>${$(v.valor)}`
+      : `<span class="text-gray-400 line-through">${$(v.valor)}</span><div class="text-[10px] font-bold text-rose-400">no suma</div>`;
+
+    return `<tr class="border-b border-slate-50 ${v.estado === 'cancelado' || v.estado === 'archivado' ? 'opacity-70' : ''}">
+      <td class="px-3 py-2 text-xs">#${v.id}<div class="text-[11px] text-gray-400">${v.fecha}</div>${rastro}</td>
+      <td class="px-3 py-2 text-xs">${pedido}</td>
+      <td class="px-3 py-2 text-xs">${factura}</td>
+      <td class="px-3 py-2 text-center text-xs"><span class="rounded px-1.5 py-0.5 text-[11px] font-bold ${cls}">${txt}</span></td>
+      <td class="px-3 py-2 text-right text-xs ${suma(v) ? '' : 'text-gray-400 line-through'}">${v.items}</td>
+      <td class="px-3 py-2 text-right text-xs font-semibold">${valor}</td>
+      ${celdaAcciones(v)}
+    </tr>`;
+  }).join('');
+
+  const conCheck = VENTAS.filter(suma);
+  const totalItems = conCheck.reduce((a, v) => a + v.items, 0);
+  const totalValor = conCheck.reduce((a, v) => a + v.valor, 0);
+  pie.innerHTML = `<tr class="border-t border-slate-200 font-bold">
+    <td colspan="${permiso ? 4 : 4}" class="px-3 py-2 text-right text-[11px] font-normal text-gray-500">Suma de las ${conCheck.length} filas con ✓</td>
+    <td class="px-3 py-2 text-right text-xs">${totalItems}</td>
+    <td class="px-3 py-2 text-right text-xs">${$(totalValor)}</td>
+    ${permiso ? '<td></td>' : ''}
+  </tr>`;
+
+  const conf = $(totalValor);
+  document.getElementById('cab-confirmada').textContent = conf;
+  document.getElementById('tar-confirmada').textContent = conf;
+}
+
+function renderEstado() {
+  document.getElementById('zona-carga').classList.toggle('hidden', estado !== 'carga');
+  document.getElementById('zona-falla').classList.toggle('hidden', estado !== 'falla');
+  document.getElementById('zona-tabla').classList.toggle('hidden', estado === 'carga' || estado === 'falla');
+  renderVentas();
+}
+
+// ═══════════════ ARCHIVAR / DESARCHIVAR ═══════════════
+function abrir(id) { const e = document.getElementById(id); e.classList.remove('hidden'); e.classList.add('flex'); }
+function cerrar(id) { const e = document.getElementById(id); e.classList.add('hidden'); e.classList.remove('flex'); }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), 2600);
+}
+
+function abrirArchivar(id) {
+  filaActiva = VENTAS.find(v => v.id === id);
+  document.getElementById('arch-carrito').textContent = '#' + filaActiva.id;
+  document.getElementById('arch-asesor').textContent = ASESORA;
+  document.getElementById('arch-cliente').textContent = filaActiva.cliente;
+  document.getElementById('arch-fecha').textContent = filaActiva.fecha + ' · ' + filaActiva.cel;
+  document.getElementById('arch-valor').textContent = $(filaActiva.valor);
+  document.getElementById('arch-motivo').value = '';
+  document.getElementById('arch-nota').value = '';
+  document.getElementById('arch-error').classList.add('hidden');
+  document.getElementById('arch-rechazo').classList.add('hidden');
+  abrir('modal-archivar');
+}
+
+function confirmarArchivar() {
+  const sel = document.getElementById('arch-motivo');
+  if (!sel.value) { document.getElementById('arch-error').classList.remove('hidden'); return; }
+
+  // Rechazo del servidor: el carrito dejó de ser elegible entre que se pintó la fila
+  // y el clic (un pago concurrente). Es el 422 que devuelve motivoRechazoArchivado.
+  if (filaActiva.id === 171280 && !filaActiva.forzar) {
+    filaActiva.forzar = true;
+    const box = document.getElementById('arch-rechazo');
+    box.textContent = 'El pedido ya está pagado y no se puede archivar. La fila se actualizó.';
+    box.classList.remove('hidden');
+    filaActiva.estado = 'pagado';
+    filaActiva.elegible = false;
+    filaActiva.rechazo = 'El pedido ya está pagado y no se puede archivar.';
+    renderVentas();
+    return;
+  }
+
+  filaActiva.estado = 'archivado';
+  filaActiva.elegible = false;
+  filaActiva.motivoId = Number(sel.value);
+  filaActiva.nota = document.getElementById('arch-nota').value || 'sin nota';
+  filaActiva.archivadoPor = 'Fredy Alexander Puerto Ruiz';
+  filaActiva.archivadoFecha = '25 ago 11:02';
+  cerrar('modal-archivar');
+  renderVentas();
+  toast('Carrito archivado correctamente.');
+}
+
+function abrirDesarchivar(id) {
+  filaActiva = VENTAS.find(v => v.id === id);
+  document.getElementById('des-carrito').textContent = '#' + filaActiva.id;
+  document.getElementById('des-asesor').textContent = ASESORA;
+  document.getElementById('des-cliente').textContent = filaActiva.cliente + ' · ' + $(filaActiva.valor);
+  document.getElementById('des-rastro').textContent =
+    `Archivado por ${filaActiva.archivadoPor} el ${filaActiva.archivadoFecha} · ${MOTIVOS[filaActiva.motivoId]} · «${filaActiva.nota}»`;
+  abrir('modal-desarchivar');
+}
+
+function confirmarDesarchivar() {
+  filaActiva.estado = filaActiva.pedido ? 'pagado' : 'pendiente';
+  filaActiva.elegible = true;
+  cerrar('modal-desarchivar');
+  renderVentas();
+  toast('Carrito desarchivado correctamente.');
+}
+
+// ═══════════════ CONTROLES DEL MOCKUP ═══════════════
+document.getElementById('ctrl-estado').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('#ctrl-estado button').forEach(x => x.className = 'rounded px-2 py-0.5 ' + (x === b ? 'bg-emerald-600' : 'bg-slate-700 hover:bg-slate-600'));
+  estado = b.dataset.estado;
+  renderEstado();
+});
+
+document.getElementById('ctrl-permiso').addEventListener('click', () => {
+  permiso = !permiso;
+  const b = document.getElementById('ctrl-permiso');
+  b.className = 'rounded px-2 py-0.5 ' + (permiso ? 'bg-emerald-600' : 'bg-slate-700 hover:bg-slate-600');
+  b.textContent = 'archivar_carrito_asesor ' + (permiso ? '✓' : '✗');
+  renderVentas();
+});
+
+document.getElementById('modal-tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('#modal-tabs button').forEach(x =>
+    x.className = 'border-b-2 pb-2 ' + (x === b ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'));
+});
+
+renderFondo();
+renderEstado();
+</script>
+</body>
+</html>
