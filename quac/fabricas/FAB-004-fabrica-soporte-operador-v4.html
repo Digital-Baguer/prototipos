@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fábrica de soporte · Operador — FAB-004 v4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+ :root{--violet:#7C3AED}
+ body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+ .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+ .spinner{width:22px;height:22px;border:3px solid #E9D5FF;border-top-color:#7C3AED;border-radius:50%;animation:spin .8s linear infinite;display:inline-block}
+ @keyframes spin{to{transform:rotate(360deg)}}
+ .esp{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;font-family:ui-monospace,monospace;white-space:nowrap}
+ .esp .d{width:6px;height:6px;border-radius:50%;background:currentColor}
+ .esp-g{background:#DCFCE7;color:#15803D}.esp-s{background:#F1F5F9;color:#475569}.esp-r{background:#FFE4E6;color:#BE123C}
+ .tcard{transition:box-shadow .15s}
+ .tcard.click:hover{box-shadow:0 4px 16px rgba(124,58,237,.14);cursor:pointer}
+ .tcard.alerta{animation:latido 1.6s ease-in-out 2}
+ @keyframes latido{0%,100%{box-shadow:0 0 0 0 rgba(225,29,72,0)}50%{box-shadow:0 0 0 6px rgba(225,29,72,.18)}}
+ .drawer{transition:transform .25s ease}
+ input,select,textarea{transition:border-color .12s,box-shadow .12s}
+ input:focus,select:focus,textarea:focus{outline:none;border-color:#7C3AED;box-shadow:0 0 0 3px rgba(124,58,237,.14)}
+ .err-input{border-color:#E11D48!important;box-shadow:0 0 0 3px rgba(225,29,72,.10)!important}
+ dialog::backdrop{background:rgba(15,15,35,.45)}
+ .skel{background:linear-gradient(90deg,#EEF0FA 25%,#F8FAFC 50%,#EEF0FA 75%);background-size:200% 100%;animation:sk 1.2s infinite;border-radius:10px}
+ @keyframes sk{to{background-position:-200% 0}}
+ /* chips: gris neutro · esmeralda positivo · negro en curso · rosa bloqueante */
+ .chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:600;white-space:nowrap}
+ .c-n{background:#F1F5F9;color:#475569}.c-ok{background:#D1FAE5;color:#047857}.c-cur{background:#0F172A;color:#fff}.c-bl{background:#FFE4E6;color:#BE123C}.c-rev{background:#FEF3C7;color:#92400E}.c-v{background:#EDE9FE;color:#5B21B6}
+ /* rail lateral (calcado del Simulador v2) */
+ .rail{background:#fff;border:1px solid #E2E8F0;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+ .rail h4{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.08em;color:#6D28D9;margin-bottom:4px}
+ .kv{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #F1F5F9;font-size:12px}
+ .kv:last-child{border-bottom:0}.kv .k{color:#94A3B8}.kv .v{text-align:right;font-weight:600;color:#334155}
+ /* línea de sucesos */
+ .tl{position:relative;padding-left:20px}
+ .tl::before{content:'';position:absolute;left:6px;top:8px;bottom:8px;width:2px;background:#E2E8F0}
+ .ev{position:relative;padding:5px 0 9px}
+ .ev::before{content:'';position:absolute;left:-18px;top:9px;width:10px;height:10px;border-radius:50%;background:#CBD5E1;box-shadow:0 0 0 2px #fff}
+ .ev.ok::before{background:#10B981}.ev.bl::before{background:#E11D48}.ev.sys::before{background:#94A3B8}.ev.op::before{background:#7C3AED}
+ .ev.hl{background:#FFF1F2;border:1px solid #FECDD3;border-radius:10px;padding:8px 10px;margin-left:-6px}
+ .ev.hl::before{left:-12px}
+ .ev .t{font-family:ui-monospace,monospace;font-size:10.5px;color:#94A3B8}
+ .ev .x{font-size:12px;color:#334155;line-height:1.45}
+ /* espacio de trabajo */
+ .ws{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:18px}
+ @media(min-width:1500px){.ws{grid-template-columns:minmax(0,1fr) 440px}}
+ @media(max-width:1100px){.ws{grid-template-columns:1fr}}
+ .stage{position:relative;height:460px;background:#0B1220;border-radius:14px;overflow:hidden;cursor:grab;user-select:none;touch-action:none}
+ .stage:active{cursor:grabbing}
+ @media(max-width:700px){.stage{height:360px}}
+ .stage img{position:absolute;left:50%;top:50%;max-width:none;transform-origin:center;transition:transform .18s ease,filter .1s;will-change:transform}
+ .stage img.drag{transition:none}
+ .stage .hint{position:absolute;left:10px;bottom:10px;background:rgba(15,23,42,.72);color:#CBD5E1;font-size:10.5px;padding:3px 8px;border-radius:6px;pointer-events:none}
+ .stage .tag{position:absolute;left:10px;top:10px;background:rgba(15,23,42,.75);color:#fff;font:700 11px ui-monospace,monospace;padding:3px 8px;border-radius:6px;pointer-events:none}
+ .stage .cargando{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:#94A3B8;font-size:12px}
+ .tool{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+ #modal .tool{min-height:34px}
+ .tool .b{border:1px solid #CBD5E1;background:#fff;color:#475569;border-radius:8px;padding:5px 9px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+ .tool .b:hover{background:#F8FAFC}.tool .b.on{background:#EDE9FE;border-color:#C4B5FD;color:#6D28D9}
+ .tool .sep{width:1px;height:22px;background:#E2E8F0;margin:0 2px}
+ .tool input[type=range]{width:86px;accent-color:#7C3AED}
+ .tool .lbl{font-size:11px;color:#94A3B8;font-weight:600}
+ .tool kbd{font:600 10px ui-monospace,monospace;color:#94A3B8;border:1px solid #E2E8F0;border-radius:4px;padding:0 4px;margin-left:2px}
+ /* intentos */
+ .intentos{display:flex;gap:10px;overflow-x:auto;padding:2px 2px 8px}
+ .th{position:relative;flex:0 0 auto;width:104px;height:78px;border-radius:10px;overflow:hidden;border:2px solid transparent;cursor:pointer;background:#0B1220}
+ .th img{width:100%;height:100%;object-fit:cover;display:block}
+ .th.sel{border-color:#7C3AED;box-shadow:0 0 0 3px rgba(124,58,237,.18)}
+ .th .n{position:absolute;left:5px;top:5px;font:700 9.5px ui-monospace,monospace;background:rgba(15,23,42,.78);color:#fff;padding:1px 5px;border-radius:4px}
+ .th .band{position:absolute;left:0;right:0;bottom:0;height:5px}
+ .th .band.ok{background:#22C55E}.th .band.no{background:#EF4444}.th .band.rev{background:#F59E0B}
+ .th .dec{position:absolute;right:4px;top:4px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff}
+ .th .dec.ok{background:#059669}.th .dec.rep{background:#0F172A}
+ .thc{font:600 10px ui-monospace,monospace;color:#94A3B8;text-align:center;margin-top:3px}
+ /* pestañas por foto */
+ .ptab{display:inline-flex;align-items:center;gap:7px;border:1px solid #E2E8F0;background:#fff;border-radius:10px;padding:7px 12px;font-size:12.5px;font-weight:600;color:#475569;cursor:pointer;white-space:nowrap}
+ .ptab.on{border-color:#7C3AED;background:#F5F3FF;color:#4C1D95}
+ .ptab .d{width:8px;height:8px;border-radius:50%}
+ .d-ok{background:#10B981}.d-no{background:#E11D48}.d-rev{background:#F59E0B}.d-na{background:#CBD5E1}
+ .ptab .dec{font-size:10px;font-weight:800;border-radius:999px;padding:1px 6px}
+ /* condiciones */
+ .cond{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-top:1px solid #F1F5F9;font-size:12.5px}
+ .cond:first-child{border-top:0}
+ .cond .r{width:20px;height:20px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+ .cond .r svg{width:12px;height:12px}
+ .r-ok{background:#D1FAE5;color:#047857}.r-no{background:#FFE4E6;color:#BE123C}.r-na{background:#F1F5F9;color:#94A3B8}
+ .cond .id{font-family:ui-monospace,monospace;font-size:10.5px;color:#94A3B8;margin-right:6px}
+ .cond .el{font-weight:700;color:#1E1B4B}
+ .cond .ds{color:#64748B;font-size:11.8px;margin-top:1px;line-height:1.4}
+ .cond .obs{color:#BE123C;font-size:11.5px;margin-top:3px;line-height:1.4;background:#FFF1F2;border-radius:6px;padding:4px 7px}
+ details.grp summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8;padding:10px 0 4px}
+ details.grp summary::-webkit-details-marker{display:none}
+ details.grp summary .car{transition:transform .15s}
+ details.grp[open] summary .car{transform:rotate(90deg)}
+ .meter{height:8px;border-radius:999px;background:#E2E8F0;overflow:hidden;position:relative;flex:1}
+ .meter i{position:absolute;left:0;top:0;bottom:0;border-radius:999px}
+ .meter b{position:absolute;top:-3px;width:2px;height:14px;background:#0F172A}
+ /* decisión por foto */
+ .dec-btn{border:1.5px solid #E2E8F0;background:#fff;border-radius:12px;padding:10px 8px;font-size:12px;font-weight:700;color:#334155;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;flex:1}
+ .dec-btn svg{width:18px;height:18px}
+ .dec-btn kbd{font:600 10px ui-monospace,monospace;color:#94A3B8;border:1px solid #E2E8F0;border-radius:4px;padding:0 5px}
+ .dec-btn:hover{border-color:#CBD5E1}
+ .dec-btn.ok.on{border-color:#10B981;background:#D1FAE5;color:#047857}
+ .dec-btn.rep.on{border-color:#0F172A;background:#0F172A;color:#fff}.dec-btn.rep.on kbd{color:#CBD5E1;border-color:#334155}
+ .mot{border:1px solid #CBD5E1;background:#fff;color:#334155;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer}
+ .mot.on{background:#0F172A;color:#fff;border-color:#0F172A}
+ /* barra de resolución */
+ .bar{position:sticky;bottom:12px;z-index:10;background:#fff;border:1px solid #C4B5FD;border-radius:16px;box-shadow:0 12px 34px -14px rgba(76,29,149,.35);padding:12px 16px;margin-top:16px}
+ @media(max-width:700px){.bar{position:static}}
+ .th2{position:relative;width:64px;height:48px;border-radius:8px;overflow:hidden;background:#0B1220;cursor:zoom-in;flex-shrink:0}
+ .th2 img{width:100%;height:100%;object-fit:cover;display:block}
+ .th2 .band{position:absolute;left:0;right:0;bottom:0;height:4px}.th2 .band.ok{background:#22C55E}.th2 .band.no{background:#EF4444}.th2 .band.rev{background:#F59E0B}
+ .fila.anterior td{color:#64748B}.fila.anterior .th2{opacity:.75}
+ .fila.hallazgo td{background:#FFF7F7}.fila.hallazgo td:first-child{box-shadow:inset 3px 0 0 #E11D48}
+ .acc2{border:1px solid #CBD5E1;background:#fff;border-radius:8px;padding:4px 9px;font-size:11.5px;font-weight:600;color:#334155;display:inline-flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap}
+ .acc2 kbd{font:600 10px ui-monospace,monospace;color:#94A3B8;border:1px solid #E2E8F0;border-radius:4px;padding:0 4px}
+ .acc2.ok:hover{border-color:#10B981;color:#047857;background:#ECFDF5}.acc2.rep:hover{border-color:#0F172A;background:#0F172A;color:#fff}.acc2.rep:hover kbd{color:#CBD5E1;border-color:#334155}
+ #modal .stage{height:min(62vh,640px)}
+ .tcond{width:100%;font-size:12px;border-collapse:collapse}
+ .tcond th{padding:7px 10px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8;background:#FAFAFE;position:sticky;top:0}
+ .tcond td{padding:8px 10px;border-top:1px solid #F1F5F9;vertical-align:top;line-height:1.4}
+ .tcond tr.no td{background:#FFF7F7}
+
+ .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-size:11.5px;font-weight:700;border:1px solid #E2E8F0;background:#F8FAFC;color:#64748B;cursor:pointer}
+ .pill.ok{background:#D1FAE5;color:#047857;border-color:#A7F3D0}.pill.rep{background:#0F172A;color:#fff;border-color:#0F172A}.pill.pend{background:#FFE4E6;color:#BE123C;border-color:#FECDD3}
+ .btn-p{background:#7C3AED;color:#fff;font-weight:600;padding:8px 14px;border-radius:9px;font-size:13px;display:inline-flex;align-items:center;gap:7px}
+ .btn-p:hover{background:#6D28D9}
+ .btn-o{border:1px solid #7C3AED;color:#6D28D9;background:#fff;font-weight:600;padding:8px 14px;border-radius:9px;font-size:13px;display:inline-flex;align-items:center;gap:7px}
+ .btn-o:hover{background:#F5F3FF}
+ .btn-g{border:1px solid #CBD5E1;color:#475569;background:#fff;font-weight:600;padding:8px 14px;border-radius:9px;font-size:13px;display:inline-flex;align-items:center;gap:7px}
+ .btn-g:hover{background:#F8FAFC}
+ .btn-k{background:#0F172A;color:#fff;font-weight:600;padding:8px 14px;border-radius:9px;font-size:13px;display:inline-flex;align-items:center;gap:7px}
+ .btn-k:hover{background:#1E293B}
+ .btn-r{border:1px solid #FECDD3;color:#BE123C;background:#FFF1F2;font-weight:600;padding:8px 14px;border-radius:9px;font-size:13px;display:inline-flex;align-items:center;gap:7px}
+ .btn-r:hover{background:#FFE4E6}
+ button:disabled{opacity:.4;cursor:not-allowed}
+ .cmp{background:#0B1220;border-radius:14px;padding:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+ .cmp .c{background:#111a2e;border-radius:10px;overflow:hidden;text-align:center;color:#CBD5E1;font-size:11.5px}
+ .cmp .c .im{width:100%;aspect-ratio:1/1;overflow:hidden;position:relative}
+ .cmp .c img{width:100%;height:100%;object-fit:cover;display:block}
+ .cmp .c div.l{padding:6px 8px;font-weight:600}
+ .lin{border:1px solid #E2E8F0;border-radius:12px;padding:10px 14px;margin-bottom:8px;background:#fff}
+ #sidebar.open{display:flex;position:fixed;inset:0 auto 0 0;z-index:45;box-shadow:12px 0 32px rgba(30,27,57,.15)}
+ #guia{transition:transform .25s ease}
+ .fila:hover{background:#FAF5FF}
+ .fila td{padding:12px 12px;border-top:1px solid #F1F5F9;vertical-align:middle}
+ .fila.sel td{background:#F5F3FF}
+ .fila.done td{opacity:.55}
+ thead th{padding:9px 12px;text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8;background:#FAFAFE}
+ .fch{border:1px solid #E2E8F0;background:#fff;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;color:#475569;cursor:pointer;white-space:nowrap}
+ .fch.on{background:#0F172A;color:#fff;border-color:#0F172A}
+ .kbd{font:600 10px ui-monospace,monospace;color:#94A3B8;border:1px solid #E2E8F0;border-radius:4px;padding:0 5px}
+ .row-ocr{display:grid;grid-template-columns:96px 1fr 1fr 22px;gap:8px;align-items:center;padding:6px 0;border-top:1px solid #F1F5F9;font-size:11.8px}
+ .row-ocr:first-child{border-top:0}
+ .row-ocr .h{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94A3B8}
+</style>
+</head>
+<body class="bg-[#EEF0FA] text-slate-800 text-[13.5px]">
+
+<div class="flex min-h-screen">
+ <!-- ══════════ SHELL · SIDEBAR (calcado del Simulador v2) ══════════ -->
+ <aside id="sidebar" class="w-60 bg-white border-r border-slate-200 shrink-0 hidden lg:flex flex-col">
+  <div class="px-5 py-5 text-[22px] font-extrabold text-indigo-950">Quac</div>
+  <nav class="px-3 pb-6 text-[13px] flex-1" id="sidenav"></nav>
+  <div class="px-5 py-4 border-t border-slate-200 text-[12px]">
+   <div class="font-bold text-slate-700">Ana Cifuentes</div>
+   <div class="text-slate-400">Operadora 03 · Fábrica de soporte</div>
+  </div>
+ </aside>
+
+ <!-- ══════════ MAIN ══════════ -->
+ <main class="flex-1 min-w-0">
+  <div class="bg-white/70 backdrop-blur border-b border-slate-200 px-6 py-3 flex items-center gap-2 sticky top-0 z-20">
+   <button class="lg:hidden text-slate-500 hover:text-slate-800 mr-1" onclick="toggleSide()" title="Menú"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+   <div id="titlebar" class="font-bold text-[15px] text-indigo-950 truncate">Fábrica de soporte</div>
+   <div class="flex-1"></div>
+   <div id="tabsbar" class="flex items-center gap-1.5 overflow-x-auto"></div>
+   <button onclick="toggleGuia()" title="Guía (no hace parte de la interfaz)" class="ml-2 w-8 h-8 rounded-full bg-indigo-950 text-white font-extrabold text-[13px] shrink-0">?</button>
+  </div>
+  <div id="content" class="p-6"></div>
+ </main>
+</div>
+
+<!-- Modal -->
+<div id="modal-bg" class="fixed inset-0 bg-[rgba(15,15,35,.45)] z-50 hidden items-center justify-center p-4">
+ <div id="modal" class="bg-white rounded-2xl shadow-2xl w-[640px] max-w-full max-h-[90vh] overflow-y-auto p-7"></div>
+</div>
+
+<div id="toasts" class="fixed bottom-[72px] right-5 z-[60] flex flex-col gap-2 items-end"></div>
+
+<!-- Guía (no hace parte de la interfaz) -->
+<aside id="guia" class="fixed top-0 right-0 h-full w-[460px] max-w-[95vw] bg-[#171528] text-[#C9C3E4] z-[46] translate-x-full flex flex-col border-l-[3px] border-dashed border-violet-500">
+ <div class="px-5 py-4 border-b border-[#2C2850] flex items-start gap-3">
+  <div><span class="text-[9.5px] font-bold tracking-wider bg-violet-600 text-white rounded-full px-2.5 py-0.5">GUÍA — NO HACE PARTE DE LA INTERFAZ</span>
+   <h3 class="text-white text-[15px] font-bold mt-2">Fábrica de soporte · vista del operador (v4)</h3>
+   <div class="text-[11.5px] mt-1">Fuentes: Bloque 7 del Excel DETALLE_UBICA_FAB_SOPORTE · CHECKLIST_PHOTOS_DOCUMENT · `apiquac/CatalogoDocumentos.cs` · `quacapi.credit_activation_photos` · `api-activacion-v2`</div></div>
+  <button class="ml-auto text-[#9C96C4] hover:text-white text-lg" onclick="toggleGuia()">✕</button>
+ </div>
+ <div id="guia-body" class="flex-1 overflow-y-auto px-5 py-4 text-[12.5px] leading-relaxed"></div>
+</aside>
+
+<script>
+/* ════════════════ ICONOS (Lucide, monocromo) ════════════════ */
+const P={
+ factory:'<path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1M12 18h1M7 18h1"/>',
+ user:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+ folder:'<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+ card:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+ idcard:'<rect x="2" y="4" width="20" height="16" rx="2"/><circle cx="8" cy="10" r="2"/><path d="M14 8h4M14 12h4M6 16h12"/>',
+ camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+ refresh:'<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
+ check:'<path d="M20 6 9 17l-5-5"/>',
+ x:'<path d="M18 6 6 18M6 6l12 12"/>',
+ lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+ mail:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+ phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>',
+ play:'<path d="m6 3 14 9-14 9V3z"/>',
+ shield:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+ alert:'<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>',
+ zoomin:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3M11 8v6M8 11h6"/>',
+ zoomout:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3M8 11h6"/>',
+ rotr:'<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+ rotl:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+ fit:'<path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>',
+ clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+ zap:'<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+ key:'<path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/>',
+ store:'<path d="M2 7 4.5 2h15L22 7"/><path d="M2 7v13h20V7"/><path d="M2 7h20M9 20v-6h6v6"/>',
+ globe:'<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+ walk:'<circle cx="13" cy="4" r="2"/><path d="m8 21 2-8 3 3v5M15 12l-1-3-3 1-3 5M17 21l-2-5"/>',
+ send:'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+ ban:'<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+ pause:'<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>',
+ arrow:'<path d="M5 12h14M12 5l7 7-7 7"/>',
+ corner:'<path d="m15 10 5 5-5 5"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/>',
+ lupa:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+ checks:'<path d="m3 17 2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8"/>',
+ eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+ flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
+ msg:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+ sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+ contrast:'<circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20z" fill="currentColor"/>',
+ users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+ inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+ undo:'<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>',
+ scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>'
+};
+function I(n,cls){return '<svg class="'+(cls||'w-4 h-4')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(P[n]||'')+'</svg>'}
+
+/* ════════════════ CATÁLOGOS ════════════════ */
+const A='assets-fab/fab004/';
+const ESTADO_FAB={
+ NUEVA:['Nueva','c-v'],GESTION:['En gestión','c-cur'],ESP_LLAMADA:['Esperando llamada','c-n'],ESP_CLIENTE:['Esperando cliente','c-n'],
+ DEVUELTA:['Devuelta a tienda','c-n'],RESUELTA:['Resuelta','c-ok'],RECHAZADA:['Finalizada por causal','c-bl']
+};
+const ESTADO_EST={EN_PROCESO:['En proceso','c-cur'],ESCALADO:['Escalado a fábrica','c-bl'],APROBADO:['Aprobado','c-ok'],RECHAZADO:['Rechazado','c-bl']};
+const PRIO={1:['P1','c-bl'],2:['P2','c-cur'],3:['P3','c-n']};
+const CANAL={tienda:['Tienda física','store'],web:['Web','globe'],ext:['Externos','walk']};
+const MOTIVOS={
+ checklist:'Fotos no cumplen condiciones', doc:'Documento no reconocido', supl:'Posible suplantación', live:'Falla en prueba de vida',
+ ubica:'Validación UBICA no concluyente', token:'Token no recibido', correo:'Cambio de correo sospechoso', datos:'Actualización de datos rechazada'
+};
+/* Checklist CCA — `apiquac/Services/CatalogoDocumentos.cs` (mismo id, cara, elemento y descripción) */
+const CCA={
+ 'CCA-F-01':['Frontal','Datos biográficos','Incluye el número de identificación, nombres y apellidos.'],
+ 'CCA-F-02':['Frontal','Textos principales','REPUBLICA DE COLOMBIA · IDENTIFICACION PERSONAL · CEDULA DE CIUDADANIA y etiquetas NUMERO, APELLIDOS, NOMBRES.'],
+ 'CCA-F-03':['Frontal','Hologramas de seguridad','Presencia de hologramas que cambian de color o forma al inclinar el documento ante la luz.'],
+ 'CCA-F-04':['Frontal','Fotografía a color','Canales RGB activos con saturación natural; no confundir piel oscura con ausencia de color.'],
+ 'CCA-F-05':['Frontal','Fotografía no sobrepuesta','La foto no debe estar sobrepuesta; se deben visualizar hologramas sobre ella.'],
+ 'CCA-F-06':['Frontal','Tipografía de datos','Fuente (Arial Bold) nítida, sin estar borrosa, deformada o alterada.'],
+ 'CCA-F-07':['Frontal','Firma del titular','Natural e integrada al plástico; sin apariencia de estar repisada.'],
+ 'CCA-F-08':['Frontal','Orlas de fondo','Líneas curvas bien definidas, especialmente en la esquina inferior izquierda.'],
+ 'CCA-F-09':['Frontal','Microtexto de seguridad','La línea bajo la firma son textos microscópicos que repiten REPÚBLICA DE COLOMBIA.'],
+ 'CCA-P-01':['Posterior','Escudo de Colombia','Visible y estilizado en el centro del reverso.'],
+ 'CCA-P-02':['Posterior','Hologramas 3D','El laminado posterior tiene hologramas del escudo y texto visibles bajo luz directa.'],
+ 'CCA-P-03':['Posterior','Huella dactilar','Impresión clara de la huella del índice derecho.'],
+ 'CCA-P-04':['Posterior','Texto «INDICE DERECHO»','Presente, completo y legible bajo la huella.'],
+ 'CCA-P-05':['Posterior','Género bajo código de barras','Coincide con el registrado (F/M).'],
+ 'CCA-P-06':['Posterior','Número bajo código de barras','Contiene el número del documento.'],
+ 'CCA-P-07':['Posterior','Fecha de impresión','Bajo el código de barras.'],
+ 'CCA-P-08':['Posterior','Estado del documento','Letra P (primera vez), D (duplicado) o A (con modificaciones).'],
+ 'CCA-P-09':['Posterior','Encabezados del reverso','FECHA DE NACIMIENTO, LUGAR DE NACIMIENTO, ESTATURA, G.S. RH, SEXO, LUGAR DE EXPEDICIÓN.'],
+ 'CCA-G-01':['Cruzada','Coherencia de edad','Edad actual, edad aparente y años desde expedición.'],
+ 'CCA-G-02':['Cruzada','Estado P/D/A contra la foto','Documento de primera vez antiguo con foto reciente es sospechoso.'],
+ 'CCA-G-03':['Cruzada','Coincidencia biométrica','La foto del documento coincide con la selfie tomada en tiempo real.']
+};
+/* Condiciones de la selfie y los gestos — `api-activacion-v2` (Rekognition + LivenessEvidence). Umbrales reales de var_env_activation */
+const UMBRAL={sim:60,fraude:95,live:55,intentos:3};
+
+/* ════════════════ DATOS DE LOS CASOS ════════════════ */
+const ahora=Date.now();
+const hace=m=>ahora-m*60000;
+function hh(t){const d=new Date(t);return d.getHours()+':'+String(d.getMinutes()).padStart(2,'0')}
+const ok=(id,obs)=>({id,ok:true,obs});const no=(id,obs)=>({id,ok:false,obs});
+
+function condFrontalLuis(att){
+ const base=[ok('CCA-F-01'),ok('CCA-F-02'),no('CCA-F-03','No se aprecian cambios de color o forma sobre la superficie; el reflejo es plano en toda la imagen.'),ok('CCA-F-04'),ok('CCA-F-05'),ok('CCA-F-06'),ok('CCA-F-07'),ok('CCA-F-08'),no('CCA-F-09','La resolución de la captura no permite leer el microtexto bajo la firma.')];
+ if(att===1)base[5]=no('CCA-F-06','Texto ligeramente borroso en NOMBRES y APELLIDOS.');
+ return base;
+}
+const OCR_LUIS=[['Nombres','LUIS FERNANDO','LUIS FERNANDO',true],['Apellidos','MOTTA GONZALEZ','MOTTA GONZALES',false],['NUIP','1.097.497.029','1.097.497.029',true],['Nacimiento','10 SEPT 2007','2007-09-10',true],['Expedición','12 SEPT 2025 · LEBRIJA','2025-09-12 · LEBRIJA',true]];
+const REV_OK=['CCA-P-01','CCA-P-02','CCA-P-03','CCA-P-04','CCA-P-05','CCA-P-06','CCA-P-07','CCA-P-08','CCA-P-09'].map(i=>ok(i));
+const selfieCond=(live,sim)=>[
+ {id:'ROSTRO',el:'Rostro detectado',ds:'Confianza mínima de detección facial',ok:true,val:'99.7 %'},
+ {id:'NITIDEZ',el:'Nitidez',ds:'Imagen sin desenfoque ni movimiento',ok:true,val:'88 %'},
+ {id:'GAFAS',el:'Sin gafas',ds:'No se permiten lentes de sol ni formulados',ok:true},
+ {id:'OCLUSIÓN',el:'Rostro descubierto',ds:'Sin tapabocas, mano o gorra sobre la cara',ok:true},
+ {id:'ENCUADRE',el:'Encuadre',ds:'Rostro dentro del óvalo (CONF_BOUNDINGBOX)',ok:true},
+ {id:'VIDA',el:'Prueba de vida',ds:'AWS Face Liveness · umbral '+UMBRAL.live+' %',ok:live>=UMBRAL.live,val:live+' %',m:[live,UMBRAL.live]},
+ {id:'SIMILITUD',el:'Coincide con el documento',ds:'CompareFaces selfie ↔ foto de la cédula · umbral '+UMBRAL.sim+' %',ok:sim>=UMBRAL.sim,val:sim+' %',m:[sim,UMBRAL.sim]},
+ {id:'SUPLANT.',el:'Sin coincidencia en suplantadores',ds:'SearchFacesByImage · colección «suplantadores» · umbral '+UMBRAL.fraude+' %',ok:true,val:'sin coincidencia'}
+];
+const gestosCond=(sim)=>[
+ {id:'FORWARD',el:'Rostro al frente',ds:'Gesto face-forward capturado y firmado',ok:true},
+ {id:'RIGHT',el:'Cabeza a la derecha',ds:'Gesto face-right capturado y firmado',ok:true},
+ {id:'BLINK',el:'Parpadeo',ds:'Gesto blink capturado y firmado',ok:true},
+ {id:'FIRMA',el:'Firma de evidencias',ds:'Hash y nonce de la sesión válidos (sin manipulación)',ok:true},
+ {id:'MATCH',el:'Coincide con la selfie',ds:'CompareFaces face-forward ↔ selfie · umbral '+UMBRAL.sim+' %',ok:sim>=UMBRAL.sim,val:sim+' %',m:[sim,UMBRAL.sim]}
+];
+
+let CASOS=[
+ {id:'S-311',tipo:'fotos',motivo:'checklist',nombre:'Luis Fernando Motta González',docT:'CC',doc:'1.097.497.029',bloque:'Bloque 5 · Validación de identidad',tarjeta:'ident',
+  prio:2,canal:'tienda',tienda:'Derek Cacique · Caja 02',enCaja:19,asesor:'A-1956',sol:'#1084',cupo:'$1.600.000',asignado:hace(4),estado:'NUEVA',estEst:'ESCALADO',
+  bajo:'El sistema no pudo cerrar la validación de identidad: los apellidos leídos en la cédula («MOTTA GONZALEZ») no coinciden con el registro («MOTTA GONZALES») y el checklist del documento frontal dejó 2 condiciones sin cumplir en los 3 intentos.',
+  vuelve:'Bloque 6 · Definición UBICA (sigue dentro de la Evaluación de riesgo)',
+  cliente:{nac:'2007-09-10 · Bucaramanga',exp:'2025-09-12 · Lebrija',cel:'316 402 7719',mail:'lfmotta07@gmail.com',dir:'Cl 33 # 14-22 · Girón'},
+  fotos:{
+   selfie:{label:'Selfie',intentos:[{id:622946,att:1,st:'ok',src:A+'622946_selfie.jpeg',t:'21:58',cond:selfieCond(76,82)},{id:622954,att:2,st:'ok',src:A+'622954_selfie.jpeg',t:'22:07',cond:selfieCond(79,84)}]},
+   gestos:{label:'Gestos',intentos:[{id:622953,att:1,st:'ok',src:A+'622953_collage.jpeg',t:'22:07',cond:gestosCond(91)}]},
+   frontal:{label:'Frontal',intentos:[{id:622947,att:1,st:'rev',src:A+'622947_frontal.jpeg',t:'21:59',cond:condFrontalLuis(1),ocr:OCR_LUIS},{id:622951,att:2,st:'rev',src:A+'622951_frontal.jpeg',t:'22:02',cond:condFrontalLuis(2),ocr:OCR_LUIS},{id:622955,att:3,st:'rev',src:A+'622955_frontal.jpeg',t:'22:08',cond:condFrontalLuis(3),ocr:OCR_LUIS}]},
+   reverso:{label:'Reverso',intentos:[{id:622948,att:1,st:'ok',src:A+'622948_reverso.jpeg',t:'22:00',cond:REV_OK},{id:622956,att:2,st:'ok',src:A+'622956_reverso.jpeg',t:'22:08',cond:REV_OK}]}
+  },
+  sucesos:[
+   {t:hace(4),tono:'sys',x:'Asignado a Operadora 03 · Fábrica de soporte · prioridad P2'},
+   {t:hace(5),tono:'bl',x:'Bajó a Fábrica de soporte — Bloque 5 · Validación de identidad. Motivo: datos del documento no coinciden con el registro (apellidos) · checklist frontal con 2 condiciones no cumplidas (CCA-F-03, CCA-F-09). Intentos 3 de 3.',hl:true},
+   {t:hace(5),tono:'ok',x:'Reverso validado · ID 622956-1097497029 · STATUS OK'},
+   {t:hace(6),tono:'sys',x:'Frontal cargada · ID 622955-1097497029 · requiere revisión (checklist CCA)'},
+   {t:hace(6),tono:'ok',x:'Selfie validada · ID 622954-1097497029 · prueba de vida 79 % · similitud con documento 84 %'},
+   {t:hace(7),tono:'ok',x:'Gestos capturados · ID 622953-1097497029 · face-forward, face-right, blink'},
+   {t:hace(8),tono:'sys',x:'Se crea sesión de activación · intento 3 · enlace enviado por WhatsApp'},
+   {t:hace(14),tono:'sys',x:'Se crea sesión de activación · intento 2 · enlace enviado por WhatsApp'},
+   {t:hace(19),tono:'sys',x:'Se crea sesión de activación · intento 1 · enlace enviado por WhatsApp'},
+   {t:hace(23),tono:'ok',x:'Dirección registrada · Cl 33 # 14-22 · Girón'},
+   {t:hace(26),tono:'ok',x:'Evaluación de riesgo — viable · cupo preaprobado $1.600.000'},
+   {t:hace(31),tono:'ok',x:'T&C aceptados · token validado en 316 402 7719'},
+   {t:hace(33),tono:'ok',x:'Asesor asignado A-1956 · Derek Cacique · Caja 02'},
+   {t:hace(35),tono:'ok',x:'Cliente creado por OCR · CC 1.097.497.029'}
+  ]},
+ {id:'S-309',tipo:'fotos',motivo:'doc',nombre:'Andry Sharay Terán Mosquera',docT:'CC',doc:'1.032.178.380',bloque:'Bloque 5 · Validación de identidad',tarjeta:'ident',
+  prio:3,canal:'tienda',tienda:'Stirpe Unicentro · Caja 01',enCaja:31,asesor:'A-2210',sol:'#1081',cupo:'$1.200.000',asignado:hace(11),estado:'NUEVA',estEst:'ESCALADO',
+  bajo:'El sistema no reconoció la foto frontal como un documento válido (motivo 122: la etiqueta «Document» no fue detectada). Selfie, gestos y reverso sí pasaron. Bajó al primer rechazo porque la activación automática está apagada; quedan 2 intentos en tienda.',
+  vuelve:'Bloque 5 · Validación de identidad (mismo paso) o Bloque 6 si se aprueba',
+  cliente:{nac:'2006-04-06 · Apartadó',exp:'2024-08-23 · Turbo',cel:'301 774 2210',mail:'andry.teran06@gmail.com',dir:'Cra 9 # 45-10 · Cali'},
+  fotos:{
+   selfie:{label:'Selfie',intentos:[{id:622913,att:1,st:'ok',src:A+'622913_selfie.jpeg',t:'19:28',cond:selfieCond(76,71)}]},
+   gestos:{label:'Gestos',intentos:[{id:622912,att:1,st:'ok',src:A+'622912_collage.jpeg',t:'19:28',cond:gestosCond(88)}]},
+   frontal:{label:'Frontal',intentos:[{id:622914,att:1,st:'no',src:A+'622914_frontal_rech.jpeg',t:'19:29',
+     sys:[{id:'DOCUMENT',el:'Etiqueta «Document»',ds:'DetectLabels · etiqueta requerida (CONF_GEN_LABELS_FRONT)',ok:false,obs:'Rekognition no detectó la etiqueta «Document» en la imagen. Motivo 122: no se reconoce que la imagen contenga un documento válido.'},{id:'ID CARDS',el:'Etiqueta «Id Cards»',ds:'DetectLabels · etiqueta requerida',ok:true},{id:'COPIA',el:'Sin indicios de copia',ds:'Etiquetas Paper / Business Card no detectadas',ok:true}],
+     cond:[ok('CCA-F-01'),ok('CCA-F-02'),no('CCA-F-03','El brillo sobre el laminado no permite confirmar el cambio de color del holograma.'),ok('CCA-F-04'),ok('CCA-F-05'),ok('CCA-F-06'),ok('CCA-F-07'),ok('CCA-F-08'),no('CCA-F-09','La resolución de la captura no permite leer el microtexto bajo la firma.')],
+     ocr:[['Nombres','ANDRY SHARAY','ANDRY SHARAY',true],['Apellidos','TERAN MOSQUERA','TERAN MOSQUERA',true],['NUIP','1.032.178.380','1.032.178.380',true],['Nacimiento','06 ABR 2006','2006-04-06',true],['Expedición','23 AGO 2024 · TURBO','2024-08-23 · TURBO',true]]}]},
+   reverso:{label:'Reverso',intentos:[{id:622915,att:1,st:'ok',src:A+'622915_reverso.jpeg',t:'19:29',cond:REV_OK}]}
+  },
+  sucesos:[
+   {t:hace(11),tono:'sys',x:'Asignado a Operadora 03 · Fábrica de soporte · prioridad P3'},
+   {t:hace(12),tono:'bl',x:'Bajó a Fábrica de soporte — Bloque 5 · Validación de identidad. Motivo 122: no se reconoce que la imagen contenga un documento válido (frontal). Intento 1 de 3 · quedan 2 en tienda.',hl:true},
+   {t:hace(12),tono:'ok',x:'Reverso validado · ID 622915-1032178380 · STATUS OK'},
+   {t:hace(13),tono:'bl',x:'Frontal NO CUMPLE · ID 622914-1032178380 · etiqueta «Document» no detectada'},
+   {t:hace(14),tono:'ok',x:'Selfie validada · ID 622913-1032178380 · prueba de vida 76 %'},
+   {t:hace(14),tono:'ok',x:'Gestos capturados · ID 622912-1032178380'},
+   {t:hace(16),tono:'sys',x:'Se crea sesión de activación · enlace enviado por WhatsApp'},
+   {t:hace(29),tono:'ok',x:'Evaluación de riesgo — viable · cupo preaprobado $1.200.000'},
+   {t:hace(37),tono:'ok',x:'Cliente creado por OCR · CC 1.032.178.380'}
+  ]},
+ {id:'S-306',tipo:'supl',motivo:'supl',nombre:'Gustavo Adolfo Restrepo',docT:'CC',doc:'71.171.930',bloque:'Bloque 5 · Validación de identidad',tarjeta:'ident',
+  prio:1,canal:'tienda',tienda:'Typer Chipichape · Caja 03',enCaja:9,asesor:'A-3320',sol:'#1079',cupo:'$2.400.000',asignado:hace(2),estado:'NUEVA',estEst:'ESCALADO',
+  bajo:'La selfie coincidió con 2 registros de la base de suplantadores por encima del umbral (95 %). El flujo se detuvo en la selfie: no se capturó el documento. El intento quedó indexado automáticamente como registro #662.',
+  vuelve:'Bloque 5 · captura del documento (si se descarta la coincidencia)',
+  cliente:{nac:'1963-02-18 · Medellín',exp:'1981-03-02 · Medellín',cel:'312 880 4471',mail:'garestrepo63@hotmail.com',dir:'Cl 10 # 40-15 · Cali'},
+  selfie:{id:620414,src:A+'620414_selfie_supl.jpeg',t:'15:51',live:81},
+  matches:[
+   {reg:446,src:A+'fraud_446.jpg',sim:96.4,fecha:'2026-02-23',origen:'Prueba de vida · tienda 310',cedulas:[['11.377.069','2026-02-23','Typer Chipichape']]},
+   {reg:629,src:A+'fraud_629.jpg',sim:95.3,fecha:'2026-05-14',origen:'Prueba de vida · web',cedulas:[['10.078.843','2026-05-14','preaprobado.quac.co']]}
+  ],
+  sucesos:[
+   {t:hace(2),tono:'sys',x:'Asignado a Operadora 03 · Fábrica de soporte · prioridad P1'},
+   {t:hace(3),tono:'bl',x:'Bajó a Fábrica de soporte — Bloque 5 · Validación de identidad. Motivo 101: suplantador detectado. Coincidencia con registros #446 (96.4 %) y #629 (95.3 %). Rostro indexado como #662.',hl:true},
+   {t:hace(3),tono:'bl',x:'Selfie NO CUMPLE · ID 620414-71171930 · FACELIVENESS · SUPLANTADOR CC 71171930'},
+   {t:hace(4),tono:'ok',x:'Gestos capturados · prueba de vida 81 %'},
+   {t:hace(6),tono:'sys',x:'Se crea sesión de activación · enlace enviado por WhatsApp'},
+   {t:hace(15),tono:'ok',x:'Evaluación de riesgo — viable · cupo preaprobado $2.400.000'},
+   {t:hace(22),tono:'ok',x:'Cliente creado por OCR · CC 71.171.930'}
+  ]},
+ {id:'S-304',tipo:'ubica',motivo:'ubica',nombre:'Sandra Londoño',docT:'CC',doc:'65.432.109',bloque:'Bloque 6 · Definición UBICA',tarjeta:'riesgo',
+  prio:2,canal:'web',tienda:'preaprobado.quac.co',enCaja:null,asesor:'—',sol:'#1075',cupo:'$1.900.000',asignado:hace(17),estado:'NUEVA',estEst:'ESCALADO',
+  bajo:'UBICA no tenía información del celular ni del correo. La llamada de validación con IA marcó 3 veces la línea de la solicitud sin respuesta y 1 vez la línea alterna: contestó un tercero que dijo no conocer a la titular. 0 de 5 datos confirmados.',
+  vuelve:'Bloque 9 · Activación de cupo (si se confirma la información)',
+  cliente:{nac:'1988-11-30 · Pereira',exp:'2006-12-05 · Pereira',cel:'314 205 8890',mail:'sandra.londono88@gmail.com',dir:'Mz 4 Cs 12 · Dosquebradas'},
+  llamadas:[
+   {linea:'314 205 8890',origen:'Línea de la solicitud',intentos:[['10:41','No contesta'],['10:47','No contesta'],['10:55','No contesta']]},
+   {linea:'606 331 2210',origen:'UBICA · reporte 2023',intentos:[['11:02','Contestó un tercero — «no conozco a esa persona»']],grab:true}
+  ],
+  datos:[['Nombre completo',null],['Número de documento',null],['Línea contactada',false],['Línea de la solicitud',null],['Correo',null]],
+  sucesos:[
+   {t:hace(17),tono:'sys',x:'Asignado a Operadora 03 · Fábrica de soporte · cola Créditos · prioridad P2'},
+   {t:hace(18),tono:'bl',x:'Bajó a Fábrica de soporte — Bloque 6 · Definición UBICA. Motivo: el cliente no confirma información en la llamada de IA (0 de 5 datos). 4 intentos en 2 líneas.',hl:true},
+   {t:hace(19),tono:'sys',x:'Llamada IA · 606 331 2210 · contestó un tercero · grabación disponible'},
+   {t:hace(26),tono:'sys',x:'Llamada IA · 314 205 8890 · intento 3 · no contesta'},
+   {t:hace(40),tono:'sys',x:'Consulta UBICA · sin información de celular ni correo'},
+   {t:hace(44),tono:'ok',x:'Identidad validada · selfie, frontal y reverso OK'},
+   {t:hace(52),tono:'ok',x:'Evaluación inicial de viabilidad — viable'}
+  ]},
+ {id:'S-302',tipo:'token',motivo:'token',nombre:'Valentina Ortiz',docT:'CC',doc:'1.005.321.789',bloque:'Bloque 3 · Inicio de estudio · T&C',tarjeta:'tyc',
+  prio:2,canal:'tienda',tienda:'Typer Chipichape · Caja 02',enCaja:27,asesor:'A-3320',sol:'—',cupo:'—',asignado:hace(28),estado:'NUEVA',estEst:'EN_PROCESO',
+  bajo:'La clienta dice no recibir el token de aceptación de T&C. El asesor agotó los 3 envíos por SMS disponibles en tienda (10:41, 10:44, 10:49). La operadora SMS reporta «entregado» en los tres.',
+  vuelve:'Bloque 3 · Aceptación de T&C (mismo paso)',
+  cliente:{nac:'1999-07-21 · Cali',exp:'2017-08-01 · Cali',cel:'318 774 0012',mail:'valen.ortiz99@gmail.com',dir:'—'},
+  token:{cel:'318 774 0012',envios:[['10:41','SMS','Entregado'],['10:44','SMS','Entregado'],['10:49','SMS','Entregado']],extra:0},
+  sucesos:[
+   {t:hace(28),tono:'sys',x:'Asignado a Operadora 03 · Fábrica de soporte · prioridad P2'},
+   {t:hace(29),tono:'bl',x:'Bajó a Fábrica de soporte — Bloque 3 · T&C. Motivo: token no recibido · 3 envíos SMS agotados en tienda.',hl:true},
+   {t:hace(31),tono:'sys',x:'Token enviado por SMS · intento 3 · 318 774 0012 · entregado'},
+   {t:hace(36),tono:'sys',x:'Token enviado por SMS · intento 2 · entregado'},
+   {t:hace(39),tono:'sys',x:'Token enviado por SMS · intento 1 · entregado'},
+   {t:hace(41),tono:'ok',x:'Asesor asignado A-3320 · Typer Chipichape · Caja 02'},
+   {t:hace(43),tono:'ok',x:'Cliente creado por OCR · CC 1.005.321.789'}
+  ]},
+ {id:'S-299',tipo:'correo',motivo:'correo',nombre:'Rosa Elena Gómez',docT:'CC',doc:'51.334.778',bloque:'Bloque 9 · Activación de cupo',tarjeta:'creacion',
+  prio:2,canal:'web',tienda:'preaprobado.quac.co',enCaja:null,asesor:'—',sol:'#1071',cupo:'$3.100.000',asignado:hace(46),estado:'GESTION',estEst:'ESCALADO',
+  bajo:'La clienta cambió el correo validado por UBICA (rosa.gomez@hotmail.com) por uno nuevo (rgomez2026@gmail.com) en la activación. El token al correo nuevo no fue respondido en 2 envíos. Un cambio de correo que reemplaza un OK UBICA vuelve al Bloque 6.',
+  vuelve:'Bloque 6 · Definición UBICA (re-evaluación del correo)',
+  cliente:{nac:'1975-05-02 · Bogotá',exp:'1993-06-10 · Bogotá',cel:'310 445 9012',mail:'rosa.gomez@hotmail.com',dir:'Cra 7 # 120-45 · Bogotá'},
+  correo:{ant:'rosa.gomez@hotmail.com',nuevo:'rgomez2026@gmail.com',tokens:[['09:58','Sin respuesta'],['10:12','Sin respuesta']]},
+  sucesos:[
+   {t:hace(30),tono:'op',x:'Operadora 03 · correo enviado a rosa.gomez@hotmail.com pidiendo confirmar el cambio · en espera'},
+   {t:hace(46),tono:'sys',x:'Asignado a Operadora 03 · Fábrica de soporte · prioridad P2'},
+   {t:hace(47),tono:'bl',x:'Bajó a Fábrica de soporte — Bloque 9 · Activación. Motivo: cambio de correo reemplaza un OK UBICA · token al correo nuevo sin respuesta (2 envíos).',hl:true},
+   {t:hace(60),tono:'ok',x:'Definición UBICA — celular y correo consistentes · sin llamada'}
+  ]},
+ {id:'S-297',tipo:'fotos',motivo:'live',nombre:'Jorge Ramírez',docT:'CC',doc:'80.221.443',bloque:'Bloque 2 · Validación de cupo',tarjeta:'ident',
+  prio:1,canal:'ext',tienda:'Asesor de campo · Bogotá',enCaja:null,asesor:'E-0412',sol:'#1069',cupo:'$900.000 (bloqueado)',asignado:hace(64),estado:'RESUELTA',estEst:'APROBADO',
+  bajo:'Desbloqueo express: la prueba de vida falló en los 3 intentos (confianza 41 %, 48 % y 52 % contra umbral 55 %).',vuelve:'Cierre del mini-flujo de desbloqueo',
+  cliente:{nac:'1985-01-14 · Bogotá',exp:'2003-02-20 · Bogotá',cel:'310 222 3344',mail:'jramirez85@gmail.com',dir:'Cl 72 # 10-34 · Bogotá'},
+  fotos:{selfie:{label:'Selfie',intentos:[]},gestos:{label:'Gestos',intentos:[]},frontal:{label:'Frontal',intentos:[]},reverso:{label:'Reverso',intentos:[]}},
+  sucesos:[{t:hace(40),tono:'op',x:'Resuelta por Operadora 03 · «Prueba de vida repetida con luz frontal: 74 %» · devuelta al punto exacto'},{t:hace(64),tono:'sys',x:'Asignado a Operadora 03'},{t:hace(66),tono:'bl',x:'Bajó a Fábrica de soporte — Bloque 2. Motivo: no supera prueba de vida · 3 intentos.',hl:true}]}
+];
+const C={};CASOS.forEach(c=>{c.dec={};c.decId={};c.sel={};c.sucesoTxt='';C[c.id]=c});
+
+/* ════════════════ ESTADO DE LA UI ════════════════ */
+let S={cond:false,view:'bandeja',tabs:[],active:null,filtro:'todos',busq:'',panel:null,foto:'frontal',visor:{z:1,rot:0,x:0,y:0,br:100,ct:100,cmp:false},cargando:false};
+const $=id=>document.getElementById(id);
+function toast(t,tono){const c=$('toasts');const d=document.createElement('div');d.className=(tono==='err'?'bg-rose-700':'bg-indigo-950')+' text-white text-[12.5px] px-4 py-2.5 rounded-xl shadow-lg max-w-[420px]';d.textContent=t;c.appendChild(d);setTimeout(()=>d.remove(),3600)}
+function modal(html,w){const m=$('modal');m.className='bg-white rounded-2xl shadow-2xl '+(w||'w-[640px]')+' max-w-full max-h-[90vh] overflow-y-auto p-7';m.innerHTML=html;$('modal-bg').classList.remove('hidden');$('modal-bg').classList.add('flex')}
+function closeModal(){S.modal=null;$('modal-bg').classList.add('hidden');$('modal-bg').classList.remove('flex')}
+function toggleSide(){$('sidebar').classList.toggle('open');$('sidebar').classList.toggle('hidden')}
+function toggleGuia(){const g=$('guia');g.style.transform=g.style.transform==='translateX(0px)'?'translateX(100%)':'translateX(0px)'}
+function chip(k,tabla){const b=tabla[k]||['?','c-n'];return '<span class="chip '+b[1]+'">'+b[0]+'</span>'}
+function mins(t0){return Math.max(0,Math.floor((Date.now()-t0)/60000))}
+function espera(m){if(m==null)return '<span class="mono text-slate-300">—</span>';const c=m<10?'esp-g':m<25?'esp-s':'esp-r';return '<span class="esp '+c+'"><span class="d"></span>'+m+' min</span>'}
+function log(e,tono,x){e.sucesos.unshift({t:Date.now(),tono,x});if(S.modal==='sucesos')verSucesos(e.id)}
+const TOG=t=>'<span class="ml-auto text-[10px] font-semibold text-slate-400">'+t+'</span>';
+
+/* ════════════════ SHELL ════════════════ */
+function renderSidebar(){
+ const item=(t,on,fn)=>'<div class="px-3 py-2 rounded-lg cursor-pointer '+(on?'bg-violet-100 text-violet-800 font-semibold':'text-slate-600 hover:bg-slate-100')+'" onclick="'+(fn||'toast(\'Solo maqueta\')')+'">'+t+'</div>';
+ const sec=t=>'<div class="px-3 pt-4 pb-1.5 text-[10.5px] font-bold tracking-wider text-slate-400">'+t+'</div>';
+ $('sidenav').innerHTML=item('Inicio')+sec('OPERATIVO')+item('Mesa de estudios')+item('Fábrica de soporte',true,'showBandeja()')+sec('ADMINISTRACIÓN')+
+  ['Operadores','Canales de origen','Motivos de escalamiento','Estados','Fases','Pasos','Transiciones','Reglas de negocio','Reglas de fraude','Centrales de riesgo','Tipos de documento','Tipos de fotografía','Diagnósticos del BOT'].map(t=>item(t)).join('')+
+  sec('DIAGNÓSTICO')+['Bot Ubica','Validación identidad asesor','Diagnósticos OTP'].map(t=>item(t)).join('');
+}
+function renderTabs(){
+ const t=(lbl,on,fn,close)=>'<div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap '+(on?'bg-violet-600 text-white':'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50')+' cursor-pointer" onclick="'+fn+'">'+lbl+(close?'<span class="ml-1 opacity-60 hover:opacity-100" onclick="event.stopPropagation();closeTab(\''+close+'\')">✕</span>':'')+'</div>';
+ $('tabsbar').innerHTML=t('Mi bandeja',S.view==='bandeja','showBandeja()')+S.tabs.map(id=>t(id,S.view==='caso'&&S.active===id,'abrirCaso(\''+id+'\')',id)).join('');
+}
+function closeTab(id){S.tabs=S.tabs.filter(x=>x!==id);if(S.active===id)showBandeja();else renderTabs()}
+
+/* ════════════════ BANDEJA ════════════════ */
+function showBandeja(){S.view='bandeja';S.active=null;S.panel=null;render()}
+function bandejaHTML(){
+ const activos=CASOS.filter(c=>!['RESUELTA','RECHAZADA','DEVUELTA'].includes(c.estado));
+ const q=S.busq.trim().toLowerCase();
+ let lista=CASOS.slice().sort((a,b)=>a.asignado-b.asignado);
+ if(S.filtro==='resueltas')lista=lista.filter(c=>['RESUELTA','RECHAZADA','DEVUELTA'].includes(c.estado));
+ else{lista=lista.filter(c=>!['RESUELTA','RECHAZADA','DEVUELTA'].includes(c.estado));if(S.filtro!=='todos')lista=lista.filter(c=>c.motivo===S.filtro)}
+ if(q)lista=lista.filter(c=>(c.id+' '+c.nombre+' '+c.doc+' '+MOTIVOS[c.motivo]+' '+c.tienda).toLowerCase().includes(q));
+ const conteo=m=>CASOS.filter(c=>!['RESUELTA','RECHAZADA','DEVUELTA'].includes(c.estado)&&(m==='todos'||c.motivo===m)).length;
+ const f=(k,l)=>'<button class="fch '+(S.filtro===k?'on':'')+'" onclick="S.filtro=\''+k+'\';render()">'+l+(k!=='resueltas'?' <span class="opacity-60">'+conteo(k)+'</span>':'')+'</button>';
+ const filas=lista.map(c=>{
+  const m=mins(c.asignado);const done=['RESUELTA','RECHAZADA','DEVUELTA'].includes(c.estado);
+  return '<tr class="fila '+(done?'done':'')+' cursor-pointer" onclick="abrirCaso(\''+c.id+'\')">'+
+  '<td><div class="flex items-center gap-2"><span class="mono text-[12px] font-bold text-slate-700">'+hh(c.asignado)+'</span>'+espera(m)+'</div></td>'+
+  '<td><div class="font-bold text-indigo-950">'+c.nombre+'</div><div class="mono text-[11px] text-slate-400">'+c.docT+' '+c.doc+' · <span class="text-violet-700">'+c.id+'</span></div></td>'+
+  '<td><div class="font-semibold text-slate-800">'+MOTIVOS[c.motivo]+'</div><div class="text-[11.5px] text-slate-400">'+c.bloque+'</div></td>'+
+  '<td><div class="flex items-center gap-1.5 text-slate-700">'+I(CANAL[c.canal][1],'w-3.5 h-3.5 text-slate-400')+CANAL[c.canal][0]+'</div><div class="text-[11.5px] text-slate-400 whitespace-nowrap">'+c.tienda+'</div>'+(c.enCaja!=null?'<div class="mt-1"><span class="esp esp-r"><span class="d"></span>'+c.enCaja+' min en caja</span></div>':'')+'</td>'+
+  '<td>'+chip(c.prio,PRIO)+'</td><td>'+chip(c.estEst,ESTADO_EST)+'</td><td>'+chip(c.estado,ESTADO_FAB)+'</td>'+
+  '<td class="text-right"><span class="text-violet-700 font-bold text-[12px]">Abrir →</span></td></tr>'}).join('');
+ const vacio='<tr><td colspan="8" class="py-14 text-center"><div class="mx-auto w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-3">'+I('inbox','w-6 h-6')+'</div><div class="font-bold text-slate-700">'+(q?'Ningún caso coincide con «'+S.busq+'»':S.filtro==='resueltas'?'Todavía no hay casos resueltos hoy':'No hay casos asignados con este motivo')+'</div><div class="text-[12.5px] text-slate-400 mt-1">'+(q||S.filtro!=='todos'?'Cambie el filtro o limpie la búsqueda.':'Cuando la mesa baje un estudio a la fábrica y se le asigne, aparecerá aquí.')+'</div></td></tr>';
+ const sig=activos.slice().sort((a,b)=>a.prio-b.prio||a.asignado-b.asignado)[0];
+ return '<div class="flex items-center gap-3 flex-wrap mb-4">'+
+  '<div><h1 class="text-[20px] font-extrabold text-indigo-950">Mi bandeja</h1><div class="text-[12.5px] text-slate-500">'+activos.length+' casos asignados · ordenados por hora de asignación · Operadora 03</div></div><div class="flex-1"></div>'+
+  '<div class="relative"><span class="absolute left-3 top-2.5 text-slate-400">'+I('lupa','w-4 h-4')+'</span><input id="busq" value="'+S.busq.replace(/"/g,'&quot;')+'" oninput="S.busq=this.value;renderBandejaSolo()" placeholder="Cliente, documento, S-NNN, motivo o tienda" class="w-[320px] max-w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-[13px] bg-white"></div>'+
+  (sig?'<button class="btn-p" onclick="abrirCaso(\''+sig.id+'\')">'+I('zap','w-4 h-4')+'Trabajar siguiente · '+sig.id+'</button>':'')+'</div>'+
+  '<div class="flex gap-2 flex-wrap mb-3">'+f('todos','Todos')+f('checklist','Fotos no cumplen')+f('doc','Documento no reconocido')+f('supl','Suplantación')+f('live','Prueba de vida')+f('ubica','UBICA no concluyente')+f('token','Token no recibido')+f('correo','Cambio de correo')+f('datos','Datos rechazados')+'<span class="flex-1"></span>'+f('resueltas','Resueltas hoy')+'</div>'+
+  '<div class="bg-white border border-slate-200 rounded-2xl overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-[12.5px] min-w-[980px]"><thead><tr><th>Asignado</th><th>Cliente</th><th>Motivo de ingreso · bloque</th><th>Canal · origen</th><th>Prioridad</th><th>Estudio</th><th>En fábrica</th><th></th></tr></thead><tbody id="tbody">'+(filas||vacio)+'</tbody></table></div></div>';
+}
+function renderBandejaSolo(){const el=$('content');const y=window.scrollY;el.innerHTML=bandejaHTML();const b=$('busq');if(b){b.focus();b.setSelectionRange(b.value.length,b.value.length)}window.scrollTo(0,y)}
+
+/* ════════════════ CASO · FICHA ════════════════ */
+function abrirCaso(id){
+ if(!S.tabs.includes(id))S.tabs.push(id);
+ S.view='caso';S.active=id;S.panel=null;S.cargando=true;render();
+ setTimeout(()=>{S.cargando=false;const e=C[id];if(e.estado==='NUEVA'){e.estado='GESTION';log(e,'op','Operadora 03 abrió el caso · En gestión')}render()},650);
+}
+function skeleton(){return '<div class="skel h-6 w-64 mb-4"></div><div class="skel h-[92px] mb-5"></div><div class="grid grid-cols-12 gap-5"><div class="col-span-12 lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-5">'+'<div class="skel h-[150px]"></div>'.repeat(6)+'</div><div class="col-span-12 lg:col-span-4">'+'<div class="skel h-[170px] mb-4"></div>'.repeat(3)+'</div></div>'}
+function headerHTML(e){
+ const m=mins(e.asignado);
+ return '<div class="bg-white border border-slate-200 rounded-xl px-5 py-4">'+
+ '<div class="flex items-center gap-3 flex-wrap"><h2 class="text-[19px] font-extrabold text-indigo-950">'+e.nombre+'</h2>'+chip(e.estEst,ESTADO_EST)+chip(e.estado,ESTADO_FAB)+chip(e.prio,PRIO)+
+ '<div class="flex-1"></div><button class="btn-g" onclick="verSucesos(\''+e.id+'\')">'+I('clock','w-4 h-4')+'Sucesos ('+e.sucesos.length+')</button></div>'+
+ '<div class="mt-1.5 text-[13px] font-semibold text-slate-600">Fábrica de soporte · '+e.bloque+'</div>'+
+ '<div class="mt-2 flex items-center gap-x-4 gap-y-1 flex-wrap mono text-[11.5px] text-slate-400">'+
+ '<span class="font-bold text-violet-700">'+e.id+'</span><span>'+e.docT+' '+e.doc+'</span><span>Sol. '+e.sol+'</span><span>'+e.tienda+'</span><span>'+e.asesor+'</span><span>Cupo preap. '+e.cupo+'</span>'+
+ '<span>Asignado '+hh(e.asignado)+'</span>'+espera(m)+(e.enCaja!=null?'<span class="esp esp-r"><span class="d"></span>'+e.enCaja+' min en caja</span>':'')+'</div></div>';
+}
+function bannerHTML(e,compacto){
+ const done=['RESUELTA','RECHAZADA','DEVUELTA'].includes(e.estado);
+ if(done)return '<div class="mt-4 border border-emerald-200 bg-emerald-50 rounded-xl px-5 py-3.5 flex items-start gap-3"><span class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">'+I('check','w-4 h-4')+'</span><div><div class="font-bold text-emerald-800">Caso '+ESTADO_FAB[e.estado][0].toLowerCase()+'</div><div class="text-[12.5px] text-emerald-800/80 mt-0.5">'+(e.sucesos.find(s=>s.tono==='op')||{x:''}).x+'</div></div></div>';
+ const datos=[['Motivo de ingreso',MOTIVOS[e.motivo]],['Bloque de origen',e.bloque],['Fecha',hh(e.asignado-60000)+' · hoy'],['Canal',CANAL[e.canal][0]],['Prioridad',chip(e.prio,PRIO)]];
+ if(compacto)return '<div class="mt-4 border border-rose-200 bg-rose-50 rounded-xl px-4 py-2 flex items-center gap-x-5 gap-y-1 flex-wrap text-[12px]"><span class="text-rose-600">'+I('alert','w-4 h-4')+'</span>'+datos.map(d=>'<span><span class="text-rose-400 text-[10px] font-bold uppercase tracking-wider mr-1.5">'+d[0]+'</span><span class="text-rose-900 font-semibold">'+d[1]+'</span></span>').join('')+'<button class="ml-auto text-[11.5px] font-bold text-rose-700 hover:underline shrink-0" onclick="S.panel=null;render()">Ver ficha completa</button></div>';
+ return '<div class="mt-4 border border-rose-200 bg-rose-50 rounded-xl px-5 py-3.5"><div class="flex items-center gap-2 mb-2.5"><span class="text-rose-600">'+I('alert','w-4 h-4')+'</span><span class="text-[10.5px] font-bold tracking-wider text-rose-600">POR QUÉ BAJÓ A LA FÁBRICA</span></div>'+
+  '<div class="grid grid-cols-2 md:grid-cols-5 gap-x-6 gap-y-2.5 text-[12.5px]">'+datos.map(d=>'<div><div class="text-rose-400 font-bold uppercase tracking-wider text-[9.5px] mb-0.5">'+d[0]+'</div><div class="text-rose-900 font-semibold">'+d[1]+'</div></div>').join('')+'</div></div>';
+}
+const TARJETAS=[['creacion','Creación del cliente'],['asesor','Asignar asesor'],['tyc','Aceptación T&C'],['riesgo','Evaluación de riesgo'],['dir','Dirección'],['ident','Validación de identidad'],['cupo','Decisión de cupo']];
+function estadoTarjetas(e){
+ const idx=TARJETAS.findIndex(t=>t[0]===e.tarjeta);const done=['RESUELTA','RECHAZADA','DEVUELTA'].includes(e.estado);
+ return TARJETAS.map((t,i)=>i<idx?'ok':i===idx?(done?'ok':'alerta'):'bloq');
+}
+function tarjeta(e,k,num,nombre,st,wide){
+ const click=st==='alerta';
+ const tono=st==='ok'?'bg-green-50/60 border-green-200':st==='alerta'?'bg-white border-rose-300 ring-2 ring-rose-100 alerta':'bg-slate-50/80 border-slate-200';
+ const nb=st==='ok'?'bg-green-100 text-green-700':st==='alerta'?'bg-rose-600 text-white':'bg-slate-200/70 text-slate-400';
+ const pill=st==='ok'?'<span class="chip c-ok">Completado</span>':st==='alerta'?'<span class="chip c-bl">'+I('alert','w-3 h-3')+'Requiere tu revisión</span>':'<span class="chip c-n">'+I('lock','w-3 h-3')+'Bloqueado</span>';
+ const cuerpo=st==='alerta'?'<div class="mt-3 text-[12.5px] text-slate-600 leading-relaxed">'+resumenTarjeta(e)+'</div><div class="mt-4 pt-4 border-t border-black/5"><span class="text-[14px] font-bold text-rose-600">Revisar novedad →</span></div>'
+  :st==='bloq'?'<div class="mt-4 text-[13px] text-slate-400">Se habilita al resolver la novedad.</div>':'<div class="mt-3.5 text-[12.5px] text-slate-400 mono">hoy · completado antes de bajar</div>';
+ return '<div class="border rounded-2xl p-6 tcard '+tono+(click?' click':'')+(wide?' md:col-span-2':'')+'" '+(click?'onclick="abrirPanel(\''+e.id+'\')"':'')+'>'+
+ '<div class="flex items-start gap-4"><span class="w-11 h-11 rounded-xl '+nb+' font-bold flex items-center justify-center text-[16px] shrink-0">'+num+'</span><div class="flex-1 pt-2.5 font-bold text-[16px] text-indigo-950 leading-tight">'+nombre+'</div>'+pill+'</div>'+cuerpo+'</div>';
+}
+function resumenTarjeta(e){
+ if(e.tipo==='fotos'){const f=e.fotos;const p=k=>{const it=f[k].intentos;if(!it.length)return null;const u=it[it.length-1];const s=u.st==='ok'?['✓','text-emerald-700']:u.st==='no'?['✕ No cumple','text-rose-700']:['! Revisar','text-amber-700'];return '<div class="bg-white/70 border border-black/5 rounded-xl px-3 py-2.5"><div class="text-[12px] font-semibold text-slate-600">'+f[k].label+'</div><div class="text-[12px] mt-0.5 font-bold '+s[1]+'">'+s[0]+' <span class="mono font-normal text-slate-400">'+it.length+'/'+UMBRAL.intentos+'</span></div></div>'};
+  return '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">'+['selfie','gestos','frontal','reverso'].map(p).filter(Boolean).join('')+'</div>'}
+ if(e.tipo==='supl')return 'La selfie coincide con <b>'+e.matches.length+' registros</b> de la base de suplantadores (máx. '+Math.max(...e.matches.map(m=>m.sim))+' % vs umbral '+UMBRAL.fraude+' %). El documento no se capturó.';
+ if(e.tipo==='ubica')return 'Llamada de IA sin confirmación: <b>'+e.llamadas.reduce((a,l)=>a+l.intentos.length,0)+' intentos</b> en '+e.llamadas.length+' líneas · 0 de 5 datos confirmados.';
+ if(e.tipo==='token')return 'Token no recibido en <b>'+e.token.cel+'</b> · '+e.token.envios.length+' envíos SMS agotados en tienda.';
+ if(e.tipo==='correo')return 'Correo validado por UBICA reemplazado por <b>'+e.correo.nuevo+'</b> · '+e.correo.tokens.length+' tokens sin respuesta.';
+ return '';
+}
+function gridHTML(e){
+ const st=estadoTarjetas(e);
+ return '<div class="grid grid-cols-1 md:grid-cols-2 gap-5">'+TARJETAS.map((t,i)=>tarjeta(e,t[0],i+1,t[1],st[i],i>=5)).join('')+'</div>';
+}
+function railHTML(e){
+ const kv=(k,v)=>'<div class="kv"><span class="k">'+k+'</span><span class="v">'+(v||'<span class="text-slate-300">—</span>')+'</span></div>';
+ const card=(ico,t,body)=>'<div class="rail"><h4>'+I(ico,'w-3.5 h-3.5')+t+'</h4>'+body+'</div>';
+ const sol=card('folder','SOLICITUD',kv('ID','<span class="mono">'+e.sol+'</span>')+kv('Canal',CANAL[e.canal][0]+' · '+e.tienda.split(' · ')[0])+kv('Asesor','<span class="mono">'+e.asesor+'</span>')+kv('Estado del estudio',chip(e.estEst,ESTADO_EST))+kv('Estado en fábrica',chip(e.estado,ESTADO_FAB)));
+ const cli=card('user','CLIENTE',kv('Documento','<span class="mono">'+e.docT+' '+e.doc+'</span>')+kv('Nombre',e.nombre)+kv('Nacimiento','<span class="mono">'+e.cliente.nac+'</span>')+kv('Expedición','<span class="mono">'+e.cliente.exp+'</span>')+kv('Celular','<span class="mono">'+e.cliente.cel+'</span>')+kv('Correo','<span class="text-[11.5px]">'+e.cliente.mail+'</span>')+kv('Dirección','<span class="text-[11.5px]">'+e.cliente.dir+'</span>'));
+ const cre=card('card','CRÉDITO',kv('Viabilidad',e.tarjeta==='tyc'||e.tarjeta==='creacion'&&e.motivo!=='correo'?null:'Viable ✓')+kv('Validación de contacto',e.tipo==='ubica'?'<span class="text-rose-600 font-bold">No concluyente</span>':e.tipo==='correo'?'<span class="text-rose-600 font-bold">Correo en revisión</span>':e.tarjeta==='tyc'?null:'Consistente ✓')+kv('Cupo preaprobado','<span class="mono">'+e.cupo+'</span>'));
+ return sol+cli+cre;
+}
+function fechaHora(ts){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+hh(ts)}
+function usuarioSuceso(s){return s.tono==='op'?'Operadora 03':'Sistema'}
+function verSucesos(id){const e=C[id];S.modal='sucesos';
+ modal('<div class="flex items-center gap-3"><div><div class="font-bold text-[16px] text-indigo-950">Sucesos del estudio</div><div class="mono text-[11.5px] text-slate-400">'+e.id+' · '+e.nombre+' · '+e.sucesos.length+' sucesos</div></div><div class="flex-1"></div><button class="text-slate-400 hover:text-slate-700 text-lg" onclick="closeModal()">✕</button></div>'+
+  '<div class="mt-3 border border-slate-200 rounded-xl overflow-y-auto" style="max-height:70vh"><table class="tcond"><thead><tr><th class="whitespace-nowrap">Fecha / hora</th><th>Suceso</th><th>Usuario</th></tr></thead><tbody>'+e.sucesos.map(s=>'<tr class="'+(s.hl?'no':'')+'"><td class="mono text-[11.5px] text-slate-500 whitespace-nowrap">'+fechaHora(s.t)+'</td><td class="text-slate-800">'+s.x+'</td><td class="whitespace-nowrap '+(s.tono==='op'?'text-violet-700 font-semibold':'text-slate-500')+'">'+usuarioSuceso(s)+'</td></tr>').join('')+'</tbody></table></div>','w-[900px]');
+}
+function casoHTML(e){
+ const bc='<div class="flex items-center gap-1.5 text-[12.5px] mb-4"><span class="text-slate-400 text-[14px]">‹</span><span class="font-semibold text-indigo-950/80 hover:underline cursor-pointer" onclick="showBandeja()">Mi bandeja</span><span class="text-slate-300 mx-1">/</span><span class="font-bold text-indigo-950'+(S.panel?'/80 hover:underline cursor-pointer':'')+'" '+(S.panel?'onclick="S.panel=null;render()"':'')+'>Caso '+e.id+'</span>'+(S.panel?'<span class="text-slate-300 mx-1">/</span><span class="font-bold text-indigo-950">'+TARJETAS.find(t=>t[0]===e.tarjeta)[1]+'</span>':'')+'</div>';
+ if(S.cargando)return bc+skeleton();
+ if(S.panel)return bc+headerHTML(e)+bannerHTML(e,true)+'<div class="mt-5">'+panelHTML(e)+'</div>';
+ return bc+headerHTML(e)+bannerHTML(e,false)+'<div class="grid grid-cols-12 gap-5 mt-5"><div class="col-span-12 lg:col-span-8">'+gridHTML(e)+'</div><div class="col-span-12 lg:col-span-4">'+railHTML(e)+'</div></div>';
+}
+
+/* ════════════════ PANEL DE TRABAJO ════════════════ */
+function abrirPanel(id){const e=C[id];S.panel=e.tipo;S.modal=null;if(e.tipo==='fotos')resetVisor();render();window.scrollTo({top:0})}
+function panelHTML(e){
+ const volver='<div class="flex items-center gap-3 mb-4"><button class="btn-g" onclick="S.panel=null;render()">‹ Volver a la ficha</button><h3 class="text-[17px] font-extrabold text-indigo-950">'+TARJETAS.find(t=>t[0]===e.tarjeta)[1]+' · '+MOTIVOS[e.motivo]+'</h3></div>';
+ const body=e.tipo==='fotos'?fotosHTML(e):e.tipo==='supl'?suplHTML(e):e.tipo==='ubica'?ubicaHTML(e):e.tipo==='token'?tokenHTML(e):correoHTML(e);
+ return volver+body+barraHTML(e);
+}
+
+/* ─── Fotos: tabla de todas las fotos del estudio + modales de visor y condiciones ─── */
+const ORDEN=['selfie','gestos','frontal','reverso'];
+function filas(e){const r=[];ORDEN.forEach(k=>e.fotos[k].intentos.forEach((at,i)=>r.push({k,i,at})));return r}
+function selAtt(e,k){if(e.sel[k]==null)e.sel[k]=e.fotos[k].intentos.length-1;return e.fotos[k].intentos[e.sel[k]]}
+function condsDe(at){return (at.sys||[]).concat(at.cond||[])}
+function veredictoChip(st){return st==='ok'?'<span class="chip c-ok">STATUS OK</span>':st==='no'?'<span class="chip c-bl">NO CUMPLE</span>':'<span class="chip c-rev">REQUIERE REVISIÓN</span>'}
+function haceDesde(hhmm){const [h,m]=hhmm.split(':').map(Number);const d=new Date();d.setHours(h,m,0,0);let diff=Math.round((Date.now()-d)/60000);if(diff<0)diff+=1440;return diff<60?'hace '+diff+' min':'hace '+Math.floor(diff/60)+' h '+(diff%60)+' min'}
+function idFoto(e,at){return at.id+'-'+e.doc.replace(/\./g,'')}
+function decisionCelda(e,k,at,compacta){
+ const esVig=vigente(e,k)===at;
+ if(e.decId[k]===at.id&&e.dec[k])return (e.dec[k]==='ok'?'<span class="chip c-ok">'+I('check','w-3 h-3')+'Aprobada por ti</span>':'<span class="chip c-cur">'+I('refresh','w-3 h-3')+'Repetir · '+((e.motRep||{})[k]||'')+'</span>')+' <button class="text-[11px] text-slate-400 hover:text-slate-700 underline ml-1" onclick="decidir(\''+e.id+'\',\''+k+'\','+at.id+',\''+e.dec[k]+'\')">deshacer</button>';
+ if(e.dec[k])return '<span class="text-[11.5px] text-slate-400" title="Ya decidió sobre otro intento de este soporte">decidida en otro intento</span>';
+ if(esVig&&!hallazgo(at))return '<span class="chip c-ok" style="opacity:.8">'+I('check','w-3 h-3')+'Aprobada por el sistema</span> <button class="text-[11px] text-slate-400 hover:text-rose-700 underline ml-1" title="Solo si ve algo que el sistema no vio" onclick="decidir(\''+e.id+'\',\''+k+'\','+at.id+',\'rep\')">rechazar</button>';
+ if(!esVig)return '<div class="flex gap-1.5 flex-wrap"><button class="acc2 ok" title="Aprobar este intento en vez del vigente" onclick="decidir(\''+e.id+'\',\''+k+'\','+at.id+',\'ok\')">'+I('check','w-3.5 h-3.5')+'Aprobar este</button></div>';
+ return '<div class="flex gap-1.5 flex-wrap"><button class="acc2 ok" onclick="decidir(\''+e.id+'\',\''+k+'\','+at.id+',\'ok\')">'+I('check','w-3.5 h-3.5')+'Aprobar'+(compacta?'':' <kbd>A</kbd>')+'</button><button class="acc2 rep" onclick="decidir(\''+e.id+'\',\''+k+'\','+at.id+',\'rep\')">'+I('refresh','w-3.5 h-3.5')+'Rechazar → repetir'+(compacta?'':' <kbd>X</kbd>')+'</button></div>';
+}
+function condChipHTML(e,idx,at){
+ const conds=condsDe(at);const falla=conds.filter(c=>!c.ok).length;const ocrNo=at.ocr?at.ocr.filter(x=>!x[3]).length:0;
+ const a=falla?'<button class="chip c-bl" onclick="verCond(\''+e.id+'\','+idx+')">'+I('x','w-3 h-3')+falla+' no cumple'+(falla>1?'n':'')+'</button>':'<button class="chip c-ok" onclick="verCond(\''+e.id+'\','+idx+')">'+I('check','w-3 h-3')+conds.length+' de '+conds.length+' cumplen</button>';
+ const b=ocrNo?'<button class="chip c-bl" onclick="verCond(\''+e.id+'\','+idx+')">'+I('scan','w-3 h-3')+ocrNo+' dato ≠ registro</button>':'';
+ return '<div class="flex gap-1.5 flex-wrap">'+a+b+'</div>';
+}
+function fotosHTML(e){
+ const rows=filas(e);
+ const tr=(r,idx)=>{const {k,i,at}=r;const f=e.fotos[k];const ultimo=i===f.intentos.length-1;
+  const conH=ultimo&&hallazgo(at)&&!e.dec[k];return '<tr class="fila'+(ultimo?'':' anterior')+(conH?' hallazgo':'')+'"><td class="!pr-0"><div class="th2" onclick="verFoto(\''+e.id+'\','+idx+')" title="Ver foto"><img src="'+at.src+'" loading="lazy" alt=""><span class="band '+at.st+'"></span></div></td>'+
+   '<td><div class="font-bold text-indigo-950">'+f.label+'</div><div class="text-[11.5px] text-slate-400">intento '+at.att+' de '+f.intentos.length+(ultimo?' · <b class="text-slate-600">vigente</b>':'')+'</div></td>'+
+   '<td class="mono text-[12px] text-slate-600">'+idFoto(e,at)+'</td>'+
+   '<td>'+veredictoChip(at.st)+'</td>'+
+   '<td>'+condChipHTML(e,idx,at)+'</td>'+
+   '<td><div class="mono text-[12px] text-slate-600">2026-09-09 '+at.t+'</div><div class="text-[11px] text-slate-400">'+haceDesde(at.t)+'</div></td>'+
+   '<td>'+decisionCelda(e,k,at,true)+'</td>'+
+   '<td class="text-right">'+(conH?'<button class="btn-p !py-1.5 !px-2.5 !text-[12px]" onclick="verCond(\''+e.id+'\','+idx+')">'+I('eye','w-3.5 h-3.5')+'Revisar</button>':'<button class="btn-g !py-1.5 !px-2.5 !text-[12px]" onclick="verFoto(\''+e.id+'\','+idx+')">'+I('eye','w-3.5 h-3.5')+'Ver</button>')+'</td></tr>'};
+ return '<div class="bg-white border border-slate-200 rounded-2xl overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-[12.5px] min-w-[900px]"><thead><tr><th></th><th>Foto</th><th>ID</th><th>Sistema</th><th>Condiciones</th><th>Registro</th><th>Tu decisión</th><th></th></tr></thead><tbody>'+rows.map(tr).join('')+'</tbody></table></div>'+
+  '<div class="px-4 py-2.5 border-t border-slate-100 text-[11.5px] text-slate-400 flex items-center gap-4 flex-wrap"><span>'+rows.length+' fotos cargadas por el cliente · la franja de cada miniatura es el veredicto del sistema</span><span class="flex-1"></span><span>Las filas en rosa tienen hallazgos y esperan su decisión; las verdes ya están aprobadas por el sistema.</span></div></div>';
+}
+/* modal · foto y condiciones en la misma pantalla */
+function condTabla(at){
+ const conds=condsDe(at).slice().sort((a,b)=>(a.ok?1:0)-(b.ok?1:0));
+ return '<table class="tcond"><thead><tr><th>Código</th><th>Condición</th><th>Estado</th><th>Motivo</th></tr></thead><tbody>'+conds.map(c=>{const cca=CCA[c.id];const t=cca?cca[1]:c.el;
+  return '<tr class="'+(c.ok?'':'no')+'"><td class="mono text-[11px] text-slate-500 whitespace-nowrap">'+c.id+'</td><td class="font-semibold text-slate-800">'+t+'</td><td class="whitespace-nowrap">'+(c.ok?'<span class="chip c-ok">'+I('check','w-3 h-3')+'Cumple</span>':'<span class="chip c-bl">'+I('x','w-3 h-3')+'No cumple</span>')+(c.val?'<div class="mono text-[10.5px] text-slate-400 mt-1">'+c.val+(c.m?' · umbral '+c.m[1]+' %':'')+'</div>':'')+'</td><td class="'+(c.ok?'text-slate-300':'text-rose-700')+'">'+(c.ok?'—':(c.obs||'No cumple según el sistema'))+'</td></tr>'}).join('')+'</tbody></table>';
+}
+function ocrTabla(at){
+ return '<div class="px-3 pt-3 pb-1.5 text-[10.5px] font-bold tracking-wider text-slate-400 border-t border-slate-200">DATOS LEÍDOS VS REGISTRO</div><table class="tcond"><thead><tr><th>Campo</th><th>Leído (OCR)</th><th>Registro (CRM)</th><th>Estado</th></tr></thead><tbody>'+at.ocr.map(r=>'<tr class="'+(r[3]?'':'no')+'"><td class="text-slate-500">'+r[0]+'</td><td class="mono '+(r[3]?'':'text-rose-700 font-semibold')+'">'+r[1]+'</td><td class="mono '+(r[3]?'text-slate-500':'text-rose-700 font-semibold')+'">'+r[2]+'</td><td>'+(r[3]?'<span class="chip c-ok">Coincide</span>':'<span class="chip c-bl">Difiere</span>')+'</td></tr>').join('')+'</tbody></table>';
+}
+function verFoto(id,idx,keep,mostrarCond){
+ const e=C[id];const rows=filas(e);idx=(idx+rows.length)%rows.length;const {k,i,at}=rows[idx];S.foto=k;e.sel[k]=i;S.modal='foto';S.modalIdx=idx;if(!keep)resetVisor();if(mostrarCond!=null)S.cond=mostrarCond;
+ const v=S.visor;const f=e.fotos[k];const conds=condsDe(at);const falla=conds.filter(c=>!c.ok).length;const ocrNo=at.ocr?at.ocr.filter(x=>!x[3]).length:0;
+ const tool='<div class="tool !mb-2"><button class="b" onclick="zoom(-1)" title="Alejar (−)">'+I('zoomout','w-3.5 h-3.5')+'</button><button class="b" onclick="zoom(1)" title="Acercar (+)">'+I('zoomin','w-3.5 h-3.5')+'</button><span class="lbl mono">'+Math.round(v.z*100)+' %</span><span class="sep"></span>'+
+  '<button class="b" onclick="rotar(-90)" title="Girar a la izquierda">'+I('rotl','w-3.5 h-3.5')+'</button><button class="b" onclick="rotar(90)" title="Girar a la derecha (R)">'+I('rotr','w-3.5 h-3.5')+'</button><span class="lbl mono">'+((v.rot%360)+360)%360+'°</span><span class="sep"></span>'+
+  '<span class="lbl" title="Brillo">'+I('sun','w-3.5 h-3.5 inline')+'</span><input type="range" min="50" max="180" value="'+v.br+'" oninput="S.visor.br=+this.value;aplicar()"><span class="lbl" title="Contraste">'+I('contrast','w-3.5 h-3.5 inline')+'</span><input type="range" min="50" max="200" value="'+v.ct+'" oninput="S.visor.ct=+this.value;aplicar()"><span class="sep"></span>'+
+  '<button class="b" onclick="resetVisor();verFoto(\''+id+'\','+idx+',true)" title="Ajustar (0)">'+I('fit','w-3.5 h-3.5')+'Ajustar</button>'+
+  ((k==='selfie'||k==='frontal')&&e.fotos.selfie.intentos.length&&e.fotos.frontal.intentos.length?'<button class="b '+(v.cmp?'on':'')+'" onclick="S.visor.cmp=!S.visor.cmp;verFoto(\''+id+'\','+idx+',true)">'+I('users','w-3.5 h-3.5')+'Comparar rostro</button>':'')+'</div>';
+ const stage='<div class="stage" id="stage" onwheel="ruedaZoom(event)"><div class="cargando" id="stage-load"><span class="spinner"></span>Cargando foto…</div><img id="stage-img" src="'+at.src+'" alt="" draggable="false" onload="imgLista(this)" style="opacity:0"><span class="hint">Arrastre para mover · rueda para acercar · R gira 90° · C condiciones · ← → otra foto · Esc cierra</span></div>';
+ const resumen=falla?'<span class="chip c-bl">'+falla+' no cumple'+(falla>1?'n':'')+'</span>':'<span class="chip c-ok">'+conds.length+' de '+conds.length+' cumplen</span>';
+ const btnCond='<button class="btn-g !py-1.5 !px-2.5 !text-[12px] '+(S.cond?'!bg-violet-50 !border-violet-300 !text-violet-800':'')+'" onclick="S.cond=!S.cond;verFoto(\''+id+'\','+idx+',true)">'+I('checks','w-3.5 h-3.5')+(S.cond?'Ocultar condiciones':'Condiciones')+'</button>';
+ const lado=S.cond?'<div class="w-full lg:w-[470px] shrink-0"><div class="flex items-center gap-2 mb-2 flex-wrap h-[34px] overflow-hidden"><span class="text-[10.5px] font-bold tracking-wider text-slate-400 whitespace-nowrap">CONDICIONES · '+f.label.toUpperCase()+' · INTENTO '+at.att+'</span>'+resumen+(ocrNo?'<span class="chip c-bl">'+ocrNo+' dato ≠ registro</span>':'')+'</div><div class="border border-slate-200 rounded-xl overflow-y-auto overflow-x-hidden bg-white" style="height:min(62vh,640px)">'+condTabla(at)+(at.ocr?ocrTabla(at):'')+'</div></div>':'';
+ modal('<div class="flex items-center gap-3 flex-wrap"><div><div class="font-bold text-[16px] text-indigo-950">'+f.label+' · intento '+at.att+' de '+f.intentos.length+'</div><div class="mono text-[11.5px] text-slate-400">ID '+idFoto(e,at)+' · cargada 2026-09-09 '+at.t+'</div></div>'+veredictoChip(at.st)+'<div class="flex-1"></div>'+btnCond+
+  '<button class="btn-g !py-1.5 !px-2.5 !text-[12px]" onclick="verFoto(\''+id+'\','+(idx-1)+',false)">‹ Anterior</button><button class="btn-g !py-1.5 !px-2.5 !text-[12px]" onclick="verFoto(\''+id+'\','+(idx+1)+',false)">Siguiente ›</button><button class="text-slate-400 hover:text-slate-700 text-lg ml-1" onclick="closeModal()">✕</button></div>'+
+  '<div class="mt-3 flex flex-col lg:flex-row gap-4"><div class="flex-1 min-w-0">'+tool+stage+(v.cmp?compararHTML(e):'')+'</div>'+lado+'</div>'+
+  '<div id="mf-foot" class="mt-3">'+footFoto(e,idx)+'</div>',S.cond?'w-[1320px]':'w-[1080px]');
+ const img=$('stage-img');if(img&&img.complete&&img.naturalWidth)imgLista(img);
+}
+function footFoto(e,idx){const {k,at}=filas(e)[idx];const falla=condsDe(at).filter(c=>!c.ok);const dec=e.decId[k]===at.id?e.dec[k]:null;
+ const nota=dec==='ok'&&falla.length?'<div class="text-[11.5px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mb-2">Aprobada por la operadora: anula el veredicto del sistema en '+falla.map(c=>c.id).join(', ')+'. Queda en el suceso con el ID de la foto.</div>':'';
+ const motivos=dec==='rep'?'<div class="flex gap-1.5 flex-wrap items-center mb-2"><span class="text-[11px] text-slate-500">Motivo para la tienda:</span>'+['Reflejo / brillo','Borrosa','Recortada','Fondo no uniforme','Documento distinto','Otra'].map(m=>'<button class="mot '+((e.motRep||{})[k]===m?'on':'')+'" onclick="e=C[\''+e.id+'\'];e.motRep=e.motRep||{};e.motRep[\''+k+'\']=\''+m+'\';refrescarModal()">'+m+'</button>').join('')+'</div>':'';
+ return nota+motivos+'<div class="flex items-center gap-3 flex-wrap border-t border-slate-100 pt-3"><span class="text-[10.5px] font-bold tracking-wider text-slate-400">TU DECISIÓN SOBRE ESTA FOTO</span>'+decisionCelda(e,k,at,false)+'</div>'}
+function verCond(id,idx){verFoto(id,idx,false,true)}
+function refrescarModal(){if(!S.modal)return;const e=C[S.active];if($('mf-foot'))$('mf-foot').innerHTML=footFoto(e,S.modalIdx)}
+function compararHTML(e){
+ const s=selAtt(e,'selfie');const fr=selAtt(e,'frontal');const sim=(s.cond.find(c=>c.id==='SIMILITUD')||{}).val||'—';
+ return '<div class="mt-3 cmp"><div class="c"><div class="im"><img src="'+s.src+'" alt=""></div><div class="l">Selfie · '+s.id+'</div></div><div class="c"><div class="im"><img src="'+fr.src+'" alt="" style="transform:rotate(-90deg) scale(2.1);object-position:center 32%"></div><div class="l">Rostro del documento · '+fr.id+'</div></div><div class="c flex flex-col justify-center px-4 py-3 text-left"><div class="text-[10.5px] font-bold tracking-wider text-slate-400">SIMILITUD · CompareFaces</div><div class="text-[26px] font-extrabold text-white mono">'+sim+'</div><div class="flex items-center gap-2 mt-1"><div class="meter"><i style="width:'+parseFloat(sim)+'%;background:#10B981"></i><b style="left:'+UMBRAL.sim+'%"></b></div></div><div class="text-[11px] text-slate-400 mt-1">umbral '+UMBRAL.sim+' %</div></div></div>';
+}
+function meter(m){if(!m)return '';const [v,u]=m;const c=v>=u?'#10B981':'#E11D48';return '<div class="flex items-center gap-2 mt-1.5"><div class="meter"><i style="width:'+v+'%;background:'+c+'"></i><b style="left:'+u+'%"></b></div><span class="mono text-[10.5px] text-slate-400">umbral '+u+' %</span></div>'}
+function decidir(id,k,attId,d){const e=C[id];if(e.dec[k]===d&&e.decId[k]===attId){delete e.dec[k];delete e.decId[k]}else{e.dec[k]=d;e.decId[k]=attId;if(d==='rep'){e.motRep=e.motRep||{};if(!e.motRep[k])e.motRep[k]='Reflejo / brillo'}}
+ render();refrescarModal()}
+
+/* visor */
+function resetVisor(){S.visor={z:1,rot:0,x:0,y:0,br:100,ct:100,cmp:S.visor?S.visor.cmp:false}}
+function imgLista(img){img.style.opacity=1;const l=$('stage-load');if(l)l.remove();ajustar(img);aplicar()}
+function ajustar(img){const st=$('stage');if(!st||!img.naturalWidth)return;const rot=((S.visor.rot%360)+360)%360;const w=rot%180?img.naturalHeight:img.naturalWidth,h=rot%180?img.naturalWidth:img.naturalHeight;const s=Math.min(st.clientWidth/w,st.clientHeight/h)*0.96;img.dataset.base=s;img.style.width=img.naturalWidth+'px';img.style.height=img.naturalHeight+'px'}
+function aplicar(){const img=$('stage-img');if(!img)return;const v=S.visor;const b=parseFloat(img.dataset.base||1);img.style.transform='translate(calc(-50% + '+v.x+'px), calc(-50% + '+v.y+'px)) rotate('+v.rot+'deg) scale('+(b*v.z)+')';img.style.filter='brightness('+v.br+'%) contrast('+v.ct+'%)';const z=document.querySelector('.tool .lbl.mono');if(z)z.textContent=Math.round(v.z*100)+' %';const r=document.querySelectorAll('.tool .lbl.mono')[1];if(r)r.textContent=(((v.rot%360)+360)%360)+'°'}
+function zoom(d){S.visor.z=Math.min(6,Math.max(.4,S.visor.z*(d>0?1.25:0.8)));aplicar()}
+function ruedaZoom(ev){ev.preventDefault();zoom(ev.deltaY<0?1:-1)}
+function rotar(d){S.visor.rot+=d;S.visor.x=0;S.visor.y=0;const img=$('stage-img');if(img)ajustar(img);aplicar()}
+(function(){let drag=null;document.addEventListener('pointerdown',e=>{const st=e.target.closest('#stage');if(!st)return;drag={x:e.clientX-S.visor.x,y:e.clientY-S.visor.y};const img=$('stage-img');if(img)img.classList.add('drag');st.setPointerCapture(e.pointerId)});
+ document.addEventListener('pointermove',e=>{if(!drag)return;S.visor.x=e.clientX-drag.x;S.visor.y=e.clientY-drag.y;aplicar()});
+ document.addEventListener('pointerup',()=>{drag=null;const img=$('stage-img');if(img)img.classList.remove('drag')});
+ document.addEventListener('keydown',e=>{if(!(S.view==='caso'&&S.panel==='fotos'&&S.modal&&S.modal!=='sucesos'))return;if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))return;const c=C[S.active];const {k,at}=filas(c)[S.modalIdx];
+  if(e.key==='Escape')closeModal();
+  else if(e.key==='+'||e.key==='=')zoom(1);else if(e.key==='-')zoom(-1);else if(e.key.toLowerCase()==='r')rotar(90);else if(e.key==='0'){resetVisor();verFoto(c.id,S.modalIdx,true)}
+  else if(e.key.toLowerCase()==='c'){S.cond=!S.cond;verFoto(c.id,S.modalIdx,true)}
+  else if(e.key.toLowerCase()==='a')decidir(c.id,k,at.id,'ok');else if(e.key.toLowerCase()==='x')decidir(c.id,k,at.id,'rep');
+  else if(e.key==='ArrowRight'||e.key==='ArrowLeft')verFoto(c.id,S.modalIdx+(e.key==='ArrowRight'?1:-1),false);
+  else return;e.preventDefault()});
+ window.addEventListener('resize',()=>{const img=$('stage-img');if(img&&img.naturalWidth){ajustar(img);aplicar()}});
+})();
+
+/* ─── Suplantación ─── */
+function suplHTML(e){
+ const s=e.selfie;const d=e.decSupl;
+ const reg=m=>'<div class="bg-white border '+(d==='ok'?'border-slate-200 opacity-60':'border-rose-200')+' rounded-2xl p-4 mb-3"><div class="flex gap-4"><div class="w-[120px] shrink-0"><div class="rounded-xl overflow-hidden bg-slate-900 aspect-square"><img src="'+m.src+'" alt="" class="w-full h-full object-cover"></div><div class="thc">registro #'+m.reg+'</div></div>'+
+  '<div class="flex-1 min-w-0"><div class="flex items-center gap-2 flex-wrap"><span class="font-bold text-[14px] text-indigo-950">Coincidencia '+m.sim+' %</span><span class="chip c-bl">supera el umbral '+UMBRAL.fraude+' %</span></div><div class="flex items-center gap-2 mt-1.5"><div class="meter"><i style="width:'+m.sim+'%;background:#E11D48"></i><b style="left:'+UMBRAL.fraude+'%"></b></div></div>'+
+  '<div class="text-[11.5px] text-slate-500 mt-2">Registrado el <b class="mono">'+m.fecha+'</b> · '+m.origen+'</div>'+
+  '<div class="text-[10.5px] font-bold tracking-wider text-slate-400 mt-3 mb-1">CÉDULAS QUE HA USADO</div>'+m.cedulas.map(c=>'<div class="flex items-center gap-3 text-[12px] py-1 border-t border-slate-100"><span class="mono font-bold text-slate-800">CC '+c[0]+'</span><span class="mono text-slate-400">'+c[1]+'</span><span class="text-slate-500 truncate">'+c[2]+'</span></div>').join('')+'</div></div></div>';
+ const decision='<div class="bg-white border border-slate-200 rounded-2xl px-4 py-3.5"><div class="text-[10.5px] font-bold tracking-wider text-slate-400 mb-2">DECISIÓN</div><div class="flex gap-2"><button class="dec-btn ok '+(d==='ok'?'on':'')+'" onclick="e=C[\''+e.id+'\'];e.decSupl=e.decSupl===\'ok\'?null:\'ok\';render()">'+I('check')+'Descartar coincidencia<span class="text-[10.5px] font-normal opacity-80">no es la misma persona</span></button><button class="dec-btn rep '+(d==='fr'?'on':'')+'" onclick="e=C[\''+e.id+'\'];e.decSupl=e.decSupl===\'fr\'?null:\'fr\';render()">'+I('shield')+'Confirmar suplantación<span class="text-[10.5px] font-normal opacity-80">registra en LABS</span></button></div>'+
+  (d==='ok'?'<div class="mt-2 text-[11.5px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">El cliente continúa a la captura del documento. El registro #662 creado por este intento se marca como descartado.</div>':d==='fr'?'<div class="mt-2 text-[11.5px] text-rose-800 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">Se registra en LABS de forma automática (regla G7 del Excel) con la CC 71.171.930 asociada a los registros #446 y #629. El estudio finaliza por causal «suplantación».</div>':'')+'</div>';
+ return '<div class="ws"><div class="min-w-0"><div class="bg-white border border-slate-200 rounded-2xl p-4"><div class="flex items-center gap-2 flex-wrap mb-3"><span class="font-bold text-[14px] text-indigo-950">Selfie del cliente</span><span class="chip c-bl">NO CUMPLE · SUPLANTADOR · sistema</span><span class="mono text-[11px] text-slate-400">ID '+s.id+'-'+e.doc.replace(/\./g,'')+' · '+s.t+'</span></div>'+
+  '<div class="cmp"><div class="c"><div class="im"><img src="'+s.src+'" alt=""></div><div class="l">Selfie · '+s.id+' · prueba de vida '+s.live+' %</div></div>'+e.matches.map(m=>'<div class="c"><div class="im"><img src="'+m.src+'" alt=""></div><div class="l text-rose-300">Registro #'+m.reg+' · '+m.sim+' %</div></div>').join('')+'</div>'+
+  '<div class="mt-3 text-[12px] text-slate-500 flex items-start gap-2">'+I('eye','w-4 h-4 shrink-0 text-slate-400')+'<span>Compare rasgos estables: forma de la nariz, orejas, línea del cabello, cicatrices. La similitud la calcula SearchFacesByImage sobre la colección «suplantadores»; el umbral es configurable (FRAUD_IDENTITY_UMBRAL = '+UMBRAL.fraude+').</span></div>'+
+  '<div class="mt-3 text-[11.5px] text-slate-500 bg-slate-50 rounded-lg px-3 py-2">Documento: <b>no capturado</b> — el flujo se detiene en la selfie cuando hay coincidencia. Gestos: 3 de 3 válidos · prueba de vida '+s.live+' %.</div></div></div>'+
+  '<div>'+e.matches.map(reg).join('')+decision+'</div></div>';
+}
+
+/* ─── UBICA · llamada IA ─── */
+function ubicaHTML(e){
+ const lin=l=>'<div class="lin"><div class="flex items-center gap-2 flex-wrap"><span class="mono font-bold text-[13px] text-indigo-950">'+l.linea+'</span><span class="chip c-n">'+l.origen+'</span><span class="flex-1"></span><span class="text-[11.5px] text-slate-400">'+l.intentos.length+' intento'+(l.intentos.length>1?'s':'')+'</span></div>'+
+  l.intentos.map(i=>'<div class="flex items-center gap-3 text-[12px] py-1.5 border-t border-slate-100 mt-1.5"><span class="mono text-slate-400">'+i[0]+'</span><span class="'+(i[1].startsWith('No')?'text-slate-600':'text-rose-700 font-semibold')+'">'+i[1]+'</span></div>').join('')+
+  (l.grab?'<div class="mt-2 flex items-center gap-3 bg-slate-50 rounded-lg px-3 py-2"><button class="w-8 h-8 rounded-full bg-indigo-950 text-white flex items-center justify-center" onclick="toast(\'Reproduciendo grabación · 0:42\')">'+I('play','w-3.5 h-3.5')+'</button><div class="flex-1"><div class="text-[11.5px] font-semibold text-slate-700">Grabación de la llamada de IA · 0:42</div><div class="h-1.5 bg-slate-200 rounded-full mt-1.5"><div class="h-1.5 w-[35%] bg-indigo-950 rounded-full"></div></div></div></div><div class="mt-2 text-[12px] leading-relaxed bg-white border border-slate-200 rounded-lg px-3 py-2"><b class="text-violet-700">IA:</b> ¿Hablo con Sandra Londoño? <b class="text-slate-900">Tercero:</b> <span class="bg-rose-100 text-rose-800 rounded px-1">No, no conozco a esa persona</span>, este número es mío hace años.</div>':'')+'</div>';
+ const datos='<div class="bg-white border border-slate-200 rounded-2xl px-4 py-3.5 mb-3"><div class="text-[10.5px] font-bold tracking-wider text-slate-400 mb-1">DATOS A CONFIRMAR · '+e.datos.filter(d=>d[1]===true).length+' de 5</div>'+e.datos.map(d=>'<div class="cond"><span class="r '+(d[1]===true?'r-ok':d[1]===false?'r-no':'r-na')+'">'+I(d[1]===true?'check':d[1]===false?'x':'pause')+'</span><div class="flex-1"><div class="el">'+d[0]+'</div><div class="ds">'+(d[1]===true?'Confirmado':d[1]===false?'Negado por quien contestó':'Sin respuesta')+'</div></div></div>').join('')+'</div>';
+ const acc='<div class="bg-white border border-slate-200 rounded-2xl px-4 py-3.5"><div class="text-[10.5px] font-bold tracking-wider text-slate-400 mb-2">GESTIÓN DE LA OPERADORA</div><div class="grid grid-cols-2 gap-2">'+
+  '<button class="btn-k justify-center" onclick="llamar(\''+e.id+'\')">'+I('phone','w-4 h-4')+'Llamar ahora</button><button class="btn-g justify-center" onclick="reintentoIA(\''+e.id+'\')">'+I('refresh','w-4 h-4')+'Reintentar con IA</button></div>'+
+  (e.llamadaOp?'<div class="mt-2 text-[11.5px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">Llamada de la operadora registrada: '+e.llamadaOp+'</div>':'')+
+  '<div class="text-[11px] text-slate-400 mt-2">Pendiente de negocio (F10): si la operadora hace la llamada, ¿esa llamada cierra la aprobación? El mockup ofrece ambas rutas.</div></div>';
+ return '<div class="ws"><div class="min-w-0"><div class="text-[10.5px] font-bold tracking-wider text-slate-400 mb-2">LÍNEAS EN ORDEN UBICA</div>'+e.llamadas.map(lin).join('')+'</div><div>'+datos+acc+'</div></div>';
+}
+function llamar(id){const e=C[id];modal('<h2 class="text-[18px] font-bold text-indigo-950">Llamar a la clienta</h2><p class="text-slate-500 text-[12.5px] mt-0.5 mb-4">Se marca desde la línea de la fábrica y la llamada queda grabada y asociada al caso.</p><div class="space-y-2 mb-5">'+e.llamadas.map((l,i)=>'<label class="flex items-center gap-3 border border-slate-200 rounded-xl px-4 py-3 cursor-pointer hover:bg-slate-50"><input type="radio" name="lin" '+(i===0?'checked':'')+' class="accent-violet-600"><span class="mono font-bold">'+l.linea+'</span><span class="text-[11.5px] text-slate-400">'+l.origen+'</span></label>').join('')+'</div><div class="flex justify-end gap-2"><button class="btn-g" onclick="closeModal()">Cancelar</button><button class="btn-k" onclick="closeModal();simLlamada(\''+id+'\')">'+I('phone','w-4 h-4')+'Llamar</button></div>')}
+function simLlamada(id){const e=C[id];toast('Marcando 314 205 8890…');setTimeout(()=>{modal('<h2 class="text-[18px] font-bold text-indigo-950">Resultado de la llamada</h2><p class="text-slate-500 text-[12.5px] mt-0.5 mb-4">Registre qué confirmó la titular. Solo la titular puede validar (C15–C17 de UBICA: un familiar no valida).</p><div class="space-y-1.5 mb-4">'+e.datos.map((d,i)=>'<label class="flex items-center gap-3 text-[13px] py-1"><input type="checkbox" class="accent-emerald-600 dato-chk" data-i="'+i+'"> '+d[0]+'</label>').join('')+'</div><textarea id="obs-ll" rows="2" placeholder="Observación de la llamada (obligatoria)" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-[13px]"></textarea><div class="flex justify-end gap-2 mt-4"><button class="btn-g" onclick="closeModal()">Cancelar</button><button class="btn-p" onclick="cerrarLlamada(\''+id+'\')">Registrar</button></div>')},900)}
+function cerrarLlamada(id){const e=C[id];const obs=$('obs-ll').value.trim();if(!obs){$('obs-ll').classList.add('err-input');$('obs-ll').focus();return}const chk=[...document.querySelectorAll('.dato-chk')].map(c=>c.checked);e.datos.forEach((d,i)=>{if(chk[i])d[1]=true});const n=chk.filter(Boolean).length;e.llamadaOp=hh(Date.now())+' · '+n+' de 5 datos confirmados · «'+obs+'»';log(e,'op','Llamada de la operadora · 314 205 8890 · '+n+' de 5 datos confirmados · «'+obs+'»');closeModal();render();toast('Llamada registrada · '+n+' de 5 datos confirmados')}
+function reintentoIA(id){const e=C[id];toast('Reintento de llamada con IA programado · la clienta recibirá la llamada en los próximos 5 min');e.estado='ESP_LLAMADA';log(e,'op','Reintento de llamada con IA solicitado por la operadora · Esperando llamada');render()}
+
+/* ─── Token ─── */
+function tokenHTML(e){
+ const t=e.token;
+ const env='<div class="bg-white border border-slate-200 rounded-2xl p-4"><div class="flex items-center gap-2 flex-wrap mb-2"><span class="font-bold text-[14px] text-indigo-950">Envíos del token</span><span class="chip c-bl">'+Math.min(t.envios.length,UMBRAL.intentos)+' de '+UMBRAL.intentos+' agotados en tienda</span>'+(t.envios.length>UMBRAL.intentos?'<span class="chip c-n">+'+(t.envios.length-UMBRAL.intentos)+' desde la fábrica</span>':'')+'</div>'+t.envios.map((x,i)=>'<div class="flex items-center gap-3 text-[12.5px] py-2 border-t border-slate-100"><span class="mono text-slate-400 w-12">'+x[0]+'</span><span class="chip c-n">'+x[1]+'</span><span class="text-slate-700">'+x[2]+'</span><span class="flex-1"></span><span class="mono text-[11px] text-slate-400">'+(i<3?'asesor':'operadora')+'</span></div>').join('')+
+  '<div class="mt-3 text-[11.5px] text-slate-500 bg-slate-50 rounded-lg px-3 py-2">La operadora reporta «entregado» en los tres SMS. Antes de reenviar, confirme el número con la clienta: <b class="mono">'+t.cel+'</b>.</div></div>';
+ const acc='<div class="bg-white border border-slate-200 rounded-2xl px-4 py-3.5"><div class="text-[10.5px] font-bold tracking-wider text-slate-400 mb-2">REENVIAR TOKEN POR</div><div class="grid grid-cols-3 gap-2">'+[['SMS','msg'],['WhatsApp','msg'],['Llamada IVR','phone']].map(c=>'<button class="dec-btn" onclick="reenviar(\''+e.id+'\',\''+c[0]+'\')">'+I(c[1])+c[0]+'</button>').join('')+'</div>'+
+  (e.reenviando?'<div class="mt-3 flex items-center gap-2 text-[12px] text-slate-600"><span class="spinner" style="width:16px;height:16px;border-width:2px"></span>Enviando por '+e.reenviando+'…</div>':'')+
+  (e.reenviado?'<div class="mt-3 text-[11.5px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">Token reenviado por <b>'+e.reenviado+'</b> · intento adicional habilitado para la tienda · el caso queda <b>Esperando cliente</b> hasta que valide el token.</div>':'')+
+  '<div class="text-[11px] text-slate-400 mt-2">Pendiente de negocio (F14): qué más hace soporte ante token inválido; no se propone activar cupo desde la fábrica.</div></div>';
+ return '<div class="ws"><div class="min-w-0">'+env+'</div><div>'+acc+'</div></div>';
+}
+function reenviar(id,canal){const e=C[id];e.reenviando=canal;render();setTimeout(()=>{e.reenviando=null;e.reenviado=canal;e.token.envios.push([hh(Date.now()),canal,'Enviado']);e.estado='ESP_CLIENTE';log(e,'op','Token reenviado por '+canal+' · intento adicional habilitado · Esperando cliente');render();toast('Token reenviado por '+canal)},1100)}
+
+/* ─── Correo ─── */
+function correoHTML(e){
+ const c=e.correo;
+ return '<div class="ws"><div class="min-w-0"><div class="bg-white border border-slate-200 rounded-2xl p-4"><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="border border-emerald-200 bg-emerald-50/50 rounded-xl p-4"><div class="text-[10.5px] font-bold tracking-wider text-emerald-700">CORREO VALIDADO · OK UBICA</div><div class="font-bold text-[14px] text-indigo-950 mt-1 break-all">'+c.ant+'</div><div class="text-[11.5px] text-slate-500 mt-1">Coincide con la historia UBICA · reportado desde 2019</div></div><div class="border border-rose-200 bg-rose-50/50 rounded-xl p-4"><div class="text-[10.5px] font-bold tracking-wider text-rose-700">CORREO NUEVO · SIN VALIDAR</div><div class="font-bold text-[14px] text-indigo-950 mt-1 break-all">'+c.nuevo+'</div><div class="text-[11.5px] text-slate-500 mt-1">Ingresado en la activación · sin historia</div></div></div>'+
+  '<div class="text-[10.5px] font-bold tracking-wider text-slate-400 mt-4 mb-1">TOKENS AL CORREO NUEVO</div>'+c.tokens.map(t=>'<div class="flex items-center gap-3 text-[12.5px] py-2 border-t border-slate-100"><span class="mono text-slate-400 w-12">'+t[0]+'</span><span class="text-rose-700 font-semibold">'+t[1]+'</span></div>').join('')+'</div></div>'+
+  '<div><div class="bg-white border border-slate-200 rounded-2xl px-4 py-3.5"><div class="text-[10.5px] font-bold tracking-wider text-slate-400 mb-2">GESTIÓN</div><div class="grid grid-cols-1 gap-2"><button class="dec-btn ok '+(e.decCorreo==='ok'?'on':'')+'" onclick="e=C[\''+e.id+'\'];e.decCorreo=\'ok\';render()">'+I('check')+'Aprobar el cambio de correo<span class="text-[10.5px] font-normal opacity-80">vuelve al Bloque 6 · re-evalúa UBICA</span></button><button class="dec-btn rep '+(e.decCorreo==='no'?'on':'')+'" onclick="e=C[\''+e.id+'\'];e.decCorreo=\'no\';render()">'+I('undo')+'Rechazar el cambio<span class="text-[10.5px] font-normal opacity-80">reenvía el token al correo validado</span></button></div><div class="text-[11px] text-slate-400 mt-2">Pendiente de negocio (fila 13): responsable y facultades para validar el cambio. No se conserva el OK UBICA del correo sustituido.</div></div></div></div>';
+}
+
+/* ─── Barra de resolución ─── */
+function hallazgo(at){return at.st!=='ok'||(at.ocr&&at.ocr.some(x=>!x[3]))}
+function vigente(e,k){const it=e.fotos[k].intentos;return it[it.length-1]}
+/* estado de cada tipo de foto: aprobada por el sistema (sin hallazgo y sin decisión), aprobada por el operador, para repetir, o pendiente */
+function estadoTipo(e,k){if(!e.fotos[k].intentos.length)return null;if(e.dec[k])return e.dec[k];return hallazgo(vigente(e,k))?'pend':'sys'}
+function listoResolver(e){
+ if(e.tipo==='fotos'){const ks=ORDEN.filter(k=>e.fotos[k].intentos.length);const st=Object.fromEntries(ks.map(k=>[k,estadoTipo(e,k)]));
+  return {todas:ks.every(k=>st[k]==='ok'||st[k]==='sys'),rep:ks.some(k=>st[k]==='rep'),pend:ks.filter(k=>st[k]==='pend'),st}}
+ if(e.tipo==='supl')return {todas:e.decSupl==='ok',rep:false,pend:e.decSupl?[]:['decisión'],fraude:e.decSupl==='fr'};
+ if(e.tipo==='ubica')return {todas:e.datos.filter(d=>d[1]===true).length===5,rep:false,pend:e.llamadaOp?[]:['llamada']};
+ if(e.tipo==='token')return {todas:false,rep:false,pend:e.reenviado?[]:['reenvío'],espera:!!e.reenviado};
+ if(e.tipo==='correo')return {todas:e.decCorreo==='ok',rep:e.decCorreo==='no',pend:e.decCorreo?[]:['decisión']};
+ return {todas:false,rep:false,pend:[]};
+}
+/* paso 1 · qué debe revisar el operador, y en qué va */
+function paso1(e,r){
+ if(e.tipo==='fotos'){
+  const ks=ORDEN.filter(k=>e.fotos[k].intentos.length);
+  const chip=k=>{const at=vigente(e,k);const idx=filas(e).findIndex(x=>x.at===at);const st=r.st[k];const n=condsDe(at).filter(c=>!c.ok).length;const o=at.ocr?at.ocr.filter(x=>!x[3]).length:0;
+   const det=(n?n+' no cumple'+(n>1?'n':''):'')+(n&&o?' · ':'')+(o?o+' dato ≠ registro':'');
+   if(st==='pend')return '<button class="pill pend" onclick="verCond(\''+e.id+'\','+idx+')">'+I('alert','w-3 h-3')+e.fotos[k].label+' · '+det+' · revisar</button>';
+   if(st==='rep')return '<button class="pill rep" onclick="verFoto(\''+e.id+'\','+idx+')">'+I('refresh','w-3 h-3')+e.fotos[k].label+' · repetir</button>';
+   if(st==='ok')return '<button class="pill ok" onclick="verFoto(\''+e.id+'\','+idx+')">'+I('check','w-3 h-3')+e.fotos[k].label+' · aprobada por ti</button>';
+   return '<span class="pill ok" style="opacity:.75">'+I('check','w-3 h-3')+e.fotos[k].label+' · aprobada por el sistema</span>'};
+  const txt=r.pend.length?'Abra cada foto con hallazgo, mire sus condiciones y decida: <b>Aprobar</b> (el sistema se equivocó) o <b>Rechazar → repetir</b> (el cliente la toma de nuevo). Las aprobadas por el sistema no necesitan nada, salvo que quiera rechazar una.':r.rep?'Marcó una foto para repetir. Si cambia de opinión, ábrala y deshaga la decisión.':'Todas las fotos quedaron aprobadas.';
+  return '<div class="flex gap-1.5 flex-wrap mb-1.5">'+ks.map(chip).join('')+'</div><div class="text-[12px] text-slate-500">'+txt+'</div>'}
+ return '<div class="text-[12.5px] text-slate-700">'+fraseCierre(e,r)+'</div>';
+}
+function tituloPaso1(e){return {fotos:'Revise las fotos con hallazgos',supl:'Compare la selfie con los registros y decida',ubica:'Confirme los datos con la titular',token:'Reenvíe el token',correo:'Apruebe o rechace el cambio de correo'}[e.tipo]}
+/* paso 3 · qué salida aplica ahora */
+function paso3(e,r){
+ if(e.tipo==='fotos'){const lbl=k=>e.fotos[k].label;
+  if(r.pend.length)return 'Aún no hay salida: falta decidir <b>'+r.pend.map(lbl).join(', ')+'</b>. Si no puede decidir ahora, use <b>Mantener en fábrica</b>.';
+  if(r.rep)return '<b>Devolver a tienda para repetir</b> ('+ORDEN.filter(k=>r.st[k]==='rep').map(lbl).join(', ')+'): la tienda recibe la instrucción y el cliente toma la foto de nuevo con un intento adicional.';
+  return '<b>Devolver al flujo</b>: las '+ORDEN.filter(k=>e.fotos[k].intentos.length).length+' fotos están aprobadas y el estudio sigue en <b>'+e.vuelve+'</b>.'}
+ if(e.tipo==='supl')return r.fraude?'<b>Finalizar por causal</b>: el rostro se registra en LABS y la tienda recibe un mensaje genérico.':r.todas?'<b>Devolver al flujo</b>: el estudio sigue en la captura del documento.':'Aún no hay salida: decida sobre la coincidencia.';
+ if(e.tipo==='ubica'){const n=e.datos.filter(d=>d[1]===true).length;return r.todas?'<b>Devolver al flujo</b>: los 5 datos confirmados, el estudio sigue en la activación.':n?'Aún no hay salida: '+n+' de 5 datos. Llame de nuevo o deje el caso <b>Esperando llamada</b>.':'Aún no hay salida: registre la llamada o reintente con IA.'}
+ if(e.tipo==='token')return r.espera?'<b>Dejar esperando cliente</b> hasta que valide el token reenviado.':'Aún no hay salida: reenvíe el token por otro canal.';
+ if(e.tipo==='correo')return r.todas?'<b>Devolver al flujo</b>: el estudio vuelve al Bloque 6 para re-evaluar UBICA.':r.rep?'<b>Devolver al flujo</b> con el token reenviado al correo validado.':'Aún no hay salida: apruebe o rechace el cambio.';
+ return '';
+}
+function fraseCierre(e,r){
+ if(e.tipo==='supl')return r.fraude?'Suplantación confirmada.':r.todas?'Coincidencia descartada: no es la misma persona.':'Compare rasgos estables (nariz, orejas, línea del cabello) entre la selfie y cada registro.';
+ if(e.tipo==='ubica'){const n=e.datos.filter(d=>d[1]===true).length;return (e.llamadaOp?'Llamada registrada · ':'')+n+' de 5 datos confirmados. Solo la titular puede confirmar (un familiar no valida).'}
+ if(e.tipo==='token')return r.espera?'Token reenviado por '+e.reenviado+'.':'Confirme el número con el cliente antes de reenviar.';
+ if(e.tipo==='correo')return r.todas?'Cambio aprobado.':r.rep?'Cambio rechazado.':'El correo nuevo no tiene historia UBICA y no respondió el token.';
+ return '';
+}
+function barraHTML(e){
+ const done=['RESUELTA','RECHAZADA','DEVUELTA'].includes(e.estado);if(done)return '';
+ const r=listoResolver(e);
+ const instr=r.rep&&e.tipo==='fotos'?'<div class="mt-2"><label class="block text-[10.5px] font-semibold text-slate-500 mb-1">Instrucción para la tienda (prellenada con lo que falló)</label><input id="instr" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-[12.5px]" value="'+ORDEN.filter(k=>r.st[k]==='rep').map(k=>e.fotos[k].label+': '+((e.motRep||{})[k]||'repetir')).join(' · ')+' · sin brillo, documento completo, fondo uniforme."></div>':'';
+ const paso=(n,t,ok)=>'<div class="flex items-center gap-2 mb-1.5"><span class="w-5 h-5 rounded-md text-[11px] font-bold flex items-center justify-center '+(ok?'bg-emerald-100 text-emerald-700':'bg-indigo-950 text-white')+'">'+(ok?'✓':n)+'</span><span class="text-[12px] font-bold text-indigo-950">'+t+'</span></div>';
+ const p1ok=e.tipo==='fotos'?!r.pend.length:(r.todas||r.rep||r.fraude||r.espera);
+ return '<div class="bar"><div class="text-[10.5px] font-bold tracking-wider text-slate-400 mb-2">CIERRE DEL CASO</div>'+
+  '<div class="grid grid-cols-1 lg:grid-cols-2 gap-5"><div>'+paso(1,tituloPaso1(e),p1ok)+paso1(e,r)+'</div>'+
+  '<div>'+paso(2,'Escriba el suceso',!!(e.sucesoTxt||'').trim()).replace('<span class="w-5','<span id="p2b" class="w-5')+'<textarea id="suceso" rows="2" oninput="C[\''+e.id+'\'].sucesoTxt=this.value;this.classList.remove(\'err-input\');const m=this.parentElement.querySelector(\'.err-msg\');if(m)m.remove();const b=document.getElementById(\'p2b\');if(b){const ok=this.value.trim().length>0;b.className=\'w-5 h-5 rounded-md text-[11px] font-bold flex items-center justify-center \'+(ok?\'bg-emerald-100 text-emerald-700\':\'bg-indigo-950 text-white\');b.textContent=ok?\'✓\':\'2\'}" placeholder="Qué revisó y por qué decide así. Queda en el estudio con su usuario y los IDs de las fotos." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-[12.5px]">'+(e.sucesoTxt||'')+'</textarea>'+instr+'</div></div>'+
+  '<div class="mt-3 pt-3 border-t border-slate-100">'+paso(3,'Elija la salida',false)+'<div class="flex flex-wrap items-center gap-3"><div class="text-[12px] text-slate-600 flex-1 min-w-[260px]">'+paso3(e,r)+'</div><div class="flex gap-2 flex-wrap justify-end">'+
+  (r.espera?'<button class="btn-p" onclick="resolver(\''+e.id+'\',\'espera\')">'+I('pause','w-4 h-4')+'Dejar esperando cliente</button>':'')+
+  '<button class="btn-p" '+(r.todas?'':'disabled')+' onclick="resolver(\''+e.id+'\',\'resolver\')">'+I('check','w-4 h-4')+'Devolver al flujo</button>'+
+  (r.rep?'<button class="btn-k" onclick="resolver(\''+e.id+'\',\'devolver\')">'+I('refresh','w-4 h-4')+'Devolver a tienda para repetir</button>':'')+
+  '<div class="relative"><button class="btn-g" onclick="this.nextElementSibling.classList.toggle(\'hidden\')">'+I('pause','w-4 h-4')+'Mantener en fábrica ▾</button><div class="hidden absolute right-0 bottom-full mb-2 bg-white border border-slate-200 rounded-xl shadow-xl w-56 py-1 z-20">'+[['ESP_LLAMADA','Esperando llamada'],['ESP_CLIENTE','Esperando cliente'],['GESTION','En investigación']].map(x=>'<div class="px-4 py-2 text-[12.5px] hover:bg-slate-50 cursor-pointer" onclick="resolver(\''+e.id+'\',\'mantener\',\''+x[0]+'\')">'+x[1]+'</div>').join('')+'</div></div>'+
+  '<button class="btn-r" onclick="resolver(\''+e.id+'\',\'cerrar\')">'+I('ban','w-4 h-4')+'Finalizar por causal</button></div></div></div></div>';
+}
+function resolver(id,accion,sub){
+ const e=C[id];const ta=$('suceso');const txt=(ta?ta.value:e.sucesoTxt||'').trim();
+ if(!txt&&accion!=='mantener'){ta.classList.add('err-input');let m=ta.parentElement.querySelector('.err-msg');if(!m){m=document.createElement('p');m.className='err-msg text-rose-600 text-[11.5px] mt-1.5 font-semibold';ta.parentElement.appendChild(m)}m.textContent='El suceso es obligatorio en toda decisión de la fábrica (regla G2–G11 del Excel).';ta.focus();return}
+ if(accion==='cerrar')return modal('<h2 class="text-[18px] font-bold text-indigo-950">Finalizar por causal</h2><p class="text-slate-500 text-[12.5px] mt-0.5 mb-4">El estudio no continúa. La causal es obligatoria; si es suplantación, el rostro queda registrado en LABS.</p><select id="causal" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-[13px] bg-white mb-4"><option>Suplantación confirmada (registra en LABS)</option><option>Documento no auténtico</option><option>Cliente no retomó el proceso</option><option>Información no verificable</option><option>Otra causal</option></select><div class="flex justify-end gap-2"><button class="btn-g" onclick="closeModal()">Cancelar</button><button class="btn-r" onclick="confirmar(\''+id+'\',\'cerrar\',document.getElementById(\'causal\').value)">Finalizar estudio</button></div>');
+ const ids=e.tipo==='fotos'?Object.keys(e.decId).map(k=>e.decId[k]+'-'+e.doc.replace(/\./g,'')).join(', '):'';
+ const res={resolver:['Resolver y devolver al punto exacto','El estudio vuelve a <b>'+e.vuelve+'</b> con la novedad resuelta.'+(ids?' Fotos aprobadas: <span class="mono">'+ids+'</span>.':'')],devolver:['Devolver para repetir captura','La tienda recibe la instrucción y se habilita un intento adicional. El caso queda <b>Devuelta a tienda</b>.'],mantener:['Mantener en fábrica · '+(sub?ESTADO_FAB[sub][0]:''),'El caso sigue asignado a usted con el sub-estado <b>'+(sub?ESTADO_FAB[sub][0]:'')+'</b>.'],espera:['Dejar esperando cliente','El caso queda <b>Esperando cliente</b> hasta que valide el token reenviado.']}[accion];
+ modal('<h2 class="text-[18px] font-bold text-indigo-950">'+res[0]+'</h2><p class="text-slate-600 text-[13px] mt-2 leading-relaxed">'+res[1]+'</p><div class="mt-4 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-[12.5px]"><div class="text-[10.5px] font-bold tracking-wider text-slate-400 mb-1">SUCESO QUE SE REGISTRA</div><div class="text-slate-800">'+(txt||'—')+'</div><div class="mono text-[11px] text-slate-400 mt-1">Operadora 03 · '+hh(Date.now())+'</div></div><div class="flex justify-end gap-2 mt-5"><button class="btn-g" onclick="closeModal()">Volver</button><button class="btn-p" onclick="confirmar(\''+id+'\',\''+accion+'\',\''+(sub||'')+'\')">Confirmar</button></div>');
+}
+function confirmar(id,accion,sub){
+ const e=C[id];closeModal();const txt=(e.sucesoTxt||($('suceso')?$('suceso').value:'')).trim();
+ const ids=e.tipo==='fotos'?ORDEN.filter(k=>e.fotos[k].intentos.length).map(k=>e.fotos[k].label+' '+(e.decId[k]||vigente(e,k).id)+(e.dec[k]?'':' (sistema)')).join(', '):'';
+ if(accion==='resolver'){e.estado='RESUELTA';e.estEst='EN_PROCESO';log(e,'op','Resuelta por Operadora 03 · «'+txt+'»'+(ids?' · '+ids:'')+' · devuelta al punto exacto: '+e.vuelve)}
+ else if(accion==='devolver'){e.estado='DEVUELTA';log(e,'op','Devuelta a tienda por Operadora 03 · repetir '+['selfie','gestos','frontal','reverso'].filter(k=>e.dec[k]==='rep').map(k=>e.fotos[k].label.toLowerCase()).join(', ')+' · «'+txt+'» · intento adicional habilitado')}
+ else if(accion==='mantener'){e.estado=sub;log(e,'op','Operadora 03 mantiene el caso en fábrica · '+ESTADO_FAB[sub][0]+(txt?' · «'+txt+'»':''))}
+ else if(accion==='espera'){e.estado='ESP_CLIENTE';log(e,'op','Esperando cliente · «'+txt+'»')}
+ else if(accion==='cerrar'){e.estado='RECHAZADA';e.estEst='RECHAZADO';log(e,'op','Finalizada por causal: '+sub+' · «'+txt+'»'+(sub.startsWith('Suplantación')?' · rostro registrado en LABS':''))}
+ e.sucesoTxt='';
+ const fin=['RESUELTA','DEVUELTA','RECHAZADA'].includes(e.estado);
+ toast(fin?'Caso '+e.id+' '+ESTADO_FAB[e.estado][0].toLowerCase()+' · suceso registrado':'Caso '+e.id+' · '+ESTADO_FAB[e.estado][0]);
+ if(fin){S.panel=null;setTimeout(()=>{closeTab(e.id);showBandeja()},900)}else{S.panel=null}
+ render();
+}
+
+/* ════════════════ RENDER ════════════════ */
+function render(){
+ renderSidebar();renderTabs();
+ const e=S.active?C[S.active]:null;
+ $('titlebar').textContent=S.view==='bandeja'?'Fábrica de soporte':'Caso '+e.id+' · '+e.nombre;
+ $('content').innerHTML=S.view==='bandeja'?bandejaHTML():casoHTML(e);
+}
+setInterval(()=>{if(S.view==='bandeja')renderBandejaSolo()},30000);
+
+/* ════════════════ GUÍA ════════════════ */
+$('guia-body').innerHTML=`
+<h4 class="text-white font-bold mb-1">Qué es esta pantalla</h4>
+<p>La fábrica del <b class="text-white">operador que ya tiene casos asignados</b>. La recepción, clasificación y asignación (Bloque 7, pasos 1–3) las hace el sistema; aquí empieza en «Gestión asistida». El módulo que reparte la cola se diseña aparte.</p>
+<h4 class="text-white font-bold mt-4 mb-1">Jerarquía</h4>
+<ol class="list-decimal pl-4 space-y-1"><li><b class="text-white">Por qué estoy aquí</b> — banner rojo con el suceso automático (motivo · bloque · canal · fecha · prioridad) y la tarjeta de la fase en rojo.</li><li><b class="text-white">La evidencia</b> — el panel de trabajo, lo que falló primero.</li><li><b class="text-white">El contexto</b> — ficha, cliente, crédito y sucesos siempre a la vista.</li><li><b class="text-white">La decisión</b> — barra fija: resolver · devolver · mantener · finalizar. Suceso obligatorio.</li></ol>
+<h4 class="text-white font-bold mt-4 mb-1">Casos y de dónde salen</h4>
+<table class="w-full text-[11.5px]"><tr><td class="py-1 pr-2 text-white font-bold">S-311</td><td>Fotos reales de la sesión 47d1c30f (CC 1.097.497.029, hoy 22:06). 3 sesiones = 3 intentos. Checklist CCA de <code>CatalogoDocumentos.cs</code>. La diferencia «GONZALEZ / GONZALES» es el <code>information_client = 2</code> real. Fila 5 del Excel.</td></tr><tr><td class="py-1 pr-2 text-white font-bold">S-309</td><td>Sesión 43dc6132: frontal rechazada de verdad por Rekognition (motivo 122, etiqueta «Document» no detectada). Franja roja real. Fila 5–6.</td></tr><tr><td class="py-1 pr-2 text-white font-bold">S-306</td><td>Selfie 620414 marcada como suplantador (real) y sus coincidencias reales #446 y #629 con las cédulas asociadas (<code>fraud_identity_customers</code>). El nombre del cliente es de demostración. Fila 7.</td></tr><tr><td class="py-1 pr-2 text-white font-bold">S-304</td><td>Llamada de IA: fila 10 del Excel y hoja «Definición ubica». Sistema aún no existe.</td></tr><tr><td class="py-1 pr-2 text-white font-bold">S-302</td><td>Token no recibido: fila 14. Canales SMS / WhatsApp / IVR según el arquitecto; no vistos en código.</td></tr><tr><td class="py-1 pr-2 text-white font-bold">S-299</td><td>Cambio de correo: fila 13 y diagrama B12.</td></tr></table>
+<h4 class="text-white font-bold mt-4 mb-1">Lo verificado en código y BD</h4>
+<ul class="list-disc pl-4 space-y-1"><li>Franja de la marca de agua: verde APPROVED «STATUS OK» · roja REJECTED «NO CUMPLE» / «SUPLANTADOR CC …» · amarilla REQUIRES_REVIEW (<code>Activation.php</code>). Centro: <code>ID {photo_id}-{cédula}</code>.</li><li><code>photo_type</code>: selfie · frontal · reverso · liveness_collage. Gestos activos: face-forward, face-right, blink.</li><li>Umbrales reales: similitud 60 · suplantador 95 · liveness 55 · 3 intentos · activación automática apagada.</li><li>Las cédulas llegan giradas 90° dentro de un encuadre vertical: el visor rota de a 90°.</li></ul>
+<h4 class="text-white font-bold mt-4 mb-1">Brechas de contrato para el back</h4>
+<ol class="list-decimal pl-4 space-y-1"><li><code>RevisarChecklistCedula</code> devuelve una observación global; se necesita <b class="text-white">una por condición</b>.</li><li>Endpoint de <b class="text-white">lectura de sucesos</b> por cliente/solicitud (hoy solo se escriben al CRM).</li><li>Exponer <code>getFraudIdentityInfo</code> (foto del suplantador + cédulas) a la fábrica.</li><li>Reenvío de token por WhatsApp / IVR y su conteo de intentos adicionales.</li><li>Llamada de IA de UBICA: sistema nuevo (Pendientes A6).</li><li>La marca de agua de esta maqueta refleja el veredicto de Rekognition; el checklist CCA aún no estampa franja.</li></ol>
+<h4 class="text-white font-bold mt-4 mb-1">Pendientes de negocio (celdas del Excel)</h4>
+<ul class="list-disc pl-4 space-y-1"><li>H2 / F5 / F6 / G8: ¿el operador puede aprobar por encima del rechazo automático? Aquí se asume que sí, y queda en el suceso.</li><li>H7 / H11: suplantación → ¿rechazar o seguir capturas? Aquí: confirmar → finaliza y registra en LABS; descartar → continúa.</li><li>F10: ¿la llamada de la operadora cierra la aprobación? Se ofrecen ambas rutas.</li><li>F14: función de soporte ante token inválido. No se activa cupo desde la fábrica.</li><li>E5 / E6: cola «COMERCIAL?» sin cerrar.</li></ul>
+<p class="mt-4 text-[11px] text-[#9C96C4]">Nada de esta maqueta llama servicios ni cambia datos. Los cambios de estado viven en memoria durante la visita.</p>`;
+
+render();
+</script>
+</body>
+</html>
