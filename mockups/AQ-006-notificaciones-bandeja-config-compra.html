@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup AQ-006 · Notificaciones: bandeja, configuración y compra pendiente · app QUAC v2</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = { theme: { extend: {
+  colors: { quac:'#7633FF', quacdark:'#321185', lavender:'#E9E8F1', lila:'#C5C5FF',
+            txt:'#140F26', muted:'#A19EB5', aldia:'#06D6A0', err:'#FF6464', rosa:'#E5147E' },
+  fontFamily: { display:['Poppins','sans-serif'], body:['"Nunito Sans"','sans-serif'] }
+} } }
+</script>
+<style>
+  body { font-family:'Nunito Sans', sans-serif; }
+  .font-display { font-family:'Poppins', sans-serif; }
+  .fade { animation: fade .22s ease-out; }
+  @keyframes fade { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+  .skel { animation: skel 1.2s ease-in-out infinite; background:linear-gradient(90deg,#E9E8F1 25%,#F4F3F8 50%,#E9E8F1 75%); background-size:200% 100%; }
+  @keyframes skel { from{background-position:200% 0} to{background-position:-200% 0} }
+  .spin { animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .pulso { animation: pulso 1.6s ease-in-out infinite; }
+  @keyframes pulso { 0%,100%{opacity:1} 50%{opacity:.45} }
+  .sube { animation: sube .26s cubic-bezier(.16,1,.3,1); }
+  @keyframes sube { from{transform:translateY(100%)} to{transform:none} }
+  .line-clamp-2 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .on { background:#7633FF; color:#fff; border-color:#7633FF; }
+  .off { background:#fff; color:#475569; border-color:#e2e8f0; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  ::-webkit-scrollbar { width:0; }
+</style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+<div class="flex gap-6 p-6 max-w-[1400px] mx-auto items-start">
+
+<!-- ═════════════════ PANEL DE CONTROL ═════════════════ -->
+<aside class="w-[420px] shrink-0 space-y-4 text-sm text-slate-600">
+  <div>
+    <p class="text-xs font-bold text-quac uppercase tracking-widest">Mockup · AQ-006 · v1 · para validación</p>
+    <h1 class="font-display font-bold text-lg leading-tight mt-1">Notificaciones: bandeja, configuración y compra pendiente</h1>
+    <p class="text-xs text-slate-400 mt-1">Port de SCR-045, SCR-046 y el modal de compra pendiente a <code>app-quac-v2</code>. Reemplaza la campana que hoy muestra «muy pronto disponibles».</p>
+    <p class="text-[11px] text-slate-500 mt-2 leading-relaxed bg-white rounded-lg p-2 border border-slate-200">
+      <b class="text-quac">Lo que este mockup tiene que decidir.</b> El brainstorming (§4) estableció que la bandeja
+      <b>no es decorativa: es el plan B</b> cuando el aviso no llega. Hay que elegir <b>dónde vive la compra pendiente</b>
+      —solo en la bandeja, o también en el Home— y <b>qué ve el cliente cuando llega tarde</b>.
+    </p>
+  </div>
+
+  <!-- ── LA DECISIÓN PRINCIPAL ── -->
+  <div class="bg-white rounded-xl p-3 shadow-sm space-y-2 ring-2 ring-quac/30">
+    <p class="font-semibold text-quac">① Decisión: ¿dónde aparece la compra pendiente?</p>
+    <div class="grid grid-cols-1 gap-1">
+      <button data-v="interrumpe" class="nv px-2 py-2 rounded-lg border text-[11px] font-bold text-left">
+        C · Modal al abrir la app ✓ <span class="font-normal opacity-70">— ELEGIDA (09-08). Cero toques, y la notificación queda en la bandeja</span>
+      </button>
+      <button data-v="campana" class="nv px-2 py-2 rounded-lg border text-[11px] font-bold text-left">
+        A · Solo en la bandeja <span class="font-normal opacity-70">— descartada: tres toques con el asesor esperando</span>
+      </button>
+      <button data-v="home" class="nv px-2 py-2 rounded-lg border text-[11px] font-bold text-left">
+        B · Tarjeta en el Home <span class="font-normal opacity-70">— descartada: un toque, pero compite con el cupo por el espacio de arriba</span>
+      </button>
+    </div>
+    <p id="notaVariante" class="text-[11px] text-slate-500 leading-relaxed border-t pt-2"></p>
+    <button onclick="simularAperturaApp()" class="w-full px-2 py-2 rounded-lg border border-quac text-quac text-[11px] font-bold">
+      ↻ Simular que el cliente vuelve a abrir la app
+    </button>
+    <div class="text-[11px] text-slate-600 leading-relaxed bg-lavender rounded p-2.5 border border-quac/20 space-y-1.5">
+      <p class="font-bold text-quacdark">Las tres reglas que abre la variante C</p>
+      <p><b>1 · Se puede cerrar, siempre.</b> El cliente pudo haber entrado a otra cosa. Al cerrarlo, la
+        notificación sigue en la bandeja con su cuenta atrás: ese es el plan B.</p>
+      <p><b>2 · Reaparece una vez por apertura de la app</b> —arranque en frío o vuelta desde segundo
+        plano—, no al cambiar de tab. Con 10 minutos corriendo vale insistir; hacerlo en cada toque sería
+        insoportable. Usa el botón de arriba para simularlo.</p>
+      <p><b>3 · Con varias compras vivas, el modal muestra la más reciente</b> y ofrece un enlace a la
+        bandeja. Es el caso de los enlaces duplicados (17,2%): apilar dos modales confundiría más.
+        Míralo en «Dos enlaces».</p>
+      <p class="text-slate-500 pt-1 border-t border-quac/10">Las tres variantes comparten bandeja y
+        configuración; solo cambia cuántos toques hay hasta el enlace: A tres, B uno, C cero.</p>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl p-3 shadow-sm space-y-3">
+    <div>
+      <p class="font-semibold mb-1">② Pantalla</p>
+      <div class="grid grid-cols-3 gap-1">
+        <button data-p="home"    class="np px-1 py-1.5 rounded-lg border text-[11px] font-bold">Home</button>
+        <button data-p="bandeja" class="np px-1 py-1.5 rounded-lg border text-[11px] font-bold">Bandeja</button>
+        <button data-p="config"  class="np px-1 py-1.5 rounded-lg border text-[11px] font-bold">Configuración</button>
+      </div>
+    </div>
+
+    <div>
+      <p class="font-semibold mb-1">③ Situación del cliente</p>
+      <div class="grid grid-cols-2 gap-1">
+        <button data-s="vigente"  class="ns px-1 py-1.5 rounded-lg border text-[11px] font-bold">Compra vigente</button>
+        <button data-s="caducada" class="ns px-1 py-1.5 rounded-lg border text-[11px] font-bold">Enlace caducado</button>
+        <button data-s="dos"      class="ns px-1 py-1.5 rounded-lg border text-[11px] font-bold">Dos enlaces</button>
+        <button data-s="vacia"    class="ns px-1 py-1.5 rounded-lg border text-[11px] font-bold">Sin nada</button>
+        <button data-s="mixta"    class="ns px-1 py-1.5 rounded-lg border text-[11px] font-bold">Compra + mensajes</button>
+        <button data-s="mensajes" class="ns px-1 py-1.5 rounded-lg border text-[11px] font-bold">Solo mensajes</button>
+      </div>
+      <p id="notaCaso" class="text-[11px] text-slate-400 mt-1 leading-relaxed"></p>
+    </div>
+
+    <div>
+      <p class="font-semibold mb-1">④ Ventana de aprobación <span class="font-normal text-slate-400">(la manda el servidor)</span></p>
+      <div class="grid grid-cols-3 gap-1">
+        <button data-w="3"  class="nw px-1 py-1.5 rounded-lg border text-[11px] font-bold">3 min</button>
+        <button data-w="10" class="nw px-1 py-1.5 rounded-lg border text-[11px] font-bold">10 min</button>
+        <button data-w="20" class="nw px-1 py-1.5 rounded-lg border text-[11px] font-bold">20 min</button>
+      </div>
+      <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">Cambiarla es un <code>UPDATE</code> en
+        <code>var_env</code>. La app no la conoce: recibe el instante de vencimiento y cuenta hacia él.</p>
+    </div>
+
+    <div>
+      <p class="font-semibold mb-1">⑤ Estado de la pantalla</p>
+      <div class="grid grid-cols-3 gap-1">
+        <button data-e="ok"    class="ne px-1 py-1.5 rounded-lg border text-[11px] font-bold">Éxito</button>
+        <button data-e="carga" class="ne px-1 py-1.5 rounded-lg border text-[11px] font-bold">Carga</button>
+        <button data-e="error" class="ne px-1 py-1.5 rounded-lg border text-[11px] font-bold">Falla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── EVIDENCIA ── -->
+  <div class="bg-white rounded-xl p-3 shadow-sm space-y-2 text-[11px] leading-relaxed">
+    <p class="font-semibold text-slate-700 text-sm">De dónde salen estos datos</p>
+    <p><b>Los textos son literales de producción.</b> «Compra pendiente», «Aceptar» y la descripción
+      salen de <code>quacapi.user_notifications</code>, escritos por
+      <code>api-compras-quac · OrderStore.php:151-164</code>.</p>
+    <p><b>La ventana real es de 10 minutos</b>, no 28. Está en
+      <code>quacapi.var_env.TIME_MAX_ORDER_STORE = 10</code> (verificado 09-08), y el instante exacto de
+      cada compra ya vive en <code>transactions_store.expires_at</code>. Los 28,5 min del brainstorming
+      §1.4 son cuándo el cron <i>archiva</i>, bastante después de que el enlace caducó.</p>
+    <p><b>Las tiendas y los valores son reales</b> (2026-09-08): STIRPE.CO (WEB) $649.932,
+      825: STIRPE VIVA (VVC) $485.800.</p>
+    <p><b>El catálogo de la configuración son 3 filas reales</b> de <code>notification_types</code>.
+      Ojo: «Compras » tiene un espacio al final en la base.</p>
+    <p class="bg-rosa/10 border border-rosa/30 rounded p-2 text-rosa">
+      <b>Solo el tipo «Compras» produce notificaciones.</b> Los otros dos nunca han generado una fila
+      en 16 meses: no existe el emisor. Aun así se pintan, porque la pantalla lee el catálogo.</p>
+    <p class="bg-slate-50 border border-slate-200 rounded p-2">
+      <b>Los mensajes tradicionales son el único contenido inventado del mockup.</b> Como los tipos 1 y 2
+      nunca emitieron nada, no hay filas reales que mostrar. Los títulos salen de los frames de diseño
+      del inventario (SCR-045-B). La <b>estructura</b> sí es real: <code>title</code>, <code>description</code>,
+      <code>image</code>, <code>link</code>, <code>link_text</code> e <code>is_read</code> son columnas
+      existentes de <code>user_notifications</code>, así que la bandeja puede pintarlos sin cambiar la tabla.</p>
+  </div>
+
+  <div class="bg-white rounded-xl p-3 shadow-sm space-y-2 text-[11px] leading-relaxed">
+    <p class="font-semibold text-slate-700 text-sm">Lo que este mockup propone cambiar del legacy</p>
+    <p>① <b>Cuenta atrás visible.</b> Hoy el cliente lee «disponible por 10 minutos» sin saber cuántos
+      le quedan. Se propone un reloj real.</p>
+    <p>② <b>El enlace caducado deja rastro.</b> Hoy la notificación simplemente desaparece y el cliente
+      no entiende qué pasó. Se propone dejarla visible, apagada, con la salida («pídele al asesor que
+      lo genere de nuevo»).</p>
+    <p>③ <b>La pantalla pasa a llamarse «Avisos en tu celular».</b> Decisión de Francisco (09-08):
+      la bandeja recibe <b>todo</b> lo que el sistema envíe — no es un cliente de correo, es la app de
+      Quac—; lo que el cliente controla es qué le <b>interrumpe el celular</b>.
+      <b>Y así funciona ya el legacy:</b> <code>getNotificacionesUsuario</code> nunca consulta preferencias,
+      y el único que las consulta es el emisor de push (<code>NotificacionesController:65-69</code>). Hasta el
+      modelo se llama <code>PreferenciaNotificacionesPush</code>. No es cambio de comportamiento: es ponerle
+      el nombre correcto a lo que ya hace.</p>
+    <p>④ <b>«Compras» sale de los toggles.</b> El push de una compra pendiente es time-critical: sin él,
+      el cliente no se entera dentro de los 10 minutos. El backend debe rechazar el toggle del tipo 3,
+      no basta con ocultarlo. <b>Pendiente:</b> qué hacer con los 1.687 que ya lo tienen apagado.</p>
+    <p>⑤ <b>El detalle del mensaje deja de ser un alert.</b> El legacy usa <code>showDialog()</code> con un
+      <code>Dialog</code> cuadrado: caja estrecha, imagen aplastada y botón pegado al texto. Se propone
+      una hoja que sube desde abajo, con portada de ancho completo y el CTA anclado donde llega el pulgar.</p>
+    <p>⑥ <b>Sin badge inventado.</b> El contador de la campana sale del mismo endpoint de la bandeja;
+      no se agrega una llamada extra.</p>
+    <p>⑦ <b>Los tipos pasan a ser un endpoint.</b> Hoy no existe: <code>getTipoNotificaciones()</code> viaja
+      dentro de <code>get_profile</code> (<code>ProfileController.php:349</code> y <code>1182</code>) y la app
+      lo lee de <code>cupoInfo.infoCupo['tipoNotificaciones']</code>. Mismo problema del monolito que la bandeja.</p>
+  </div>
+
+  <div class="bg-slate-50 rounded-xl p-3 border border-slate-200 space-y-1 text-[11px] leading-relaxed">
+    <p class="font-semibold text-slate-700 text-sm">Fuera de alcance de este mockup</p>
+    <p>· El <b>aceptar/rechazar nativo</b> (SCR-047/048 de Figma). En producción el botón abre el portal
+      <code>comprasquac-client</code> con un token de un solo uso; construir la aprobación dentro de la
+      app es un REQ propio contra <code>api-compras-quac</code>.</p>
+    <p>· El <b>arreglo del push</b> (External ID). Va en el REQ aparte sobre el legacy.</p>
+    <p>· El <b>historial</b> de notificaciones pasadas: el cron las archiva y no hay pantalla que las muestre.</p>
+  </div>
+</aside>
+
+<!-- ═════════════════ TELÉFONO ═════════════════ -->
+<div class="relative bg-[#F4F3F8] rounded-[2.5rem] shadow-2xl ring-8 ring-slate-900 overflow-hidden flex flex-col" style="width:390px;height:840px;">
+
+  <!-- Header shell AQ-003 -->
+  <div id="header" class="relative px-5 pt-8 pb-6 bg-gradient-to-br from-quac to-quacdark text-white shrink-0">
+    <div class="flex items-center justify-between">
+      <img alt="" class="h-6 opacity-0 w-24">
+      <div class="flex items-center gap-1">
+        <div class="relative w-10 h-10 flex items-center justify-center">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span id="badge" class="hidden absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rosa text-white text-[9px] font-bold flex items-center justify-center tnum">1</span>
+        </div>
+        <div class="w-10 h-10 flex items-center justify-center">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center justify-between mt-2">
+      <p class="text-sm">Hola, <span class="font-bold">Francisco</span></p>
+      <span class="px-3 py-1 rounded-full text-[10px] font-bold tracking-wider bg-white/20">SILVER</span>
+    </div>
+  </div>
+
+  <div id="scroll" class="flex-1 overflow-y-auto"></div>
+
+  <!-- Bottom nav shell AQ-003 -->
+  <div id="nav" class="bg-white border-t border-slate-200 px-2 py-2 flex justify-around text-[10px] shrink-0">
+    <div data-tab="home" class="nt flex flex-col items-center gap-0.5 text-muted cursor-pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>Inicio</div>
+    <div class="flex flex-col items-center gap-0.5 text-muted"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Movimientos</div>
+    <div class="flex flex-col items-center gap-0.5 text-muted"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>Pagar</div>
+    <div class="flex flex-col items-center gap-0.5 text-muted"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Quac+</div>
+    <div class="flex flex-col items-center gap-0.5 text-muted"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>Más</div>
+  </div>
+
+  <!-- Capa de modal -->
+  <div id="capa" class="hidden absolute inset-0 bg-black/45 flex items-center justify-center px-5 z-20"></div>
+</div>
+</div>
+
+<script>
+// ══════════ DATOS REALES · quacapi.user_notifications + transactions_store (2026-09-08) ══════════
+// Textos literales de produccion, escritos por api-compras-quac OrderStore.php:151-164.
+// `restante` son SEGUNDOS, y la app NO los recibe: recibe el instante `expira_en`
+// que devuelve el endpoint (columna real transactions_store.expires_at) y calcula
+// la diferencia. La ventana la fija quacapi.var_env.TIME_MAX_ORDER_STORE = 10 min,
+// editable sin desplegar. Aqui se simula el resultado de esa cuenta.
+const COMPRAS = {
+  vigente:  [ { tienda:'825: STIRPE VIVA (VVC)', valor:485800, restante:432, hora:'9:13 a.m.' } ],
+  caducada: [ { tienda:'STIRPE.CO (WEB)',        valor:649932, restante:0,   hora:'8:41 a.m.' } ],
+  dos:      [ { tienda:'825: STIRPE VIVA (VVC)', valor:485800, restante:404, hora:'9:14 a.m.' },
+              { tienda:'825: STIRPE VIVA (VVC)', valor:485800, restante:0,   hora:'9:11 a.m.' } ],
+  vacia:    [],
+  mixta:    [ { tienda:'825: STIRPE VIVA (VVC)', valor:485800, restante:331, hora:'9:15 a.m.' } ],
+  mensajes: [],
+};
+Object.values(COMPRAS).flat().forEach(c => c.inicial = c.restante);
+
+// ══════════ MENSAJES TRADICIONALES ══════════
+// OJO: contenido HIPOTETICO. Los tipos 1 y 2 nunca han producido una fila en
+// user_notifications (16 meses, 0 registros): no existe el emisor. Los titulos
+// salen de los frames de diseno inventariados en SCR-045-B, no de produccion.
+// La ESTRUCTURA si es real: title, description, image, link, link_text, is_read
+// son las columnas de quacapi.user_notifications.
+const MENSAJES = [
+  { tipo:1, titulo:'Tienes un pago pendiente', leida:false, hora:'ayer',
+    desc:'Tu cuota de $386.932 vence el 2 de septiembre. Puedes pagarla desde la app y evitar intereses.',
+    linkText:'Pagar ahora', img:null },
+  { tipo:2, titulo:'30% de descuento en UNSER', leida:false, hora:'sábado',
+    desc:'Solo por esta semana, aprovecha 30% en toda la colección de temporada con tu cupo Quac.',
+    linkText:'Ver la oferta', img:'oferta' },
+  { tipo:3, titulo:'Realizaste una compra en STIRPE', leida:true, hora:'19/05/23',
+    desc:'Tu compra por $485.800 en 825: STIRPE VIVA (VVC) quedó registrada. Ya puedes verla en Movimientos.',
+    linkText:null, img:null },
+];
+
+// Catalogo real: SELECT * FROM notification_types (3 filas).
+// 'Compras ' con espacio final tal como esta en la base.
+// `configurable:false` en Compras: decision de Francisco (2026-09-08). Ese aviso
+// siempre llega, porque es con el que el cliente autoriza su propia compra.
+// El backend deja de aceptar el toggle para ese tipo; no es solo la UI.
+const TIPOS = [
+  { id:1, nombre:'Recordatorio de cuota', desc:'Te avisamos antes de que venza tu cuota.',        activo:true, configurable:true  },
+  { id:2, nombre:'Ofertas y descuentos',  desc:'Promociones de las tiendas donde puedes usar tu cupo.', activo:true, configurable:true  },
+  { id:3, nombre:'Compras',               desc:'',                                                 activo:true, configurable:false },
+];
+
+const NOTAS_VARIANTE = {
+  campana: 'Fiel al legacy. El cliente tiene que ver el punto rojo, tocar la campana y luego la notificación: tres pasos con el asesor esperando. Es lo más barato y lo que menos cambia el shell de AQ-003.',
+  home:    'La compra pendiente aparece como tarjeta arriba de todo en el Home, con la cuenta atrás corriendo. Un solo toque hasta el enlace. Exige que /v2/home devuelva la compra vigente, no solo la bandeja.',
+  interrumpe: 'ELEGIDA. Al abrir la app, si hay compra vigente, el modal aparece solo: cero toques hasta el enlace. La notificación queda además en la bandeja, que es el plan B si el cliente lo cierra.',
+};
+const NOTAS_CASO = {
+  vigente:  'Lo normal: el asesor generó el enlace y el cliente entra a buscarlo. Quedan 7 minutos.',
+  caducada: 'El cliente llegó tarde. Hoy la notificación ya no está y no entiende qué pasó.',
+  dos:      'Tu caso de los enlaces duplicados: 17,2% de las pendientes tienen un gemelo. El cliente ve dos y no sabe cuál tocar.',
+  vacia:    'El estado permanente de la bandeja en producción: las 384.703 notificaciones están archivadas.',
+  mixta:    'Cómo se vería si algún día existiera el emisor de recordatorios y ofertas: la compra pendiente manda arriba, los mensajes van debajo bajo «ANTERIORES».',
+  mensajes: 'Solo comunicaciones, sin compra por aprobar. Hoy es un estado imposible: los tipos 1 y 2 nunca han emitido nada.',
+};
+
+let V='interrumpe', P='home', S='vigente', E='ok', VENTANA=10;
+
+const pesos = n => '$' + n.toLocaleString('es-CO');
+const reloj = c => `${Math.floor(c.restante/60)}:${String(c.restante%60).padStart(2,'0')}`;
+const viva  = c => c.restante > 0;
+
+// ══════════ COMPONENTES ══════════
+function tarjetaCompra(c, i, compacta) {
+  const vivo = viva(c);
+  return `
+  <div class="bg-white rounded-2xl shadow-sm ${viva?'ring-2 ring-quac/25':'opacity-90'} overflow-hidden fade">
+    <div class="px-4 pt-4 pb-3">
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex items-start gap-2.5">
+          ${vivo ? '<span class="mt-1.5 w-2 h-2 rounded-full bg-rosa shrink-0 pulso"></span>'
+                 : '<span class="mt-1.5 w-2 h-2 rounded-full bg-slate-300 shrink-0"></span>'}
+          <div>
+            <p class="font-display font-bold text-[15px] text-txt leading-tight">Compra pendiente</p>
+            <p class="text-[12px] text-muted mt-0.5">${c.tienda}</p>
+          </div>
+        </div>
+        <p class="text-[11px] text-muted shrink-0 tnum">${c.hora}</p>
+      </div>
+
+      <p class="font-display font-extrabold text-[26px] text-txt mt-3 tnum">${pesos(c.valor)}</p>
+
+      ${vivo ? `
+      <div class="mt-3 flex items-center gap-2 bg-lavender rounded-xl px-3 py-2">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <p class="text-[12px] text-quacdark">Te quedan <b class="tnum reloj" data-i="${i}">${reloj(c)}</b> para aprobarla</p>
+      </div>` : `
+      <div class="mt-3 flex items-start gap-2 bg-slate-100 rounded-xl px-3 py-2">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" class="mt-0.5 shrink-0"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>
+        <p class="text-[12px] text-slate-500 leading-snug">El tiempo se acabó. Pídele a tu asesor que genere el enlace otra vez.</p>
+      </div>`}
+    </div>
+
+    ${vivo ? `
+    <button onclick="abrirModal(${i})" class="w-full bg-quac text-white font-display font-bold text-[14px] py-3.5 active:bg-quacdark">
+      Aceptar
+    </button>` : ''}
+  </div>`;
+}
+
+// Mensaje tradicional: fila compacta, sin reloj ni CTA a pantalla completa.
+// Se diferencia de la compra pendiente a proposito: aquella es una accion con
+// tiempo corriendo, esta es informacion que se lee.
+function filaMensaje(m, i) {
+  const ICONO = {
+    1: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2" stroke-linecap="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>',
+    2: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82"/><circle cx="7" cy="7" r="1.2" fill="#7633FF"/></svg>',
+    3: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></svg>',
+  };
+  return `
+  <button onclick="abrirMensaje(${i})" class="w-full text-left bg-white rounded-2xl shadow-sm px-4 py-3.5 flex gap-3 items-start active:bg-slate-50 fade">
+    <span class="w-8 h-8 rounded-full bg-lavender flex items-center justify-center shrink-0 mt-0.5">${ICONO[m.tipo]}</span>
+    <span class="flex-1 min-w-0">
+      <span class="flex items-baseline justify-between gap-2">
+        <span class="font-display text-[14px] text-txt leading-tight ${m.leida?'font-normal':'font-bold'}">${m.titulo}</span>
+        <span class="text-[11px] text-muted shrink-0">${m.hora}</span>
+      </span>
+      <span class="block text-[12.5px] text-muted mt-1 leading-snug line-clamp-2">${m.desc}</span>
+      ${m.linkText ? `<span class="inline-block text-[12px] text-quac font-bold mt-1.5">${m.linkText} ›</span>` : ''}
+    </span>
+    ${m.leida ? '' : '<span class="w-2 h-2 rounded-full bg-rosa shrink-0 mt-2"></span>'}
+  </button>`;
+}
+
+// Detalle del mensaje: hoja que sube desde abajo, NO un alert centrado.
+// El legacy usa showDialog() con un Dialog cuadrado: caja estrecha, sin aire,
+// la imagen aplastada y el boton pegado al texto. Aqui se le da altura, una
+// portada de ancho completo y el CTA anclado abajo, que es donde el pulgar llega.
+const ETIQUETA_TIPO = {
+  1:{txt:'Recordatorio', cls:'bg-lavender text-quacdark'},
+  2:{txt:'Oferta',       cls:'bg-quac/10 text-quac'},
+  3:{txt:'Compra',       cls:'bg-slate-100 text-slate-600'},
+};
+
+function abrirMensaje(i) {
+  const m = MENSAJES[i]; if (!m) return;
+  m.leida = true;
+  const et = ETIQUETA_TIPO[m.tipo];
+  document.getElementById('capa').className = 'absolute inset-0 bg-black/50 flex items-end z-20';
+  document.getElementById('capa').innerHTML = `
+  <div class="bg-white w-full rounded-t-[28px] overflow-hidden flex flex-col sube" style="max-height:88%">
+
+    <div class="pt-2.5 pb-1 flex justify-center shrink-0">
+      <span class="w-10 h-1 rounded-full bg-slate-300"></span>
+    </div>
+
+    <div class="flex-1 overflow-y-auto">
+      ${m.img ? `
+      <div class="mx-4 mt-2 rounded-2xl h-40 bg-gradient-to-br from-quac via-rosa to-quacdark flex flex-col items-center justify-center">
+        <p class="font-display font-extrabold text-white text-[44px] leading-none tracking-tight">-30%</p>
+        <p class="text-white/80 text-[12px] mt-1.5 tracking-widest font-bold">UNSER</p>
+      </div>` : ''}
+
+      <div class="px-5 ${m.img?'pt-4':'pt-3'} pb-5">
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide ${et.cls}">${et.txt}</span>
+          <span class="text-[11px] text-muted">${m.hora}</span>
+        </div>
+
+        <h3 class="font-display font-extrabold text-[22px] text-txt leading-tight mt-3">${m.titulo}</h3>
+        <p class="text-[14px] text-slate-600 mt-3 leading-relaxed">${m.desc}</p>
+      </div>
+    </div>
+
+    <div class="px-5 pt-3 pb-5 border-t border-slate-100 shrink-0 bg-white">
+      ${m.linkText
+        ? `<button class="w-full bg-quac text-white font-display font-bold text-[15px] py-3.5 rounded-xl active:bg-quacdark">${m.linkText}</button>
+           <button onclick="cerrarModal();render()" class="w-full text-muted font-display font-bold text-[14px] py-2.5 mt-1">Cerrar</button>`
+        : `<button onclick="cerrarModal();render()" class="w-full border-2 border-quac text-quac font-display font-bold text-[15px] py-3.5 rounded-xl">Entendido</button>`}
+    </div>
+  </div>`;
+}
+
+function vacio(txt, sub) {
+  return `<div class="text-center pt-16 px-6 fade">
+    <div class="w-16 h-16 rounded-full bg-lavender mx-auto flex items-center justify-center">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+    </div>
+    <p class="font-display font-bold text-txt mt-4">${txt}</p>
+    <p class="text-[13px] text-muted mt-1.5 leading-relaxed">${sub}</p>
+  </div>`;
+}
+
+// ══════════ PANTALLAS ══════════
+function pintarBandeja() {
+  const cs = COMPRAS[S];
+  if (E === 'carga') {
+    return `<div class="px-5 pt-5 space-y-3">${'<div class="skel h-36 rounded-2xl"></div>'.repeat(2)}</div>`;
+  }
+  if (E === 'error') {
+    return `<div class="px-5 pt-5">
+      ${cabecera('CONOCE TODAS TUS','Notificaciones')}
+      <div class="bg-white rounded-2xl p-5 text-center mt-3 fade">
+        <div class="w-14 h-14 rounded-full bg-err/10 mx-auto flex items-center justify-center">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FF6464" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
+        </div>
+        <p class="font-display font-bold text-txt mt-3">No pudimos cargar tus notificaciones</p>
+        <p class="text-[13px] text-muted mt-1.5">Revisa tu conexión e inténtalo de nuevo.</p>
+        <button class="mt-4 w-full border-2 border-quac text-quac font-display font-bold text-[14px] py-3 rounded-xl">Reintentar</button>
+      </div>
+    </div>`;
+  }
+  const conMensajes = (S==='mixta' || S==='mensajes');
+  const hayAlgo = cs.length || conMensajes;
+  return `<div class="px-5 pt-5 pb-5">
+    ${cabecera('CONOCE TODAS TUS','Notificaciones')}
+    <div class="space-y-3 mt-3">
+      ${cs.map((c,i)=>tarjetaCompra(c,i,false)).join('')}
+      ${conMensajes && cs.length ? `<p class="text-[11px] text-muted tracking-wider pt-2 pl-1">ANTERIORES</p>` : ''}
+      ${conMensajes ? MENSAJES.map((m,i)=>filaMensaje(m,i)).join('') : ''}
+      ${hayAlgo ? '' : vacio('No tienes notificaciones','Cuando tengas una compra por aprobar, aparecerá aquí.')}
+    </div>
+  </div>`;
+}
+
+function cabecera(overline, titulo) {
+  return `<div class="flex items-start justify-between">
+    <div>
+      <p class="text-[11px] text-muted tracking-wider">${overline}</p>
+      <h2 class="font-display font-extrabold text-[24px] text-quacdark leading-tight">${titulo}</h2>
+    </div>
+    ${P==='bandeja' ? `<button data-goto="config" class="w-9 h-9 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#321185" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>` : ''}
+  </div>`;
+}
+
+function pintarConfig() {
+  if (E === 'carga') return `<div class="px-5 pt-5 space-y-3">${'<div class="skel h-14 rounded-xl"></div>'.repeat(3)}</div>`;
+  return `<div class="px-5 pt-5 pb-5">
+    <button data-goto="bandeja" class="flex items-center gap-2 text-quac text-[14px] mb-3">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
+    </button>
+    ${cabecera('CONFIGURACIÓN','Avisos en tu celular')}
+    <p class="text-[13px] text-txt mt-3">Elige por cuáles quieres que te interrumpamos.</p>
+    <div class="mt-3 flex items-start gap-2.5 bg-lavender rounded-2xl px-4 py-3">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#321185" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 shrink-0"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <p class="text-[12px] text-quacdark leading-relaxed">
+        Esto solo controla las alertas que llegan a tu celular. <b>Todo lo que Quac te envíe queda
+        siempre en tu bandeja de notificaciones dentro de la app</b>, lo apagues o no.
+      </p>
+    </div>
+
+    <div class="mt-5 bg-white rounded-2xl divide-y divide-slate-100 overflow-hidden">
+      ${TIPOS.filter(t=>t.configurable).map(t=>`
+      <div class="flex items-center justify-between px-4 py-4 gap-3">
+        <div>
+          <p class="text-[14px] text-txt">${t.nombre}</p>
+          <p class="text-[11.5px] text-muted mt-0.5 leading-snug">${t.desc}</p>
+        </div>
+        <button onclick="toggle(${t.id})" class="w-12 h-7 rounded-full shrink-0 transition-colors ${t.activo?'bg-quac':'bg-slate-300'} relative">
+          <span class="absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all ${t.activo?'left-6':'left-1'}"></span>
+        </button>
+      </div>`).join('')}
+    </div>
+
+    ${E==='error' ? `<p class="text-[12px] text-err mt-3 flex items-center gap-1.5">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
+      No pudimos guardar el cambio. Lo dejamos como estaba.</p>` : ''}
+  </div>`;
+}
+
+function pintarHome() {
+  const cs = COMPRAS[S];
+  const mostrar = V === 'home' && cs.length && E !== 'carga';
+  return `<div class="px-4 pt-4 pb-5 space-y-3">
+    ${mostrar ? `<div class="space-y-3">${cs.map((c,i)=>viva(c)?tarjetaCompra(c,i,true):'').join('')}</div>` : ''}
+    ${E==='carga' ? '<div class="skel h-44 rounded-2xl"></div>' : `
+    <div class="bg-white rounded-3xl shadow-sm p-5 fade">
+      <div class="flex items-center justify-between">
+        <p class="text-[15px] text-quacdark">Tu cupo</p>
+        <span class="px-3 py-1 rounded-full text-[10px] font-bold text-white bg-aldia">AL DÍA</span>
+      </div>
+      <p class="font-display font-extrabold text-[34px] text-txt mt-2 tnum">$2.909.259</p>
+      <p class="text-[13px] text-muted">disponible de $4.000.000</p>
+      <div class="mt-4 bg-lavender rounded-xl px-4 py-3 flex items-center justify-between">
+        <div><p class="text-[11px] text-slate-600">Próximo pago</p><p class="font-display font-bold text-[15px] text-txt tnum">$386.932</p></div>
+        <div class="text-right"><p class="text-[11px] text-slate-600">Vence</p><p class="font-bold text-[13px] text-txt">02 Sep</p></div>
+      </div>
+    </div>
+    <div class="bg-white rounded-3xl shadow-sm p-5 fade">
+      <p class="text-[15px] text-quacdark">Clave dinámica</p>
+      <p class="font-display font-extrabold text-[30px] text-txt mt-1 tracking-[0.3em] tnum">4 8 2 1</p>
+    </div>`}
+  </div>`;
+}
+
+// ══════════ MODAL ══════════
+function abrirModal(i) {
+  const c = COMPRAS[S][i] || COMPRAS[S].filter(viva)[0];
+  if (!c || !viva(c)) return;
+  const otras = COMPRAS[S].filter(viva).length - 1;
+  document.getElementById('capa').className = 'absolute inset-0 bg-black/45 flex items-center justify-center px-5 z-20';
+  document.getElementById('capa').innerHTML = `
+  <div class="bg-white rounded-3xl w-full p-5 fade">
+    <div class="flex items-start justify-between">
+      <p class="font-display font-bold text-[17px] text-txt">Compra pendiente</p>
+      <button onclick="cerrarModal()" class="w-7 h-7 flex items-center justify-center text-muted">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p class="text-[11px] text-muted mt-1">${c.hora} · hoy</p>
+    <p class="font-display font-extrabold text-[30px] text-txt mt-4 tnum">${pesos(c.valor)}</p>
+    <p class="text-[13px] text-muted mt-1">${c.tienda}</p>
+    ${otras > 0 ? `
+    <button data-goto="bandeja" onclick="cerrarModal()" class="mt-3 w-full flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-left">
+      <span class="text-[12px] text-slate-600">Tienes <b>${otras+1} compras</b> por aprobar</span>
+      <span class="text-[12px] text-quac font-bold shrink-0">Verlas todas ›</span>
+    </button>` : ''}
+
+    <div class="mt-4 flex items-center gap-2 bg-lavender rounded-xl px-3 py-2.5">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      <p class="text-[12px] text-quacdark">Te quedan <b class="tnum relojModal">${reloj(c)}</b> para aprobarla</p>
+    </div>
+
+    <button class="mt-4 w-full bg-quac text-white font-display font-bold text-[15px] py-3.5 rounded-xl active:bg-quacdark flex items-center justify-center gap-2">
+      Aceptar
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+    </button>
+    <p class="text-[11px] text-muted text-center mt-2.5 leading-snug">Se abre el portal de Quac para que elijas tus cuotas y confirmes.</p>
+  </div>`;
+}
+function cerrarModal(){ document.getElementById('capa').className='hidden'; }
+
+// Regla de reaparicion (variante C): el modal se muestra UNA vez por apertura de
+// la app — arranque en frio o vuelta desde segundo plano—, no cada vez que se
+// cambia de tab. Si el cliente lo cierra, la notificacion sigue en la bandeja.
+let yaMostrado = false;
+function simularAperturaApp(){ yaMostrado = false; render(); }
+
+// ══════════ RENDER ══════════
+function render() {
+  const cs = COMPRAS[S];
+  const vivas = cs.filter(viva).length;
+
+  const b = document.getElementById('badge');
+  b.className = (vivas && E!=='carga') ? 'absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rosa text-white text-[9px] font-bold flex items-center justify-center tnum' : 'hidden';
+  b.textContent = vivas;
+
+  document.getElementById('scroll').innerHTML =
+    P==='bandeja' ? pintarBandeja() : P==='config' ? pintarConfig() : pintarHome();
+
+  document.querySelectorAll('.nt').forEach(n=>{
+    n.className = 'nt flex flex-col items-center gap-0.5 cursor-pointer ' + (P==='home'?'text-quac font-bold':'text-muted');
+  });
+
+  cerrarModal();
+  if (V==='interrumpe' && P==='home' && vivas && E==='ok' && !yaMostrado) {
+    yaMostrado = true;
+    setTimeout(()=>abrirModal(COMPRAS[S].findIndex(viva)), 260);
+  }
+
+  document.getElementById('notaVariante').textContent = NOTAS_VARIANTE[V];
+  document.getElementById('notaCaso').textContent = NOTAS_CASO[S];
+
+  [['nv',V,'v'],['np',P,'p'],['ns',S,'s'],['ne',E,'e'],['nw',String(VENTANA),'w']].forEach(([cls,val,attr])=>{
+    document.querySelectorAll('.'+cls).forEach(x=>{
+      const base = cls==='nv' ? 'nv px-2 py-2 rounded-lg border text-[11px] font-bold text-left '
+                              : cls+' px-1 py-1.5 rounded-lg border text-[11px] font-bold ';
+      x.className = base + (x.dataset[attr]===val ? 'on' : 'off');
+    });
+  });
+}
+
+function toggle(id){
+  const t = TIPOS.find(x=>x.id===id);
+  if (!t.configurable) return;   // Compras no se apaga: ni aqui ni en el backend.
+  t.activo = !t.activo;
+  render();
+}
+
+// ══════════ TICTAC ══════════
+// Solo actualiza el texto del reloj; no repinta la pantalla. Cuando llega a 0
+// repinta una vez para que la tarjeta pase a "caducada" sola, delante del usuario.
+setInterval(()=>{
+  if (E !== 'ok') return;
+  const vivas = COMPRAS[S].filter(viva);
+  if (!vivas.length) return;
+  let expiro = false;
+  vivas.forEach(c => { c.restante--; if (c.restante <= 0) expiro = true; });
+  if (expiro) { render(); return; }
+  document.querySelectorAll('.reloj').forEach(el=>{
+    const c = COMPRAS[S][+el.dataset.i];
+    if (c) el.textContent = reloj(c);
+  });
+  const rm = document.querySelector('.relojModal');
+  if (rm && vivas[0]) rm.textContent = reloj(vivas[0]);
+}, 1000);
+
+function fijarVentana(min){
+  VENTANA = min;
+  Object.values(COMPRAS).flat().forEach(c=>{
+    if (c.inicial > 0) c.restante = Math.max(1, Math.round(c.inicial * (min/10)));
+  });
+  render();
+}
+
+document.addEventListener('click', e=>{
+  const t = e.target.closest('[data-v],[data-p],[data-s],[data-e],[data-goto],[data-tab]');
+  if(!t) return;
+  if(t.dataset.v){ V=t.dataset.v; if(V==='home'||V==='interrumpe') P='home'; else P='bandeja'; }
+  if(t.dataset.p) P=t.dataset.p;
+  if(t.dataset.s){ S=t.dataset.s; COMPRAS[S].forEach(c=>{ if(c.inicial>0) c.restante=Math.max(1,Math.round(c.inicial*(VENTANA/10))); }); }
+  if(t.dataset.e) E=t.dataset.e;
+  if(t.dataset.goto) P=t.dataset.goto;
+  if(t.dataset.tab) P=t.dataset.tab;
+  if(t.dataset.w){ fijarVentana(+t.dataset.w); return; }
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
