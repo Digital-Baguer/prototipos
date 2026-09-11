@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-155 · Indicadores sobre pedidos pagados — Gestión de Ventas, Mis Ventas, Liquidación y Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Pila tipográfica REAL de get-web (verificada contra el CSS compilado en GW-150/152). */
+  html, body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+  .cifra { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .marcar-on .cambio { outline: 2px dashed #6366f1; outline-offset: 2px; border-radius: 4px; }
+  .skeleton { background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+  @keyframes sk { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+</style>
+</head>
+<body class="overflow-x-hidden bg-gray-100 text-gray-900 antialiased">
+
+<!-- ══ Barra de control del mockup (no es parte de la UI) ══ -->
+<div class="sticky top-0 z-50 border-b border-indigo-200 bg-indigo-50/95 px-4 py-2 backdrop-blur">
+  <div class="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+    <span class="font-bold text-indigo-900">GW-155 · mockup</span>
+    <label class="flex items-center gap-1.5">
+      <span class="text-indigo-800">Pantalla:</span>
+      <select id="pantalla" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="gestion">Gestión de Ventas · tablero</option>
+        <option value="misventas">Mis Ventas · tablero del asesor</option>
+        <option value="liquidacion">Liquidación · detalle del asesor (Infobip)</option>
+        <option value="top">Gestión de Ventas · Top asesores (Comparar)</option>
+        <option value="dashboard">Dashboard de inicio · Venta Asistida</option>
+      </select>
+    </label>
+    <label class="flex items-center gap-1.5">
+      <span class="text-indigo-800">Versión:</span>
+      <select id="version" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="nueva">Nueva (GW-155: solo pedidos pagados)</option>
+        <option value="actual">Actual (como está hoy en PROD)</option>
+      </select>
+    </label>
+    <label class="flex items-center gap-1.5">
+      <span class="text-indigo-800">Estado:</span>
+      <select id="estado" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="normal">Normal (datos reales)</option>
+        <option value="cargando">Cargando</option>
+        <option value="error">Error al cargar</option>
+      </select>
+    </label>
+    <label class="flex items-center gap-1.5">
+      <input id="marcar" type="checkbox" class="rounded border-indigo-300" checked>
+      <span class="text-indigo-800">Marcar lo que cambia <span class="text-indigo-400">(ayuda de revisión)</span></span>
+    </label>
+    <span id="fuente" class="text-indigo-700 lg:ml-auto"></span>
+  </div>
+</div>
+
+<div id="pagina" class="marcar-on mx-auto max-w-[1400px] px-4 py-5"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Datos REALES de PROD (túnel 3308, consultados el 2026-09-11). STIRPE (tienda 0).
+// Carritos VA confirmados sin clones ni archivados, por segmento del repositorio:
+//   1–11 sep: facturada 632 · pagada 78 · proyectada 31  → hoy 741, nuevo 710
+//   10 sep:   facturada 20  · pagada 65 · proyectada 9   → hoy 94,  nuevo 85
+// Tráfico 1–11 sep: 3.040 conversaciones (Jhon: 304). Metas sep: UPT 2,00 · VPT $500.000 · TCV 23 %.
+// Los ratios «actual» usan la venta de carrito de los 3 segmentos (sin devoluciones): aproximación
+// para comparar magnitudes; el «nuevo» es exactamente la regla B3.
+// ─────────────────────────────────────────────────────────────────────────────
+const D = {
+  tienda: {
+    esperados: 1137, trafico: 3040, tcMeta: 23, uptMeta: 2, vptMeta: 500000,
+    // pedidosTc = los de los días con archivo de Infobip (1–10 sep; el 11 aún no tiene archivo):
+    // es el numerador real de la TC (pedidosEnFechas).
+    actual: { pedidos: 741, pedidosTc: 726, unidades: 1420, venta: 348189554 },
+    nueva:  { pedidos: 710, pedidosTc: 699, unidades: 1364, venta: 341021018 },
+    porPagar: 31,
+  },
+  jhon: {
+    nombre: 'Jhon A. Rodríguez P.', esperados: 58, trafico: 304, pedTc: 70,
+    actual: { pedidos: 81, pedidosTc: 80, unidades: 191, venta: 45093174 },
+    nueva:  { pedidos: 80, pedidosTc: 79, unidades: 189, venta: 45093174 },
+    // Tarjeta de cumplimiento (sin cambios en GW-155): cifras reales del mockup aprobado de GW-153
+    presupuesto: { meta: 28797373, recaudada: 23407456, pendiente: 4254358, pctRec: 81.3, pctConf: 96.1 },
+    // Comisión adicional real (PROD): VPT del sello hoy = $33.905.346 ÷ 62; escala vigente STIRPE
+    // asesor: TCV y VPT pagan 0,08 % desde el 100 % de la meta.
+    vptComision: 546860, aporte: '0,08%',
+    porPagar: 1,
+    // TCV de la comisión (sello del cron, 1–10 sep): 93 → 79 carritos sobre 304 conversaciones
+    tcvComision: { actual: 30.6, nueva: 26.0 },
+  },
+  // Detalle Infobip del modal de Liquidación (sello real, 1–10 sep)
+  infobip: [
+    { f:'2026-08-29', conv:31, conf:10, pag:10, antesCorte:true },
+    { f:'2026-09-01', conv:29, conf:9,  pag:8 },
+    { f:'2026-09-02', conv:38, conf:12, pag:9 },
+    { f:'2026-09-03', conv:34, conf:9,  pag:8 },
+    { f:'2026-09-04', conv:38, conf:9,  pag:6 },
+    { f:'2026-09-07', conv:29, conf:13, pag:11 },
+    { f:'2026-09-08', conv:36, conf:10, pag:8 },
+    { f:'2026-09-09', conv:63, conf:14, pag:13 },
+    { f:'2026-09-10', conv:37, conf:17, pag:16 },
+  ],
+  dia: {
+    meta: 45853080, venta: { facturada: 6915229, pagada: 33662578, proyectada: 2901508 },
+    actual: { facturada: 20, pagada: 65, proyectada: 9, unidades: 217, venta: 43479315 },
+    nueva:  { facturada: 20, pagada: 65, proyectada: 0, unidades: 198, venta: 40577807 },
+    porPagar: 9, metaPedidos: 92, vptMeta: 500000, uptMeta: 2,
+  },
+};
+
+// ─── Helpers (espejo de gauge.ts / pctCumplimiento.ts / semaforoBadge.ts) ───
+const pesos  = n => (n == null) ? '—' : '$ ' + Math.round(n).toLocaleString('es-CO');
+const dec2   = n => (n == null) ? '—' : n.toLocaleString('es-CO', {minimumFractionDigits:2, maximumFractionDigits:2});
+const pct1   = n => (n == null) ? '—' : n.toLocaleString('es-CO', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%';
+const entero = n => (n == null) ? '—' : Math.round(n).toLocaleString('es-CO');
+const pctCump = n => (n == null) ? '—' : ((n < 100 && Math.round(n) >= 100) ? 99 : Math.round(n)) + '%';
+const semaforo = p => p == null ? null : p >= 95 ? 'verde' : p >= 80 ? 'ambar' : 'rojo';
+const HEX = { verde:'#059669', ambar:'#d97706', rojo:'#dc2626' };
+const BORDE = { verde:'border-l-emerald-600', ambar:'border-l-amber-500', rojo:'border-l-red-500' };
+const BADGE = { verde:'bg-emerald-600', ambar:'bg-amber-500', rojo:'bg-red-500' };
+const FONDO = { verde:'bg-emerald-100 text-emerald-900', ambar:'bg-amber-100 text-amber-900', rojo:'bg-red-100 text-red-900' };
+function arco(p) {
+  const ang = (Math.min(Math.max(p ?? 0, 0), 110) / 110) * 180;
+  const rad = ((180 - ang) * Math.PI) / 180;
+  return `M 18 64 A 52 52 0 0 1 ${(70 + 52 * Math.cos(rad)).toFixed(1)} ${(64 - 52 * Math.sin(rad)).toFixed(1)}`;
+}
+const badge = p => { const s = semaforo(p); return s ? `<span class="inline-block min-w-[46px] rounded ${BADGE[s]} px-1.5 py-0.5 text-center text-xs font-bold text-white">${pctCump(p)}</span>` : '<span class="text-gray-300">—</span>'; };
+const sk = (h, extra='') => `<div class="skeleton ${h} rounded-xl ${extra}"></div>`;
+const bloqueError = () => `<div class="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
+  <p class="text-sm text-gray-500">No se pudieron cargar los datos.</p>
+  <button type="button" class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100">Reintentar</button></div>`;
+// lucide TrendingUp (Icon.vue, h-3.5 w-3.5 en la tarjeta de TC)
+const icoSube = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>';
+
+const estadoUI = () => ({
+  v: document.getElementById('version').value,
+  estado: document.getElementById('estado').value,
+});
+// Rótulo de la segunda línea de la tarjeta de TC
+const rotuloCarritos = v => v === 'nueva' ? 'Carritos pagados' : 'Carritos confirmados';
+const cambio = v => v === 'nueva' ? 'cambio' : '';
+// Los confirmados sin pagar NO están dentro del conteo: van con «+», nunca entre paréntesis
+// (un paréntesis bajo la cifra se lee como «de estos, N faltan por pagar»).
+function porPagar(ui, n, texto = 'confirmados sin pagar') {
+  if (ui.v !== 'nueva' || !n) return '';
+  return `<p class="cifra text-[10px] font-normal text-gray-400 cambio">+ ${entero(n)} ${n === 1 ? texto.replace('confirmados', 'confirmado') : texto}</p>`;
+}
+
+// ═══════════════════════════════ GESTIÓN DE VENTAS ═══════════════════════════════
+function gestion(ui) {
+  const t = D.tienda, x = t[ui.v];
+  const pedPct = x.pedidos / t.esperados * 100;
+  const faltan = t.esperados - x.pedidos;
+  const tc = x.pedidosTc / t.trafico * 100;
+  const upt = x.unidades / x.pedidos, vpt = x.venta / x.pedidos, ppt = x.venta / x.unidades;
+  const s = semaforo(pedPct);
+  const cumpleTc = tc >= t.tcMeta;
+
+  const chrome = `
+    <nav class="mb-3 text-xs text-gray-500">Dashboard <span class="mx-1">›</span> Venta Asistida <span class="mx-1">›</span> <span class="text-gray-800">Gestión de Ventas</span></nav>
+    <div class="mb-4 flex items-center gap-6 border-b border-gray-200 text-sm">
+      <button class="border-b-2 border-gray-900 px-1 pb-2 font-semibold text-gray-900">Dashboard</button>
+      <button class="border-b-2 border-transparent px-1 pb-2 text-gray-500">Consulta de ventas</button>
+      <button class="border-b-2 border-transparent px-1 pb-2 text-gray-500">Histórico</button>
+    </div>
+    <div class="mb-4 flex flex-wrap items-center gap-x-6 gap-y-3">
+      <div class="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 text-xs">
+        <span class="rounded-md bg-gray-900 px-3 py-1 font-medium text-white">STIRPE</span>
+        <span class="px-3 py-1 text-gray-500">DEREK</span><span class="px-3 py-1 text-gray-500">Comparar</span>
+      </div>
+      <div class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs">
+        <span class="text-gray-400">PERÍODO</span>
+        <span class="px-2 py-0.5 text-gray-500">Día</span><span class="rounded bg-gray-900 px-2 py-0.5 text-white">Quincena</span><span class="px-2 py-0.5 text-gray-500">Mes</span>
+        <span class="mx-1 h-4 w-px bg-gray-200"></span><span class="font-medium">1 – 15 sep 2026</span>
+      </div>
+    </div>`;
+
+  if (ui.estado !== 'normal') {
+    const cuerpo = ui.estado === 'cargando'
+      ? `<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">${sk('h-[210px]')}${sk('h-[210px]')}${sk('h-[210px]')}</div>${sk('h-[120px] mt-4')}${sk('h-[220px] mt-4')}`
+      : `<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">${[1,2,3].map(() => `<div class="flex rounded-2xl border bg-white p-4 shadow-sm">${bloqueError()}</div>`).join('')}</div>`;
+    return chrome + cuerpo;
+  }
+
+  // Card 1: sin cambios en GW-155 (la plata no se toca). Se dibuja atenuada.
+  const card1 = `
+    <div class="relative rounded-2xl border bg-white p-4 shadow-sm">
+      <span class="absolute right-3 top-3 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">sin cambios</span>
+      <h2 class="mb-1 text-[11px] font-bold tracking-wide text-gray-500 uppercase">% Cump. presupuesto neto</h2>
+      <div class="flex items-center gap-3 opacity-60">
+        <div class="w-[46%] shrink-0">
+          <svg viewBox="0 0 140 74" class="mx-auto w-full max-w-[190px]">
+            <path d="${arco(110)}" fill="none" stroke="#f1f5f9" stroke-width="11" stroke-linecap="round"/>
+            <path d="${arco(62)}" fill="none" stroke="${HEX.rojo}" stroke-width="11" stroke-linecap="round"/>
+            <text x="70" y="58" text-anchor="middle" style="font-size:23px;font-weight:800;fill:#0f172a">60,0%</text>
+          </svg>
+          <p class="text-center text-[11px] text-gray-400">llegaría a 61,2% si recibe los pagos pendientes</p>
+        </div>
+        <div class="flex-1 space-y-2">
+          <div class="rounded-md border border-l-4 border-l-red-500 bg-white px-3 py-2"><p class="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">Venta recaudada</p><p class="cifra text-xl font-extrabold">$ 341.021.018</p></div>
+          <div class="rounded-md border border-l-4 border-l-red-500 bg-white px-3 py-2"><p class="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">Por vender y recaudar</p><p class="cifra text-xl font-extrabold text-red-600">$ 227.557.174</p></div>
+        </div>
+      </div>
+    </div>`;
+
+  const card2 = `
+    <div class="rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="mb-1 text-[11px] font-bold tracking-wide text-gray-500 uppercase">% Pedidos esperados</h2>
+      <div class="flex items-center gap-3">
+        <div class="w-[46%] shrink-0">
+          <svg viewBox="0 0 140 74" class="mx-auto w-full max-w-[190px] ${cambio(ui.v)}">
+            <path d="${arco(110)}" fill="none" stroke="#f1f5f9" stroke-width="11" stroke-linecap="round"/>
+            <path d="${arco(pedPct)}" fill="none" stroke="${HEX[s]}" stroke-width="11" stroke-linecap="round"/>
+            <text x="70" y="58" text-anchor="middle" class="cifra" style="font-size:23px;font-weight:800;fill:#0f172a">${pctCump(pedPct)}</text>
+          </svg>
+          <p class="text-center text-[11px] text-gray-400">${entero(t.esperados)} esperados</p>
+        </div>
+        <div class="flex-1 space-y-2">
+          <div class="rounded-md border border-l-4 bg-white px-3 py-2 ${BORDE[s]}">
+            <p class="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">Pedidos realizados</p>
+            <p class="cifra text-xl leading-tight font-extrabold text-gray-900 ${cambio(ui.v)}">${entero(x.pedidos)}</p>
+            ${porPagar(ui, t.porPagar)}
+          </div>
+          <div class="rounded-md border border-l-4 border-l-red-500 bg-white px-3 py-2">
+            <p class="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">Pedidos por realizar</p>
+            <p class="cifra text-xl leading-tight font-extrabold text-red-600 ${cambio(ui.v)}">${entero(faltan)}</p>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  const card3 = `
+    <div class="flex flex-col rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="text-[11px] font-bold tracking-wide text-gray-500 uppercase">Tasa de conversión</h2>
+      <div class="mt-2 flex flex-1 flex-col items-center justify-center rounded-md py-3 ${cumpleTc ? 'bg-emerald-50' : 'bg-amber-50'}">
+        <p class="cifra text-4xl font-extrabold ${cumpleTc ? 'text-emerald-700' : 'text-amber-600'} ${cambio(ui.v)}">${pct1(tc)}</p>
+        <p class="mt-1 px-3 text-center text-[11px] font-semibold text-amber-700">Sobre 10 de 11 días con archivo cargado</p>
+        <p class="mt-1 text-[11px] text-gray-400">meta del mes: ${t.tcMeta}%</p>
+      </div>
+      <div class="mt-2 space-y-1.5 border-t pt-2 text-sm">
+        <div class="flex justify-between"><span class="text-gray-500">Tráfico atendido</span><span class="cifra font-semibold">${entero(t.trafico)}</span></div>
+        <div class="flex justify-between"><span class="text-gray-500 ${cambio(ui.v)}">${rotuloCarritos(ui.v)}</span><span class="cifra font-semibold ${cambio(ui.v)}">${entero(ui.v === 'nueva' ? x.pedidosTc : x.pedidos)}</span></div>
+        ${ui.v === 'nueva' ? '<p class="text-right text-[10px] text-gray-400 cambio">en los días con archivo: los mismos que se dividen</p>' : ''}
+      </div>
+    </div>`;
+
+  const gris = 'text-gray-300 font-normal';
+  const consolidado = `
+    <div class="mt-4 rounded-2xl border bg-white shadow-sm">
+      <div class="flex items-center gap-2 border-b bg-gray-50 px-4 py-2.5 rounded-t-2xl"><h3 class="text-sm font-semibold text-gray-700">Consolidado</h3></div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[980px] text-sm tabular-nums">
+          <thead><tr class="text-[11px] tracking-wide text-gray-400 uppercase">
+            <th class="px-3 py-2 text-right font-medium">Presupuesto</th><th class="px-3 py-2 text-right font-medium">Venta recaudada</th>
+            <th class="px-3 py-2 text-right font-medium">Tráfico atendido</th><th class="px-3 py-2 text-right font-medium">Pedidos esperados</th>
+            <th class="px-3 py-2 text-right font-medium">Pedidos</th><th class="px-3 py-2 text-center font-medium">% Pedidos esp.</th>
+            <th class="px-3 py-2 text-right font-medium">Devoluciones</th><th class="px-3 py-2 text-center font-medium">% TC</th>
+            <th class="px-3 py-2 text-center font-medium">% Cump. neto</th><th class="px-3 py-2 text-right font-medium">UPT</th>
+            <th class="px-3 py-2 text-right font-medium">PPT</th><th class="px-3 py-2 text-right font-medium">VPT</th>
+          </tr></thead>
+          <tbody><tr class="border-t">
+            <td class="px-3 py-2.5 text-right ${gris}">sin cambios</td><td class="px-3 py-2.5 text-right ${gris}">sin cambios</td>
+            <td class="px-3 py-2.5 text-right font-semibold">${entero(t.trafico)}</td>
+            <td class="px-3 py-2.5 text-right font-semibold">${entero(t.esperados)}</td>
+            <td class="px-3 py-2.5 text-right font-semibold"><span class="${cambio(ui.v)}">${entero(x.pedidos)}</span>${porPagar(ui, t.porPagar, 'sin pagar')}</td>
+            <td class="px-3 py-2.5 text-center"><span class="${cambio(ui.v)}">${badge(pedPct)}</span></td>
+            <td class="px-3 py-2.5 text-right ${gris}">sin cambios</td>
+            <td class="px-3 py-2.5 text-center"><span class="${cambio(ui.v)}">${badge(tc / t.tcMeta * 100)}</span></td>
+            <td class="px-3 py-2.5 text-center ${gris}">sin cambios</td>
+            <td class="px-3 py-2.5 text-right font-semibold"><span class="${cambio(ui.v)}">${dec2(upt)}</span></td>
+            <td class="px-3 py-2.5 text-right font-semibold"><span class="cifra ${cambio(ui.v)}">${pesos(ppt)}</span></td>
+            <td class="px-3 py-2.5 text-right font-semibold"><span class="cifra ${cambio(ui.v)}">${pesos(vpt)}</span></td>
+          </tr></tbody>
+        </table>
+      </div>
+      <div class="border-t px-4 py-4">
+        <p class="mb-2.5 text-[10px] font-semibold tracking-wide text-gray-400 uppercase">Cuánto falta para la meta de la tienda</p>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          ${[80,90,100].map((p, i) => { const falt = [113841536, 170699355, 227557174][i]; return `
+            <div class="rounded-xl bg-gray-50 p-3 text-center">
+              <p class="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">Meta ${p}&nbsp;%</p>
+              <p class="mt-1 text-sm font-bold text-gray-800 tabular-nums">${pesos(falt)}</p>
+              ${(() => { const n = Math.ceil(falt / vpt); const pal = n === 1 ? 'pedido' : 'pedidos';
+                return ui.v === 'nueva'
+                  ? `<p class="mt-0.5 text-[11px] text-gray-500 tabular-nums"><span class="cambio">≈ ${entero(n)} ${pal} más, de ${pesos(vpt)} en promedio</span></p>`
+                  : `<p class="mt-0.5 text-[11px] text-gray-500 tabular-nums">≈ ${entero(n)} ${pal} al VPT de la tienda</p>`; })()}
+            </div>`; }).join('')}
+        </div>
+      </div>
+    </div>`;
+
+  // Tabla por asesor: solo la fila real de Jhon y las columnas que GW-155 mueve.
+  const j = D.jhon, jx = j[ui.v];
+  const jUpt = jx.unidades / jx.pedidos, jVpt = jx.venta / jx.pedidos, jPpt = jx.venta / jx.unidades;
+  const fondo = (v, m) => { const s2 = semaforo(v / m * 100); return FONDO[s2] ?? 'text-gray-800'; };
+  const pedFaltan = j.pedTc - jx.pedidos, itemsUpt = Math.max(0, Math.ceil(2 * jx.pedidos) - jx.unidades);
+  const cumple = '<span class="inline-block rounded bg-emerald-600 px-1.5 py-0.5 text-[11px] font-bold text-white">Cumple</span>';
+  const tabla = `
+    <div class="mt-4 rounded-2xl border bg-white shadow-sm">
+      <div class="flex items-center gap-2 border-b bg-gray-50 px-4 py-2.5 rounded-t-2xl"><h3 class="text-sm font-semibold text-gray-700">Asesores</h3>
+        <span class="text-[11px] text-gray-400">· se muestran solo las columnas que cambian; plata y comisión quedan igual</span></div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[760px] text-sm tabular-nums">
+          <thead><tr class="text-[11px] tracking-wide text-gray-400 uppercase">
+            <th class="sticky left-0 z-10 bg-white px-3 py-2 text-left font-medium shadow-[2px_0_0_0_#e5e7eb]">Nombre</th>
+            <th class="px-3 py-2 text-right font-medium">Pedidos</th><th class="px-3 py-2 text-right font-medium">Ped. para TC</th>
+            <th class="px-3 py-2 text-right font-medium">Ped. que faltan</th><th class="px-3 py-2 text-right font-medium">Ítems UPT</th>
+            <th class="px-3 py-2 text-right font-medium" title="Unidades por pedido">UPT</th>
+            <th class="px-3 py-2 text-right font-medium" title="Precio por unidad — sin meta definida">PPT</th>
+            <th class="px-3 py-2 text-right font-medium" title="Venta por pedido">VPT</th>
+          </tr></thead>
+          <tbody><tr class="border-b border-gray-50 hover:bg-gray-50">
+            <td class="sticky left-0 z-10 bg-white px-3 py-2 whitespace-nowrap shadow-[2px_0_0_0_#e5e7eb]">
+              <span class="inline-flex items-center gap-2"><span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-600 text-[10px] font-bold text-white">JR</span>
+              <span class="font-medium text-gray-800">${j.nombre}</span></span></td>
+            <td class="px-3 py-2 text-right font-semibold text-gray-800"><span class="${cambio(ui.v)}">${entero(jx.pedidos)}</span></td>
+            <td class="px-3 py-2 text-right font-semibold text-gray-800">${entero(j.pedTc)}</td>
+            <td class="px-3 py-2 text-right"><span class="${cambio(ui.v)}">${pedFaltan <= 0 ? cumple : entero(pedFaltan)}</span></td>
+            <td class="px-3 py-2 text-right"><span class="${cambio(ui.v)}">${itemsUpt === 0 ? cumple : entero(itemsUpt)}</span></td>
+            <td class="px-3 py-2 text-right font-semibold ${fondo(jUpt, 2)}"><span class="${cambio(ui.v)}">${dec2(jUpt)}</span></td>
+            <td class="px-3 py-2 text-right font-semibold text-gray-800"><span class="cifra ${cambio(ui.v)}">${pesos(jPpt)}</span></td>
+            <td class="px-3 py-2 text-right font-semibold ${fondo(jVpt, 500000)}"><span class="cifra ${cambio(ui.v)}">${pesos(jVpt)}</span></td>
+          </tr></tbody>
+        </table>
+      </div>
+    </div>
+    <p class="mt-2 text-[11px] text-gray-400">Pedidos, TC y ratios cuentan solo carritos con el pedido pagado (pagados + facturados), por fecha de confirmación. Las cifras de plata no cambian.</p>`;
+
+  return chrome + `<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">${card1}${card2}${card3}</div>` + consolidado + tabla;
+}
+
+// ═══════════════════════════════ MIS VENTAS ═══════════════════════════════
+function misVentas(ui) {
+  const j = D.jhon, x = j[ui.v];
+  const pedPct = x.pedidos / j.esperados * 100, s = semaforo(pedPct);
+  const tc = x.pedidosTc / j.trafico * 100;
+  const tcvCom = j.tcvComision[ui.v];
+  const chrome = `
+    <nav class="mb-2 text-xs text-slate-500">Dashboard <span class="mx-1">›</span> <span class="text-slate-800">Venta Asistida</span></nav>
+    <h1 class="text-2xl font-bold">Mis Ventas</h1>
+    <p class="mb-4 text-sm text-slate-500">Gestiona tus ventas asistidas</p>
+    <div class="mb-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs">
+      <span class="text-slate-400">PERÍODO</span><span class="rounded bg-slate-900 px-2 py-0.5 text-white">Quincena</span>
+      <span class="px-2 py-0.5 text-slate-500">Mes</span><span class="px-2 py-0.5 text-slate-500">Día</span>
+      <span class="mx-1 h-4 w-px bg-slate-200"></span><span class="font-medium">Q1 · Sep 2026</span></div>`;
+
+  if (ui.estado === 'cargando') {
+    return chrome + `<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">${sk('h-[200px] rounded-2xl')}${sk('h-[200px] rounded-2xl')}${sk('h-[200px] rounded-2xl')}</div>${sk('h-[140px] rounded-2xl mt-4')}`;
+  }
+  if (ui.estado === 'error') {
+    return chrome + `<div class="flex min-h-40 flex-col items-center justify-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-5 text-center">
+      <p class="text-sm text-red-900">No pudimos cargar tu tablero.</p>
+      <button class="rounded-lg border border-red-300 bg-white px-3 py-1 text-xs font-medium text-red-700">Reintentar</button></div>`;
+  }
+
+  // Copia fiel de TableroAsesor.vue (tarjeta-presupuesto). GW-155 no la toca.
+  const pr = j.presupuesto, colorPr = HEX[semaforo(pr.pctRec)];
+  const card1 = `
+    <article class="relative rounded-2xl border bg-white p-4 shadow-sm">
+      <span class="absolute right-3 top-3 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">sin cambios</span>
+      <h2 class="mb-1 text-[11px] font-bold tracking-wide text-slate-500 uppercase">% Cump. presupuesto neto</h2>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="mx-auto w-[46%] min-w-[150px] shrink-0">
+          <svg viewBox="0 0 140 74" class="mx-auto w-full max-w-[190px]" role="img" aria-label="Cumplimiento ${pct1(pr.pctRec)}">
+            <path d="${arco(110)}" fill="none" stroke="#f1f5f9" stroke-width="11" stroke-linecap="round"/>
+            <path d="${arco(pr.pctConf)}" fill="none" stroke="${colorPr}55" stroke-width="11" stroke-linecap="round"/>
+            <path d="${arco(pr.pctRec)}" fill="none" stroke="${colorPr}" stroke-width="11" stroke-linecap="round"/>
+            <text x="70" y="58" text-anchor="middle" class="cifra" style="font-size:21px;font-weight:800;fill:#0f172a">${pct1(pr.pctRec)}</text>
+          </svg>
+          <p class="text-center text-[11px] text-slate-600">(${pct1(pr.pctConf)}) proyectado con confirmados</p>
+          <p class="mt-0.5 text-center text-[11px] text-slate-600">Meta ${pesos(pr.meta)}</p>
+        </div>
+        <div class="w-full min-w-0 space-y-2 sm:w-auto sm:flex-[1_1_240px]">
+          <div class="rounded-md border border-l-4 border-slate-200 border-l-emerald-600 px-3 py-2">
+            <p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Venta recaudada</p>
+            <p class="cifra text-xl leading-tight font-extrabold">${pesos(pr.recaudada)}</p>
+            <p class="cifra text-[10px] text-slate-500">(${pesos(pr.pendiente)} confirmada por recaudar)</p>
+          </div>
+          <div class="rounded-md border border-l-4 border-slate-200 border-l-red-500 px-3 py-2">
+            <p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Por vender y recaudar</p>
+            <p class="cifra text-xl leading-tight font-extrabold text-red-600">${pesos(pr.meta - pr.recaudada)}</p>
+          </div>
+        </div>
+      </div>
+    </article>`;
+
+  const card2 = `
+    <article class="rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="mb-1 text-[11px] font-bold tracking-wide text-slate-500 uppercase">% Pedidos esperados</h2>
+      <div class="flex items-center gap-3">
+        <div class="w-[46%] shrink-0">
+          <svg viewBox="0 0 140 74" class="mx-auto w-full max-w-[190px] ${cambio(ui.v)}">
+            <path d="${arco(110)}" fill="none" stroke="#f1f5f9" stroke-width="11" stroke-linecap="round"/>
+            <path d="${arco(pedPct)}" fill="none" stroke="${HEX[s]}" stroke-width="11" stroke-linecap="round"/>
+            <text x="70" y="58" text-anchor="middle" class="cifra" style="font-size:21px;font-weight:800;fill:#0f172a">${pctCump(pedPct)}</text>
+          </svg>
+          <p class="text-center text-[11px] text-slate-600">${entero(j.esperados)} esperados</p>
+        </div>
+        <div class="min-w-0 flex-1 space-y-2">
+          <div class="rounded-md border border-l-4 border-slate-200 border-l-emerald-600 px-3 py-2">
+            <p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Pedidos realizados</p>
+            <p class="cifra text-xl font-extrabold ${cambio(ui.v)}">${entero(x.pedidos)}</p>
+            ${porPagar(ui, j.porPagar)}
+          </div>
+          <div class="rounded-md border border-l-4 border-slate-200 border-l-slate-300 px-3 py-2">
+            <p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Pedidos por realizar</p>
+            <p class="cifra text-xl font-extrabold text-slate-600">0</p>
+          </div>
+        </div>
+      </div>
+    </article>`;
+
+  const card3 = `
+    <article class="flex flex-col rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">Tasa de conversión</h2>
+      <div class="mt-2 flex flex-1 flex-col items-center justify-center rounded-md bg-slate-50 py-3">
+        <p class="cifra text-4xl font-extrabold text-emerald-700 ${cambio(ui.v)}">${pct1(tc)}</p>
+        <p class="mt-1 px-3 text-center text-[11px] font-semibold text-amber-700">Sobre 10 de 11 días con archivo cargado</p>
+        <p class="mt-1 text-[11px] text-slate-600">Meta: 23,0%</p>
+      </div>
+      <div class="mt-2 space-y-1.5 border-t pt-2 text-sm">
+        <div class="flex justify-between"><span class="text-slate-500">Tráfico atendido</span><span class="cifra font-semibold">${entero(j.trafico)}</span></div>
+        <div class="flex justify-between"><span class="text-slate-500 ${cambio(ui.v)}">${rotuloCarritos(ui.v)}</span><span class="cifra font-semibold ${cambio(ui.v)}">${entero(ui.v === 'nueva' ? x.pedidosTc : x.pedidos)}</span></div>
+        ${ui.v === 'nueva' ? '<p class="text-right text-[10px] text-slate-400 cambio">en los días con archivo: los mismos que se dividen</p>' : ''}
+      </div>
+    </article>`;
+
+  // Panel de comisión: fila de la comisión adicional por TCV (PanelComisionProyectada.vue)
+  // Copia fiel del bloque «Comisión adicional» de PanelComisionProyectada.vue (textoMetrica:
+  // «valor · cumplimiento de meta»). El resto del panel no cambia y se resume arriba.
+  const cumpTcv = tcvCom / 23 * 100, cumpVpt = j.vptComision / 500000 * 100;
+  const panel = `
+    <section class="mt-4 rounded-2xl border bg-white p-5 shadow-sm">
+      <div class="mb-4 flex items-center justify-between gap-2"><h2 class="text-sm font-semibold text-gray-700">Comisión proyectada de la quincena</h2></div>
+      <p class="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 px-4 py-3 text-[11px] text-gray-400">Comisión que llevarías, comisión oficial y metas 80 / 90 / 100 %: sin cambios en GW-155 (no se dibujan).</p>
+      <div class="mt-5 border-t border-gray-100 pt-4">
+        <p class="mb-2.5 text-[11px] font-semibold tracking-wide text-gray-400 uppercase">Comisión adicional</p>
+        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+            <div><p class="text-sm font-medium text-gray-600">VPT · venta por pedido</p>
+              <p class="cifra text-[11px] text-gray-600">${pesos(j.vptComision)} · ${pct1(cumpVpt)} de $ 500.000</p></div>
+            <span class="rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-500">+${j.aporte}</span>
+          </div>
+          <div class="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+            <div><p class="text-sm font-medium text-emerald-900">TCV · tasa de conversión</p>
+              <p class="cifra text-[11px] text-gray-600"><span class="${cambio(ui.v)}">${pct1(tcvCom)} · ${pct1(cumpTcv)}</span> de 23,0%</p></div>
+            <span class="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white">+${j.aporte}</span>
+          </div>
+        </div>
+      </div>
+      <p class="mt-3 text-[11px] text-slate-400">${ui.v === 'nueva'
+        ? 'La TCV de la comisión y la de la tarjeta de arriba dan lo mismo: 79 carritos pagados ÷ 304 conversaciones = 26,0 %. Jhon sigue sobre el 100 % de la meta, así que el aporte no cambia (+0,08 %). El VPT de esta línea lo corrige GW-148, no este REQ.'
+        : 'Hoy la TCV de la comisión cuenta los carritos confirmados del sello (93), pagados o no: 30,6 %, contra 26,3 % de la tarjeta de arriba.'}</p>
+    </section>`;
+
+  return chrome + `<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">${card1}${card2}${card3}</div>` + panel;
+}
+
+// ═══════════════════════════════ LIQUIDACIÓN ═══════════════════════════════
+function liquidacion(ui) {
+  const filas = D.infobip;
+  const conteo = f => (ui.v === 'nueva' && !f.antesCorte) ? f.pag : f.conf;
+  const fsep = filas.filter(f => !f.antesCorte);
+  const tcvRango = fsep.reduce((a, f) => a + conteo(f), 0) / fsep.reduce((a, f) => a + f.conv, 0) * 100;
+  const fecha = s => { const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }); };
+
+  const cuerpo = ui.estado === 'cargando' ? sk('h-[320px]')
+    : ui.estado === 'error' ? `<div class="flex rounded-lg border border-gray-100">${bloqueError()}</div>`
+    : `
+      <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p class="text-[11px] text-gray-500 ${cambio(ui.v)}">${ui.v === 'nueva' ? 'Conversaciones cerradas vs carritos pagados por día.' : 'Conversaciones cerradas vs carritos confirmados por día.'}</p>
+        <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">TCV del período: <strong class="${cambio(ui.v)}">${dec2(tcvRango)}%</strong></span>
+      </div>
+      <div class="overflow-x-auto rounded-lg border border-gray-100">
+        <table class="w-full text-sm">
+          <thead><tr class="bg-gray-50">
+            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Fecha</th>
+            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Conversaciones cerradas</th>
+            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500"><span class="${cambio(ui.v)}">${rotuloCarritos(ui.v)}</span></th>
+            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">TCV del día</th>
+          </tr></thead>
+          <tbody>${filas.map(f => `
+            <tr class="border-t border-gray-50 ${f.antesCorte ? 'bg-gray-50/60' : ''}">
+              <td class="px-3 py-2 text-xs">${fecha(f.f)}</td>
+              <td class="px-3 py-2 text-right text-xs tabular-nums">${f.conv}</td>
+              <td class="px-3 py-2 text-right text-xs tabular-nums"><span class="${!f.antesCorte ? cambio(ui.v) : ''}">${conteo(f)}</span>${ui.v === 'nueva' && f.antesCorte ? '<sup class="ml-0.5 text-gray-400">*</sup>' : ''}</td>
+              <td class="px-3 py-2 text-right text-xs tabular-nums"><span class="${!f.antesCorte ? cambio(ui.v) : ''}">${dec2(conteo(f) / f.conv * 100)}%</span></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      ${ui.v === 'nueva' ? '<p class="mt-2 text-[11px] text-gray-400 cambio">* Hasta el 31 ago la columna cuenta carritos confirmados; desde el 1 sep, solo los pagados.</p>' : ''}
+      <p class="mt-1 text-[11px] text-gray-400">La exportación a Excel del detalle usa el mismo rótulo y la misma nota.</p>`;
+
+  return `
+    <nav class="mb-3 text-xs text-gray-500">Venta Asistida <span class="mx-1">›</span> Comisiones <span class="mx-1">›</span> <span class="text-gray-800">Liquidación</span></nav>
+    <div class="fixed-inset relative rounded-2xl bg-gray-900/40 p-4 sm:p-10">
+      <div class="mx-auto max-w-3xl rounded-xl bg-white shadow-xl">
+        <div class="flex items-start justify-between border-b px-5 py-4">
+          <div><h2 class="text-base font-semibold text-gray-900">${D.jhon.nombre}</h2>
+            <p class="text-xs text-gray-500">STIRPE · 29 ago – 10 sep 2026</p></div>
+          <button class="rounded-md p-1 text-gray-400 hover:bg-gray-100" aria-label="Cerrar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <div class="px-5 pt-3">
+          <div class="inline-flex rounded-lg bg-gray-100 p-1 text-xs">
+            <span class="px-3 py-1 text-gray-500">Resumen</span><span class="px-3 py-1 text-gray-500">Ventas</span>
+            <span class="rounded-md bg-white px-3 py-1 font-medium text-gray-900 shadow-sm">Infobip</span></div>
+        </div>
+        <div class="px-5 py-4">${cuerpo}</div>
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════ TOP ASESORES ═══════════════════════════════
+// (no se llama `top`: chocaría con window.top y la pantalla nunca se pintaría)
+function topAsesores(ui) {
+  const filas = [
+    { nombre: 'Jhon A. Rodríguez P.', ini: 'JR', color: '#0284c7', conf: 86, pag: 80, conv: 304, prom: 5010353 },
+    { nombre: 'Nicol D. Pinzon P.',   ini: 'NP', color: '#7c3aed', conf: null, pag: null, conv: 0, prom: 4191530 },
+  ];
+  const clase = p => p === null ? 'text-gray-400' : p >= 23 ? 'text-emerald-600' : 'text-red-600';
+  const cuerpo = ui.estado === 'cargando' ? `<div class="p-4 space-y-3">${sk('h-12')}${sk('h-12')}</div>`
+    : ui.estado === 'error' ? bloqueError()
+    : `<div class="divide-y">${filas.map(a => {
+        const c = a.conv > 0 ? (ui.v === 'nueva' ? a.pag : a.conf) : null;
+        const p = c !== null ? Math.round(c / a.conv * 100) : null;
+        return `<div class="flex items-center gap-3 px-4 py-2.5">
+          <span class="inline-flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full text-xs font-bold text-white" style="background:${a.color}">${a.ini}</span>
+          <div class="min-w-0 flex-1"><p class="truncate text-sm font-medium text-gray-800">${a.nombre}</p>
+            <p class="text-[10px] ${clase(p)}">${p !== null ? `<span class="${cambio(ui.v)}">${p}% conversión · ${c}/${a.conv}</span>` : 'sin conversaciones registradas'}</p></div>
+          <div class="text-right"><p class="text-sm font-semibold text-gray-900">${pesos(a.prom)}</p><p class="text-[10px] text-gray-400">promedio/día</p></div>
+        </div>`; }).join('')}</div>`;
+  return `
+    <nav class="mb-3 text-xs text-gray-500">Venta Asistida <span class="mx-1">›</span> Gestión de Ventas <span class="mx-1">›</span> <span class="text-gray-800">Comparar</span></nav>
+    <div class="max-w-xl rounded-2xl border bg-white shadow-sm">
+      <div class="border-b bg-gray-50 px-4 py-2.5 rounded-t-2xl"><h3 class="text-sm font-semibold text-gray-700">Top asesores · STIRPE</h3></div>
+      ${cuerpo}
+      <p class="border-t px-4 py-2 text-[11px] text-gray-400"><span class="${cambio(ui.v)}">${ui.v === 'nueva'
+        ? 'Ranking independiente por tienda (no se compara DEREK contra STIRPE). Conversión = carritos pagados ÷ conversaciones cerradas'
+        : 'Ranking independiente por tienda (no se compara DEREK contra STIRPE). Conversión = carritos/pedidos confirmados ÷ conversaciones cerradas'}</span> (dato de Infobip · Comisiones).</p>
+    </div>`;
+}
+
+// ═══════════════════════════════ DASHBOARD DE INICIO ═══════════════════════════════
+function dashboard(ui) {
+  const d = D.dia, x = d[ui.v];
+  const ped = x.facturada + x.pagada + x.proyectada;
+  const vpt = x.venta / ped, upt = x.unidades / ped;
+  const color = p => p === null ? 'text-gray-400' : p >= 100 ? 'text-emerald-600' : p >= 70 ? 'text-blue-600' : 'text-orange-600';
+  const pct = (v, m) => Math.round(v / m * 1000) / 10;
+  const barra = (f, p, pr, tot) => `<div class="flex h-2 overflow-hidden rounded-full bg-gray-200">
+      <div class="bg-emerald-500" style="width:${f / tot * 100}%"></div><div class="bg-blue-500" style="width:${p / tot * 100}%"></div><div class="bg-amber-500" style="width:${pr / tot * 100}%"></div></div>`;
+  const ventaTot = d.venta.facturada + d.venta.pagada + d.venta.proyectada;
+  const tarjeta = (titulo, valor, pctV, meta, extra, marca) => `
+    <div class="rounded-xl border bg-white shadow-sm"><div class="px-6 pt-5 pb-5">
+      <p class="text-[11px] uppercase tracking-wide text-gray-500">${titulo}</p>
+      <p class="mt-1 text-2xl font-bold"><span class="${marca}">${valor}</span></p>
+      <div class="mt-2 mb-1 flex items-center justify-between">
+        <span class="text-sm font-semibold ${color(pctV)}"><span class="${marca}">${pctV === null ? '--' : pctV.toLocaleString('es-CO') + '%'}</span></span>
+        <span class="text-xs text-gray-500">Meta: ${meta}</span></div>
+      ${extra}
+    </div></div>`;
+  const cuerpo = ui.estado === 'cargando'
+    ? `<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">${sk('h-[130px]')}${sk('h-[130px]')}${sk('h-[130px]')}${sk('h-[130px]')}</div>`
+    : ui.estado === 'error'
+    ? `<div class="rounded-xl border bg-white">${bloqueError()}</div>`
+    : `<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        ${tarjeta('Venta del dia VA', pesos(ventaTot), pct(ventaTot, d.meta), pesos(d.meta),
+          barra(d.venta.facturada, d.venta.pagada, d.venta.proyectada, ventaTot) +
+          `<div class="mt-1 flex justify-between"><span class="text-[10px] text-emerald-700">$6.9M fact.</span><span class="text-[10px] text-blue-700">$33.7M pag.</span><span class="text-[10px] text-amber-700">$2.9M proy.</span></div>`, '')}
+        ${tarjeta('Pedidos hoy VA', entero(ped), pct(ped, d.metaPedidos), d.metaPedidos,
+          barra(x.facturada, x.pagada, x.proyectada, ped) +
+          (ui.v === 'nueva' ? `<p class="mt-1 text-[10px] text-gray-400 cambio">+ ${d.porPagar} confirmados sin pagar</p>` : ''), cambio(ui.v))}
+        ${tarjeta('Ticket promedio (VPT)', pesos(vpt), pct(vpt, d.vptMeta), pesos(d.vptMeta),
+          `<div class="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200"><div class="h-full rounded-full ${vpt >= d.vptMeta ? 'bg-emerald-500' : 'bg-orange-400'}" style="width:${Math.min(vpt / d.vptMeta * 100, 100)}%"></div></div>`, cambio(ui.v))}
+        ${tarjeta('UPT equipo VA', dec2(upt), pct(upt, d.uptMeta), '2.00',
+          `<div class="mt-1 h-1.5 overflow-hidden rounded-full bg-gray-200"><div class="h-full rounded-full bg-emerald-500" style="width:100%"></div></div>`, cambio(ui.v))}
+      </div>
+      <p class="mt-2 text-[11px] text-gray-400">La tarjeta de venta no cambia (la plata no se toca). Pedidos, VPT y UPT cuentan solo pedidos pagados${ui.v === 'nueva' ? ': la barra de pedidos ya no lleva la franja de proyectados.' : '.'}</p>`;
+  return `
+    <nav class="mb-3 text-xs text-gray-500"><span class="text-gray-800">Dashboard</span></nav>
+    <div class="mb-4 flex items-center gap-4">
+      <span class="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">PRESUPUESTO VA</span>
+      <p class="shrink-0 text-[11px] font-bold uppercase tracking-[0.12em] text-gray-500">Cumplimiento Presupuesto VA — Hoy</p>
+      <div class="h-px flex-1 bg-gray-200"></div>
+    </div>
+    ${cuerpo}`;
+}
+
+const PANTALLAS = { gestion, misventas: misVentas, liquidacion, top: topAsesores, dashboard };
+const FUENTES = {
+  gestion: 'STIRPE · Q1 sep 2026 (1–11) · datos de PROD',
+  misventas: 'Jhon A. Rodríguez · STIRPE · Q1 sep 2026 · conteos de PROD al 11 sep; tarjeta de cumplimiento del mockup de GW-153',
+  liquidacion: 'Sello del cron de Jhon A. Rodríguez · datos de PROD',
+  top: 'Comparar tiendas · datos de PROD (Jhon); segunda fila sin tráfico',
+  dashboard: 'STIRPE · 10 sep 2026 · datos de PROD',
+};
+function render() {
+  const ui = estadoUI();
+  const p = document.getElementById('pantalla').value;
+  document.getElementById('fuente').textContent = FUENTES[p];
+  const pagina = document.getElementById('pagina');
+  pagina.classList.toggle('marcar-on', document.getElementById('marcar').checked);
+  pagina.innerHTML = PANTALLAS[p](ui);
+}
+['pantalla', 'version', 'estado', 'marcar'].forEach(id => document.getElementById(id).addEventListener('change', render));
+// Enlace directo a un caso: #pantalla=misventas&version=actual&variante=B&estado=cargando
+new URLSearchParams(location.hash.slice(1)).forEach((valor, clave) => {
+  const control = document.getElementById(clave);
+  if (control && control.tagName === 'SELECT' && [...control.options].some(o => o.value === valor)) control.value = valor;
+});
+render();
+</script>
+</body>
+</html>
