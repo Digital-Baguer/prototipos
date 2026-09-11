@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-148 · Mis Ventas con las facturas de tienda física</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Pila real de get-web (verificada contra el CSS de producción). */
+  html, body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+  .cifra { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .skeleton { background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+  @keyframes sk { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+</style>
+
+  <style>
+    .tip { position: relative; }
+    .tip > span { cursor: help; border-bottom: 1px dotted #cbd5e1; padding-bottom: 1px; }
+    .tip::after {
+      content: attr(data-tip);
+      position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+      margin-top: 6px; width: 230px; padding: 8px 10px;
+      background: #0f172a; color: #f8fafc;
+      font-size: 11px; line-height: 1.45; font-weight: 400;
+      text-transform: none; letter-spacing: normal; text-align: left;
+      white-space: normal;
+      border-radius: 6px; box-shadow: 0 6px 16px rgba(15,23,42,.22);
+      display: none; pointer-events: none; z-index: 30;
+    }
+    .tip:hover::after { display: block; }
+    /* Las columnas de los extremos anclan el globo a su borde: centrado se
+       saldria del contenedor con scroll y quedaria recortado. */
+    .tip-ini::after { left: 0; transform: none; }
+    .tip-fin::after { left: auto; right: 0; transform: none; }
+    /* Globo de una celda: se abre hacia arriba para no salirse del
+       contenedor con scroll en las ultimas filas. */
+    .tip-arriba::after { top: auto; bottom: 100%; margin-top: 0; margin-bottom: 6px; }
+    .col-fija { position: sticky; z-index: 2; background: #fff; }
+    thead .col-fija { z-index: 4; }
+    /* Separador de las columnas fijas: una linea de 1 px, sin sombra. Se
+       pinta con box-shadow inset porque el border de una celda sticky se
+       pierde al hacer scroll horizontal. */
+    .col-meta { box-shadow: inset -1px 0 0 #e2e8f0; }
+    #panel-cols > summary::-webkit-details-marker { display: none; }
+  </style>
+</head>
+<body class="bg-slate-200/70 antialiased">
+
+<!-- ══ Barra del mockup (no es UI del producto) ══ -->
+<div class="sticky top-0 z-50 border-b border-indigo-200 bg-indigo-50/95 px-4 py-2 backdrop-blur">
+  <div class="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-6 gap-y-2 text-[11px]">
+    <span class="font-bold text-indigo-900">GW-148 · mockup</span>
+    <label class="flex items-center gap-1.5">
+      <span class="text-indigo-800">Pantalla:</span>
+      <select id="pantalla" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="tabla">A · Tabla del home (Detalle diario)</option>
+        <option value="modal">B · Modal de un día</option>
+      </select>
+    </label>
+    <label class="flex items-center gap-1.5" id="caso-wrap">
+      <span class="text-indigo-800">Caso:</span>
+      <select id="caso" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="mixto">Con devoluciones y compras (real)</option>
+        <option value="solodev">Solo devoluciones, sin compra</option>
+        <option value="sintienda">Sin facturas de tienda</option>
+        <option value="cargando">Cargando</option>
+      </select>
+    </label>
+    <span class="ml-auto text-indigo-700">Fabián Prada · STIRPE · 3 sep 2026 · datos de PROD</span>
+  </div>
+</div>
+
+<div class="mx-auto max-w-[1500px] p-5">
+
+  <div id="home-wrap"></div>
+
+  <!-- ══ Modal ══ -->
+  <div id="modal-wrap">
+  <section class="overflow-hidden rounded-2xl bg-white shadow-2xl">
+
+    <header class="flex items-start justify-between border-b border-slate-100 px-5 py-4">
+      <div>
+        <h2 class="text-base font-bold text-slate-900">Carritos del 3 sep</h2>
+        <p class="cifra mt-0.5 text-xs text-slate-500" id="resumen">4 confirmados · $ 1.691.600</p>
+      </div>
+      <button type="button" aria-label="Cerrar" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </header>
+
+    <div class="max-h-[78vh] overflow-auto p-4" id="cuerpo"></div>
+  </section>
+  </div>
+
+  <p class="mx-auto mt-4 max-w-[900px] text-center text-[11px] text-slate-500" id="pie"></p>
+</div>
+
+<script>
+// ─── Datos reales de PROD · Fabián Prada (8969900), STIRPE, 1–10 sep 2026 ───
+// Tabla del home: los tres estados del carrito son excluyentes; «Facturado» usa
+// el valor de la factura del ERP (D6) y el pagado sin factura cuenta como
+// «Pedidos web» (D7). El TOTAL es la base del cumplimiento.
+const DIAS = [
+  {
+    "f": "1 sep",
+    "meta": 4729418,
+    "pendV": 0,
+    "pendN": 0,
+    "arcV": 459950,
+    "arcN": 1,
+    "webV": 0,
+    "webN": 0,
+    "facV": 4500680,
+    "facN": 9,
+    "dev": 0,
+    "tie": 0,
+    "unid": 16
+  },
+  {
+    "f": "2 sep",
+    "meta": 5089692,
+    "pendV": 560916,
+    "pendN": 2,
+    "arcV": 0,
+    "arcN": 0,
+    "webV": 0,
+    "webN": 0,
+    "facV": 3209666,
+    "facN": 6,
+    "dev": 0,
+    "tie": 0,
+    "unid": 10
+  },
+  {
+    "f": "3 sep",
+    "meta": 4231584,
+    "pendV": 0,
+    "pendN": 0,
+    "arcV": 0,
+    "arcN": 0,
+    "webV": 0,
+    "webN": 0,
+    "facV": 3061604,
+    "facN": 7,
+    "dev": -818474,
+    "tie": 958474,
+    "unid": 12
+  },
+  {
+    "f": "4 sep",
+    "meta": 4665551,
+    "pendV": 0,
+    "pendN": 0,
+    "arcV": 0,
+    "arcN": 0,
+    "webV": 0,
+    "webN": 0,
+    "facV": 4432928,
+    "facN": 8,
+    "dev": -756193,
+    "tie": 0,
+    "unid": 14
+  },
+  {
+    "f": "5 sep",
+    "meta": 4587601,
+    "pendV": 1850500,
+    "pendN": 2,
+    "arcV": 59970,
+    "arcN": 1,
+    "webV": 0,
+    "webN": 0,
+    "facV": 4124863,
+    "facN": 9,
+    "dev": 0,
+    "tie": 0,
+    "unid": 21
+  },
+  {
+    "f": "6 sep",
+    "meta": 4012144,
+    "pendV": 0,
+    "pendN": 0,
+    "arcV": 0,
+    "arcN": 0,
+    "webV": 0,
+    "webN": 0,
+    "facV": 3799571,
+    "facN": 7,
+    "dev": 0,
+    "tie": 0,
+    "unid": 11
+  },
+  {
+    "f": "7 sep",
+    "meta": 3668243,
+    "pendV": 0,
+    "pendN": 0,
+    "arcV": 0,
+    "arcN": 0,
+    "webV": 0,
+    "webN": 0,
+    "facV": 9584519,
+    "facN": 10,
+    "dev": 0,
+    "tie": 0,
+    "unid": 33
+  },
+  {
+    "f": "8 sep",
+    "meta": 3759953,
+    "pendV": 0,
+    "pendN": 0,
+    "arcV": 0,
+    "arcN": 0,
+    "webV": 0,
+    "webN": 0,
+    "facV": 2535899,
+    "facN": 6,
+    "dev": 0,
+    "tie": 0,
+    "unid": 9
+  },
+  {
+    "f": "9 sep",
+    "meta": 3393128,
+    "pendV": 0,
+    "pendN": 0,
+    "arcV": 277463,
+    "arcN": 1,
+    "webV": 4131176,
+    "webN": 5,
+    "facV": 2257719,
+    "facN": 6,
+    "dev": 0,
+    "tie": 0,
+    "unid": 21
+  },
+  {
+    "f": "10 sep",
+    "meta": 3610933,
+    "pendV": 2617461,
+    "pendN": 4,
+    "arcV": 0,
+    "arcN": 0,
+    "webV": 3524483,
+    "webN": 6,
+    "facV": 0,
+    "facN": 0,
+    "dev": -209857,
+    "tie": 0,
+    "unid": 17
+  }
+];
+
+// ─── Modal de un día ───
+const CARRITOS = [
+  { id:'193452', cliente:'Angel Reyes Perez',            cel:'3239209729', ciudad:'Cundinamarca, Mosquera',   pedido:'#722572', items:2, total:313900 },
+  { id:'193349', cliente:'Yubely Natalia Jaramillo Rios', cel:'3108724510', ciudad:'Arauca, Arauquita',         pedido:'#722530', items:2, total:817900 },
+  { id:'193263', cliente:'Carlos Eduardo Siachoque Ayala',cel:'3164998623', ciudad:'Santander, Bucaramanga',    pedido:'#722549', items:1, total:83950  },
+  { id:'193232', cliente:'Viviana Santofimio Vargas',     cel:'3045823337', ciudad:'Bogotá, Bogotá',            pedido:'#722492', items:2, total:475850 },
+];
+
+// Agrupadas por cliente, como quedó en la decisión D2
+const TIENDA = [
+  { cedula:'63469663', nombre:'Eucaris Sepulveda', bodega:740, filas:[
+      { tipo:'devolucion', factura:'34646', valor:-308523 },
+      { tipo:'compra',     factura:'3014',  valor: 308523 },
+  ]},
+  { cedula:'98399198', nombre:null, bodega:440, filas:[
+      { tipo:'devolucion', factura:'2512',  valor:-509951 },
+      { tipo:'compra',     factura:'8378',  valor: 649951 },
+  ]},
+];
+
+const pesos = n => (n < 0 ? '−' : '') + '$ ' + Math.abs(Math.round(n)).toLocaleString('es-CO');
+
+function tablaCarritos() {
+  return `
+  <div class="overflow-x-auto rounded-xl border border-slate-200">
+    <table class="w-full min-w-[720px] text-sm">
+      <thead class="border-b border-slate-100 bg-slate-50/60">
+        <tr class="text-[11px] tracking-wide text-slate-400 uppercase">
+          <th class="px-4 py-2.5 text-left font-medium">Carrito ID</th>
+          <th class="px-4 py-2.5 text-left font-medium">Cliente</th>
+          <th class="px-4 py-2.5 text-left font-medium">Pedido</th>
+          <th class="px-4 py-2.5 text-right font-medium">Ítems</th>
+          <th class="px-4 py-2.5 text-right font-medium">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${CARRITOS.map(c => `
+        <tr class="cifra border-b border-slate-50 last:border-0">
+          <td class="px-4 py-3 font-medium text-sky-700">#${c.id}</td>
+          <td class="px-4 py-3">
+            <div class="font-medium text-slate-800">${c.cliente}</div>
+            <div class="text-[11px] text-slate-400">${c.cel} · ${c.ciudad}</div>
+          </td>
+          <td class="px-4 py-3 text-slate-600">${c.pedido}</td>
+          <td class="px-4 py-3 text-right text-slate-700">${c.items}</td>
+          <td class="px-4 py-3 text-right font-semibold text-slate-900">${pesos(c.total)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function bloqueTienda(caso) {
+  if (caso === 'sintienda') return '';
+
+  const grupos = caso === 'solodev'
+    ? [{ cedula:'98399198', nombre:null, bodega:440, filas:[{ tipo:'devolucion', factura:'2512', valor:-509951 }] }]
+    : TIENDA;
+
+  const neto = grupos.flatMap(g => g.filas).reduce((a,f) => a + f.valor, 0);
+  const devuelto  = grupos.flatMap(g => g.filas).filter(f => f.valor < 0).reduce((a,f) => a + f.valor, 0);
+  const comprado  = grupos.flatMap(g => g.filas).filter(f => f.valor > 0).reduce((a,f) => a + f.valor, 0);
+
+  const netoColor = neto > 0 ? 'text-emerald-700' : neto < 0 ? 'text-red-600' : 'text-slate-700';
+
+  return `
+  <section class="mt-5">
+    <div class="mb-2.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <h3 class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">Devoluciones y compras en tienda física</h3>
+      <p class="cifra text-[11px] text-slate-500">
+        Devuelto <span class="font-semibold text-red-600">${pesos(devuelto)}</span>
+        · Comprado <span class="font-semibold text-emerald-700">${pesos(comprado)}</span>
+        · Neto <span class="font-bold ${netoColor}">${neto > 0 ? '+' : ''}${pesos(neto)}</span>
+      </p>
+    </div>
+
+    <div class="overflow-x-auto rounded-xl border border-slate-200">
+      <table class="w-full min-w-[720px] text-sm">
+        <thead class="border-b border-slate-100 bg-slate-50/60">
+          <tr class="text-[11px] tracking-wide text-slate-400 uppercase">
+            <th class="px-4 py-2.5 text-left font-medium">Cliente</th>
+            <th class="px-4 py-2.5 text-left font-medium">Movimiento</th>
+            <th class="px-4 py-2.5 text-left font-medium">Factura</th>
+            <th class="px-4 py-2.5 text-right font-medium">Bodega</th>
+            <th class="px-4 py-2.5 text-right font-medium">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${grupos.map(g => {
+            const netoG = g.filas.reduce((a,f) => a + f.valor, 0);
+            const varias = g.filas.length > 1;
+            return g.filas.map((f, i) => `
+            <tr class="cifra ${i === 0 && g !== grupos[0] ? 'border-t-[3px] border-t-slate-100' : 'border-b border-slate-50'}">
+              <td class="px-4 py-3 align-top">
+                ${i === 0 ? `
+                  <div class="font-medium text-slate-800">${g.cedula}</div>
+                  <div class="text-[11px] text-slate-400">${g.nombre ?? '—'}</div>
+                ` : ''}
+              </td>
+              <td class="px-4 py-3">
+                ${f.tipo === 'devolucion'
+                  ? '<span class="inline-block rounded bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">Devolución</span>'
+                  : '<span class="inline-block rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Compra</span>'}
+              </td>
+              <td class="px-4 py-3 text-slate-600">#${f.factura}</td>
+              <td class="px-4 py-3 text-right text-slate-500">${g.bodega}</td>
+              <td class="px-4 py-3 text-right font-semibold ${f.valor < 0 ? 'text-red-600' : 'text-emerald-700'}">${pesos(f.valor)}</td>
+            </tr>`).join('') + (varias ? `
+            <tr class="cifra border-b border-slate-50 bg-slate-50/40">
+              <td class="px-4 py-2" colspan="4">
+                <span class="text-[11px] text-slate-500">Neto de este cliente</span>
+              </td>
+              <td class="px-4 py-2 text-right text-[13px] font-bold ${netoG > 0 ? 'text-emerald-700' : netoG < 0 ? 'text-red-600' : 'text-slate-600'}">
+                ${netoG > 0 ? '+' : ''}${pesos(netoG)}
+              </td>
+            </tr>` : '');
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="mt-2 px-1 text-[11px] text-slate-400">
+      Estas facturas no pasan por un carrito web: vienen del archivo del ERP. Ya están sumadas en tu venta del día.
+    </p>
+  </section>`;
+}
+
+
+// ─── A · Tabla «Detalle diario» del home ──────────────────────────────────
+
+// Banda de grises: se va oscureciendo hacia TOTAL VENTA para que el ojo
+// siga la suma de izquierda a derecha.
+const BANDA = {
+  web:   '#f7f9fc',
+  fac:   '#f3f6fa',
+  dev:   '#eff3f8',
+  tie:   '#eaeff6',
+  total: '#e3e9f2',
+};
+
+const TIPS = {
+  fecha:  'Día en que el cliente confirmó el carrito. La venta cuenta aquí aunque se pague o se facture días después.',
+  meta:   'Presupuesto asignado a este asesor para ese día.',
+  pend:   'Carritos confirmados que el cliente todavía no ha pagado. No suman al total.',
+  arc:    'Carritos archivados sin venta. Se muestran para que cuadres el día, pero no suman al total.',
+  web:    'Pedidos ya pagados por el cliente, a la espera de la factura del ERP. Cuentan desde ya: el dinero entró.',
+  fac:    'Pedidos que ya llegaron facturados en el archivo del ERP. Se toma el valor de la factura, no el del carrito.',
+  dev:    'Facturas M del archivo del ERP: devoluciones recibidas en tienda física. Restan del total.',
+  tie:    'Facturas X del archivo del ERP: compras hechas en el punto físico, sin pasar por un carrito web.',
+  total:  'Pedidos web + Facturado + Tienda física − Devoluciones. Este es el valor sobre el que se calcula tu cumplimiento.',
+  cumpl:  'Total venta dividido por la Meta del día.',
+  bono:   'Se gana cuando el Total venta del día llega al 100 % de la meta. Hoy son $ 20.000 para asesor. Verde: ganado con lo ya facturado. Amarillo: se gana contando pedidos pagados que aún no se facturan.',
+  bonoProv: 'Aún no se ha facturado. Este bono cuenta pedidos pagados que el ERP todavía no factura. Si la factura llega por menos y el día baja del 100 %, el bono se retira.',
+  nped:   'Cantidad de pedidos contados en Pedidos web y Facturado. Las facturas de tienda física no entran aquí: no tienen pedido asociado.',
+  vpt:    'Venta por transacción: el valor de esos pedidos dividido por el número de pedidos. No incluye tienda física ni devoluciones.',
+  upt:    'Unidades por transacción: las unidades vendidas en esos pedidos divididas por el número de pedidos.',
+};
+
+// lucide-vue-next 0.468 · Clock (trazo 2, currentColor) a h-3 w-3, como <Clock class="h-3 w-3" />
+const ICONO_CLOCK = '<svg class="h-3 w-3 shrink-0" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+
+const plata  = n => n ? '$ ' + Math.round(Math.abs(n)).toLocaleString('es-CO') : '—';
+const signo  = n => n ? (n < 0 ? '−' : '+') + '$ ' + Math.round(Math.abs(n)).toLocaleString('es-CO') : '—';
+const conNum = (v, n) => v ? `${plata(v)} <span class="text-[11px] text-slate-400">(${n})</span>` : '—';
+// pctCumplimiento.ts (fix-GW-127 A4): el 100 % se reserva para el 100 % real
+const pctTxt = n => n === null ? '—' : ((n < 100 && Math.round(n) >= 100) ? 99 : Math.round(n)) + '%';
+const semaf  = p => p >= 95 ? 'bg-emerald-600' : p >= 80 ? 'bg-amber-500' : 'bg-red-500';
+
+// Columnas que el asesor decide ocultar. Fecha y Meta del día no son
+// ocultables y quedan ancladas a la izquierda al hacer scroll horizontal.
+const CLAVE_PREF = 'gw148.columnas.ocultas';
+const OCULTAS = new Set(JSON.parse(localStorage.getItem(CLAVE_PREF) || '[]'));
+const guardarPref = () => localStorage.setItem(CLAVE_PREF, JSON.stringify([...OCULTAS]));
+
+const COLS = [
+  { k:'fecha', t:'Fecha', tip:TIPS.fecha, al:'text-left', fija:'fecha',
+    cel: x => `<span class="font-medium text-slate-800">${x.d.f}</span>` },
+  { k:'meta', t:'Meta del día', tip:TIPS.meta, al:'text-right', fija:'meta',
+    cel: x => `<span class="text-slate-600">${plata(x.d.meta)}</span>` },
+  { k:'pend', t:'Carritos pendientes', tip:TIPS.pend, al:'text-right',
+    cel: x => `<span class="text-slate-400">${conNum(x.d.pendV, x.d.pendN)}</span>` },
+  { k:'arc', t:'Archivado', tip:TIPS.arc, al:'text-right',
+    cel: x => `<span class="text-slate-400">${conNum(x.d.arcV, x.d.arcN)}</span>` },
+  { k:'web', t:'Pedidos web', tip:TIPS.web, al:'text-right', bg:BANDA.web,
+    cel: x => `<span class="text-slate-800">${conNum(x.d.webV, x.d.webN)}</span>` },
+  { k:'fac', t:'Facturado', tip:TIPS.fac, al:'text-right', bg:BANDA.fac,
+    cel: x => `<span class="text-slate-800">${conNum(x.d.facV, x.d.facN)}</span>` },
+  { k:'dev', t:'Devoluciones', tip:TIPS.dev, al:'text-right', bg:BANDA.dev,
+    cel: x => `<span class="${x.d.dev ? 'text-red-600' : 'text-slate-400'}">${signo(x.d.dev)}</span>` },
+  { k:'tie', t:'Tienda física', tip:TIPS.tie, al:'text-right', bg:BANDA.tie,
+    cel: x => `<span class="${x.d.tie ? 'text-emerald-700' : 'text-slate-400'}">${signo(x.d.tie)}</span>` },
+  { k:'total', t:'Total venta', tip:TIPS.total, al:'text-right', bg:BANDA.total, th:'text-slate-900', siempre:true,
+    cel: x => `<span class="font-bold text-slate-900">${plata(x.total)}</span>` },
+  { k:'cumpl', t:'Cumplimiento', tip:TIPS.cumpl, al:'text-center', siempre:true,
+    cel: x => x.p === null ? '<span class="text-slate-300">—</span>'
+      : `<span class="inline-block min-w-[46px] rounded ${semaf(x.p)} px-1.5 py-0.5 text-xs font-bold text-white">${pctTxt(x.p)}</span>` },
+  { k:'bono', t:'Bono diario', tip:TIPS.bono, al:'text-center',
+    cel: x => !x.gana
+      ? '<span class="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-400">No</span>'
+      : x.firme
+        ? '<span class="inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Sí · $ 20.000</span>'
+        // Provisional: solo llega al 100 % sumando pedidos pagados sin factura
+        // Icono: lucide-vue-next «Clock», h-3 w-3 antes del texto — el mismo que
+        // get-web usa para «en espera» en los chips de Bitacora.vue y Cargar.vue.
+        : `<span class="tip tip-arriba inline-block" data-tip="${TIPS.bonoProv}"><span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700" style="border-bottom-style:solid">${ICONO_CLOCK}Sí · $ 20.000</span></span>` },
+  { k:'nped', t:'Nro pedidos', tip:TIPS.nped, al:'text-right',
+    cel: x => `<span class="text-slate-800">${x.nped || '—'}</span>` },
+  { k:'vpt', t:'VPT', tip:TIPS.vpt, al:'text-right',
+    cel: x => `<span class="text-slate-800">${x.vpt ? plata(x.vpt) : '—'}</span>` },
+  { k:'upt', t:'UPT', tip:TIPS.upt, al:'text-right',
+    cel: x => `<span class="text-slate-800">${x.upt ? x.upt.toFixed(2).replace('.', ',') : '—'}</span>` },
+];
+
+function derivar(d) {
+  const total = d.webV + d.facV + d.tie + d.dev;
+  const nped  = d.webN + d.facN;
+  return {
+    d, total, nped,
+    p:    d.meta > 0 ? total / d.meta * 100 : null,
+    vpt:  nped ? (d.webV + d.facV) / nped : null,
+    upt:  nped ? d.unid / nped : null,
+    // Condicion unica vigente (comision_va_bono_condicion): venta >= 100 %
+    // de la meta del dia, evaluada sobre ESTE Total venta.
+    gana: d.meta > 0 && total >= d.meta,
+    // En firme (verde): lo facturado del dia ya alcanza la meta sin contar
+    // pedidos pagados sin factura. Si no, el bono es provisional (amarillo)
+    // y solo lo paga la comision proyectada.
+    firme: d.meta > 0 && (d.facV + d.tie + d.dev) >= d.meta,
+  };
+}
+
+/** Solo la tabla: se repinta al cambiar el selector de columnas. */
+function tablaCuerpo() {
+  const vis = COLS.filter(c => !OCULTAS.has(c.k));
+  const attr = c => {
+    const est = [];
+    if (c.bg) est.push(`background:${c.bg}`);
+    if (c.fija === 'fecha') est.push('left:0;width:86px;min-width:86px');
+    if (c.fija === 'meta')  est.push('left:86px;width:132px;min-width:132px');
+    return `${c.fija ? ` class-fija="${c.fija}"` : ''} style="${est.join(';')}"`;
+  };
+  const clsFija = c => c.fija ? ` col-fija col-${c.fija}` : '';
+  const ancla = i => i === 0 ? ' tip-ini' : (i >= vis.length - 3 ? ' tip-fin' : '');
+
+  return `
+  <table class="w-full text-[13px]">
+    <thead class="border-b border-slate-100">
+      <tr class="font-semibold text-slate-600">
+        ${vis.map((c, i) => `<th class="tip${ancla(i)} whitespace-nowrap px-2.5 pt-3.5 pb-2.5 text-[12px] leading-tight ${c.al}${clsFija(c)} ${c.th || ''}"
+            data-tip="${c.tip}"${attr(c)}><span>${c.t}</span></th>`).join('')}
+      </tr>
+    </thead>
+    <tbody>
+      ${DIAS.map(d => {
+        const x = derivar(d);
+        return `<tr class="cifra border-b border-slate-50 last:border-0">
+          ${vis.map(c => `<td class="whitespace-nowrap px-2.5 py-3 ${c.al}${clsFija(c)}"${attr(c)}>${c.cel(x)}</td>`).join('')}
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+}
+
+/** Panel de columnas: vive fuera del slot que se repinta, así no se cierra. */
+function panelColumnas() {
+  const ops = COLS.filter(c => !c.fija && !c.siempre);
+  const n = ops.filter(c => OCULTAS.has(c.k)).length;
+  return `
+  <details class="relative" id="panel-cols">
+    <summary class="flex cursor-pointer list-none items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1 text-[12px] font-medium text-slate-600 hover:bg-slate-50">
+      Columnas${n ? ` <span class="rounded bg-slate-800 px-1.5 text-[10px] font-semibold text-white">${ops.length - n}/${ops.length}</span>` : ''}
+      <span class="text-slate-400">▾</span>
+    </summary>
+    <div class="absolute right-0 z-40 mt-1.5 w-60 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
+      ${ops.map(c => `
+        <label class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[12px] text-slate-700 hover:bg-slate-50">
+          <input type="checkbox" data-col="${c.k}" ${OCULTAS.has(c.k) ? '' : 'checked'}
+                 class="h-3.5 w-3.5 rounded border-slate-300 accent-slate-800">
+          ${c.t}
+        </label>`).join('')}
+      <button id="cols-reset" class="mt-1 w-full rounded px-2 py-1.5 text-left text-[12px] text-slate-500 hover:bg-slate-50">
+        Mostrarlas todas
+      </button>
+    </div>
+  </details>`;
+}
+
+function tablaHome() {
+  return `
+  <section class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <header class="flex items-center justify-between gap-4 rounded-t-2xl border-b border-slate-100 px-5 py-2.5">
+      <h2 class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">Detalle diario</h2>
+      ${panelColumnas()}
+    </header>
+    <div class="overflow-x-auto" id="tabla-slot">${tablaCuerpo()}</div>
+    <p class="rounded-b-2xl border-t border-slate-100 px-5 py-2.5 text-[11px] text-slate-400">
+      La <strong>banda gris</strong> marca las columnas que suman al <strong>Total venta</strong>.
+      Fuera de ella, en gris claro, lo que no cuenta: carritos pendientes de pago y archivados.
+      Una venta cuenta en el día en que <strong>el cliente confirmó el carrito</strong>, así se pague
+      o se facture después. <strong>Fecha</strong>, <strong>Meta</strong>, <strong>Total venta</strong> y
+      <strong>Cumplimiento</strong> no se pueden ocultar. Un <strong>bono en amarillo</strong> se ganó contando
+      pedidos pagados que aún no se facturan: se confirma al llegar la factura.
+    </p>
+  </section>`;
+}
+
+/** Delegación: sobrevive a los repintados del slot. */
+document.addEventListener('change', e => {
+  const k = e.target.dataset && e.target.dataset.col;
+  if (!k) return;
+  e.target.checked ? OCULTAS.delete(k) : OCULTAS.add(k);
+  guardarPref();
+  document.getElementById('tabla-slot').innerHTML = tablaCuerpo();
+  const tmp = document.createElement('div');
+  tmp.innerHTML = panelColumnas();
+  document.querySelector('#panel-cols summary').innerHTML = tmp.querySelector('summary').innerHTML;
+});
+document.addEventListener('click', e => {
+  if (e.target.id !== 'cols-reset') return;
+  e.preventDefault();
+  OCULTAS.clear();
+  guardarPref();
+  render();
+});
+
+
+function render() {
+  const caso = document.getElementById('caso').value;
+  const cuerpo = document.getElementById('cuerpo');
+  const pantalla = document.getElementById('pantalla').value;
+  const modal = document.getElementById('modal-wrap');
+  const home  = document.getElementById('home-wrap');
+
+  document.getElementById('caso-wrap').style.visibility = pantalla === 'tabla' ? 'hidden' : '';
+
+  if (pantalla === 'tabla') {
+    modal.style.display = 'none';
+    home.style.display = '';
+    home.innerHTML = tablaHome();
+    document.getElementById('pie').textContent =
+      'Nuevas respecto a hoy: Carritos pendientes, Archivado, Tienda física, Total venta, Bono diario, Nro pedidos, VPT y UPT. Todas las cifras son datos reales de PROD al 10 sep.';
+    return;
+  }
+  modal.style.display = '';
+  home.style.display = 'none';
+  document.getElementById('pie').textContent =
+    'El bloque de arriba es la tabla actual, sin cambios. Lo nuevo es la sección de abajo.';
+
+  if (caso === 'cargando') {
+    cuerpo.innerHTML = `<div class="space-y-3">${[1,2,3].map(()=>'<div class="skeleton h-16 rounded-xl"></div>').join('')}</div>`;
+    return;
+  }
+  cuerpo.innerHTML = tablaCarritos() + bloqueTienda(caso);
+}
+['caso','pantalla'].forEach(id => document.getElementById(id).addEventListener('change', render));
+render();
+</script>
+</body>
+</html>
