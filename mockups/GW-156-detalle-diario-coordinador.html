@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-156 · Gestión de Ventas — el coordinador ve el mismo detalle diario que el asesor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Pila tipográfica real de get-web (Tailwind v4 compila .font-sans con el stack literal). */
+  html, body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+  .cifra { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .skeleton { background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+  @keyframes sk { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+
+  /* Tooltips de encabezado: display:none (nunca opacity:0, inflaba el scrollWidth). */
+  .tip { position: relative; }
+  .tip > span { cursor: help; border-bottom: 1px dotted #cbd5e1; padding-bottom: 1px; }
+  .tip::after {
+    content: attr(data-tip); position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    margin-top: 6px; width: 230px; padding: 8px 10px; background: #0f172a; color: #f8fafc;
+    font-size: 11px; line-height: 1.45; font-weight: 400; text-transform: none; letter-spacing: normal;
+    text-align: left; white-space: normal; border-radius: 6px; box-shadow: 0 6px 16px rgba(15,23,42,.22);
+    display: none; pointer-events: none; z-index: 30;
+  }
+  .tip:hover::after { display: block; }
+  .tip-ini::after { left: 0; transform: none; }
+  .tip-fin::after { left: auto; right: 0; transform: none; }
+  .tip-arriba::after { top: auto; bottom: 100%; margin-top: 0; margin-bottom: 6px; }
+
+  /* Columnas fijas (misma técnica que TablaDetalleDiario y TablaAsesoresCumplimiento). */
+  .col-fija { position: sticky; z-index: 2; background: #fff; }
+  thead .col-fija { z-index: 4; }
+  .col-meta { box-shadow: inset -1px 0 0 #e2e8f0; }
+  details > summary::-webkit-details-marker { display: none; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900 antialiased">
+
+<!-- ══ Barra de control del mockup (no es parte de la UI) ══ -->
+<div class="sticky top-0 z-[60] border-b border-indigo-200 bg-indigo-50/95 px-4 py-2 backdrop-blur">
+  <div class="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+    <span class="font-bold text-indigo-900">GW-156 · mockup</span>
+    <label class="flex items-center gap-1.5">
+      <span class="text-indigo-800">Pantalla:</span>
+      <select id="pantalla" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="tabla">1 · Gestión de Ventas (tabla de asesores)</option>
+        <option value="modal">2 · Modal del asesor</option>
+        <option value="dia">3 · Detalle de un día</option>
+      </select>
+    </label>
+    <label class="flex items-center gap-1.5">
+      <span class="text-indigo-800">Estado:</span>
+      <select id="estado" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="normal">Normal (datos reales)</option>
+        <option value="cargando">Cargando</option>
+        <option value="error">Error al cargar</option>
+        <option value="vacio">Vacío</option>
+        <option value="antescorte">Período anterior al 1 sep (sin desglose)</option>
+      </select>
+    </label>
+    <label class="flex items-center gap-1.5" id="ancho-wrap">
+      <span class="text-indigo-800">Ancho de la tabla:</span>
+      <select id="ancho" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="A">A · Selector de columnas + fijas</option>
+        <option value="B">B · Solo scroll con Nombre y Total fijas</option>
+      </select>
+    </label>
+    <label class="flex items-center gap-1.5" id="apertura-wrap">
+      <span class="text-indigo-800">Apertura del día:</span>
+      <select id="apertura" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="A">A · Vista interna con «Volver al asesor»</option>
+        <option value="B">B · Modal sobre modal</option>
+      </select>
+    </label>
+    <span class="ml-auto text-indigo-700">STIRPE · quincena 1–15 sep 2026 · datos de PROD al 11 sep</span>
+  </div>
+</div>
+
+<div id="app" class="mx-auto max-w-[1600px] px-4 py-5"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// DATOS REALES · get.liquidacion_va_calculo_dia, STIRPE (tienda 0), 1–11 sep 2026
+// pedWeb = pedidos pagados sin factura (valor, cantidad) · fac = facturado (valor, pedidos)
+// dev = devoluciones (M) · tie = tienda física (X) · conv = tráfico atendido (Infobip)
+// cconf = carritos pagados sellados por el cron (numerador de la TC)
+// verde / amar = días con bono en firme / provisional
+// unid = unidades (ilustrativas: el snapshot las guarda, no se extrajeron)
+// ═══════════════════════════════════════════════════════════════════════════
+const META_UPT = 2.00, META_VPT = 500000, META_TCV = 23;
+const ASESORES = [
+  { cod:'8960200', n:'Nicol Dayana Pinzón Peña',       meta:45256009, webV:5963120, webN:11, facV:43223125, facN:85, dev:-1327316, tie:0,       conv:332, cconf:96, verde:4, amar:1, unid:171 },
+  { cod:'7374400', n:'Jhon Alexander Rodríguez Patiño', meta:41791532, webV:7992814, webN:15, facV:39761762, facN:70, dev:-1837456, tie:341851,  conv:304, cconf:86, verde:4, amar:2, unid:150 },
+  { cod:'8969900', n:'Fabián Andrés Prada Rueda',       meta:41748247, webV:1698928, webN:2,  facV:43723877, facN:77, dev:-2485375, tie:958474,  conv:347, cconf:78, verde:2, amar:1, unid:139 },
+  { cod:'8932900', n:'Juan Camilo Vergel Acosta',       meta:42947797, webV:6409027, webN:11, facV:39374500, facN:79, dev:-2053852, tie:0,       conv:303, cconf:90, verde:4, amar:2, unid:158 },
+  { cod:'7784400', n:'Brayan Javier Ardila Flórez',     meta:43025741, webV:6364765, webN:9,  facV:36503776, facN:84, dev:-4414458, tie:2655250, conv:287, cconf:93, verde:1, amar:3, unid:168 },
+  { cod:'5432100', n:'Silvia Alejandra Camacho',        meta:46490227, webV:5042194, webN:10, facV:35288056, facN:81, dev:-1235653, tie:0,       conv:338, cconf:91, verde:4, amar:0, unid:160 },
+  { cod:'7133900', n:'Andrés Felipe Jiménez Quintero',  meta:40333242, webV:2508278, webN:6,  facV:36715847, facN:84, dev:-3092969, tie:280703,  conv:278, cconf:89, verde:5, amar:0, unid:155 },
+  { cod:'8443600', n:'Manuel Humberto Parra Tapias',    meta:41202541, webV:4796757, webN:11, facV:30182323, facN:73, dev:-2757389, tie:762359,  conv:290, cconf:84, verde:2, amar:1, unid:139 },
+  { cod:'8907100', n:'Paula Andrea Oliveros Ardila',    meta:39968325, webV:5455275, webN:10, facV:30985206, facN:71, dev:-4157057, tie:419851,  conv:259, cconf:81, verde:1, amar:1, unid:140 },
+  { cod:'7284300', n:'Valentina Núñez Caballero',       meta:42523656, webV:3198508, webN:8,  facV:31211386, facN:63, dev:-2372091, tie:0,       conv:301, cconf:71, verde:3, amar:0, unid:130 },
+  { cod:'5344600', n:'Lady Stephanie Guevara Samacá',   meta:null,     webV:0,       webN:0,  facV:722650,   facN:1,  dev:0,        tie:0,       conv:0,   cconf:1,  verde:0, amar:0, unid:2 },
+  { cod:'8550600', n:'Carlos Yorge Córdoba Murallas',   meta:null,     webV:0,       webN:0,  facV:0,        facN:0,  dev:-302355,  tie:295801,  conv:0,   cconf:0,  verde:0, amar:0, unid:0 },
+  { cod:'7678600', n:'Marlon Stiven Gelves Carrillo',   meta:null,     webV:0,       webN:0,  facV:0,        facN:0,  dev:-2973162, tie:0,       conv:0,   cconf:0,  verde:0, amar:0, unid:0 },
+];
+const BONO_DIA = 20000;
+// Carritos confirmados sin pagar (en vivo, no suman): ilustrativo por asesor
+const PENDIENTE = { '8960200':1250900, '7374400':2617461, '8969900':3178377, '8932900':0, '7784400':889900, '5432100':1449800, '7133900':0, '8443600':559900, '8907100':0, '7284300':319900 };
+
+// ─── Modal del asesor · Fabián Prada, día a día (los días 1–8 son de PROD; 9–11 cuadran con la fila) ───
+const DIAS_FABIAN = [
+  { f:'2026-09-01', meta:4729418, pendV:0,       pendN:0, arcV:459950, arcN:1, webV:0,       webN:0, facV:4500680, facN:9,  dev:0,       tie:0,      unid:16 },
+  { f:'2026-09-02', meta:5089692, pendV:560916,  pendN:2, arcV:0,      arcN:0, webV:0,       webN:0, facV:3209666, facN:6,  dev:0,       tie:0,      unid:10 },
+  { f:'2026-09-03', meta:4231584, pendV:0,       pendN:0, arcV:0,      arcN:0, webV:0,       webN:0, facV:3061604, facN:7,  dev:-818474, tie:958474, unid:12 },
+  { f:'2026-09-04', meta:4665551, pendV:0,       pendN:0, arcV:0,      arcN:0, webV:0,       webN:0, facV:4432928, facN:8,  dev:-756193, tie:0,      unid:14 },
+  { f:'2026-09-05', meta:4587601, pendV:1850500, pendN:2, arcV:59970,  arcN:1, webV:0,       webN:0, facV:4124863, facN:9,  dev:0,       tie:0,      unid:21 },
+  { f:'2026-09-06', meta:4012144, pendV:0,       pendN:0, arcV:0,      arcN:0, webV:0,       webN:0, facV:3799571, facN:7,  dev:0,       tie:0,      unid:11 },
+  { f:'2026-09-07', meta:3668243, pendV:0,       pendN:0, arcV:0,      arcN:0, webV:0,       webN:0, facV:9584519, facN:10, dev:0,       tie:0,      unid:33 },
+  { f:'2026-09-08', meta:3759953, pendV:0,       pendN:0, arcV:0,      arcN:0, webV:0,       webN:0, facV:2535899, facN:6,  dev:0,       tie:0,      unid:9 },
+  { f:'2026-09-09', meta:3393128, pendV:0,       pendN:0, arcV:277463, arcN:1, webV:0,       webN:0, facV:4131176, facN:7,  dev:-209857, tie:0,      unid:21 },
+  { f:'2026-09-10', meta:3610933, pendV:0,       pendN:0, arcV:0,      arcN:0, webV:1698928, webN:2, facV:3214052, facN:6,  dev:-700851, tie:0,      unid:17 },
+  { f:'2026-09-11', meta:null,    pendV:767011,  pendN:2, arcV:0,      arcN:0, webV:0,       webN:0, facV:1128919, facN:2,  dev:0,       tie:0,      unid:4, hoy:true },
+];
+
+// ─── Detalle del 3 sep · 7 carritos (verosímiles) + facturas de tienda reales (criterio 12 de GW-148) ───
+const CARRITOS_3SEP = [
+  { id:'193452', hora:'3 sep 09:12', cliente:'Angel Reyes Perez',              cel:'3239209729', ciudad:'Mosquera',     origen:'WhatsApp', msj:'Transportadora', log:'Entregado',           pago:'facturado', pedido:'722572', factura:'G-118420 · $ 313.900', items:2, total:313900 },
+  { id:'193349', hora:'3 sep 10:05', cliente:'Yubely Natalia Jaramillo Rios',  cel:'3108724510', ciudad:'Arauquita',    origen:'WhatsApp', msj:'Transportadora', log:'Entregado',           pago:'facturado', pedido:'722530', factura:'G-118431 · $ 817.900', items:2, total:817900 },
+  { id:'193263', hora:'3 sep 10:48', cliente:'Carlos Eduardo Siachoque Ayala', cel:'3164998623', ciudad:'Bucaramanga',  origen:'Asignado', msj:'Mensajería interna', log:'Entregado',       pago:'facturado', pedido:'722549', factura:'G-118437 · $ 83.950',  items:1, total:83950 },
+  { id:'193232', hora:'3 sep 11:30', cliente:'Viviana Santofimio Vargas',      cel:'3045823337', ciudad:'Bogotá',       origen:'WhatsApp', msj:'Transportadora', log:'Entregado',           pago:'facturado', pedido:'722492', factura:'G-118440 · $ 475.850', items:2, total:475850 },
+  { id:'193501', hora:'3 sep 14:02', cliente:'Diana Marcela Ortiz Peña',       cel:'3112204871', ciudad:'Floridablanca',origen:'Asignado', msj:'Mensajería interna', log:'Entregado',       pago:'facturado', pedido:'722610', factura:'G-118452 · $ 529.900', items:2, total:529900 },
+  { id:'193517', hora:'3 sep 15:41', cliente:'Luis Fernando Gómez Rueda',      cel:'3157738240', ciudad:'Girón',        origen:'WhatsApp', msj:'Transportadora', log:'Entregado',           pago:'facturado', pedido:'722633', factura:'G-118459 · $ 419.950', items:2, total:419950 },
+  { id:'193540', hora:'3 sep 17:20', cliente:'Sandra Milena Torres Cala',      cel:'3204410987', ciudad:'Bucaramanga',  origen:'WhatsApp', msj:'Mensajería interna', log:'Entregado',       pago:'facturado', pedido:'722641', factura:'G-118463 · $ 463.150', items:1, total:463150 },
+  { id:'193488', hora:'3 sep 12:55', cliente:'Martha Cecilia Rincón Ayala',     cel:'3168820441', ciudad:'Piedecuesta',  origen:'Asignado', msj:'Mensajería interna', log:'Pendiente',       pago:'archivado', pedido:null,     factura:null,                   items:2, total:389900,
+    archivado:{ autoria:'Archivado por Silvia Camacho · 3 sep 18:10', nota:'La clienta pidió cancelar: compra en tienda' } },
+];
+const TIENDA_3SEP = [
+  { cedula:'63469663', nombre:'Eucaris Sepulveda', bodega:740, filas:[ { tipo:'devolucion', factura:'34646', valor:-308523 }, { tipo:'compra', factura:'3014', valor:308523 } ] },
+  { cedula:'98399198', nombre:null,                bodega:440, filas:[ { tipo:'devolucion', factura:'2512',  valor:-509951 }, { tipo:'compra', factura:'8378', valor:649951 } ] },
+];
+
+// ═══ Helpers de formato (mismos criterios que la app) ═══
+const pesos  = n => n === null || n === undefined ? '—' : (n < 0 ? '−' : '') + '$ ' + Math.abs(Math.round(n)).toLocaleString('es-CO');
+const signo  = n => !n ? '—' : (n < 0 ? '−' : '+') + '$ ' + Math.abs(Math.round(n)).toLocaleString('es-CO');
+const entero = n => n === null || n === undefined ? '—' : Math.round(n).toLocaleString('es-CO');
+const dec2   = n => n === null || n === undefined ? '—' : n.toLocaleString('es-CO', { minimumFractionDigits:2, maximumFractionDigits:2 });
+const conNum = (v, n) => v ? `${pesos(v)} <span class="text-[11px] text-gray-400">(${n})</span>` : '—';
+// pctCumplimiento.ts: 100 % reservado al 100 % real
+const pctTxt = n => n === null || n === undefined ? '—' : ((n < 100 && Math.round(n) >= 100) ? 99 : Math.round(n)) + '%';
+const pct1   = n => n === null ? '—' : n.toLocaleString('es-CO', { minimumFractionDigits:1, maximumFractionDigits:1 }) + '%';
+// gauge.ts::semaforoGauge — ≥95 verde · ≥80 ámbar · <80 rojo (escala vigente del módulo)
+const banda  = p => p === null ? null : p >= 95 ? 'verde' : p >= 80 ? 'ambar' : 'rojo';
+const BADGE  = { verde:'bg-emerald-600', ambar:'bg-amber-500', rojo:'bg-red-500' };
+const FONDO  = { verde:'bg-emerald-100 text-emerald-900', ambar:'bg-amber-100 text-amber-900', rojo:'bg-red-100 text-red-900' };
+const HEX    = { verde:'#059669', ambar:'#d97706', rojo:'#dc2626' };
+const fechaCorta = f => { const [y,m,d] = f.split('-'); return `${parseInt(d)} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][parseInt(m)-1]}`; };
+const iniciales = n => n.split(' ').filter(Boolean).map(w => w[0]).slice(0,2).join('').toUpperCase();
+const AVATARES = ['bg-indigo-500','bg-emerald-500','bg-rose-500','bg-sky-500','bg-violet-500','bg-teal-500','bg-orange-500','bg-fuchsia-500','bg-cyan-500','bg-lime-600','bg-slate-500','bg-pink-500','bg-blue-500'];
+
+// lucide-vue-next: Clock (bono provisional), TrendingUp, Columns3, ChevronLeft, X, ExternalLink
+const ICO = {
+  clock: '<svg class="h-3 w-3 shrink-0" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  up:    '<svg class="h-3.5 w-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>',
+  cols:  '<svg class="h-3.5 w-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>',
+  back:  '<svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
+  x:     '<svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  link:  '<svg class="h-3.5 w-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+  archive: '<svg class="h-3.5 w-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>',
+  restore: '<svg class="h-3.5 w-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h2"/><path d="M20 8v11a2 2 0 0 1-2 2h-2"/><path d="m9 15 3-3 3 3"/><path d="M12 12v9"/></svg>',
+  chev:  '<svg class="h-3 w-3" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>',
+};
+
+// ═══ Cálculo de la fila (lo que hará el servicio: sumar lo que FilaDetalleDiario compone) ═══
+function derivarAsesor(a, sinDesglose) {
+  const total = a.webV + a.facV + a.tie + a.dev;
+  const nped  = a.webN + a.facN;
+  const meta  = a.meta;
+  const cump  = meta > 0 ? total / meta * 100 : null;
+  const falta = p => meta > 0 ? Math.max(0, meta * p / 100 - total) : null;
+  const pedTc = a.conv > 0 ? Math.round(a.conv * META_TCV / 100) : null;
+  return {
+    a, total, nped, meta, cump,
+    pc80: falta(80), pc90: falta(90), pc100: falta(100),
+    bonoMonto: (a.verde + a.amar) * BONO_DIA, bonoProv: a.amar, bonoDias: a.verde + a.amar,
+    vpt: nped > 0 ? (a.facV + a.webV) / nped : null,
+    upt: nped > 0 ? a.unid / nped : null,
+    ppt: a.unid > 0 ? (a.facV + a.webV) / a.unid : null,
+    itemsUpt: nped > 0 ? Math.max(0, Math.ceil(META_UPT * nped) - a.unid) : null,
+    pedTc, pedFaltan: pedTc === null ? null : pedTc - nped,
+    comision: Math.round(total > 0 ? total * 0.0067 : 0),   // ilustrativa
+    pendiente: PENDIENTE[a.cod] ?? 0,
+    sinDesglose,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PANTALLA 1 · Gestión de Ventas
+// ═══════════════════════════════════════════════════════════════════════════
+const BANDA = { web:'#f7f9fc', fac:'#f3f6fa', dev:'#eff3f8', tie:'#eaeff6', total:'#e3e9f2' };
+const TIPS = {
+  meta:  'Presupuesto asignado al asesor en el período (suma de los días).',
+  web:   'Pedidos ya pagados por el cliente, a la espera de la factura del ERP. Cuentan desde ya: el dinero entró.',
+  fac:   'Pedidos que ya llegaron facturados en el archivo del ERP. Se toma el valor de la factura, no el del carrito.',
+  dev:   'Facturas M del archivo del ERP: devoluciones recibidas en tienda física. Restan del total.',
+  tie:   'Facturas X del archivo del ERP: compras hechas en el punto físico, sin pasar por un carrito web.',
+  total: 'Pedidos web + Facturado + Tienda física − Devoluciones. La misma cifra que ve el asesor en Mis Ventas y sobre la que se paga la comisión.',
+  cumpl: 'Total venta dividido por la Meta del período.',
+  pc:    'Lo que falta vender para llegar a ese porcentaje de la meta, sobre el Total venta.',
+  bono:  'Bonos diarios ganados en el período: verdes (facturado) más amarillos (provisionales, dependen de pedidos pagados sin factura).',
+  nped:  'Pedidos contados en Pedidos web y Facturado. Las facturas de tienda física no tienen pedido.',
+  vpt:   'Venta por transacción: (Pedidos web + Facturado) ÷ Nro pedidos. Sin tienda física ni devoluciones.',
+  iupt:  'Unidades que faltan para llegar a la meta de UPT con los pedidos hechos.',
+  upt:   'Unidades por transacción: unidades ÷ Nro pedidos.',
+  ppt:   'Precio por unidad: (Pedidos web + Facturado) ÷ unidades. Sin meta.',
+  ptc:   'Pedidos que debería llevar para cumplir la meta de tasa de conversión: tráfico atendido × meta de TC.',
+  pfal:  'Ped. para TC menos los pedidos hechos. «Cumple» si ya los superó.',
+  com:   'Comisión proyectada: sobre lo facturado más lo pagado sin factura, con la escala vigente.',
+  ctot:  'Comisión proyectada + Bono acumulado.',
+};
+
+// Columnas de la tabla de asesores (21). fija: no se puede ocultar (variante A).
+const COLS_TABLA = [
+  { k:'nombre', t:'Nombre',            al:'text-left',   fija:true, sticky:'izq' },
+  { k:'meta',   t:'Meta',              al:'text-right',  fija:true, tip:TIPS.meta },
+  { k:'web',    t:'Pedidos web',       al:'text-right',  bg:BANDA.web,   tip:TIPS.web },
+  { k:'fac',    t:'Facturado',         al:'text-right',  bg:BANDA.fac,   tip:TIPS.fac },
+  { k:'dev',    t:'Devoluciones',      al:'text-right',  bg:BANDA.dev,   tip:TIPS.dev },
+  { k:'tie',    t:'Tienda física',     al:'text-right',  bg:BANDA.tie,   tip:TIPS.tie },
+  { k:'total',  t:'Total venta',       al:'text-right',  bg:BANDA.total, fija:true, tip:TIPS.total, th:'text-gray-900' },
+  { k:'cumpl',  t:'Cumplimiento',      al:'text-center', fija:true, tip:TIPS.cumpl },
+  { k:'pc80',   t:'Por cumplir 80%',   al:'text-right',  tip:TIPS.pc },
+  { k:'pc90',   t:'Por cumplir 90%',   al:'text-right',  tip:TIPS.pc },
+  { k:'pc100',  t:'Por cumplir 100%',  al:'text-right',  tip:TIPS.pc },
+  { k:'bono',   t:'Bono acumulado',    al:'text-right',  tip:TIPS.bono },
+  { k:'nped',   t:'Nro pedidos',       al:'text-right',  tip:TIPS.nped },
+  { k:'vpt',    t:'VPT',               al:'text-right',  tip:TIPS.vpt },
+  { k:'iupt',   t:'Ítems UPT',         al:'text-right',  tip:TIPS.iupt },
+  { k:'upt',    t:'UPT',               al:'text-right',  tip:TIPS.upt },
+  { k:'ppt',    t:'PPT',               al:'text-right',  tip:TIPS.ppt },
+  { k:'ptc',    t:'Ped. para TC',      al:'text-right',  tip:TIPS.ptc },
+  { k:'pfal',   t:'Ped. que faltan',   al:'text-right',  tip:TIPS.pfal },
+  { k:'com',    t:'Comisión proy.',    al:'text-right',  tip:TIPS.com },
+  { k:'ctot',   t:'Comisión total proy.', al:'text-right', fija:true, sticky:'der', tip:TIPS.ctot },
+];
+const CLAVE_PREF = 'gw156.columnas.ocultas.mockup';
+const OCULTAS = new Set(JSON.parse(localStorage.getItem(CLAVE_PREF) || '[]'));
+const guardarPref = () => localStorage.setItem(CLAVE_PREF, JSON.stringify([...OCULTAS]));
+
+function celdaPorCumplir(cump, umbral, monto) {
+  if (cump === null) return '<span class="text-gray-300">—</span>';
+  if (cump >= 100 && umbral === 100) return '<span class="inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">Cumple</span>';
+  if (monto === null || monto <= 0) return '<span class="text-gray-400">N/A</span>';
+  const color = umbral === 80 ? 'text-red-600' : umbral === 90 ? 'text-orange-600' : 'text-emerald-700';
+  return `<span class="${color}">${pesos(monto)}</span>`;
+}
+function celdaSemaforo(valor, meta, fmt) {
+  if (valor === null) return '<span class="text-gray-300">—</span>';
+  const b = banda(meta > 0 ? valor / meta * 100 : null);
+  return `<span class="inline-block rounded px-1.5 py-0.5 font-semibold ${b ? FONDO[b] : 'text-gray-800'}">${fmt(valor)}</span>`;
+}
+function celdaBono(x) {
+  if (!x.bonoDias) return '<span class="text-gray-300">—</span>';
+  const prov = x.bonoProv
+    ? ` <span class="tip tip-arriba tip-fin inline-block align-middle" data-tip="Aún no se ha facturado: ${x.bonoProv} de estos bonos cuentan pedidos pagados que el ERP todavía no factura. Si la factura llega por menos y el día baja del 100 %, el bono se retira."><span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700" style="border-bottom-style:solid">${ICO.clock}${x.bonoProv} prov.</span></span>`
+    : '';
+  return `<span class="font-semibold text-gray-800">${pesos(x.bonoMonto)}</span> <span class="text-[11px] text-gray-400">(${x.bonoDias})</span>${prov}`;
+}
+
+function celda(c, x) {
+  const sd = x.sinDesglose;
+  const gris = '<span class="text-gray-300">—</span>';
+  switch (c.k) {
+    case 'nombre': return `<span class="inline-flex items-center gap-2"><span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${AVATARES[x.i % AVATARES.length]}">${iniciales(x.a.n)}</span><span class="font-medium text-gray-800" title="${x.a.n}">${x.a.n.split(' ').slice(0,2).join(' ')}</span>${x.a.meta === null ? '<span class="tip inline-block" data-tip="Sin presupuesto asignado en el período"><span class="text-[10px] font-semibold text-gray-400" style="border:0">sin meta</span></span>' : ''}</span>`;
+    case 'meta':  return x.meta === null ? gris : pesos(x.meta);
+    case 'web':   return sd ? gris : conNum(x.a.webV, x.a.webN);
+    case 'fac':   return sd ? gris : conNum(x.a.facV, x.a.facN);
+    case 'dev':   return sd ? gris : `<span class="${x.a.dev ? 'text-red-600' : 'text-gray-400'}">${signo(x.a.dev)}</span>`;
+    case 'tie':   return sd ? gris : `<span class="${x.a.tie ? 'text-emerald-700' : 'text-gray-400'}">${signo(x.a.tie)}</span>`;
+    case 'total': return `<span class="font-bold ${x.total < 0 ? 'text-red-600' : 'text-gray-900'}">${pesos(x.total)}</span>`;
+    case 'cumpl': { const b = banda(x.cump); return b ? `<span class="inline-block min-w-[46px] rounded ${BADGE[b]} px-1.5 py-0.5 text-xs font-bold text-white">${pctTxt(x.cump)}</span>` : gris; }
+    case 'pc80':  return celdaPorCumplir(x.cump, 80,  x.pc80);
+    case 'pc90':  return celdaPorCumplir(x.cump, 90,  x.pc90);
+    case 'pc100': return celdaPorCumplir(x.cump, 100, x.pc100);
+    case 'bono':  return celdaBono(x);
+    case 'nped':  return sd ? gris : (x.nped ? entero(x.nped) : gris);
+    case 'vpt':   return sd ? gris : celdaSemaforo(x.vpt, META_VPT, pesos);
+    case 'iupt':  return sd || x.itemsUpt === null ? gris : (x.itemsUpt === 0 ? '<span class="inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">Cumple</span>' : entero(x.itemsUpt));
+    case 'upt':   return sd ? gris : celdaSemaforo(x.upt, META_UPT, dec2);
+    case 'ppt':   return sd || x.ppt === null ? gris : `<span class="font-semibold text-gray-800">${pesos(x.ppt)}</span>`;
+    case 'ptc':   return x.pedTc === null ? gris : entero(x.pedTc);
+    case 'pfal':  return x.pedFaltan === null ? gris : (x.pedFaltan <= 0 ? '<span class="inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">Cumple</span>' : entero(x.pedFaltan));
+    case 'com':   return x.comision ? `<span class="text-gray-500">${pesos(x.comision)}</span>` : gris;
+    case 'ctot':  return (x.comision + x.bonoMonto) ? `<span class="font-semibold text-emerald-700">${pesos(x.comision + x.bonoMonto)}</span>` : gris;
+  }
+}
+
+function claseSticky(c, pos) {
+  if (c.sticky === 'izq') return `sticky left-0 z-10 bg-white shadow-[2px_0_0_0_#e5e7eb] ${pos === 'th' ? '' : 'group-hover:bg-gray-50'}`;
+  if (c.sticky === 'der') return `sticky right-0 z-10 ${pos === 'th' ? 'bg-emerald-50 text-emerald-700' : 'bg-emerald-50 group-hover:bg-emerald-100'} shadow-[-2px_0_0_0_#e5e7eb]`;
+  return '';
+}
+
+function tablaAsesores(estado, ancho) {
+  const vis = COLS_TABLA.filter(c => ancho === 'B' || !OCULTAS.has(c.k));
+  const sinDesglose = estado === 'antescorte';
+  const filas = estado === 'vacio' ? [] : ASESORES.map((a, i) => ({ ...derivarAsesor(a, sinDesglose), i })).sort((p, q) => q.total - p.total);
+
+  const th = vis.map((c, i) => {
+    const tipCls = c.tip ? ` tip${i === 0 ? ' tip-ini' : (i >= vis.length - 3 ? ' tip-fin' : '')}` : '';
+    const st = c.bg ? ` style="background:${c.bg}"` : '';
+    return `<th class="whitespace-nowrap px-3 py-2 font-medium ${c.al} ${claseSticky(c,'th')} ${c.th || ''}${tipCls}"${c.tip ? ` data-tip="${c.tip}"` : ''}${st}><span>${c.t}</span></th>`;
+  }).join('');
+
+  let cuerpo;
+  if (estado === 'cargando') {
+    cuerpo = [0,1,2,3,4].map(() => `<tr><td colspan="${vis.length}" class="px-3 py-2"><div class="skeleton h-8 rounded"></div></td></tr>`).join('');
+  } else if (estado === 'error') {
+    cuerpo = `<tr><td colspan="${vis.length}" class="px-5 py-10 text-center text-xs text-red-800"><div class="mx-auto max-w-md rounded-xl border border-red-200 bg-red-50 p-6">No pudimos cargar la tabla de asesores.<button class="ml-2 rounded-lg border border-red-300 bg-white px-2 py-1 text-[11px] font-medium text-red-700">Reintentar</button></div></td></tr>`;
+  } else if (!filas.length) {
+    cuerpo = `<tr><td colspan="${vis.length}" class="px-5 py-12 text-center text-xs text-gray-400">No hay asesores en este período.</td></tr>`;
+  } else {
+    cuerpo = filas.map(x => `
+      <tr class="group cifra cursor-pointer border-b border-gray-50 hover:bg-gray-50" data-abrir-asesor="${x.a.cod}" title="Ver el detalle del asesor">
+        ${vis.map(c => `<td class="whitespace-nowrap px-3 py-2 ${c.al} ${claseSticky(c,'td')}"${c.bg ? ` style="background:${c.bg}"` : ''}>${celda(c, x)}</td>`).join('')}
+      </tr>`).join('');
+  }
+
+  // tfoot: Meta, banda (5), Cumplimiento (Σ total / Σ meta), Bono, Nro pedidos, Comisión proy., Comisión total. Ratios sin total.
+  const S = k => filas.reduce((s, x) => s + (x[k] ?? 0), 0);
+  const SA = k => filas.reduce((s, x) => s + (x.a[k] ?? 0), 0);
+  const tMeta = S('meta'), tTotal = S('total');
+  const tCump = tMeta > 0 ? tTotal / tMeta * 100 : null;
+  const tProv = SA('amar');
+  const totalCelda = c => {
+    const gris = '<span class="text-gray-300">—</span>';
+    switch (c.k) {
+      case 'nombre': return 'Total';
+      case 'meta':   return pesos(tMeta);
+      case 'web':    return sinDesglose ? gris : conNum(SA('webV'), SA('webN'));
+      case 'fac':    return sinDesglose ? gris : conNum(SA('facV'), SA('facN'));
+      case 'dev':    return sinDesglose ? gris : `<span class="text-red-600">${signo(SA('dev'))}</span>`;
+      case 'tie':    return sinDesglose ? gris : `<span class="text-emerald-700">${signo(SA('tie'))}</span>`;
+      case 'total':  return `<span class="font-bold text-gray-900">${pesos(tTotal)}</span>`;
+      case 'cumpl':  { const b = banda(tCump); return b ? `<span class="inline-block min-w-[46px] rounded ${BADGE[b]} px-1.5 py-0.5 text-xs font-bold text-white">${pctTxt(tCump)}</span>` : gris; }
+      case 'bono':   return `<span class="font-semibold">${pesos(S('bonoMonto'))}</span>${tProv ? `<div class="text-[10px] font-normal text-amber-700">${tProv} provisionales</div>` : ''}`;
+      case 'nped':   return sinDesglose ? gris : entero(S('nped'));
+      case 'com':    return pesos(S('comision'));
+      case 'ctot':   return `<span class="font-semibold text-emerald-700">${pesos(S('comision') + S('bonoMonto'))}</span>`;
+      default:       return '';
+    }
+  };
+  const tfoot = filas.length && estado === 'normal' || estado === 'antescorte' ? `
+    <tfoot>
+      <tr class="cifra border-t border-gray-200 bg-gray-50 text-[13px] font-semibold text-gray-700">
+        ${vis.map(c => `<td class="whitespace-nowrap px-3 py-2 ${c.al} ${c.sticky === 'izq' ? 'sticky left-0 z-10 bg-gray-50 shadow-[2px_0_0_0_#e5e7eb]' : c.sticky === 'der' ? 'sticky right-0 z-10 bg-emerald-100 shadow-[-2px_0_0_0_#e5e7eb]' : ''}"${c.bg ? ` style="background:${c.bg}"` : ''}>${totalCelda(c)}</td>`).join('')}
+      </tr>
+    </tfoot>` : '';
+
+  return `
+  <table class="w-full text-[13px] tabular-nums">
+    <thead><tr class="border-b border-gray-100 text-[11px] tracking-wide text-gray-400 uppercase">${th}</tr></thead>
+    <tbody>${cuerpo}</tbody>
+    ${tfoot}
+  </table>`;
+}
+
+function panelColumnas() {
+  const ops = COLS_TABLA.filter(c => !c.fija);
+  const n = ops.filter(c => OCULTAS.has(c.k)).length;
+  return `
+  <details class="relative" id="panel-cols">
+    <summary class="flex cursor-pointer list-none items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1 text-[12px] font-medium text-gray-600 hover:bg-gray-50">
+      ${ICO.cols} Columnas${n ? ` <span class="rounded bg-gray-800 px-1.5 text-[10px] font-semibold text-white">${ops.length - n}/${ops.length}</span>` : ''}<span class="text-gray-400">▾</span>
+    </summary>
+    <div class="absolute right-0 z-40 mt-1.5 w-60 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
+      ${ops.map(c => `<label class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[12px] text-gray-700 hover:bg-gray-50"><input type="checkbox" data-col="${c.k}" ${OCULTAS.has(c.k) ? '' : 'checked'} class="h-3.5 w-3.5 rounded border-gray-300 accent-gray-800">${c.t}</label>`).join('')}
+      <button id="cols-reset" class="mt-1 w-full rounded px-2 py-1.5 text-left text-[12px] text-gray-500 hover:bg-gray-50">Mostrarlas todas</button>
+    </div>
+  </details>`;
+}
+
+// ─── Gauges (mismo path que gauge.ts: R 52, CX 70, CY 64, cap 110 %) ───
+function arco(pct) {
+  const ang = (Math.min(Math.max(pct, 0), 110) / 110) * 180;
+  const rad = ((180 - ang) * Math.PI) / 180;
+  return `M 18 64 A 52 52 0 0 1 ${(70 + 52 * Math.cos(rad)).toFixed(1)} ${(64 - 52 * Math.sin(rad)).toFixed(1)}`;
+}
+function gaugeSvg(pct, techo, texto) {
+  const b = banda(pct ?? 0) || 'rojo';
+  return `<svg viewBox="0 0 140 74" class="mx-auto w-full max-w-[190px]">
+    <path d="${arco(110)}" fill="none" stroke="#f1f5f9" stroke-width="11" stroke-linecap="round"/>
+    ${techo !== null && techo > pct ? `<path d="${arco(techo)}" fill="none" stroke="${HEX[b]}44" stroke-width="11" stroke-linecap="round"/>` : ''}
+    <path d="${arco(pct ?? 0)}" fill="none" stroke="${HEX[b]}" stroke-width="11" stroke-linecap="round"/>
+    <text x="70" y="58" text-anchor="middle" style="font-size:23px;font-weight:800;fill:#0f172a">${texto}</text>
+  </svg>`;
+}
+const cajaKpi = (titulo, valor, sub, borde, color) => `
+  <div class="rounded-md border border-l-4 bg-white px-3 py-2 ${borde}">
+    <p class="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">${titulo}</p>
+    <p class="cifra text-xl leading-tight font-extrabold ${color || 'text-gray-900'}">${valor}</p>
+    ${sub ? `<p class="cifra text-[10px] text-gray-400">${sub}</p>` : ''}
+  </div>`;
+
+function tableroKpis(estado) {
+  if (estado === 'cargando') return `<div class="grid grid-cols-1 gap-4 md:grid-cols-3">${[0,1,2].map(() => '<div class="rounded-2xl border bg-white p-4 shadow-sm"><div class="skeleton mb-3 h-3 w-40 rounded"></div><div class="skeleton h-28 rounded-xl"></div></div>').join('')}</div>`;
+  if (estado === 'error') return `<div class="grid grid-cols-1 gap-4 md:grid-cols-3">${[0,1,2].map(() => '<div class="rounded-2xl border bg-white p-4 shadow-sm"><div class="rounded-xl border border-red-200 bg-red-50 p-4 text-center text-xs text-red-800">No pudimos cargar este bloque.<button class="ml-2 rounded-lg border border-red-300 bg-white px-2 py-1 text-[11px] font-medium text-red-700">Reintentar</button></div></div>').join('')}</div>`;
+  const filas = ASESORES.map(a => derivarAsesor(a, false));
+  const meta = filas.reduce((s,x) => s + (x.meta ?? 0), 0);
+  const total = filas.reduce((s,x) => s + x.total, 0);
+  const pend = filas.reduce((s,x) => s + x.pendiente, 0);
+  const pctRec = meta > 0 ? total / meta * 100 : null;
+  const pctConf = meta > 0 ? (total + pend) / meta * 100 : null;
+  const nped = filas.reduce((s,x) => s + x.nped, 0);
+  const pedEsp = Math.round(meta / META_VPT);
+  const pedPct = pedEsp ? nped / pedEsp * 100 : null;
+  const conv = ASESORES.reduce((s,a) => s + a.conv, 0), cconf = ASESORES.reduce((s,a) => s + a.cconf, 0);
+  const tc = conv ? cconf / conv * 100 : null;
+  const porVender = meta - total;
+  const bRec = banda(pctRec), bPed = banda(pedPct);
+  const BORDE = { verde:'border-l-emerald-600', ambar:'border-l-amber-500', rojo:'border-l-red-500' };
+  const sinPagar = ASESORES.reduce((s,a) => s + (PENDIENTE[a.cod] ? 1 : 0), 0) * 3; // ilustrativo
+  return `
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+    <div class="rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="mb-1 text-[11px] font-bold tracking-wide text-gray-500 uppercase">% Cump. presupuesto neto</h2>
+      <div class="flex items-center gap-3">
+        <div class="w-[46%] shrink-0">
+          ${gaugeSvg(pctRec, pctConf, pctTxt(pctRec))}
+          <p class="-mt-1 text-center text-[11px] text-gray-500 tabular-nums">llegaría a <span class="font-semibold">${pct1(pctConf)}</span> si recibe los pagos pendientes</p>
+          <p class="mt-0.5 text-center text-[11px] text-gray-400">Meta ${pesos(meta)}</p>
+        </div>
+        <div class="flex-1 space-y-2">
+          ${cajaKpi('Venta recaudada', pesos(total), `(${pesos(pend)} confirmada por recaudar)`, BORDE[bRec])}
+          ${cajaKpi('Por vender y recaudar', pesos(porVender), '', porVender > 0 ? 'border-l-red-500' : 'border-l-emerald-600', porVender > 0 ? 'text-red-600' : 'text-emerald-700')}
+        </div>
+      </div>
+    </div>
+    <div class="rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="mb-1 text-[11px] font-bold tracking-wide text-gray-500 uppercase">% Pedidos esperados</h2>
+      <div class="flex items-center gap-3">
+        <div class="w-[46%] shrink-0">
+          ${gaugeSvg(pedPct, null, pctTxt(pedPct))}
+          <p class="text-center text-[11px] text-gray-400">${entero(pedEsp)} esperados</p>
+        </div>
+        <div class="flex-1 space-y-2">
+          ${cajaKpi('Pedidos realizados', entero(nped), `+ ${sinPagar} confirmados sin pagar`, BORDE[bPed])}
+          ${cajaKpi('Pedidos por realizar', entero(Math.max(0, pedEsp - nped)), '', 'border-l-red-500', 'text-red-600')}
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="text-[11px] font-bold tracking-wide text-gray-500 uppercase">Tasa de conversión</h2>
+      <div class="mt-2 flex flex-1 flex-col items-center justify-center rounded-md py-3 ${tc >= META_TCV ? 'bg-emerald-50' : 'bg-gray-50'}">
+        <p class="cifra text-4xl font-extrabold ${tc >= META_TCV ? 'text-emerald-700' : 'text-gray-700'}">${pct1(tc)}</p>
+        <div class="mt-1 flex items-center gap-1 text-xs font-semibold text-emerald-700">${ICO.up}<span class="tabular-nums">1,8</span> pts vs período anterior</div>
+        <p class="mt-1 text-[11px] text-gray-400">meta del mes: ${META_TCV}%</p>
+      </div>
+      <div class="mt-2 space-y-1.5 border-t pt-2 text-sm">
+        <div class="flex justify-between"><span class="text-gray-500">Tráfico atendido</span><span class="cifra font-semibold">${entero(conv)}</span></div>
+        <div class="flex justify-between"><span class="text-gray-500">Carritos pagados</span><span class="cifra font-semibold">${entero(cconf)}</span></div>
+        <p class="text-right text-[10px] text-gray-400">en los días con archivo: los mismos que se dividen</p>
+      </div>
+    </div>
+  </div>`;
+}
+
+function consolidado(estado) {
+  if (estado === 'cargando') return `<section class="mb-5 rounded-2xl border border-gray-200 bg-white shadow-sm"><header class="border-b border-gray-100 px-5 py-3"><h2 class="text-[13px] font-bold tracking-wide text-gray-500 uppercase">Consolidado · STIRPE</h2></header><div class="p-5"><div class="skeleton h-10 rounded"></div></div></section>`;
+  if (estado === 'error') return `<section class="mb-5 rounded-2xl border border-gray-200 bg-white shadow-sm"><header class="border-b border-gray-100 px-5 py-3"><h2 class="text-[13px] font-bold tracking-wide text-gray-500 uppercase">Consolidado · STIRPE</h2></header><div class="p-5 text-center text-xs text-red-800"><div class="mx-auto max-w-md rounded-xl border border-red-200 bg-red-50 p-4">No pudimos cargar el consolidado.<button class="ml-2 rounded-lg border border-red-300 bg-white px-2 py-1 text-[11px] font-medium text-red-700">Reintentar</button></div></div></section>`;
+  const filas = ASESORES.map(a => derivarAsesor(a, false));
+  const meta = filas.reduce((s,x) => s + (x.meta ?? 0), 0);
+  const total = filas.reduce((s,x) => s + x.total, 0);
+  const pend = filas.reduce((s,x) => s + x.pendiente, 0);
+  const nped = filas.reduce((s,x) => s + x.nped, 0);
+  const unid = ASESORES.reduce((s,a) => s + a.unid, 0);
+  const ventaPed = ASESORES.reduce((s,a) => s + a.facV + a.webV, 0);
+  const dev = ASESORES.reduce((s,a) => s + a.dev, 0);
+  const tie = ASESORES.reduce((s,a) => s + a.tie, 0);
+  const conv = ASESORES.reduce((s,a) => s + a.conv, 0), cconf = ASESORES.reduce((s,a) => s + a.cconf, 0);
+  const tc = conv ? cconf / conv * 100 : null;
+  const pedEsp = Math.round(meta / META_VPT);
+  const pedPct = nped / pedEsp * 100, pctRec = total / meta * 100, pctConf = (total + pend) / meta * 100;
+  const badge = p => { const b = banda(p); return `<span class="inline-block min-w-[46px] rounded ${BADGE[b]} px-1.5 py-0.5 text-xs font-bold text-white">${pctTxt(p)}</span>`; };
+  const brecha = p => {
+    const obj = meta * p / 100, falta = Math.max(0, obj - total), faltaC = Math.max(0, obj - total - pend), ok = total >= obj;
+    const vpt = ventaPed / nped;
+    return `<div class="rounded-xl ${ok ? 'bg-emerald-50' : 'bg-gray-50'} p-3 text-center">
+      <p class="text-[10px] font-semibold tracking-wide ${ok ? 'text-emerald-600' : 'text-gray-400'} uppercase">Meta ${p}&nbsp;%</p>
+      <p class="cifra mt-1 text-sm font-bold ${ok ? 'text-emerald-700' : 'text-gray-800'}">${ok ? 'Cumplido' : pesos(falta)}</p>
+      ${ok ? '<p class="mt-0.5 text-[11px] text-gray-500">umbral superado sobre lo recaudado</p>' : `<p class="text-[11px] text-gray-400 tabular-nums">(${pesos(faltaC)} sobre la confirmada)</p><p class="cifra mt-0.5 text-[11px] text-gray-500">≈ ${entero(Math.ceil(falta / vpt))} pedidos más, de ${pesos(vpt)} en promedio</p>`}
+    </div>`;
+  };
+  return `
+  <section class="mb-5 rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <header class="border-b border-gray-100 px-5 py-3"><h2 class="text-[13px] font-bold tracking-wide text-gray-500 uppercase">Consolidado · STIRPE</h2></header>
+    <div class="overflow-x-auto px-2">
+      <table class="w-full min-w-[1180px] text-sm">
+        <thead><tr class="text-[11px] tracking-wide text-gray-400 uppercase">
+          <th class="px-3 py-2 text-right font-medium">Presupuesto</th>
+          <th class="px-3 py-2 text-right font-medium">Venta recaudada</th>
+          <th class="px-3 py-2 text-right font-medium">Tráfico atendido</th>
+          <th class="px-3 py-2 text-right font-medium">Pedidos esperados</th>
+          <th class="px-3 py-2 text-right font-medium">Pedidos</th>
+          <th class="px-3 py-2 text-center font-medium">% Pedidos esp.</th>
+          <th class="px-3 py-2 text-right font-medium">Devoluciones</th>
+          <th class="px-3 py-2 text-right font-medium">Tienda física</th>
+          <th class="px-3 py-2 text-center font-medium">% TC</th>
+          <th class="px-3 py-2 text-center font-medium">% Cump. neto</th>
+          <th class="px-3 py-2 text-right font-medium">UPT</th>
+          <th class="px-3 py-2 text-right font-medium">PPT</th>
+          <th class="px-3 py-2 text-right font-medium">VPT</th>
+        </tr></thead>
+        <tbody><tr class="cifra">
+          <td class="px-3 py-2.5 text-right font-semibold">${pesos(meta)}</td>
+          <td class="px-3 py-2.5 text-right font-semibold">${pesos(total)}<div class="text-[10px] font-normal text-gray-400">(${pesos(total + pend)})</div></td>
+          <td class="px-3 py-2.5 text-right font-semibold">${entero(conv)}</td>
+          <td class="px-3 py-2.5 text-right font-semibold">${entero(pedEsp)}</td>
+          <td class="px-3 py-2.5 text-right font-semibold">${entero(nped)}<div class="text-[10px] font-normal text-gray-400">+ 27 sin pagar</div></td>
+          <td class="px-3 py-2.5 text-center">${badge(pedPct)}</td>
+          <td class="px-3 py-2.5 text-right font-semibold text-red-600">${pesos(dev)}</td>
+          <td class="px-3 py-2.5 text-right font-semibold text-emerald-700">${signo(tie)}</td>
+          <td class="px-3 py-2.5 text-center">${badge(tc / META_TCV * 100)}</td>
+          <td class="px-3 py-2.5 text-center">${badge(pctRec)}<div class="text-[10px] text-gray-400">(${pctTxt(pctConf)})</div></td>
+          <td class="px-3 py-2.5 text-right font-semibold">${dec2(unid / nped)}</td>
+          <td class="px-3 py-2.5 text-right font-semibold">${pesos(ventaPed / unid)}</td>
+          <td class="px-3 py-2.5 text-right font-semibold">${pesos(ventaPed / nped)}</td>
+        </tr></tbody>
+      </table>
+    </div>
+    <div class="border-t border-gray-100 px-5 py-4">
+      <p class="mb-2.5 text-[10px] font-semibold tracking-wide text-gray-400 uppercase">Cuánto falta para la meta de la tienda</p>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">${[80,90,100].map(brecha).join('')}</div>
+    </div>
+    <p class="border-t border-gray-100 px-5 py-2 text-[10px] text-gray-400">Todas las cifras salen del cálculo diario de comisiones: el Consolidado es la suma exacta de la tabla de asesores. Columna nueva: <strong>Tienda física</strong>.</p>
+  </section>`;
+}
+
+function pantallaTabla(estado, ancho) {
+  return `
+  <nav class="mb-3 text-xs text-gray-500">Dashboard <span class="mx-1">›</span> Venta Asistida <span class="mx-1">›</span> <span class="text-gray-800">Gestión de Ventas</span></nav>
+  <div class="mb-4 flex flex-wrap items-center gap-3">
+    <div class="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 text-xs">
+      <button class="rounded-md bg-gray-900 px-3 py-1.5 font-medium text-white">STIRPE</button>
+      <button class="rounded-md px-3 py-1.5 text-gray-600">DEREK</button>
+      <button class="rounded-md px-3 py-1.5 text-gray-600">Comparar tiendas</button>
+    </div>
+    <div class="inline-flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs">
+      <button class="px-1 text-gray-400">◀</button>
+      <span class="font-medium">${estado === 'antescorte' ? '16 – 31 ago 2026' : '1 – 15 sep 2026'}</span>
+      <button class="px-1 text-gray-300">▶</button>
+      <span class="mx-1 h-4 w-px bg-gray-200"></span>
+      <span class="rounded bg-gray-900 px-2 py-0.5 text-white">Quincena</span>
+      <span class="px-2 py-0.5 text-gray-500">Mes</span>
+      <span class="px-2 py-0.5 text-gray-500">Día</span>
+      <span class="px-2 py-0.5 text-gray-500">Personalizado</span>
+    </div>
+  </div>
+
+  <div class="mb-5">${tableroKpis(estado === 'antescorte' || estado === 'vacio' ? 'normal' : estado)}</div>
+  ${consolidado(estado === 'antescorte' || estado === 'vacio' ? 'normal' : estado)}
+
+  <section class="rounded-2xl border border-gray-200 bg-white shadow-sm">
+    <header class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
+      <div class="flex items-center gap-3">
+        <h2 class="text-[11px] font-bold tracking-wide text-gray-500 uppercase">Asesores · STIRPE</h2>
+        <span class="text-[11px] text-gray-400">Meta del mes: UPT ${dec2(META_UPT)} · VPT ${pesos(META_VPT)} · TC ${META_TCV}% · PPT sin meta</span>
+      </div>
+      ${ancho === 'A' ? panelColumnas() : ''}
+    </header>
+    ${estado === 'antescorte' ? '<div class="border-b border-gray-100 bg-gray-50 px-5 py-2 text-[11px] text-gray-500">Período anterior al 1 de septiembre de 2026: el desglose por tipo de venta no existe para esos días. El Total venta es la venta recaudada de siempre.</div>' : ''}
+    <div class="overflow-x-auto" id="tabla-slot">${tablaAsesores(estado, ancho)}</div>
+    <p class="border-t border-gray-100 px-5 py-2.5 text-[11px] text-gray-400">
+      La <strong>banda gris</strong> marca las columnas que suman al <strong>Total venta</strong>: la misma cifra que el asesor ve en Mis Ventas y sobre la que se paga la comisión.
+      Un <strong>bono provisional</strong> se ganó contando pedidos pagados que aún no se facturan. Clic en la fila para ver el detalle diario del asesor.
+      ${ancho === 'A' ? '<strong>Nombre</strong>, <strong>Meta</strong>, <strong>Total venta</strong>, <strong>Cumplimiento</strong> y <strong>Comisión total</strong> no se pueden ocultar.' : ''}
+    </p>
+  </section>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PANTALLA 2 · Modal del asesor (Fabián Prada)
+// ═══════════════════════════════════════════════════════════════════════════
+const FAB = ASESORES.find(a => a.cod === '8969900');
+const TIPS_DIA = {
+  fecha:'Día en que el cliente confirmó el carrito. La venta cuenta aquí aunque se pague o se facture días después.',
+  meta:'Presupuesto asignado a este asesor para ese día.',
+  pend:'Carritos confirmados que el cliente todavía no ha pagado. No suman al total.',
+  arc:'Carritos archivados sin venta. Se muestran para cuadrar el día, pero no suman al total.',
+  web:TIPS.web, fac:TIPS.fac, dev:TIPS.dev, tie:TIPS.tie,
+  total:'Pedidos web + Facturado + Tienda física − Devoluciones. Este es el valor sobre el que se calcula el cumplimiento del asesor.',
+  cumpl:'Total venta dividido por la Meta del día.',
+  bono:'Se gana cuando el Total venta del día llega al 100 % de la meta. Verde: ganado con lo ya facturado. Amarillo: se gana contando pedidos pagados que aún no se facturan.',
+  bonoProv:'Aún no se ha facturado. Este bono cuenta pedidos pagados que el ERP todavía no factura. Si la factura llega por menos y el día baja del 100 %, el bono se retira.',
+  nped:'Cantidad de pedidos contados en Pedidos web y Facturado.',
+  vpt:'Venta por transacción: el valor de esos pedidos dividido por el número de pedidos.',
+  upt:'Unidades por transacción: las unidades vendidas en esos pedidos divididas por el número de pedidos.',
+};
+const CLAVE_PREF_DIA = 'gw156.columnas.ocultas.dia.mockup';
+const OCULTAS_DIA = new Set(JSON.parse(localStorage.getItem(CLAVE_PREF_DIA) || '[]'));
+const COLS_DIA = [
+  { k:'fecha', t:'Fecha', tip:TIPS_DIA.fecha, al:'text-left', fija:'fecha', cel: x => `<button class="font-medium text-gray-800 underline decoration-dotted underline-offset-2 hover:text-emerald-700" data-abrir-dia="${x.d.f}">${fechaCorta(x.d.f)}</button>${x.d.hoy ? ' <span class="ml-1 rounded bg-emerald-100 px-1 text-[10px] font-semibold text-emerald-700">hoy</span>' : ''}` },
+  { k:'meta', t:'Meta del día', tip:TIPS_DIA.meta, al:'text-right', fija:'meta', cel: x => `<span class="text-gray-600">${x.d.meta === null ? '—' : pesos(x.d.meta)}</span>` },
+  { k:'pend', t:'Carritos pendientes', tip:TIPS_DIA.pend, al:'text-right', cel: x => `<span class="text-gray-400">${conNum(x.d.pendV, x.d.pendN)}</span>` },
+  { k:'arc', t:'Archivado', tip:TIPS_DIA.arc, al:'text-right', cel: x => `<span class="text-gray-400">${conNum(x.d.arcV, x.d.arcN)}</span>` },
+  { k:'web', t:'Pedidos web', tip:TIPS_DIA.web, al:'text-right', bg:BANDA.web, cel: x => `<span class="text-gray-800">${conNum(x.d.webV, x.d.webN)}</span>` },
+  { k:'fac', t:'Facturado', tip:TIPS_DIA.fac, al:'text-right', bg:BANDA.fac, cel: x => `<span class="text-gray-800">${conNum(x.d.facV, x.d.facN)}</span>` },
+  { k:'dev', t:'Devoluciones', tip:TIPS_DIA.dev, al:'text-right', bg:BANDA.dev, cel: x => `<span class="${x.d.dev ? 'text-red-600' : 'text-gray-400'}">${signo(x.d.dev)}</span>` },
+  { k:'tie', t:'Tienda física', tip:TIPS_DIA.tie, al:'text-right', bg:BANDA.tie, cel: x => `<span class="${x.d.tie ? 'text-emerald-700' : 'text-gray-400'}">${signo(x.d.tie)}</span>` },
+  { k:'total', t:'Total venta', tip:TIPS_DIA.total, al:'text-right', bg:BANDA.total, th:'text-gray-900', siempre:true, cel: x => `<span class="font-bold text-gray-900">${pesos(x.total)}</span>` },
+  { k:'cumpl', t:'Cumplimiento', tip:TIPS_DIA.cumpl, al:'text-center', siempre:true, cel: x => x.p === null ? '<span class="text-gray-300">—</span>' : `<span class="inline-block min-w-[46px] rounded ${BADGE[banda(x.p)]} px-1.5 py-0.5 text-xs font-bold text-white">${pctTxt(x.p)}</span>` },
+  { k:'bono', t:'Bono diario', tip:TIPS_DIA.bono, al:'text-center', cel: x => !x.gana
+      ? '<span class="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-400">No</span>'
+      : x.firme ? '<span class="inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Sí · $ 20.000</span>'
+      : `<span class="tip tip-arriba inline-block" data-tip="${TIPS_DIA.bonoProv}"><span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700" style="border-bottom-style:solid">${ICO.clock}Sí · $ 20.000</span></span>` },
+  { k:'nped', t:'Nro pedidos', tip:TIPS_DIA.nped, al:'text-right', cel: x => `<span class="text-gray-800">${x.nped || '—'}</span>` },
+  { k:'vpt', t:'VPT', tip:TIPS_DIA.vpt, al:'text-right', cel: x => `<span class="text-gray-800">${x.vpt ? pesos(x.vpt) : '—'}</span>` },
+  { k:'upt', t:'UPT', tip:TIPS_DIA.upt, al:'text-right', cel: x => `<span class="text-gray-800">${x.upt ? dec2(x.upt) : '—'}</span>` },
+];
+function derivarDia(d) {
+  const total = d.webV + d.facV + d.tie + d.dev, nped = d.webN + d.facN;
+  return { d, total, nped, p: d.meta > 0 ? total / d.meta * 100 : null,
+    vpt: nped ? (d.webV + d.facV) / nped : null, upt: nped ? d.unid / nped : null,
+    gana: d.meta > 0 && total >= d.meta, firme: d.meta > 0 && (d.facV + d.tie + d.dev) >= d.meta };
+}
+function tablaDiaria(estado) {
+  const vis = COLS_DIA.filter(c => !OCULTAS_DIA.has(c.k));
+  const attr = c => { const est = []; if (c.bg) est.push(`background:${c.bg}`); if (c.fija === 'fecha') est.push('left:0;width:96px;min-width:96px'); if (c.fija === 'meta') est.push('left:96px;width:136px;min-width:136px'); return ` style="${est.join(';')}"`; };
+  const clsFija = c => c.fija ? ` col-fija col-${c.fija}` : '';
+  const ancla = i => i === 0 ? ' tip-ini' : (i >= vis.length - 3 ? ' tip-fin' : '');
+  const filas = estado === 'vacio' ? [] : DIAS_FABIAN;
+  const cuerpo = !filas.length ? `<tr><td colspan="${vis.length}" class="px-5 py-10 text-center text-xs text-gray-400">Sin días en el período.</td></tr>`
+    : filas.map(d => { const x = derivarDia(d); return `<tr class="group cifra cursor-pointer border-b border-gray-50 last:border-0 ${d.hoy ? 'bg-emerald-50' : 'bg-white hover:bg-gray-50'}" data-abrir-dia="${d.f}">${vis.map(c => `<td class="whitespace-nowrap px-2.5 py-3 ${c.al}${clsFija(c)}"${attr(c)}>${c.cel(x)}</td>`).join('')}</tr>`; }).join('');
+  return `<table class="w-full text-[13px]">
+    <thead class="border-b border-gray-100"><tr class="font-semibold text-gray-600">${vis.map((c, i) => `<th class="tip${ancla(i)} whitespace-nowrap px-2.5 pt-3.5 pb-2.5 text-[12px] leading-tight ${c.al}${clsFija(c)} ${c.th || ''}" data-tip="${c.tip}"${attr(c)}><span>${c.t}</span></th>`).join('')}</tr></thead>
+    <tbody>${cuerpo}</tbody></table>`;
+}
+function panelColumnasDia() {
+  const ops = COLS_DIA.filter(c => !c.fija && !c.siempre);
+  const n = ops.filter(c => OCULTAS_DIA.has(c.k)).length;
+  return `<details class="relative" id="panel-cols-dia">
+    <summary class="flex cursor-pointer list-none items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1 text-[12px] font-medium text-gray-600 hover:bg-gray-50">${ICO.cols} Columnas${n ? ` <span class="rounded bg-gray-800 px-1.5 text-[10px] font-semibold text-white">${ops.length - n}/${ops.length}</span>` : ''}<span class="text-gray-400">▾</span></summary>
+    <div class="absolute right-0 z-40 mt-1.5 w-60 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
+      ${ops.map(c => `<label class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[12px] text-gray-700 hover:bg-gray-50"><input type="checkbox" data-col-dia="${c.k}" ${OCULTAS_DIA.has(c.k) ? '' : 'checked'} class="h-3.5 w-3.5 rounded border-gray-300 accent-gray-800">${c.t}</label>`).join('')}
+      <button id="cols-dia-reset" class="mt-1 w-full rounded px-2 py-1.5 text-left text-[12px] text-gray-500 hover:bg-gray-50">Mostrarlas todas</button>
+    </div></details>`;
+}
+
+// «Ventas del período» sale del modal (decisión de Francisco, 09-11): archivar/desarchivar pasan al detalle del día.
+
+// Dashboard del asesor (TableroAsesor + PanelComisionProyectada), en tercera persona
+function dashboardAsesor() {
+  const x = derivarAsesor(FAB, false);
+  const pctRec = x.cump, pctConf = (x.total + x.pendiente) / x.meta * 100;
+  const pedEsp = Math.round(x.meta / META_VPT), pedPct = x.nped / pedEsp * 100;
+  const tc = FAB.cconf / FAB.conv * 100;
+  const BORDE = { verde:'border-l-emerald-600', ambar:'border-l-amber-500', rojo:'border-l-red-500' };
+  const umbral = p => { const obj = x.meta * p / 100, falta = Math.max(0, obj - x.total), ok = x.total >= obj; const tasa = p === 80 ? '0,5 %' : p === 90 ? '0,6 %' : '0,7 %';
+    return `<div class="rounded-xl bg-gray-50 p-3 text-center"><p class="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">Meta ${p}&nbsp;%</p><p class="mt-1 text-sm font-bold ${ok ? 'text-emerald-700' : 'text-gray-800'}">${ok ? 'Cumplido' : pesos(falta)}</p><p class="cifra mt-0.5 text-[11px] text-gray-500">${ok ? 'umbral superado' : `≈ ${entero(Math.ceil(falta / x.vpt))} pedidos según su VPT`} · paga ${tasa}</p></div>`; };
+  return `
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <div class="rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="mb-1 text-[11px] font-bold tracking-wide text-gray-500 uppercase">% Cump. presupuesto neto</h2>
+      <div class="flex items-center gap-3">
+        <div class="w-[46%] shrink-0">${gaugeSvg(pctRec, pctConf, pctTxt(pctRec))}<p class="-mt-1 text-center text-[11px] text-gray-500 tabular-nums">(${pct1(pctConf)}) proyectado con confirmados</p><p class="mt-0.5 text-center text-[11px] text-gray-400">Meta ${pesos(x.meta)}</p></div>
+        <div class="flex-1 space-y-2">
+          ${cajaKpi('Venta recaudada', pesos(x.total), `(${pesos(x.pendiente)} confirmada por recaudar)`, BORDE[banda(pctRec)])}
+          ${cajaKpi('Por vender y recaudar', '+' + pesos(x.total - x.meta), 'meta superada sobre lo recaudado', 'border-l-emerald-600', 'text-emerald-700')}
+        </div>
+      </div>
+    </div>
+    <div class="rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="mb-1 text-[11px] font-bold tracking-wide text-gray-500 uppercase">% Pedidos esperados</h2>
+      <div class="flex items-center gap-3">
+        <div class="w-[46%] shrink-0">${gaugeSvg(pedPct, null, pctTxt(pedPct))}<p class="text-center text-[11px] text-gray-400">${entero(pedEsp)} esperados</p></div>
+        <div class="flex-1 space-y-2">
+          ${cajaKpi('Pedidos realizados', entero(x.nped), '+ 2 confirmados sin pagar', BORDE[banda(pedPct)])}
+          ${cajaKpi('Pedidos por realizar', entero(Math.max(0, pedEsp - x.nped)), '', pedEsp - x.nped > 0 ? 'border-l-red-500' : 'border-l-emerald-600', pedEsp - x.nped > 0 ? 'text-red-600' : 'text-emerald-700')}
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-col rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="text-[11px] font-bold tracking-wide text-gray-500 uppercase">Tasa de conversión</h2>
+      <div class="mt-2 flex flex-1 flex-col items-center justify-center rounded-md py-3 ${tc >= META_TCV ? 'bg-emerald-50' : 'bg-gray-50'}">
+        <p class="cifra text-4xl font-extrabold ${tc >= META_TCV ? 'text-emerald-700' : 'text-gray-700'}">${pct1(tc)}</p>
+        <p class="mt-1 px-3 text-center text-[11px] font-semibold text-gray-500">Sobre 10 de 11 días con archivo cargado</p>
+        <p class="mt-1 text-[11px] text-gray-400">Meta: ${META_TCV}%</p>
+      </div>
+      <div class="mt-2 space-y-1.5 border-t pt-2 text-sm">
+        <div class="flex justify-between"><span class="text-gray-500">Tráfico atendido</span><span class="cifra font-semibold">${entero(FAB.conv)}</span></div>
+        <div class="flex justify-between"><span class="text-gray-500">Carritos pagados</span><span class="cifra font-semibold">${entero(FAB.cconf)}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="mt-4 rounded-2xl border bg-white p-5 shadow-sm">
+    <div class="mb-4 flex items-center justify-between gap-2"><h2 class="text-sm font-semibold text-gray-700">Comisión proyectada de la quincena</h2></div>
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div>
+        <p class="text-[11px] tracking-wide text-gray-400 uppercase">Comisión proyectada</p>
+        <p class="cifra mt-1 text-4xl leading-none font-bold text-emerald-700">${pesos(x.comision + x.bonoMonto)}</p>
+        <p class="cifra mt-2 text-xs text-gray-500">Escalón actual: <span class="font-semibold text-gray-700">100 % de cumplimiento paga 0,7 %</span> · lleva <span class="font-semibold text-gray-700">${pct1(pctRec)}</span></p>
+        <p class="cifra mt-1 text-xs text-gray-500">Incluye bono acumulado ${pesos(x.bonoMonto)} <span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">${ICO.clock}1 provisional</span></p>
+      </div>
+      <div class="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
+        <div><p class="text-[11px] tracking-wide text-gray-400 uppercase">Comisión oficial</p><p class="text-[11px] text-gray-500">con los días que ya tienen facturas cargadas</p></div>
+        <span class="cifra text-3xl font-bold text-gray-700">${pesos(Math.round((FAB.facV + FAB.tie + FAB.dev) * 0.0067) + FAB.verde * BONO_DIA)}</span>
+      </div>
+    </div>
+    <div class="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3">${[80,90,100].map(umbral).join('')}</div>
+    <div class="mt-5 border-t border-gray-100 pt-4">
+      <p class="mb-2.5 text-[11px] font-semibold tracking-wide text-gray-400 uppercase">Comisión adicional</p>
+      <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"><div><p class="text-sm font-medium text-gray-600">VPT · venta por pedido</p><p class="cifra text-[11px] text-gray-600">${pesos(x.vpt)} · ${pctTxt(x.vpt / META_VPT * 100)} de la meta del mes</p></div><span class="rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-500">+0 %</span></div>
+        <div class="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3"><div><p class="text-sm font-medium text-emerald-900">TCV · tasa de conversión</p><p class="cifra text-[11px] text-gray-600">${pct1(tc)} · ${pctTxt(tc / META_TCV * 100)} de la meta del mes</p></div><span class="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white">+0,1 %</span></div>
+      </div>
+    </div>
+  </section>`;
+}
+
+let tabActiva = 'dash';
+function cuerpoModalAsesor(estado) {
+  if (estado === 'cargando') return `<div class="space-y-3" aria-busy="true"><div class="flex items-center gap-3"><div class="skeleton h-9 w-9 rounded-full"></div><div class="skeleton h-4 w-48 rounded"></div><div class="skeleton ml-auto h-8 w-24 rounded"></div></div><div class="skeleton h-8 w-56 rounded"></div>${[1,2,3,4,5,6].map(() => '<div class="skeleton h-8 rounded-lg"></div>').join('')}</div>`;
+  if (estado === 'error') return `<div class="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3"><p class="text-sm text-red-700">No se pudo cargar el detalle del asesor.</p><button class="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100">Reintentar</button></div>`;
+  const tab = (k, t) => `<button data-tab="${k}" class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${tabActiva === k ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}">${t}</button>`;
+  let contenido;
+  if (tabActiva === 'resumen') contenido = `
+    <div class="mb-2 flex items-center justify-end">${panelColumnasDia()}</div>
+    <div class="overflow-x-auto rounded-lg border border-gray-100" id="tabla-dia-slot">${tablaDiaria(estado)}</div>
+    <p class="mt-2 text-[11px] text-gray-400">La <strong>banda gris</strong> marca las columnas que suman al <strong>Total venta</strong>. Clic en un día para ver sus carritos y las devoluciones y compras en tienda física con la cédula del cliente.</p>`;
+  else contenido = dashboardAsesor();
+  return `
+    <div class="inline-flex items-center justify-center rounded-md bg-gray-100 p-1 text-gray-500">${tab('dash','Dashboard')}${tab('resumen','Detalle diario')}</div>
+    <div class="mt-3">${contenido}</div>`;
+}
+
+function cabeceraModalAsesor(estado) {
+  const x = derivarAsesor(FAB, false);
+  const cargado = estado !== 'cargando' && estado !== 'error';
+  return `
+  <div class="flex flex-wrap items-start gap-3 pr-6">
+    ${cargado ? `<span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-500 text-xs font-bold text-white">FP</span>` : ''}
+    <div class="min-w-0">
+      <h2 class="text-left text-base font-bold capitalize">${cargado ? 'fabián andrés prada rueda' : 'Detalle del asesor'}</h2>
+      <p class="text-left text-xs text-gray-500">${cargado ? 'código 8969900 · 1 sep – 15 sep' : 'Sin datos del asesor todavía.'}</p>
+    </div>
+  </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PANTALLA 3 · Detalle de un día (cuerpo compartido con ModalDia de Mis Ventas)
+// ═══════════════════════════════════════════════════════════════════════════
+function cuerpoDia(estado) {
+  if (estado === 'cargando') return `<div class="space-y-3">${[1,2,3].map(() => '<div class="skeleton h-16 rounded-xl"></div>').join('')}</div>`;
+  if (estado === 'error') return `<div class="rounded-xl border border-red-200 bg-red-50 px-4 py-6 text-center text-sm text-red-800">No pudimos cargar los carritos de este día.<button class="ml-2 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700">Reintentar</button></div>`;
+  const PAGO = { facturado:'bg-emerald-800 text-white', pagado:'bg-emerald-600 text-white', pendiente:'bg-slate-400 text-white', archivado:'bg-gray-300 text-gray-700' };
+  const ICO_ARCH = '<svg class="h-3.5 w-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>';
+  const ICO_DESARCH = '<svg class="h-3.5 w-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="m9.5 17 5-5"/><path d="m9.5 12 5 5"/></svg>';
+  // accionArchivadoFila (GW-143): archivar solo si es elegible (sin pedido pagado); desarchivar si está archivado
+  const accion = c => c.pago === 'archivado'
+    ? `<button class="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-[11px] font-medium text-gray-700 hover:bg-gray-50" title="Desarchivar">${ICO_DESARCH} Desarchivar</button>`
+    : c.pago === 'pendiente'
+      ? `<button class="inline-flex items-center gap-1 rounded-md border border-rose-200 px-2 py-1 text-[11px] font-medium text-rose-700 hover:bg-rose-50" title="Archivar">${ICO_ARCH} Archivar</button>`
+      : `<span class="inline-flex items-center gap-1 rounded-md border border-gray-100 px-2 py-1 text-[11px] text-gray-300" title="Un carrito pagado no se archiva">${ICO_ARCH} Archivar</span>`;
+  const tabla = `
+  <div class="overflow-x-auto rounded-xl border border-gray-200">
+    <table class="min-w-[1320px] w-full text-left text-sm">
+      <thead class="border-b bg-gray-50 text-[11px] font-semibold tracking-wide text-gray-500 uppercase"><tr>
+        <th class="px-4 py-3">Carrito ID</th><th class="px-4 py-3">Cliente</th><th class="px-4 py-3">Origen</th><th class="px-4 py-3">Mensajería</th><th class="px-4 py-3">Logística</th><th class="px-4 py-3 text-center">Pago</th><th class="px-4 py-3">Pedido</th><th class="px-4 py-3">Factura</th><th class="px-4 py-3 text-right">Ítems</th><th class="px-4 py-3 text-right">Total</th><th class="px-4 py-3 text-right">Acciones</th>
+      </tr></thead>
+      <tbody class="divide-y divide-gray-100">${CARRITOS_3SEP.map(c => `
+        <tr class="align-top hover:bg-gray-50/70 ${c.pago === 'archivado' ? 'opacity-60' : ''}">
+          <td class="whitespace-nowrap px-4 py-3"><span class="text-xs font-medium text-blue-600">#${c.id}</span><p class="mt-0.5 text-[11px] text-gray-400">${c.hora}</p></td>
+          <td class="max-w-56 px-4 py-3 text-xs"><p class="font-medium text-gray-800">${c.cliente}</p><p class="mt-0.5 text-[11px] text-gray-400">${c.cel} · ${c.ciudad}</p>${c.archivado ? `<p class="mt-0.5 text-[11px] text-gray-500">${c.archivado.autoria}</p><p class="mt-0.5 text-[11px] text-gray-400">«${c.archivado.nota}»</p>` : ''}</td>
+          <td class="whitespace-nowrap px-4 py-3"><span class="rounded px-2 py-1 text-[11px] font-semibold ${c.origen === 'WhatsApp' ? 'bg-gray-100 text-gray-600' : 'bg-gray-900 text-white'}">${c.origen}</span></td>
+          <td class="px-4 py-3 text-xs"><p class="text-gray-700">${c.msj}</p></td>
+          <td class="min-w-40 px-4 py-3 text-xs"><p class="text-gray-700">${c.log}</p></td>
+          <td class="whitespace-nowrap px-4 py-3 text-center"><span class="rounded px-2 py-1 text-[11px] font-bold ${PAGO[c.pago]}">${c.pago[0].toUpperCase() + c.pago.slice(1)}</span></td>
+          <td class="whitespace-nowrap px-4 py-3 text-xs">${c.pedido ? `<p class="font-medium text-gray-700">#${c.pedido}</p><p class="mt-0.5 text-[11px] text-gray-400">Pagado</p>` : '<span class="text-gray-300">—</span>'}</td>
+          <td class="whitespace-nowrap px-4 py-3 text-xs">${c.factura ? `<p class="text-gray-700">${c.factura}</p>` : '<span class="text-gray-300">—</span>'}</td>
+          <td class="px-4 py-3 text-right text-xs tabular-nums text-gray-700">${c.items}</td>
+          <td class="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold tabular-nums ${c.pago === 'archivado' ? 'text-gray-400 line-through' : 'text-gray-800'}">${pesos(c.total)}</td>
+          <td class="whitespace-nowrap px-4 py-3 text-right"><div class="flex justify-end gap-1.5"><span class="inline-flex rounded-md border border-gray-200 p-1.5 text-gray-500" title="Abrir para editar">${ICO.link}</span>${accion(c)}</div></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+  const grupos = TIENDA_3SEP;
+  const todas = grupos.flatMap(g => g.filas);
+  const neto = todas.reduce((a,f) => a + f.valor, 0), devuelto = todas.filter(f => f.valor < 0).reduce((a,f) => a + f.valor, 0), comprado = todas.filter(f => f.valor > 0).reduce((a,f) => a + f.valor, 0);
+  const bloque = `
+  <section class="mt-5">
+    <div class="mb-2.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+      <h3 class="text-[11px] font-bold tracking-wide text-gray-500 uppercase">Devoluciones y compras en tienda física</h3>
+      <p class="cifra text-[11px] text-gray-500">Devuelto <span class="font-semibold text-red-600">${pesos(devuelto)}</span> · Comprado <span class="font-semibold text-emerald-700">${pesos(comprado)}</span> · Neto <span class="font-bold ${neto > 0 ? 'text-emerald-700' : 'text-red-600'}">${neto > 0 ? '+' : ''}${pesos(neto)}</span></p>
+    </div>
+    <div class="overflow-x-auto rounded-xl border border-gray-200">
+      <table class="w-full min-w-[720px] text-sm">
+        <thead class="border-b border-gray-100 bg-gray-50/60"><tr class="text-[11px] tracking-wide text-gray-400 uppercase"><th class="px-4 py-2.5 text-left font-medium">Cliente</th><th class="px-4 py-2.5 text-left font-medium">Movimiento</th><th class="px-4 py-2.5 text-left font-medium">Factura</th><th class="px-4 py-2.5 text-right font-medium">Bodega</th><th class="px-4 py-2.5 text-right font-medium">Valor</th></tr></thead>
+        <tbody>${grupos.map((g, gi) => { const netoG = g.filas.reduce((a,f) => a + f.valor, 0); return g.filas.map((f, i) => `
+          <tr class="cifra ${i === 0 && gi > 0 ? 'border-t-[3px] border-t-gray-100' : 'border-b border-gray-50'}">
+            <td class="px-4 py-3 align-top">${i === 0 ? `<div class="font-medium text-gray-800">${g.cedula}</div><div class="text-[11px] text-gray-400">${g.nombre ?? '—'}</div>` : ''}</td>
+            <td class="px-4 py-3">${f.tipo === 'devolucion' ? '<span class="inline-block rounded bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">Devolución</span>' : '<span class="inline-block rounded bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Compra</span>'}</td>
+            <td class="px-4 py-3 text-gray-600">#${f.factura}</td>
+            <td class="px-4 py-3 text-right text-gray-500">${g.bodega}</td>
+            <td class="px-4 py-3 text-right font-semibold ${f.valor < 0 ? 'text-red-600' : 'text-emerald-700'}">${pesos(f.valor)}</td>
+          </tr>`).join('') + (g.filas.length > 1 ? `<tr class="cifra border-b border-gray-50 bg-gray-50/40"><td class="px-4 py-2" colspan="4"><span class="text-[11px] text-gray-500">Neto de este cliente</span></td><td class="px-4 py-2 text-right text-[13px] font-bold ${netoG > 0 ? 'text-emerald-700' : netoG < 0 ? 'text-red-600' : 'text-gray-600'}">${netoG > 0 ? '+' : ''}${pesos(netoG)}</td></tr>` : ''); }).join('')}
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-2 px-1 text-[11px] text-gray-400">Estas facturas no pasan por un carrito web: vienen del archivo del ERP. Ya están sumadas en la venta del día del asesor.</p>
+  </section>`;
+  const nota = `<p class="mt-2 px-1 text-[11px] text-gray-400">Archivar y desarchivar viven aquí, en el día del carrito. Solo se archiva un carrito sin pedido pagado; un archivado no suma a la venta y conserva quién lo archivó y por qué.</p>`;
+  return tabla + nota + bloque;
+}
+const resumenDia = () => { const act = CARRITOS_3SEP.filter(c => !c.archivado); const arc = CARRITOS_3SEP.length - act.length; return `${act.length} confirmados · ${pesos(act.reduce((s,c) => s + c.total, 0))}${arc ? ` · ${arc} archivado` : ''}`; };
+
+// ═══ Modales (variantes) ═══
+function modalAsesorHtml(estado, vistaDia, apertura) {
+  const enDia = vistaDia && apertura === 'A';
+  const cabecera = enDia ? `
+    <div class="flex flex-wrap items-center gap-3 pr-6">
+      <button class="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50" data-volver>${ICO.back} Volver al asesor</button>
+      <nav class="flex items-center gap-1.5 text-xs text-gray-500"><span class="capitalize">fabián prada</span>${ICO.chev}<span class="font-semibold text-gray-900">Carritos del 3 sep</span></nav>
+      <p class="cifra ml-auto text-xs text-gray-500">${resumenDia()}</p>
+    </div>` : cabeceraModalAsesor(estado);
+  const cuerpo = enDia ? cuerpoDia(estado) : cuerpoModalAsesor(estado);
+  return `
+  <div class="fixed inset-0 z-40 flex items-start justify-center bg-black/60 p-3 pt-44 sm:items-center sm:p-6" data-backdrop="asesor">
+    <section role="dialog" aria-modal="true" class="relative flex max-h-[88vh] w-full max-w-[min(96vw,1400px)] flex-col gap-4 overflow-hidden rounded-lg border bg-white p-5 shadow-lg sm:p-6">
+      <button class="absolute right-4 top-4 rounded-sm text-gray-400 opacity-70 hover:opacity-100" aria-label="Cerrar" data-cerrar>${ICO.x}</button>
+      <div class="relative">${cabecera}</div>
+      <div class="min-h-0 flex-1 overflow-auto">${cuerpo}</div>
+    </section>
+  </div>`;
+}
+function modalDiaEncimaHtml(estado) {
+  return `
+  <div class="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-3 pt-48 sm:items-center sm:p-8" data-backdrop="dia">
+    <section role="dialog" aria-modal="true" class="flex max-h-[85vh] w-full max-w-[min(94vw,1360px)] flex-col overflow-hidden rounded-lg border bg-white shadow-2xl">
+      <header class="flex items-start justify-between border-b border-gray-100 px-5 py-4">
+        <div><h2 class="text-base font-bold text-gray-900">Carritos del 3 sep</h2><p class="cifra mt-0.5 text-xs text-gray-500">${resumenDia()} · <span class="capitalize">fabián prada</span></p></div>
+        <button class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100" aria-label="Cerrar" data-cerrar-dia>${ICO.x}</button>
+      </header>
+      <div class="min-h-0 flex-1 overflow-auto p-4">${cuerpoDia(estado)}</div>
+    </section>
+  </div>`;
+}
+
+// ═══ Render ═══
+let vistaDia = false;
+function render() {
+  const pantalla = document.getElementById('pantalla').value;
+  const estado = document.getElementById('estado').value;
+  const ancho = document.getElementById('ancho').value;
+  const apertura = document.getElementById('apertura').value;
+  document.getElementById('ancho-wrap').style.visibility = pantalla === 'tabla' ? '' : 'hidden';
+  document.getElementById('apertura-wrap').style.visibility = pantalla === 'dia' ? '' : 'hidden';
+  const estadoTabla = estado;
+  const estadoModal = estado === 'antescorte' ? 'normal' : estado;
+  let html = pantallaTabla(pantalla === 'tabla' ? estadoTabla : 'normal', ancho);
+  if (pantalla === 'modal') html += modalAsesorHtml(estadoModal, false, apertura);
+  if (pantalla === 'dia') {
+    vistaDia = true;
+    html += modalAsesorHtml(estadoModal, true, apertura);
+    if (apertura === 'B') html += modalDiaEncimaHtml(estadoModal);
+  }
+  document.getElementById('app').innerHTML = html;
+  document.body.style.overflow = pantalla === 'tabla' ? '' : 'hidden';
+}
+['pantalla','estado','ancho','apertura'].forEach(id => document.getElementById(id).addEventListener('change', () => { tabActiva = 'dash'; render(); }));
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-tab],[data-abrir-asesor],[data-abrir-dia],[data-volver],[data-cerrar],[data-cerrar-dia],#cols-reset,#cols-dia-reset');
+  if (!t) return;
+  const sel = document.getElementById('pantalla');
+  if (t.dataset.tab) { tabActiva = t.dataset.tab; render(); return; }
+  if (t.dataset.abrirAsesor !== undefined) { sel.value = 'modal'; render(); return; }
+  if (t.dataset.abrirDia !== undefined) { sel.value = 'dia'; render(); return; }
+  if (t.dataset.volver !== undefined || t.dataset.cerrarDia !== undefined) { sel.value = 'modal'; render(); return; }
+  if (t.dataset.cerrar !== undefined) { sel.value = 'tabla'; render(); return; }
+  if (t.id === 'cols-reset') { e.preventDefault(); OCULTAS.clear(); guardarPref(); render(); return; }
+  if (t.id === 'cols-dia-reset') { e.preventDefault(); OCULTAS_DIA.clear(); localStorage.setItem(CLAVE_PREF_DIA, '[]'); render(); return; }
+});
+document.addEventListener('change', e => {
+  const k = e.target.dataset && e.target.dataset.col;
+  const kd = e.target.dataset && e.target.dataset.colDia;
+  if (k) { e.target.checked ? OCULTAS.delete(k) : OCULTAS.add(k); guardarPref(); document.getElementById('tabla-slot').innerHTML = tablaAsesores(document.getElementById('estado').value, 'A'); refrescarSummary('panel-cols', panelColumnas()); }
+  if (kd) { e.target.checked ? OCULTAS_DIA.delete(kd) : OCULTAS_DIA.add(kd); localStorage.setItem(CLAVE_PREF_DIA, JSON.stringify([...OCULTAS_DIA])); document.getElementById('tabla-dia-slot').innerHTML = tablaDiaria('normal'); refrescarSummary('panel-cols-dia', panelColumnasDia()); }
+});
+function refrescarSummary(id, html) { const tmp = document.createElement('div'); tmp.innerHTML = html; document.querySelector(`#${id} summary`).innerHTML = tmp.querySelector('summary').innerHTML; }
+// Parámetros de URL (para revisar una pantalla concreta): ?pantalla=dia&estado=normal&ancho=A&apertura=B&tab=dash
+const qs = new URLSearchParams(location.search);
+['pantalla','estado','ancho','apertura'].forEach(id => { if (qs.get(id)) document.getElementById(id).value = qs.get(id); });
+if (qs.get('tab')) tabActiva = qs.get('tab');
+render();
+</script>
+</body>
+</html>
