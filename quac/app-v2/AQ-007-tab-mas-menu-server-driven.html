@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AQ-007 · Tab Más: menú publicado desde get-web</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = { theme: { extend: {
+  colors: { quac:'#7633FF', quacdark:'#321185', lavender:'#E9E8F1', lila:'#C5C5FF',
+            txt:'#140F26', muted:'#A19EB5', aldia:'#06D6A0', err:'#FF6464', rosa:'#E5147E' },
+  fontFamily: { display:['Poppins','sans-serif'], body:['"Nunito Sans"','sans-serif'] }
+} } }
+</script>
+<style>
+  body { font-family:'Nunito Sans', sans-serif; }
+  .font-display { font-family:'Poppins', sans-serif; }
+  /* get-web: pila tipográfica real (Tailwind v4 compila .font-sans con el stack literal). */
+  .gw, .gw * { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+  .fade { animation: fade .22s ease-out; }
+  @keyframes fade { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+  .skel { animation: skel 1.2s ease-in-out infinite; background:linear-gradient(90deg,#E9E8F1 25%,#F4F3F8 50%,#E9E8F1 75%); background-size:200% 100%; }
+  .skeleton { background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+  @keyframes skel { from{background-position:200% 0} to{background-position:-200% 0} }
+  @keyframes sk { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+  .spin { animation: spin .9s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+  .on { background:#7633FF; color:#fff; border-color:#7633FF; }
+  .off { background:#fff; color:#475569; border-color:#e2e8f0; }
+  .gwon { background:#18181b; color:#fff; border-color:#18181b; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  ::-webkit-scrollbar { width:0; }
+  /* sidebar real de get-web (tokens --gw-sidebar-*) */
+  .sb { background:#18181b; border-color:#27272a; }
+  .sb .mod { color:#a1a1aa; } .sb .mod.cur { color:#fafafa; }
+  .sb .scr { color:#a1a1aa; } .sb .scr.act { background:rgba(255,255,255,.10); color:#fff; }
+  .sb .scr.act svg { color:#34d399; }
+  .sb svg { color:#71717a; }
+  .pin { width:14px;height:14px;border-radius:9999px;border:2px solid #7633FF;display:inline-block;vertical-align:middle;margin-right:4px }
+</style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+
+<!-- ══ Barra de control del mockup (no es parte de la UI) ══ -->
+<div class="sticky top-0 z-[80] border-b border-indigo-200 bg-indigo-50/95 px-4 py-2 backdrop-blur">
+  <div class="mx-auto flex max-w-[1500px] flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+    <span class="font-bold text-indigo-900">AQ-007 · mockup v1 · para validación</span>
+    <label class="flex items-center gap-1.5"><span class="text-indigo-800">Vista:</span>
+      <select id="vista" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="app">A · La app: tab Más, WebView y Cambiar contraseña</option>
+        <option value="gw">B · get-web: módulo «Menú de la app» (grupo QUAC)</option>
+      </select></label>
+    <span class="text-indigo-700">Regla: lo que el admin publique en B es exactamente lo que A pinta. Cambia algo en B y vuelve a A.</span>
+  </div>
+</div>
+
+<!-- ═════════════════════════════ VISTA A · APP ═════════════════════════════ -->
+<div id="vistaApp" class="flex gap-6 p-6 max-w-[1400px] mx-auto items-start">
+
+<aside class="w-[420px] shrink-0 space-y-4 text-sm text-slate-600">
+  <div>
+    <p class="text-xs font-bold text-quac uppercase tracking-widest">SCR-058 · Tab Más · app-quac-v2</p>
+    <h1 class="font-display font-bold text-lg leading-tight mt-1">El menú lo publica get-web; la app solo lo pinta</h1>
+    <p class="text-xs text-slate-400 mt-1">Reemplaza el placeholder «Muy pronto podrás usar esta sección». Las secciones, el orden, los íconos SVG y el destino de cada ítem vienen de <code>GET /v2/mas/menu</code>.</p>
+  </div>
+
+  <div class="bg-white rounded-xl p-3 shadow-sm space-y-2">
+    <p class="font-semibold text-quac">① Estado del endpoint</p>
+    <div class="grid grid-cols-4 gap-1">
+      <button data-e="ok" class="ne px-2 py-1.5 rounded-lg border text-[11px] font-bold">OK</button>
+      <button data-e="carga" class="ne px-2 py-1.5 rounded-lg border text-[11px] font-bold">Cargando</button>
+      <button data-e="error" class="ne px-2 py-1.5 rounded-lg border text-[11px] font-bold">Falla 502</button>
+      <button data-e="vacio" class="ne px-2 py-1.5 rounded-lg border text-[11px] font-bold">Menú vacío</button>
+    </div>
+    <p id="notaE" class="text-[11px] text-slate-500 leading-relaxed border-t pt-2"></p>
+  </div>
+
+  <div class="bg-white rounded-xl p-3 shadow-sm space-y-2">
+    <p class="font-semibold text-quac">② Versión instalada de la app</p>
+    <div class="grid grid-cols-2 gap-1">
+      <button data-v="nueva" class="nv px-2 py-1.5 rounded-lg border text-[11px] font-bold">Con AQ-007.5 (conoce «aumentar_cupo»)</button>
+      <button data-v="vieja" class="nv px-2 py-1.5 rounded-lg border text-[11px] font-bold">Solo AQ-007 (clave desconocida)</button>
+    </div>
+    <p class="text-[11px] text-slate-500 leading-relaxed border-t pt-2">get-web publicó «Aumentar cupo» con destino <code>aumentar_cupo</code>. La app vieja <b>no conoce esa clave y no pinta el ítem</b>; nunca muestra «ruta no encontrada» como el legacy.</p>
+  </div>
+
+  <div class="bg-white rounded-xl p-3 shadow-sm space-y-1 text-[11px] leading-relaxed">
+    <p class="font-semibold text-quac text-sm">Contrato de acción (compartido con la push y con AQ-011)</p>
+    <p><b>native</b> → pantalla de la app por clave (bandeja, avisos, Face ID, cambiar contraseña, movimientos).</p>
+    <p><b>webview</b> → página pública dentro de la app con título y cerrar. Un enlace a otro sitio, un PDF, tel o WhatsApp salen al navegador.</p>
+    <p><b>external</b> → navegador del teléfono, como hoy en Quac+ y en la bandeja.</p>
+    <p><b>Cerrar sesión</b> es fijo en la app, siempre al final: no depende del endpoint.</p>
+  </div>
+
+  <div class="bg-white rounded-xl p-3 shadow-sm space-y-1 text-[11px] leading-relaxed">
+    <p class="font-semibold text-slate-700 text-sm">Fuera de este mockup</p>
+    <p>· Aumentar cupo, paz y salvo y datos básicos (AQ-007.5 / AQ-007.6): sus pantallas no se dibujan aquí, solo el ítem que las abrirá.</p>
+    <p>· Avisos remotos y gate de versión (AQ-011).</p>
+  </div>
+</aside>
+
+<!-- ═════ TELÉFONO ═════ -->
+<div class="relative bg-[#F4F3F8] rounded-[2.5rem] shadow-2xl ring-8 ring-slate-900 overflow-hidden flex flex-col" style="width:390px;height:840px;">
+  <!-- Header: fondo claro (no el gradiente del Home). Logo + campana con badge + ayuda -->
+  <div id="header" class="relative px-5 pt-8 pb-3 bg-white shrink-0 border-b border-slate-100">
+    <div class="flex items-center justify-between">
+      <span class="font-display font-extrabold text-quac text-[20px] tracking-tight">quac</span>
+      <div class="flex items-center gap-1 text-quacdark">
+        <div class="relative w-10 h-10 flex items-center justify-center">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rosa text-white text-[9px] font-bold flex items-center justify-center tnum">1</span>
+        </div>
+        <div class="w-10 h-10 flex items-center justify-center" title="Abre quac.co/ayuda en el navegador">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="scroll" class="flex-1 overflow-y-auto"></div>
+
+  <!-- Bottom nav shell AQ-003 -->
+  <div id="nav" class="bg-white border-t border-slate-200 px-2 py-2 flex justify-around text-[10px] shrink-0">
+    <div class="flex flex-col items-center gap-0.5 text-muted"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>Inicio</div>
+    <div class="flex flex-col items-center gap-0.5 text-muted"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Movimientos</div>
+    <div class="flex flex-col items-center gap-0.5 text-muted"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>Pagar</div>
+    <div class="flex flex-col items-center gap-0.5 text-muted"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Quac+</div>
+    <div class="flex flex-col items-center gap-0.5 text-quac font-bold"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>Más</div>
+  </div>
+
+  <div id="capa" class="hidden absolute inset-0 bg-black/45 flex items-center justify-center px-5 z-20"></div>
+</div>
+</div>
+
+<!-- ═════════════════════════════ VISTA B · GET-WEB ═════════════════════════════ -->
+<div id="vistaGw" class="hidden gw p-6 max-w-[1500px] mx-auto">
+<div class="flex rounded-xl overflow-hidden shadow-2xl ring-1 ring-slate-300 bg-white" style="min-height:820px">
+
+  <!-- Sidebar real: superficie oscura (GW-115) -->
+  <aside class="sb w-[248px] shrink-0 border-r text-[13px]">
+    <div class="h-14 flex items-center gap-2 px-4 border-b border-[#27272a]">
+      <span class="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center text-emerald-400 font-bold">g</span>
+      <span class="text-white font-semibold tracking-wide">get</span>
+    </div>
+    <nav class="p-2 space-y-0.5">
+      <div class="mod px-3 py-2 flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Dashboard</div>
+      <div class="mod px-3 py-2 flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/></svg>Venta asistida<span class="ml-auto opacity-60">›</span></div>
+      <div class="mod px-3 py-2 flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7 12 2l9 5-9 5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>Devoluciones<span class="ml-auto opacity-60">›</span></div>
+      <div class="mod cur px-3 py-2 flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>QUAC<span class="ml-auto opacity-60 rotate-90 inline-block">›</span></div>
+      <div class="pl-6 space-y-0.5">
+        <div class="scr px-3 py-1.5 rounded-md flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>Consulta de Planes</div>
+        <div class="scr px-3 py-1.5 rounded-md flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>PVAL · Cortes</div>
+        <div class="scr px-3 py-1.5 rounded-md flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h4"/></svg>Simulador compras</div>
+        <div class="scr act px-3 py-1.5 rounded-md flex items-center gap-2 font-medium"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>Menú de la app</div>
+      </div>
+      <div class="mod px-3 py-2 flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82"/></svg>Configuración<span class="ml-auto opacity-60">›</span></div>
+    </nav>
+  </aside>
+
+  <!-- Contenido -->
+  <main class="flex-1 min-w-0 bg-gray-50">
+    <header class="h-14 flex items-center gap-3 border-b bg-white px-5 text-sm text-gray-500">
+      <span>QUAC</span><span class="text-gray-300">/</span><span class="text-gray-900 font-medium">Menú de la app</span>
+      <span class="ml-auto text-xs text-gray-400">Francisco Lizcano · superadmin</span>
+    </header>
+
+    <div class="space-y-5 p-6">
+      <div class="flex flex-wrap items-end gap-3">
+        <div>
+          <h1 class="text-xl font-semibold text-gray-900">Menú de la app</h1>
+          <p class="mt-0.5 text-sm text-gray-500">Secciones e ítems del tab «Más» de la app QUAC. Lo que publiques aquí lo ve el cliente en su próxima apertura del tab, sin release.</p>
+        </div>
+        <div class="ml-auto flex gap-2">
+          <button onclick="gwPreview()" class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>Ver como el cliente</button>
+          <button onclick="gwNuevaSeccion()" class="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>Nueva sección</button>
+        </div>
+      </div>
+
+      <div id="gwFlash" class="hidden items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"></div>
+      <div id="gwSecciones" class="space-y-5"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal de ítem (Dialog de reka) -->
+<div id="gwModal" class="hidden fixed inset-0 z-[90] bg-black/50 flex items-center justify-center p-4"></div>
+</div>
+
+<script>
+/* ═════════ DATOS (lo que get-web tiene publicado hoy) ═════════ */
+const ICO = {
+  campana: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+  ajustes: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  tienda: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.4-4.4A2 2 0 0 1 7.8 2h8.4a2 2 0 0 1 1.4.6L22 7"/><path d="M2 7h20v3a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0z"/><path d="M4 13v8h16v-8"/></svg>',
+  documento: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></svg>',
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
+  candado: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  huella: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12a10 10 0 0 1 18-6"/><path d="M5 12a7 7 0 0 1 12-5"/><path d="M8 12a4 4 0 0 1 8 0v2"/><path d="M12 12v6"/><path d="M15 15v3a2 2 0 0 1-4 0"/><path d="M19 12v3a7 7 0 0 1-2 5"/></svg>',
+  cupo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  salir: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg>',
+  generico: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>',
+};
+const NATIVAS_CONOCIDAS = { // catálogo de la app instalada (fase 1)
+  nueva: ['notificaciones_bandeja','notificaciones_config','movimientos','faceid','cambiar_contrasena','aumentar_cupo'],
+  vieja: ['notificaciones_bandeja','notificaciones_config','movimientos','faceid','cambiar_contrasena'],
+};
+const ETIQ_NATIVA = { notificaciones_bandeja:'Bandeja de notificaciones', notificaciones_config:'Avisos en tu celular', movimientos:'Movimientos', faceid:'Face ID', cambiar_contrasena:'Cambiar contraseña', aumentar_cupo:'Aumentar cupo (AQ-007.5)' };
+
+let SECC = [
+  { id:1, clave:'tu_credito', titulo:'TU CRÉDITO', orden:1, visible:true, items:[
+    { id:11, clave:'aumentar_cupo', etiqueta:'Aumentar cupo', icono:'cupo', tipo:'native', destino:'aumentar_cupo', orden:1, visible:true, desde:'', hasta:'' },
+  ]},
+  { id:2, clave:'notificaciones', titulo:'NOTIFICACIONES', orden:2, visible:true, items:[
+    { id:21, clave:'bandeja', etiqueta:'Bandeja de notificaciones', icono:'campana', tipo:'native', destino:'notificaciones_bandeja', orden:1, visible:true, desde:'', hasta:'' },
+    { id:22, clave:'avisos', etiqueta:'Avisos en tu celular', icono:'ajustes', tipo:'native', destino:'notificaciones_config', orden:2, visible:true, desde:'', hasta:'' },
+  ]},
+  { id:3, clave:'informacion', titulo:'INFORMACIÓN', orden:3, visible:true, items:[
+    { id:31, clave:'aliados', etiqueta:'Aliados QUAC', icono:'tienda', tipo:'webview', destino:'https://quac.co/aliados', orden:1, visible:true, desde:'', hasta:'' },
+    { id:32, clave:'legales', etiqueta:'Legales', icono:'documento', tipo:'webview', destino:'https://quac.co/legales', orden:2, visible:true, desde:'', hasta:'' },
+    { id:33, clave:'privacidad', etiqueta:'Política de tratamiento de datos', icono:'documento', tipo:'external', destino:'https://quac.co/politicas/privacidad/', orden:3, visible:true, desde:'', hasta:'' },
+    { id:34, clave:'acerca', etiqueta:'Acerca de Quac', icono:'info', tipo:'webview', destino:'https://quac.co/acerca-de/', orden:4, visible:true, desde:'', hasta:'' },
+    { id:35, clave:'quacplus_tyc', etiqueta:'Términos de Quac+', icono:'documento', tipo:'webview', destino:'https://quac.co/legales/terminos-y-condiciones-quac-plus', orden:5, visible:false, desde:'2026-09-20', hasta:'' },
+  ]},
+  { id:4, clave:'seguridad', titulo:'SEGURIDAD', orden:4, visible:true, items:[
+    { id:41, clave:'cambiar_contrasena', etiqueta:'Cambiar contraseña', icono:'candado', tipo:'native', destino:'cambiar_contrasena', orden:1, visible:true, desde:'', hasta:'' },
+    { id:42, clave:'faceid', etiqueta:'Activar o desactivar Face ID', icono:'huella', tipo:'native', destino:'faceid', orden:2, visible:true, desde:'', hasta:'' },
+  ]},
+];
+const HOY = '2026-09-14';
+function vigente(i){ return (!i.desde || i.desde <= HOY) && (!i.hasta || i.hasta >= HOY); }
+
+/* ═════════ ESTADO DEL MOCKUP ═════════ */
+let E = 'ok', VER = 'nueva', P = 'menu', WV = null, CP = { paso:'form', err:false };
+const NOTAS_E = {
+  ok: 'Respuesta normal: secciones visibles con ítems visibles y vigentes, ordenados. Sin caché de servidor.',
+  carga: 'Esqueleto de tres secciones mientras responde el endpoint. «Cerrar sesión» ya está disponible.',
+  error: 'El endpoint falló (502). La app muestra el aviso con reintento y mantiene «Cerrar sesión»: el cliente nunca se queda sin salida.',
+  vacio: 'El admin apagó o dejó vencer todo. Solo queda «Cerrar sesión». Es un estado legítimo, no un error.',
+};
+
+/* ═════════ APP: render ═════════ */
+function ico(k, cls){ return `<span class="${cls||'w-6 h-6'} inline-flex text-quacdark">${ICO[k]||ICO.generico}</span>`; }
+function chevron(){ return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A19EB5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'; }
+function ext(){ return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A19EB5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg>'; }
+
+function menuVisible() {
+  const conocidas = NATIVAS_CONOCIDAS[VER];
+  return SECC.filter(s=>s.visible).sort((a,b)=>a.orden-b.orden).map(s=>({
+    ...s, items: s.items.filter(i=>i.visible && vigente(i) && (i.tipo!=='native' || conocidas.includes(i.destino))).sort((a,b)=>a.orden-b.orden)
+  })).filter(s=>s.items.length);
+}
+
+function cabecera(titulo){ return `<h2 class="font-display font-extrabold text-[26px] text-quacdark leading-tight">${titulo}</h2>`; }
+
+function filaItem(i){
+  const tipoIco = i.tipo==='external' ? ext() : chevron();
+  return `<button onclick="accion(${i.id})" class="w-full flex items-center gap-3 px-4 py-3.5 text-left active:bg-lavender/60">
+    ${ico(i.icono)}
+    <span class="flex-1 text-[14.5px] text-txt">${i.etiqueta}</span>
+    ${tipoIco}
+  </button>`;
+}
+
+function cerrarSesion(){
+  return `<div class="mt-6 bg-white rounded-2xl overflow-hidden">
+    <button onclick="abrirLogout()" class="w-full flex items-center gap-3 px-4 py-3.5 text-left">
+      ${ico('salir')}<span class="flex-1 text-[14.5px] text-txt">Cerrar sesión</span>
+    </button>
+  </div>
+  <p class="text-center text-[11px] text-muted mt-4">Quac v2.0.0 (build 1)</p>`;
+}
+
+function pintarMenu(){
+  if (E==='carga') return `<div class="px-5 pt-5 pb-6">${cabecera('Más')}
+    <div class="mt-5 space-y-5">${'<div><div class="skel h-3 w-24 rounded mb-2"></div><div class="skel h-[116px] rounded-2xl"></div></div>'.repeat(3)}</div>${cerrarSesion()}</div>`;
+  if (E==='error') return `<div class="px-5 pt-5 pb-6">${cabecera('Más')}
+    <div class="mt-5 bg-white rounded-2xl px-4 py-5 text-center">
+      <div class="w-12 h-12 mx-auto rounded-full bg-err/10 text-err flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg></div>
+      <p class="font-display font-bold text-[15px] text-txt mt-3">No pudimos cargar el menú</p>
+      <p class="text-[12.5px] text-muted mt-1">Revisa tu conexión e inténtalo de nuevo.</p>
+      <button onclick="setE('ok')" class="mt-4 px-5 py-2.5 rounded-full bg-quac text-white text-[13px] font-bold">Reintentar</button>
+    </div>${cerrarSesion()}</div>`;
+  const secs = (E==='vacio') ? [] : menuVisible();
+  if (!secs.length) return `<div class="px-5 pt-5 pb-6">${cabecera('Más')}
+    <p class="text-[13px] text-muted mt-3">Pronto tendrás más opciones aquí.</p>${cerrarSesion()}</div>`;
+  return `<div class="px-5 pt-5 pb-6 fade">${cabecera('Más')}
+    <div class="mt-4 space-y-5">${secs.map(s=>`
+      <div>
+        <p class="text-[11px] font-bold text-muted tracking-[.12em] mb-2">${s.titulo}</p>
+        <div class="bg-white rounded-2xl divide-y divide-slate-100 overflow-hidden">${s.items.map(filaItem).join('')}</div>
+      </div>`).join('')}</div>
+    ${cerrarSesion()}
+  </div>`;
+}
+
+function accion(id){
+  const i = SECC.flatMap(s=>s.items).find(x=>x.id===id);
+  if (i.tipo==='webview'){ WV={ titulo:i.etiqueta, url:i.destino, estado:'carga' }; P='webview'; render(); setTimeout(()=>{ if(WV){WV.estado='ok'; render();} }, 900); return; }
+  if (i.tipo==='external'){ toast(`Se abre en el navegador: ${i.destino}`); return; }
+  if (i.destino==='cambiar_contrasena'){ CP={paso:'form',err:false}; P='cambiar'; render(); return; }
+  toast(`Navega a la pantalla «${ETIQ_NATIVA[i.destino]||i.destino}» (ya existe en la app)`);
+}
+
+function pintarWebView(){
+  const host = new URL(WV.url).host;
+  return `<div class="flex flex-col h-full fade">
+    <div class="bg-white px-3 py-2.5 flex items-center gap-2 border-b border-slate-100">
+      <button onclick="P='menu';WV=null;render()" class="w-9 h-9 flex items-center justify-center text-quacdark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      <div class="flex-1 min-w-0"><p class="text-[14px] font-bold text-txt truncate">${WV.titulo}</p><p class="text-[10.5px] text-muted truncate">${host}</p></div>
+      <button onclick="toast('Se abre en el navegador: '+WV.url)" class="w-9 h-9 flex items-center justify-center" title="Abrir en el navegador">${ext()}</button>
+    </div>
+    ${WV.estado==='carga' ? '<div class="h-0.5 bg-lavender"><div class="h-full w-2/3 bg-quac"></div></div>' : ''}
+    <div class="flex-1 bg-white overflow-y-auto">
+      ${WV.estado==='carga' ? `<div class="p-5 space-y-3"><div class="skel h-6 w-2/3 rounded"></div><div class="skel h-40 rounded-xl"></div><div class="skel h-3 rounded"></div><div class="skel h-3 w-5/6 rounded"></div></div>`
+      : WV.estado==='error' ? `<div class="p-8 text-center"><p class="font-display font-bold text-[15px] text-txt">No pudimos abrir esta página</p><p class="text-[12.5px] text-muted mt-1">Inténtalo de nuevo o ábrela en tu navegador.</p><div class="flex gap-2 justify-center mt-4"><button onclick="WV.estado='carga';render();setTimeout(()=>{WV.estado='ok';render()},800)" class="px-4 py-2 rounded-full bg-quac text-white text-[13px] font-bold">Reintentar</button><button onclick="toast('Se abre en el navegador: '+WV.url)" class="px-4 py-2 rounded-full border border-quac text-quac text-[13px] font-bold">Abrir en navegador</button></div></div>`
+      : `<div class="p-5 text-[13px] text-slate-600 space-y-3">
+          <p class="text-[10px] uppercase tracking-widest text-slate-400">Contenido real de ${host}${new URL(WV.url).pathname}</p>
+          <h3 class="font-bold text-[18px] text-slate-900">${WV.titulo}</h3>
+          <div class="h-32 rounded-xl bg-slate-100"></div>
+          <p>Esta página vive en el sitio público y se muestra tal cual dentro de la app. Los enlaces a <b>otro sitio</b>, a un <b>PDF</b>, a un teléfono o a WhatsApp <button onclick="toast('Enlace a otro host: sale al navegador externo')" class="underline text-quac">salen al navegador</button>. Los enlaces dentro de ${host} <button onclick="toast('Mismo host: navega dentro de la WebView')" class="underline text-quac">navegan aquí</button>.</p>
+          <p class="text-[11px] text-slate-400">Sin sesión, sin cookies ni token: solo páginas públicas. <button onclick="WV.estado='error';render()" class="underline">Simular falla de carga</button></p>
+        </div>`}
+    </div>
+  </div>`;
+}
+
+function pin(n){ return `<div class="flex gap-2 justify-center">${Array.from({length:6},(_,k)=>`<span class="w-10 h-12 rounded-xl border ${k<n?'border-quac bg-white':'border-muted/60 bg-white'} flex items-center justify-center text-[18px] font-bold text-txt">${k<n?'•':''}</span>`).join('')}</div>`; }
+
+function pintarCambiar(){
+  if (CP.paso==='ok') return `<div class="px-5 pt-5 fade">
+    <button onclick="P='menu';render()" class="flex items-center gap-2 text-quac text-[14px] mb-3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver</button>
+    <div class="bg-white rounded-2xl px-5 py-8 text-center mt-6">
+      <div class="w-14 h-14 mx-auto rounded-full bg-aldia/15 text-aldia flex items-center justify-center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+      <p class="font-display font-extrabold text-[20px] text-quacdark mt-4">Contraseña actualizada</p>
+      <p class="text-[13px] text-muted mt-1">Úsala la próxima vez que entres. Face ID sigue activo.</p>
+      <button onclick="P='menu';render()" class="mt-6 w-full py-3 rounded-full bg-quac text-white font-bold text-[14px]">Listo</button>
+    </div></div>`;
+  return `<div class="px-5 pt-5 pb-6 fade">
+    <button onclick="P='menu';render()" class="flex items-center gap-2 text-quac text-[14px] mb-3"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver</button>
+    <p class="text-[11px] text-muted tracking-wider">SEGURIDAD</p>
+    ${cabecera('Cambiar contraseña')}
+    <p class="text-[13px] text-txt mt-2">Tu contraseña son 6 números. Primero la actual, luego la nueva dos veces.</p>
+    <div class="mt-5 space-y-5">
+      <div><p class="text-[12px] font-bold text-txt mb-2">Contraseña actual</p>${pin(6)}
+        ${CP.err ? '<p class="text-[12px] text-err mt-2">La contraseña actual no es correcta.</p>' : ''}</div>
+      <div><p class="text-[12px] font-bold text-txt mb-2">Nueva contraseña</p>${pin(6)}</div>
+      <div><p class="text-[12px] font-bold text-txt mb-2">Repite la nueva contraseña</p>${pin(4)}
+        <p class="text-[11.5px] text-muted mt-2">No puede ser igual a la actual ni una secuencia (123456).</p></div>
+    </div>
+    <button onclick="CP.paso='guardando';render();setTimeout(()=>{CP.paso='ok';render()},900)" class="mt-6 w-full py-3 rounded-full ${CP.paso==='guardando'?'bg-quac/60':'bg-quac'} text-white font-bold text-[14px] flex items-center justify-center gap-2">
+      ${CP.paso==='guardando' ? '<span class="spin w-4 h-4 rounded-full border-2 border-white/40 border-t-white inline-block"></span> Guardando' : 'Guardar'}</button>
+    <button onclick="CP.err=!CP.err;render()" class="mt-3 w-full text-[11px] text-muted underline">Simular 422 «password_actual incorrecta»</button>
+  </div>`;
+}
+
+function abrirLogout(){
+  const c = document.getElementById('capa');
+  c.className = 'absolute inset-0 bg-black/45 flex items-end z-20';
+  c.innerHTML = `<div class="w-full bg-white rounded-t-3xl px-5 pt-5 pb-8 fade">
+    <div class="w-10 h-1 rounded-full bg-slate-200 mx-auto mb-4"></div>
+    <p class="font-display font-extrabold text-[20px] text-quacdark">¿Cerrar sesión?</p>
+    <p class="text-[13px] text-muted mt-1">Tendrás que ingresar tu documento y contraseña la próxima vez. Face ID queda configurado.</p>
+    <button onclick="cerrarCapa();toast('Sesión cerrada → SCR-019b Login')" class="mt-5 w-full py-3 rounded-full bg-quac text-white font-bold text-[14px]">Sí, cerrar sesión</button>
+    <button onclick="cerrarCapa()" class="mt-2 w-full py-3 rounded-full text-quac font-bold text-[14px]">Cancelar</button>
+  </div>`;
+}
+function cerrarCapa(){ document.getElementById('capa').className='hidden'; }
+function toast(t){ const c=document.getElementById('capa'); c.className='absolute inset-x-0 bottom-20 flex justify-center z-20 pointer-events-none'; c.innerHTML=`<div class="bg-txt text-white text-[12px] px-4 py-2.5 rounded-full shadow-lg fade max-w-[320px] text-center">${t}</div>`; setTimeout(()=>{ if(c.innerHTML.includes(t)) c.className='hidden'; },2200); }
+
+function setE(e){ E=e; render(); }
+function render(){
+  document.querySelectorAll('.ne').forEach(b=>b.className=b.className.replace(/ on| off/g,'')+(b.dataset.e===E?' on':' off'));
+  document.querySelectorAll('.nv').forEach(b=>b.className=b.className.replace(/ on| off/g,'')+(b.dataset.v===VER?' on':' off'));
+  document.getElementById('notaE').textContent = NOTAS_E[E];
+  const s = document.getElementById('scroll');
+  s.className = 'flex-1 overflow-y-auto' + (P==='webview' ? ' flex flex-col' : '');
+  s.innerHTML = P==='webview' ? pintarWebView() : P==='cambiar' ? pintarCambiar() : pintarMenu();
+}
+document.querySelectorAll('.ne').forEach(b=>b.onclick=()=>{E=b.dataset.e;P='menu';render();});
+document.querySelectorAll('.nv').forEach(b=>b.onclick=()=>{VER=b.dataset.v;P='menu';render();});
+
+/* ═════════ GET-WEB: render ═════════ */
+const TIPO_CHIP = { native:['Pantalla de la app','bg-gray-900 text-white'], webview:['Página dentro de la app','bg-gray-100 text-gray-700'], external:['Navegador externo','bg-gray-100 text-gray-700'] };
+function gwIco(k){ return `<span class="w-5 h-5 inline-flex text-gray-700">${ICO[k]||ICO.generico}</span>`; }
+function gwRender(){
+  const wrap = document.getElementById('gwSecciones');
+  wrap.innerHTML = SECC.sort((a,b)=>a.orden-b.orden).map(s=>`
+  <section class="overflow-hidden rounded-lg border border-gray-200 bg-white">
+    <header class="flex flex-wrap items-center gap-3 border-b bg-slate-50/70 px-4 py-2.5">
+      <span class="text-xs text-gray-400 tnum w-5">${s.orden}</span>
+      <h2 class="text-sm font-semibold text-gray-900 tracking-wide">${s.titulo}</h2>
+      <code class="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-600">${s.clave}</code>
+      <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${s.visible?'bg-emerald-50 text-emerald-700':'bg-gray-100 text-gray-500'}">${s.visible?'Visible':'Oculta'}</span>
+      <div class="ml-auto flex items-center gap-1">
+        <button onclick="gwNuevoItem(${s.id})" class="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>Ítem</button>
+        <button onclick="gwEditarSeccion(${s.id})" class="rounded-md p-1.5 text-gray-500 hover:bg-gray-100" title="Editar sección"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+        <button onclick="s=SECC.find(x=>x.id===${s.id});s.visible=!s.visible;gwFlashMsg(s.visible?'Sección visible para los clientes.':'Sección oculta. La app deja de mostrarla en la próxima apertura.');gwRender()" class="rounded-md p-1.5 text-gray-500 hover:bg-gray-100" title="${s.visible?'Ocultar':'Mostrar'}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      </div>
+    </header>
+    <table class="w-full text-sm">
+      <thead class="text-xs text-gray-500"><tr class="border-b">
+        <th class="px-4 py-2 text-left font-medium w-8">#</th><th class="px-2 py-2 text-left font-medium w-10">Ícono</th><th class="px-2 py-2 text-left font-medium">Etiqueta</th><th class="px-2 py-2 text-left font-medium">Tipo</th><th class="px-2 py-2 text-left font-medium">Destino</th><th class="px-2 py-2 text-left font-medium">Vigencia</th><th class="px-2 py-2 text-left font-medium">Estado</th><th class="px-4 py-2 text-right font-medium">Acciones</th>
+      </tr></thead>
+      <tbody class="divide-y divide-gray-100">
+      ${s.items.length ? s.items.sort((a,b)=>a.orden-b.orden).map(i=>{
+        const desconocida = i.tipo==='native' && !NATIVAS_CONOCIDAS.vieja.includes(i.destino);
+        const estado = !i.visible ? ['Oculto','bg-gray-100 text-gray-500'] : !vigente(i) ? ['Programado','bg-gray-900 text-white'] : ['Publicado','bg-emerald-50 text-emerald-700'];
+        return `<tr class="hover:bg-gray-50/60">
+          <td class="px-4 py-2.5 text-xs text-gray-400 tnum">${i.orden}</td>
+          <td class="px-2 py-2.5">${gwIco(i.icono)}</td>
+          <td class="px-2 py-2.5"><p class="text-gray-900">${i.etiqueta}</p><code class="text-[11px] text-gray-400">${i.clave}</code></td>
+          <td class="px-2 py-2.5"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${TIPO_CHIP[i.tipo][1]}">${TIPO_CHIP[i.tipo][0]}</span></td>
+          <td class="px-2 py-2.5 max-w-[260px]"><p class="truncate text-xs text-gray-600">${i.tipo==='native' ? (ETIQ_NATIVA[i.destino]||i.destino) : i.destino}</p>
+            ${desconocida ? '<p class="text-[11px] text-rose-600 mt-0.5">Las apps sin AQ-007.5 no lo mostrarán</p>' : ''}</td>
+          <td class="px-2 py-2.5 text-xs text-gray-600 tnum">${i.desde||i.hasta ? `${i.desde||'—'} → ${i.hasta||'sin fin'}` : 'Siempre'}</td>
+          <td class="px-2 py-2.5"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${estado[1]}">${estado[0]}</span></td>
+          <td class="px-4 py-2.5 text-right"><div class="inline-flex gap-1">
+            <button onclick="gwEditarItem(${i.id})" class="rounded-md p-1.5 text-gray-500 hover:bg-gray-100" title="Editar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+            <button onclick="gwToggleItem(${i.id})" class="rounded-md p-1.5 text-gray-500 hover:bg-gray-100" title="${i.visible?'Ocultar':'Publicar'}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            <button onclick="gwEliminar(${i.id})" class="rounded-md p-1.5 text-gray-500 hover:bg-rose-50 hover:text-rose-600" title="Eliminar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+          </div></td></tr>`; }).join('')
+      : `<tr><td colspan="8" class="py-8 text-center"><p class="text-sm font-medium text-gray-700">Sin ítems</p><p class="text-xs text-gray-400">La app no muestra una sección vacía. Agrega el primero con «Ítem».</p></td></tr>`}
+      </tbody>
+    </table>
+  </section>`).join('');
+}
+function gwFlashMsg(t){ const f=document.getElementById('gwFlash'); f.className='flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800'; f.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>${t}`; setTimeout(()=>f.className='hidden',4000); }
+function gwToggleItem(id){ const i=SECC.flatMap(s=>s.items).find(x=>x.id===id); i.visible=!i.visible; gwFlashMsg(i.visible?`«${i.etiqueta}» publicado. Los clientes lo ven en su próxima apertura del tab Más.`:`«${i.etiqueta}» oculto.`); gwRender(); }
+function gwEliminar(id){ const i=SECC.flatMap(s=>s.items).find(x=>x.id===id); gwDialog(`<h3 class="text-lg font-semibold text-gray-900">Eliminar ítem</h3><p class="text-sm text-gray-500 mt-1">¿Eliminar «${i.etiqueta}»? Si solo quieres retirarlo un tiempo, usa «Ocultar» o una fecha de fin.</p>
+  <div class="flex justify-end gap-2 mt-5"><button onclick="gwCerrar()" class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium">Cancelar</button><button onclick="SECC.forEach(s=>s.items=s.items.filter(x=>x.id!==${id}));gwCerrar();gwFlashMsg('Ítem eliminado.');gwRender()" class="rounded-md bg-rose-600 px-3 py-1.5 text-sm font-medium text-white">Eliminar</button></div>`); }
+function gwDialog(html){ const m=document.getElementById('gwModal'); m.className='fixed inset-0 z-[90] bg-black/50 flex items-center justify-center p-4 gw'; m.innerHTML=`<div class="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl fade">${html}</div>`; }
+function gwCerrar(){ document.getElementById('gwModal').className='hidden'; }
+
+function gwNuevaSeccion(){ gwDialog(`<h3 class="text-lg font-semibold text-gray-900">Nueva sección</h3><p class="text-sm text-gray-500 mt-1">El título se muestra en mayúsculas pequeñas encima de sus ítems.</p>
+  <div class="mt-4 space-y-3">
+    ${campo('Título','TU CRÉDITO')}${campo('Clave','tu_credito','Solo minúsculas y guion bajo. No cambia después de crearla.')}
+    <div class="grid grid-cols-2 gap-3">${campo('Orden','5')}<label class="flex items-center gap-2 text-sm text-gray-700 mt-6"><input type="checkbox" checked class="h-4 w-4 rounded border-gray-300">Visible</label></div>
+  </div>
+  <div class="flex justify-end gap-2 mt-5"><button onclick="gwCerrar()" class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium">Cancelar</button><button onclick="gwCerrar();gwFlashMsg('Sección creada. Aún no tiene ítems, así que la app no la muestra.')" class="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white">Guardar</button></div>`); }
+function gwEditarSeccion(id){ const s=SECC.find(x=>x.id===id); gwDialog(`<h3 class="text-lg font-semibold text-gray-900">Editar sección</h3>
+  <div class="mt-4 space-y-3">${campo('Título',s.titulo)}<div><label class="text-xs font-medium text-gray-600">Clave</label><p class="mt-1 rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-500"><code>${s.clave}</code> · no se puede cambiar</p></div>
+    <div class="grid grid-cols-2 gap-3">${campo('Orden',s.orden)}<label class="flex items-center gap-2 text-sm text-gray-700 mt-6"><input type="checkbox" ${s.visible?'checked':''} class="h-4 w-4 rounded border-gray-300">Visible</label></div></div>
+  <div class="flex justify-end gap-2 mt-5"><button onclick="gwCerrar()" class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium">Cancelar</button><button onclick="gwCerrar();gwFlashMsg('Sección actualizada.')" class="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white">Guardar</button></div>`); }
+function campo(l,v,h){ return `<div><label class="text-xs font-medium text-gray-600">${l}</label><input value="${v}" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-gray-900 focus:outline-none">${h?`<p class="mt-1 text-[11px] text-gray-400">${h}</p>`:''}</div>`; }
+
+function gwFormItem(i, sid){
+  const nuevo = !i; i = i || { clave:'', etiqueta:'', icono:'', tipo:'native', destino:'', orden:(SECC.find(s=>s.id===sid).items.length+1), visible:true, desde:'', hasta:'' };
+  const sec = SECC.find(s=>s.items.includes(i)) || SECC.find(s=>s.id===sid);
+  const err = i._err || {};
+  return `<h3 class="text-lg font-semibold text-gray-900">${nuevo?'Nuevo ítem':'Editar ítem'}</h3>
+  <p class="text-sm text-gray-500 mt-1">Sección <b>${sec.titulo}</b></p>
+  <div class="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
+    <div class="col-span-2">${campo('Etiqueta (lo que lee el cliente)', i.etiqueta)}</div>
+    ${campo('Clave', i.clave, nuevo ? 'Identificador interno, sin espacios.' : 'No se puede cambiar.')}
+    ${campo('Orden dentro de la sección', i.orden)}
+    <div class="col-span-2">
+      <label class="text-xs font-medium text-gray-600">Ícono (SVG)</label>
+      <div class="mt-1 flex items-center gap-3 rounded-md border border-dashed border-gray-300 px-3 py-2.5">
+        <span class="w-9 h-9 rounded-md bg-gray-100 flex items-center justify-center">${i.icono ? gwIco(i.icono) : '<span class="text-gray-300 text-lg">?</span>'}</span>
+        <div class="flex-1 text-xs text-gray-500">${i.icono ? `<b class="text-gray-800">${i.icono}.svg</b> · 1,2 KB · cdn.baguer.co/quac/app-menu/` : 'Ningún archivo. Solo .svg, máximo 64 KB, un color: la app lo pinta de morado.'}</div>
+        <button class="rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium">${i.icono?'Reemplazar':'Subir'}</button>
+      </div>
+      ${err.icono ? '<p class="mt-1 text-xs font-medium text-rose-600">El archivo pesa 210 KB. El máximo es 64 KB.</p>' : ''}
+    </div>
+    <div>
+      <label class="text-xs font-medium text-gray-600">Tipo</label>
+      <select id="fTipo" onchange="gwCambioTipo(this.value)" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white">
+        <option value="native" ${i.tipo==='native'?'selected':''}>Pantalla de la app</option>
+        <option value="webview" ${i.tipo==='webview'?'selected':''}>Página dentro de la app</option>
+        <option value="external" ${i.tipo==='external'?'selected':''}>Navegador externo</option>
+      </select>
+    </div>
+    <div id="fDestino">${gwDestino(i.tipo, i.destino)}</div>
+    <div class="col-span-2 grid grid-cols-2 gap-4">
+      <div><label class="text-xs font-medium text-gray-600">Visible desde</label><input type="date" value="${i.desde}" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"><p class="mt-1 text-[11px] text-gray-400">Vacío = desde ya</p></div>
+      <div><label class="text-xs font-medium text-gray-600">Visible hasta</label><input type="date" value="${i.hasta}" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"><p class="mt-1 text-[11px] text-gray-400">Vacío = sin fecha de fin</p></div>
+    </div>
+    <label class="col-span-2 flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" ${i.visible?'checked':''} class="h-4 w-4 rounded border-gray-300">Visible para los clientes</label>
+  </div>
+  <div class="flex items-center justify-between mt-5">
+    <button onclick="gwFormError(${nuevo?'null':i.id}, ${sid||'null'})" class="text-[11px] text-gray-400 underline">Simular 422 (SVG de 210 KB)</button>
+    <div class="flex gap-2"><button onclick="gwCerrar()" class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium">Cancelar</button><button onclick="gwCerrar();gwFlashMsg('${nuevo?'Ítem creado.':'Ítem actualizado.'} Los clientes lo ven en su próxima apertura del tab Más.')" class="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white">Guardar</button></div>
+  </div>`;
+}
+function gwDestino(tipo, v){
+  if (tipo==='native') return `<label class="text-xs font-medium text-gray-600">Pantalla</label>
+    <select class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white">${Object.entries(ETIQ_NATIVA).map(([k,l])=>`<option value="${k}" ${k===v?'selected':''}>${l}</option>`).join('')}</select>
+    <p class="mt-1 text-[11px] text-gray-400">Lista fija: las pantallas que la app conoce.</p>`;
+  return `<label class="text-xs font-medium text-gray-600">URL</label><input value="${v||''}" placeholder="https://quac.co/…" class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"><p class="mt-1 text-[11px] text-gray-400">${tipo==='webview' ? 'Solo https. Un PDF no se abre dentro de la app: úsalo como «Navegador externo».' : 'Se abre fuera de la app, en el navegador del teléfono.'}</p>`;
+}
+function gwCambioTipo(t){ document.getElementById('fDestino').innerHTML = gwDestino(t,''); }
+function gwNuevoItem(sid){ gwDialog(gwFormItem(null, sid)); }
+function gwEditarItem(id){ const i=SECC.flatMap(s=>s.items).find(x=>x.id===id); gwDialog(gwFormItem(i)); }
+function gwFormError(id, sid){ const i = id ? SECC.flatMap(s=>s.items).find(x=>x.id===id) : null; if(i){ i._err={icono:true}; gwDialog(gwFormItem(i)); delete i._err; } else { const tmp={ clave:'', etiqueta:'', icono:'', tipo:'native', destino:'', orden:1, visible:true, desde:'', hasta:'', _err:{icono:true} }; gwDialog(gwFormItem(tmp, sid)); } }
+function gwPreview(){ document.getElementById('vista').value='app'; cambiarVista(); E='ok'; P='menu'; render(); window.scrollTo({top:0}); }
+
+/* ═════════ VISTAS ═════════ */
+function cambiarVista(){ const v=document.getElementById('vista').value; document.getElementById('vistaApp').className = v==='app' ? 'flex gap-6 p-6 max-w-[1400px] mx-auto items-start' : 'hidden'; document.getElementById('vistaGw').className = v==='gw' ? 'gw p-6 max-w-[1500px] mx-auto' : 'hidden gw'; if(v==='gw') gwRender(); }
+document.getElementById('vista').onchange = cambiarVista;
+render(); gwRender();
+</script>
+</body>
+</html>
