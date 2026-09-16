@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-157 · Gestión de Ventas y Mis Ventas: la cifra «por recaudar» abre los carritos que la componen</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Pila tipográfica real de get-web (Tailwind v4 compila .font-sans con el stack literal). */
+  html, body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+  .cifra { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .cifra-recuadro { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+  .skeleton { background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+  @keyframes sk { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+  /* GW-157: la cifra que abre el modal. Subrayado punteado, mismo color del texto; en hover se oscurece. */
+  .enlace-cifra { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; text-decoration-color: currentColor; border-radius: 2px; }
+  .enlace-cifra:hover { color: #111827; }
+  .enlace-cifra:focus-visible { outline: 2px solid #111827; outline-offset: 2px; }
+  .tip { position: relative; }
+  .tip > span { cursor: help; border-bottom: 1px dotted #cbd5e1; padding-bottom: 1px; }
+  .tip::after { content: attr(data-tip); position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; width: 230px; padding: 8px 10px; background: #0f172a; color: #f8fafc; font-size: 11px; line-height: 1.45; font-weight: 400; text-transform: none; letter-spacing: normal; text-align: left; white-space: normal; border-radius: 6px; box-shadow: 0 6px 16px rgba(15,23,42,.22); display: none; pointer-events: none; z-index: 30; }
+  .tip:hover::after { display: block; }
+  .tip-fin::after { left: auto; right: 0; transform: none; }
+  .col-fija { position: sticky; z-index: 2; background: #fff; }
+  thead .col-fija { z-index: 4; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900 antialiased">
+
+<!-- ══ Barra de control del mockup (no es parte de la UI) ══ -->
+<div class="sticky top-0 z-[80] border-b border-indigo-200 bg-indigo-50/95 px-4 py-2 backdrop-blur">
+  <div class="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+    <span class="font-bold text-indigo-900">GW-157 · mockup</span>
+    <label class="flex items-center gap-1.5"><span class="text-indigo-800">Pantalla:</span>
+      <select id="pantalla" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="tienda">A · Gestión de Ventas — desde la tarjeta o el Consolidado (toda la tienda)</option>
+        <option value="asesor">B · Modal del asesor del coordinador — desde su tarjeta (un asesor)</option>
+        <option value="misventas">C · Mis Ventas — la tarjeta del asesor (los suyos)</option>
+        <option value="tabla">D · Tabla de asesores y Consolidado — columna «Unidades» (D7)</option>
+      </select></label>
+    <label class="flex items-center gap-1.5"><span class="text-indigo-800">Modal:</span>
+      <select id="modal" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="cerrado">Cerrado (solo la cifra como enlace)</option>
+        <option value="normal" selected>Abierto · datos</option>
+        <option value="cargando">Abierto · cargando</option>
+        <option value="error">Abierto · error al cargar</option>
+        <option value="vacio">Abierto · vacío</option>
+        <option value="siniva">Abierto · datos, mes con base «sin IVA» (C1)</option>
+      </select></label>
+    <label class="flex items-center gap-1.5" id="tarjeta-wrap"><span class="text-indigo-800">Tarjeta de tienda:</span>
+      <select id="tarjeta" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="faltante">Falta por vender (enlace en el desglose)</option>
+        <option value="cumplida">Meta cumplida (enlace bajo la recaudada)</option>
+      </select></label>
+    <label class="flex items-center gap-1.5" id="permiso-wrap"><span class="text-indigo-800">Coordinador:</span>
+      <select id="permiso" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="si">con permiso de archivar</option>
+        <option value="no">sin permiso (solo ve)</option>
+      </select></label>
+    <button id="reiniciar" class="rounded border border-indigo-300 bg-white px-2 py-0.5 text-indigo-800 hover:bg-indigo-100">Reiniciar datos</button>
+    <span class="ml-auto text-indigo-700">STIRPE · quincena 1–15 sep 2026 · cifra real del 14 sep ($ 15.403.981); carritos ilustrativos (PROD no verificado)</span>
+  </div>
+</div>
+
+<div id="app" class="mx-auto max-w-[1600px] px-4 py-5"></div>
+<div id="capas"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// DATOS · Carritos confirmados sin pagar (segmento «proyectada»: sin pedido, o pedido en estado
+// 0/2 no cancelado; no anulados, no archivados, no clones). El total cuadra al peso con la cifra
+// «+ $ 15.403.981 por recaudar» que Francisco vio en la tarjeta el 14 sep. Filas ilustrativas.
+// ═══════════════════════════════════════════════════════════════════════════
+const GRUPOS_BASE = [{"cod": "8969900", "nombre": "Fabián Andrés Prada Rueda", "filas": [{"id": "194117", "fecha": "2 sep 10:41", "cliente": "Yenny Paola Castellanos", "cel": "3134470212", "ciudad": "Bucaramanga", "origen": "WhatsApp", "msj": "Coordinadora", "cobro": null, "pedido": "723118", "items": 2, "total": 280900}, {"id": "194120", "fecha": "2 sep 11:03", "cliente": "Andrés Mauricio Rojas Prada", "cel": "3157601934", "ciudad": "Piedecuesta", "origen": "Asignado", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": null, "items": 1, "total": 280016}, {"id": "194466", "fecha": "5 sep 09:27", "cliente": "Claudia Patricia Barajas", "cel": "3204179950", "ciudad": "Floridablanca", "origen": "WhatsApp", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": "723402", "items": 3, "total": 989900}, {"id": "194489", "fecha": "5 sep 16:12", "cliente": "Jorge Iván Sarmiento Luna", "cel": "3112956648", "ciudad": "Cúcuta", "origen": "WhatsApp", "msj": "Servientrega", "cobro": null, "pedido": null, "items": 2, "total": 860600}, {"id": "195032", "fecha": "11 sep 08:55", "cliente": "Leidy Johana Ariza Gómez", "cel": "3168330527", "ciudad": "Girón", "origen": "Asignado", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": "723911", "items": 1, "total": 383061}, {"id": "195041", "fecha": "11 sep 12:36", "cliente": "María Fernanda Ortiz Rey", "cel": "3043981127", "ciudad": "Bucaramanga", "origen": "WhatsApp", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": null, "items": 2, "total": 383950}]}, {"cod": "7374400", "nombre": "Jhon Alexander Rodríguez Patiño", "filas": [{"id": "194208", "fecha": "3 sep 15:20", "cliente": "Diego Fernando Quintero", "cel": "3184402173", "ciudad": "Barrancabermeja", "origen": "WhatsApp", "msj": "Coordinadora", "cobro": null, "pedido": "723190", "items": 4, "total": 1109900}, {"id": "194590", "fecha": "6 sep 10:14", "cliente": "Sandra Yaneth Villamizar", "cel": "3126690884", "ciudad": "Bucaramanga", "origen": "WhatsApp", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": null, "items": 2, "total": 619761}, {"id": "194877", "fecha": "9 sep 17:48", "cliente": "Carlos Alberto Niño Suárez", "cel": "3005512249", "ciudad": "Floridablanca", "origen": "Asignado", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": "723744", "items": 1, "total": 449900}, {"id": "195110", "fecha": "12 sep 11:31", "cliente": "Paola Andrea Mantilla", "cel": "3163381175", "ciudad": "Bucaramanga", "origen": "WhatsApp", "msj": "Coordinadora", "cobro": null, "pedido": null, "items": 2, "total": 437900}]}, {"cod": "8932900", "nombre": "Juan Camilo Vergel Acosta", "filas": [{"id": "194155", "fecha": "2 sep 18:05", "cliente": "Luz Dary Pabón Contreras", "cel": "3174283306", "ciudad": "Bogotá", "origen": "WhatsApp", "msj": "Coordinadora", "cobro": null, "pedido": "723140", "items": 3, "total": 829900}, {"id": "194402", "fecha": "4 sep 12:50", "cliente": "Edwin Alexander Cáceres", "cel": "3208749013", "ciudad": "Bucaramanga", "origen": "Asignado", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": null, "items": 2, "total": 589900}, {"id": "194701", "fecha": "7 sep 09:38", "cliente": "Martha Isabel Ruiz Delgado", "cel": "3134026578", "ciudad": "Piedecuesta", "origen": "WhatsApp", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": "723601", "items": 2, "total": 614300}, {"id": "194958", "fecha": "10 sep 16:02", "cliente": "Óscar Javier Tarazona", "cel": "3152210834", "ciudad": "Girón", "origen": "WhatsApp", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": null, "items": 1, "total": 459900}, {"id": "195204", "fecha": "13 sep 10:27", "cliente": "Nataly Andrea Suárez Peña", "cel": "3112094413", "ciudad": "Bucaramanga", "origen": "Asignado", "msj": "Coordinadora", "cobro": null, "pedido": "724003", "items": 1, "total": 380900}]}, {"cod": "5432100", "nombre": "Silvia Alejandra Camacho", "filas": [{"id": "194321", "fecha": "4 sep 09:16", "cliente": "Gloria Esperanza Rincón", "cel": "3184590371", "ciudad": "Bucaramanga", "origen": "WhatsApp", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": "723288", "items": 2, "total": 589900}, {"id": "194833", "fecha": "8 sep 14:43", "cliente": "Camilo Andrés Pérez Rueda", "cel": "3006678123", "ciudad": "Floridablanca", "origen": "Asignado", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": null, "items": 2, "total": 479950}, {"id": "195155", "fecha": "12 sep 17:09", "cliente": "Ana Milena Rodríguez Silva", "cel": "3168019962", "ciudad": "Lebrija", "origen": "WhatsApp", "msj": "Servientrega", "cobro": null, "pedido": null, "items": 1, "total": 379950}]}, {"cod": "8907100", "nombre": "Paula Andrea Oliveros Ardila", "filas": [{"id": "194260", "fecha": "3 sep 11:52", "cliente": "Yolanda Patricia Meneses", "cel": "3123390546", "ciudad": "Bucaramanga", "origen": "WhatsApp", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": "723211", "items": 3, "total": 679900}, {"id": "194712", "fecha": "7 sep 15:33", "cliente": "Wilson Hernando Ardila", "cel": "3145583802", "ciudad": "Piedecuesta", "origen": "Asignado", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": null, "items": 1, "total": 389950}, {"id": "195088", "fecha": "11 sep 18:10", "cliente": "Ingrid Carolina Ramírez", "cel": "3017762389", "ciudad": "Bucaramanga", "origen": "WhatsApp", "msj": "Coordinadora", "cobro": null, "pedido": "723927", "items": 2, "total": 393950}]}, {"cod": "8960200", "nombre": "Nicol Dayana Pinzón Peña", "filas": [{"id": "194188", "fecha": "3 sep 09:04", "cliente": "Ricardo Antonio Lozano", "cel": "3187745120", "ciudad": "Bucaramanga", "origen": "WhatsApp", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": "723162", "items": 2, "total": 499900}, {"id": "194640", "fecha": "6 sep 16:27", "cliente": "Diana Carolina Flórez Uribe", "cel": "3102358846", "ciudad": "Floridablanca", "origen": "WhatsApp", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": null, "items": 2, "total": 391100}, {"id": "195017", "fecha": "10 sep 19:41", "cliente": "Julián David Hernández", "cel": "3156702214", "ciudad": "Girón", "origen": "Asignado", "msj": "Coordinadora", "cobro": null, "pedido": "723889", "items": 1, "total": 359900}]}, {"cod": "7784400", "nombre": "Brayan Javier Ardila Flórez", "filas": [{"id": "194539", "fecha": "5 sep 18:36", "cliente": "Sonia Esperanza Gómez", "cel": "3134108833", "ciudad": "Bucaramanga", "origen": "WhatsApp", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": "723470", "items": 2, "total": 499950}, {"id": "195176", "fecha": "13 sep 12:14", "cliente": "Fabio Nelson Sepúlveda", "cel": "3178840259", "ciudad": "San Gil", "origen": "WhatsApp", "msj": "Servientrega", "cobro": null, "pedido": null, "items": 1, "total": 389950}]}, {"cod": "7133900", "nombre": "Andrés Felipe Jiménez Quintero", "filas": [{"id": "194374", "fecha": "4 sep 17:25", "cliente": "Yadira Mercedes Cáceres", "cel": "3143307061", "ciudad": "Bucaramanga", "origen": "Asignado", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": "723330", "items": 1, "total": 419043}, {"id": "195231", "fecha": "13 sep 16:58", "cliente": "Héctor Fabio Amaya Ruiz", "cel": "3202391174", "ciudad": "Piedecuesta", "origen": "WhatsApp", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": null, "items": 1, "total": 379950}]}, {"cod": "8443600", "nombre": "Manuel Humberto Parra Tapias", "filas": [{"id": "194905", "fecha": "9 sep 20:12", "cliente": "Rosa Elvira Bautista", "cel": "3163904487", "ciudad": "Floridablanca", "origen": "WhatsApp", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": null, "items": 2, "total": 559900}]}, {"cod": "7284300", "nombre": "Valentina Núñez Caballero", "filas": [{"id": "195062", "fecha": "11 sep 14:29", "cliente": "Karen Lorena Prada Mejía", "cel": "3128061537", "ciudad": "Bucaramanga", "origen": "Asignado", "msj": "Mensajería interna", "cobro": "Contra entrega", "pedido": "723905", "items": 1, "total": 319900}]}];
+let GRUPOS = JSON.parse(JSON.stringify(GRUPOS_BASE));
+// Recaudado y meta de STIRPE 1–14 sep (mismos asesores del mockup de GW-156, totales de la tabla).
+const META_TIENDA = 425287317, RECAUDADA_TIENDA = 378945211;
+// Fabián Prada (modal del asesor y Mis Ventas): al 105 % → «Meta cumplida»
+const FAB = { cod:'8969900', nombre:'Fabián Andrés Prada Rueda', meta:41748247, recaudada:43895904 };
+
+// Asesores de STIRPE (datos del sello 1–11 sep, mockup de GW-156): pedidos web + facturado, unidades del sello
+const META_UPT = 2.00, META_VPT = 500000;
+const ASESORES = [
+  { cod:'8960200', n:'Nicol Dayana Pinzón Peña',       meta:45256009, webV:5963120, webN:11, facV:43223125, facN:85, dev:-1327316, tie:0,       unid:171 },
+  { cod:'7374400', n:'Jhon Alexander Rodríguez Patiño', meta:41791532, webV:7992814, webN:15, facV:39761762, facN:70, dev:-1837456, tie:341851,  unid:150 },
+  { cod:'8969900', n:'Fabián Andrés Prada Rueda',       meta:41748247, webV:1698928, webN:2,  facV:43723877, facN:77, dev:-2485375, tie:958474,  unid:139 },
+  { cod:'8932900', n:'Juan Camilo Vergel Acosta',       meta:42947797, webV:6409027, webN:11, facV:39374500, facN:79, dev:-2053852, tie:0,       unid:158 },
+  { cod:'7784400', n:'Brayan Javier Ardila Flórez',     meta:43025741, webV:6364765, webN:9,  facV:36503776, facN:84, dev:-4414458, tie:2655250, unid:168 },
+  { cod:'5432100', n:'Silvia Alejandra Camacho',        meta:46490227, webV:5042194, webN:10, facV:35288056, facN:81, dev:-1235653, tie:0,       unid:160 },
+  { cod:'7133900', n:'Andrés Felipe Jiménez Quintero',  meta:40333242, webV:2508278, webN:6,  facV:36715847, facN:84, dev:-3092969, tie:280703,  unid:155 },
+  { cod:'8443600', n:'Manuel Humberto Parra Tapias',    meta:41202541, webV:4796757, webN:11, facV:30182323, facN:73, dev:-2757389, tie:762359,  unid:139 },
+  { cod:'8907100', n:'Paula Andrea Oliveros Ardila',    meta:39968325, webV:5455275, webN:10, facV:30985206, facN:71, dev:-4157057, tie:419851,  unid:140 },
+  { cod:'7284300', n:'Valentina Núñez Caballero',       meta:42523656, webV:3198508, webN:8,  facV:31211386, facN:63, dev:-2372091, tie:0,       unid:130 },
+  { cod:'5344600', n:'Lady Stephanie Guevara Samacá',   meta:null,     webV:0,       webN:0,  facV:722650,   facN:1,  dev:0,        tie:0,       unid:2 },
+  { cod:'8550600', n:'Carlos Yorge Córdoba Murallas',   meta:null,     webV:0,       webN:0,  facV:0,        facN:0,  dev:-302355,  tie:295801,  unid:0 },
+  { cod:'7678600', n:'Marlon Stiven Gelves Carrillo',   meta:null,     webV:0,       webN:0,  facV:0,        facN:0,  dev:-2973162, tie:0,       unid:0 },
+];
+// Misma aritmética que tableroKpis()/tablaAsesores(): pedidos = web + facturado; venta del ticket = web + facturado
+const fila = a => { const nped = a.webN + a.facN, ventaPed = a.webV + a.facV, total = a.webV + a.facV + a.tie + a.dev;
+  return { ...a, nped, ventaPed, total, cump: a.meta ? total / a.meta * 100 : null,
+    vpt: nped ? ventaPed / nped : null, upt: nped ? a.unid / nped : null, ppt: a.unid ? ventaPed / a.unid : null,
+    itemsUpt: nped ? Math.max(0, Math.ceil(META_UPT * nped) - a.unid) : null }; };
+const FILAS = ASESORES.map(fila);
+const TIENDA = (() => { const nped = FILAS.reduce((s,x) => s + x.nped, 0), unid = FILAS.reduce((s,x) => s + x.unid, 0), ventaPed = FILAS.reduce((s,x) => s + x.ventaPed, 0), meta = FILAS.reduce((s,x) => s + (x.meta ?? 0), 0);
+  return { nped, unid, ventaPed, meta, esperados: Math.round(meta / META_VPT), vpt: ventaPed / nped, upt: unid / nped, ppt: ventaPed / unid }; })();
+const FAB_FILA = FILAS.find(x => x.cod === '8969900');
+const dec2 = n => n === null ? '—' : n.toLocaleString('es-CO', { minimumFractionDigits:2, maximumFractionDigits:2 });
+const FONDO = { verde:'bg-emerald-100 text-emerald-900', ambar:'bg-amber-100 text-amber-900', rojo:'bg-red-100 text-red-900' };
+const pesos  = n => n === null || n === undefined ? '—' : (n < 0 ? '−' : '') + '$ ' + Math.abs(Math.round(n)).toLocaleString('es-CO');
+const entero = n => Math.round(n).toLocaleString('es-CO');
+const pctTxt = n => n === null ? '—' : ((n < 100 && Math.round(n) >= 100) ? 99 : Math.round(n)) + '%';
+const pct1   = n => n === null ? '—' : n.toLocaleString('es-CO', { minimumFractionDigits:1, maximumFractionDigits:1 }) + '%';
+const banda  = p => p === null ? null : p >= 95 ? 'verde' : p >= 80 ? 'ambar' : 'rojo';
+const HEX    = { verde:'#059669', ambar:'#d97706', rojo:'#dc2626' };
+const BORDE  = { verde:'border-l-emerald-600', ambar:'border-l-amber-500', rojo:'border-l-red-500' };
+const iniciales = n => n.split(' ').filter(Boolean).map(w => w[0]).slice(0,2).join('').toUpperCase();
+const AVATAR = { '8969900':'bg-rose-500','7374400':'bg-emerald-500','8932900':'bg-sky-500','5432100':'bg-violet-500','8907100':'bg-teal-500','8960200':'bg-indigo-500','7784400':'bg-orange-500','7133900':'bg-fuchsia-500','8443600':'bg-cyan-500','7284300':'bg-lime-600' };
+const ICO = {
+  x:     '<svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  link:  '<svg class="h-3.5 w-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+  archive: '<svg class="h-3.5 w-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>',
+  back:  '<svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
+  chev:  '<svg class="h-3 w-3" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>',
+};
+
+// ═══ Lo que produce el bloque `carritosPorRecaudar` (§6.1 del brainstorming) ═══
+const subtotal = g => g.filas.reduce((s,f) => s + f.total, 0);
+function bloque(cod) {
+  const grupos = (cod ? GRUPOS.filter(g => g.cod === cod) : GRUPOS).filter(g => g.filas.length).slice().sort((a,b) => subtotal(b) - subtotal(a));
+  const filas = grupos.flatMap(g => g.filas);
+  return { grupos, total: filas.reduce((s,f) => s + f.total, 0), cantidad: filas.length };
+}
+let FACTOR_CIFRA = 1; // C1: 1 ÷ 1,19 cuando el mes está en base «sin IVA» (el mockup lo simula con el estado del modal)
+const pendTienda = () => bloque(null).total * FACTOR_CIFRA;
+const pendFab    = () => bloque(FAB.cod).total * FACTOR_CIFRA;
+
+// ═══ Helpers de texto (pedidosPagados.vista.ts) — el enlace es SOLO el fragmento «+ $ X por recaudar…» ═══
+const enlace = (texto, ambito, titulo) => `<button type="button" class="enlace-cifra" data-abrir="${ambito}" title="${titulo}">${texto}</button>`;
+function desgloseFaltante(faltante, pendiente, ambito) {
+  if (faltante <= 0 || pendiente <= 0) return null;
+  if (pendiente >= faltante) return 'meta cubierta si se recauda lo confirmado';
+  return `${pesos(faltante - pendiente)} por vender · ${enlace(`+ ${pesos(pendiente)} por recaudar de lo ya vendido`, ambito, 'Ver los carritos por recaudar')}`;
+}
+const confirmadaPorRecaudar = (pendiente, ambito) => pendiente > 0 ? enlace(`+ ${pesos(pendiente)} confirmada por recaudar`, ambito, 'Ver los carritos por recaudar') : null;
+const confirmadaBajoRecaudada = (pendiente, ambito) => pendiente > 0.5 ? enlace(`+ ${pesos(pendiente)} por recaudar`, ambito, 'Ver los carritos por recaudar') : null;
+
+// ═══ Gauge (gauge.ts: R 52, CX 70, CY 64, cap 110 %) ═══
+function arco(pct) { const ang = (Math.min(Math.max(pct, 0), 110) / 110) * 180; const rad = ((180 - ang) * Math.PI) / 180; return `M 18 64 A 52 52 0 0 1 ${(70 + 52 * Math.cos(rad)).toFixed(1)} ${(64 - 52 * Math.sin(rad)).toFixed(1)}`; }
+function gaugeSvg(pct, techo, texto) { const b = banda(pct ?? 0) || 'rojo'; return `<svg viewBox="0 0 140 74" class="mx-auto w-full max-w-[190px]">
+    <path d="${arco(110)}" fill="none" stroke="#f1f5f9" stroke-width="11" stroke-linecap="round"/>
+    ${techo !== null && techo > pct ? `<path d="${arco(techo)}" fill="none" stroke="${HEX[b]}44" stroke-width="11" stroke-linecap="round"/>` : ''}
+    <path d="${arco(pct ?? 0)}" fill="none" stroke="${HEX[b]}" stroke-width="11" stroke-linecap="round"/>
+    <text x="70" y="58" text-anchor="middle" style="font-size:23px;font-weight:800;fill:#0f172a">${texto}</text></svg>`; }
+
+// ═══ Tarjeta «% Cump. presupuesto neto» (TableroKpis.vue, paleta gray) y su versión del asesor (TableroAsesor.vue, paleta slate) ═══
+function tarjetaCumplimiento({ meta, recaudada, pendiente, ambito, paleta }) {
+  const g = paleta === 'slate' ? { t:'text-slate-500', s:'text-slate-600', m:'text-slate-600', b:'border-slate-200' } : { t:'text-gray-400', s:'text-gray-500', m:'text-gray-400', b:'' };
+  const pctRec = meta > 0 ? recaudada / meta * 100 : null, pctConf = meta > 0 ? (recaudada + pendiente) / meta * 100 : null;
+  const faltante = meta - recaudada;
+  const tipo = meta <= 0 ? 'sin-presupuesto' : faltante <= 0 ? 'meta-superada' : 'faltante';
+  const desglose = tipo === 'faltante' ? desgloseFaltante(faltante, pendiente, ambito) : null;
+  const lineaRecaudada = desglose === null ? confirmadaPorRecaudar(pendiente, ambito) : null; // mostrarConfirmadaEnVentaRecaudada
+  const subGauge = paleta === 'slate' ? `<p class="text-center text-[11px] text-slate-600">(${pct1(pctConf)}) proyectado con confirmados</p>` : `<p class="-mt-1 text-center text-[11px] text-gray-500 tabular-nums">llegaría a <span class="font-semibold">${pct1(pctConf)}</span> si recibe los pagos pendientes</p>`;
+  return `
+  <div class="rounded-2xl border bg-white p-4 shadow-sm">
+    <h2 class="mb-1 text-[11px] font-bold tracking-wide ${g.s} uppercase">% Cump. presupuesto neto</h2>
+    <div class="flex items-center gap-3">
+      <div class="w-[46%] shrink-0">${gaugeSvg(pctRec, pctConf, pctTxt(pctRec))}${pendiente > 0 ? subGauge : ''}<p class="mt-0.5 text-center text-[11px] ${g.m}">Meta ${pesos(meta)}</p></div>
+      <div class="min-w-0 flex-1 space-y-2">
+        <div class="rounded-md border border-l-4 bg-white px-3 py-2 ${g.b} ${BORDE[banda(pctRec)]}">
+          <p class="text-[10px] font-semibold tracking-wide ${g.t} uppercase">Venta recaudada</p>
+          <p class="cifra-recuadro text-xl leading-tight font-extrabold break-words text-gray-900">${pesos(recaudada)}</p>
+          ${lineaRecaudada ? `<p class="cifra-recuadro text-[10px] font-normal ${g.s}">${lineaRecaudada}</p>` : ''}
+        </div>
+        <div class="rounded-md border border-l-4 bg-white px-3 py-2 ${g.b} ${tipo === 'faltante' ? 'border-l-red-500' : 'border-l-emerald-600'}">
+          <p class="text-[10px] font-semibold tracking-wide ${g.t} uppercase">${tipo === 'meta-superada' ? 'Meta cumplida' : 'Por vender y recaudar'}</p>
+          <p class="cifra-recuadro text-xl leading-tight font-extrabold break-words ${tipo === 'faltante' ? 'text-red-600' : 'text-emerald-700'}">${tipo === 'meta-superada' ? '+' + pesos(-faltante) : pesos(faltante)}</p>
+          ${tipo === 'meta-superada' ? '<p class="text-[10px] text-emerald-700">por encima de la meta</p>' : desglose ? `<p class="cifra-recuadro text-[10px] font-normal ${g.s}">${desglose}</p>` : ''}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+const tarjetaEstatica = (titulo, cuerpo) => `<div class="rounded-2xl border bg-white p-4 shadow-sm"><h2 class="mb-1 text-[11px] font-bold tracking-wide text-gray-500 uppercase">${titulo}</h2>${cuerpo}</div>`;
+const cajaKpi = (titulo, valor, sub, borde, color) => `<div class="rounded-md border border-l-4 bg-white px-3 py-2 ${borde}"><p class="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">${titulo}</p><p class="cifra text-xl leading-tight font-extrabold ${color || 'text-gray-900'}">${valor}</p>${sub ? `<p class="cifra text-[10px] text-gray-400">${sub}</p>` : ''}</div>`;
+// Tarjeta 2 «% Pedidos esperados» (D7: línea «N unidades» bajo la cifra, antes de «+ N confirmados sin pagar») y tarjeta 3 sin cambios
+function tarjetaPedidos(ctx) {
+  const t = ctx === 'tienda' ? { nped: TIENDA.nped, unid: TIENDA.unid, esp: TIENDA.esperados, sinPagar: 30 } : { nped: FAB_FILA.nped, unid: FAB_FILA.unid, esp: Math.round(FAB.meta / META_VPT), sinPagar: 6 };
+  const pct = t.nped / t.esp * 100, g = ctx === 'tienda' ? { t:'text-gray-400', s:'text-gray-400', m:'text-gray-400' } : { t:'text-slate-500', s:'text-slate-500', m:'text-slate-600' };
+  return `<div class="rounded-2xl border bg-white p-4 shadow-sm"><h2 class="mb-1 text-[11px] font-bold tracking-wide ${ctx === 'tienda' ? 'text-gray-500' : 'text-slate-500'} uppercase">% Pedidos esperados</h2>
+    <div class="flex items-center gap-3"><div class="w-[46%] shrink-0">${gaugeSvg(pct, null, pctTxt(pct))}<p class="text-center text-[11px] ${g.m}">${entero(t.esp)} esperados</p></div>
+      <div class="min-w-0 flex-1 space-y-2">
+        <div class="rounded-md border border-l-4 bg-white px-3 py-2 ${BORDE[banda(pct)]}"><p class="text-[10px] font-semibold tracking-wide ${g.t} uppercase">Pedidos realizados</p><p class="cifra text-xl leading-tight font-extrabold text-gray-900">${entero(t.nped)}</p>
+          <p class="cifra text-[10px] ${g.s}" title="Unidades de los pedidos web pagados y facturados, sin la línea de flete. PPT = venta de pedidos web ÷ unidades">${entero(t.unid)} unidades</p>
+          <p class="cifra text-[10px] ${g.s}">+ ${t.sinPagar} confirmados sin pagar</p></div>
+        <div class="rounded-md border border-l-4 bg-white px-3 py-2 ${t.esp - t.nped > 0 ? 'border-l-red-500' : 'border-l-emerald-600'}"><p class="text-[10px] font-semibold tracking-wide ${g.t} uppercase">Pedidos por realizar</p><p class="cifra text-xl leading-tight font-extrabold ${t.esp - t.nped > 0 ? 'text-red-600' : 'text-emerald-700'}">${entero(Math.max(0, t.esp - t.nped))}</p></div>
+      </div></div></div>`;
+}
+function tarjetaTc(ctx) {
+  const t = ctx === 'tienda' ? { tc: 27.7, ok: true, conv: 3039, pag: 860, nota: 'Sobre 10 de 11 días con archivo cargado' } : { tc: 22.5, ok: false, conv: 347, pag: 78, nota: 'Sobre 10 de 11 días con archivo cargado' };
+  return `<div class="flex flex-col rounded-2xl border bg-white p-4 shadow-sm"><h2 class="text-[11px] font-bold tracking-wide text-gray-500 uppercase">Tasa de conversión</h2><div class="mt-2 flex flex-1 flex-col items-center justify-center rounded-md py-3 ${t.ok ? 'bg-emerald-50' : 'bg-gray-50'}"><p class="cifra text-4xl font-extrabold ${t.ok ? 'text-emerald-700' : 'text-gray-700'}">${pct1(t.tc)}</p><p class="mt-1 px-3 text-center text-[11px] font-semibold text-gray-500">${t.nota}</p><p class="mt-1 text-[11px] text-gray-400">Meta: 23%</p></div><div class="mt-2 space-y-1.5 border-t pt-2 text-sm"><div class="flex justify-between"><span class="text-gray-500">Tráfico atendido</span><span class="cifra font-semibold">${entero(t.conv)}</span></div><div class="flex justify-between"><span class="text-gray-500">Carritos pagados</span><span class="cifra font-semibold">${entero(t.pag)}</span></div></div></div>`;
+}
+const tarjetasSinCambios = (ctx = 'tienda') => tarjetaPedidos(ctx) + tarjetaTc(ctx);
+
+// ═══ PANTALLA A · Gestión de Ventas: tarjetas + Consolidado ═══
+function pantallaTienda(tarjeta) {
+  const pend = pendTienda();
+  const meta = tarjeta === 'cumplida' ? 360000000 : META_TIENDA;
+  return `
+  <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div><p class="text-xs text-gray-500">Venta asistida › Gestión de Ventas</p><h1 class="text-2xl font-bold text-gray-900">Gestión de Ventas</h1></div>
+    <div class="flex items-center gap-2 text-xs"><span class="rounded-lg border bg-white px-3 py-1.5 font-medium text-gray-700">STIRPE</span><span class="rounded-lg border bg-white px-3 py-1.5 font-medium text-gray-700">Quincena · 1 – 15 sep 2026</span></div>
+  </div>
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-3">${tarjetaCumplimiento({ meta, recaudada: RECAUDADA_TIENDA, pendiente: pend, ambito: 'tienda', paleta: 'gray' })}${tarjetasSinCambios()}</div>
+  ${consolidadoHtml(meta, pend)}
+  <p class="mt-3 px-1 text-[11px] text-gray-400">GW-157: el fragmento «+ $ X por recaudar…» de la tarjeta y del Consolidado es un botón que abre el modal con esos carritos. La tabla de asesores gana la columna «Unidades» (pantalla D).</p>`;
+}
+function consolidadoHtml(meta, pend) {
+  return `
+  <section class="mt-4 rounded-2xl border bg-white p-4 shadow-sm">
+    <h2 class="mb-3 text-[11px] font-bold tracking-wide text-gray-500 uppercase">Consolidado</h2>
+    <div class="overflow-x-auto"><table class="w-full min-w-[900px] text-sm">
+      <thead><tr class="text-[11px] tracking-wide text-gray-400 uppercase"><th class="px-3 py-2 text-right font-medium">Meta</th><th class="px-3 py-2 text-right font-medium">Venta recaudada</th><th class="px-3 py-2 text-right font-medium">Tráfico</th><th class="px-3 py-2 text-right font-medium">Pedidos esperados</th><th class="px-3 py-2 text-right font-medium">Pedidos</th><th class="tip px-3 py-2 text-right font-medium" data-tip="Unidades de los pedidos web pagados y facturados, sin la línea de flete. PPT = venta de pedidos web ÷ unidades"><span>Unidades</span></th><th class="px-3 py-2 text-center font-medium">% Cump. neto</th><th class="px-3 py-2 text-right font-medium">UPT</th><th class="px-3 py-2 text-right font-medium">PPT</th><th class="px-3 py-2 text-right font-medium">VPT</th></tr></thead>
+      <tbody><tr class="border-t">
+        <td class="cifra px-3 py-2.5 text-right font-semibold">${pesos(meta)}</td>
+        <td class="px-3 py-2.5 text-right font-semibold"><div class="cifra">${pesos(RECAUDADA_TIENDA)}</div>${confirmadaBajoRecaudada(pend, 'tienda') ? `<div class="cifra text-[10px] font-normal whitespace-nowrap text-gray-400">${confirmadaBajoRecaudada(pend, 'tienda')}</div>` : ''}</td>
+        <td class="cifra px-3 py-2.5 text-right font-semibold">3.039</td><td class="cifra px-3 py-2.5 text-right font-semibold">${entero(TIENDA.esperados)}</td><td class="px-3 py-2.5 text-right font-semibold"><div class="cifra">${entero(TIENDA.nped)}</div><div class="text-[10px] font-normal whitespace-nowrap text-gray-400">+ 30 confirmados sin pagar</div></td><td class="cifra px-3 py-2.5 text-right font-semibold">${entero(TIENDA.unid)}</td>
+        <td class="px-3 py-2.5 text-center"><span class="rounded-full px-2.5 py-1 text-xs font-bold ${RECAUDADA_TIENDA / meta >= 0.95 ? 'bg-emerald-100 text-emerald-900' : 'bg-amber-100 text-amber-900'}">${pctTxt(RECAUDADA_TIENDA / meta * 100)}</span><div class="text-[10px] font-normal text-gray-400">(${pctTxt((RECAUDADA_TIENDA + pend) / meta * 100)})</div></td>
+        <td class="cifra px-3 py-2.5 text-right font-semibold">${dec2(TIENDA.upt)}</td><td class="cifra px-3 py-2.5 text-right font-semibold">${pesos(TIENDA.ppt)}</td><td class="cifra px-3 py-2.5 text-right font-semibold">${pesos(TIENDA.vpt)}</td>
+      </tr></tbody></table></div>
+  </section>`;
+}
+
+// ═══ PANTALLA B · Modal del asesor del coordinador (ModalDetalleAsesorVivo, Dialog de reka) ═══
+function pantallaAsesor() {
+  const fondo = pantallaTienda('faltante');
+  const modal = `
+  <div class="fixed inset-0 z-40 flex items-start justify-center bg-black/60 p-3 pt-24 sm:items-center sm:p-6">
+    <section role="dialog" aria-modal="true" class="relative flex max-h-[88vh] w-full max-w-[min(96vw,1400px)] flex-col gap-4 overflow-hidden rounded-lg border bg-white p-5 shadow-lg sm:p-6">
+      <button class="absolute right-4 top-4 rounded-sm text-gray-400 opacity-70 hover:opacity-100" aria-label="Cerrar" data-cerrar-asesor>${ICO.x}</button>
+      <div class="flex flex-wrap items-start gap-3 pr-6">
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-500 text-xs font-bold text-white">FP</span>
+        <div class="min-w-0"><h2 class="text-left text-base font-bold capitalize">fabián andrés prada rueda</h2><p class="text-left text-xs text-gray-500">código 8969900 · 1 sep – 15 sep</p></div>
+      </div>
+      <div class="min-h-0 flex-1 overflow-auto">
+        <div class="mb-4 inline-flex rounded-lg bg-gray-100 p-1 text-sm"><span class="rounded-md bg-white px-3 py-1.5 font-medium text-gray-900 shadow-sm">Dashboard</span><span class="px-3 py-1.5 text-gray-500">Detalle diario</span></div>
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">${tarjetaCumplimiento({ meta: FAB.meta, recaudada: FAB.recaudada, pendiente: pendFab(), ambito: 'asesor', paleta: 'slate' })}${tarjetasSinCambios('asesor')}</div>
+        <section class="mt-4 rounded-2xl border bg-white p-5 shadow-sm"><div class="mb-2 flex items-center justify-between gap-2"><h2 class="text-sm font-semibold text-gray-700">Comisión proyectada de la quincena</h2></div><div class="skeleton h-24 rounded-xl"></div><p class="mt-2 text-[11px] text-gray-400">Panel de comisión sin cambios (no se dibuja).</p></section>
+      </div>
+    </section>
+  </div>`;
+  return { fondo, modal };
+}
+
+// ═══ PANTALLA C · Mis Ventas del asesor (Index.vue + TableroAsesor.vue) ═══
+function pantallaMisVentas() {
+  return `
+  <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div><p class="text-xs text-gray-500">Venta asistida › Mis Ventas</p><h1 class="text-2xl font-bold text-gray-900">Mis Ventas</h1><p class="text-xs text-gray-500">Fabián Andrés Prada Rueda · código 8969900</p></div>
+    <div class="flex items-center gap-2 text-xs"><span class="rounded-lg border bg-white px-3 py-1.5 font-medium text-gray-700">Quincena · 1 – 15 sep 2026</span></div>
+  </div>
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">${tarjetaCumplimiento({ meta: FAB.meta, recaudada: FAB.recaudada, pendiente: pendFab(), ambito: 'asesor', paleta: 'slate' })}${tarjetasSinCambios('asesor')}</div>
+  <section class="mt-4 rounded-2xl border bg-white p-5 shadow-sm"><h2 class="text-sm font-semibold text-gray-700">Detalle diario</h2><div class="skeleton mt-3 h-40 rounded-xl"></div><p class="mt-2 text-[11px] text-gray-400">Tabla diaria de Mis Ventas sin cambios (no se dibuja).</p></section>
+  <p class="mt-3 px-1 text-[11px] text-gray-400">GW-157: en Mis Ventas el asesor abre sus propios carritos por recaudar desde «+ $ X confirmada por recaudar» y puede archivarlos (con motivo), igual que en su detalle del día. No desarchiva.</p>`;
+}
+
+// ═══ PANTALLA D · Tabla de asesores (TablaAsesoresCumplimiento.vue) con la columna «Unidades» (D7) ═══
+function pantallaTabla() {
+  const TIP = {
+    nped: 'Pedidos contados en Pedidos web y Facturado (pagados y facturados).',
+    unid: 'Unidades de los pedidos web pagados y facturados, sin la línea de flete. PPT = venta de pedidos web ÷ unidades',
+    vpt: 'Venta por transacción: (Pedidos web + Facturado) ÷ Nro pedidos.', itemsUpt: 'Unidades que faltan para la meta de UPT del mes.',
+    upt: 'Unidades por transacción: unidades ÷ Nro pedidos.', ppt: 'Precio por unidad: (Pedidos web + Facturado) ÷ unidades.' };
+  const th = (t, tip, extra = '') => `<th class="tip ${extra} px-3 py-2 text-right font-medium" data-tip="${tip}"><span>${t}</span></th>`;
+  const pill = p => p === null ? '<span class="text-gray-300">—</span>' : `<span class="rounded-full px-2.5 py-1 text-xs font-bold ${FONDO[banda(p)]}">${pctTxt(p)}</span>`;
+  const filas = FILAS.slice().sort((a,b) => b.total - a.total);
+  const T = { meta: TIENDA.meta, total: filas.reduce((s,x) => s + x.total, 0), nped: TIENDA.nped, unid: TIENDA.unid, itemsUpt: filas.reduce((s,x) => s + (x.itemsUpt ?? 0), 0) };
+  return `
+  <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div><p class="text-xs text-gray-500">Venta asistida › Gestión de Ventas</p><h1 class="text-2xl font-bold text-gray-900">Gestión de Ventas</h1></div>
+    <div class="flex items-center gap-2 text-xs"><span class="rounded-lg border bg-white px-3 py-1.5 font-medium text-gray-700">STIRPE</span><span class="rounded-lg border bg-white px-3 py-1.5 font-medium text-gray-700">Quincena · 1 – 15 sep 2026</span></div>
+  </div>
+  <section class="rounded-2xl border bg-white p-4 shadow-sm">
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 class="text-[11px] font-bold tracking-wide text-gray-500 uppercase">Cumplimiento por asesor</h2>
+      <span class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700">Columnas · 11 de 21</span></div>
+    <p class="mb-3 text-[11px] text-gray-400">Ocultas con el selector para esta captura: Pedidos web, Facturado, Devoluciones, Tienda física, Por cumplir 80/90/100 %, Bono acumulado, Ped. para TC, Ped. que faltan, Comisión proy. «Comisión total proy.» (fija, a la derecha) no se dibuja: sin cambios.</p>
+    <div class="overflow-x-auto"><table class="w-full min-w-[1100px] text-sm">
+      <thead><tr class="text-[11px] tracking-wide text-gray-400 uppercase">
+        <th class="col-fija left-0 px-3 py-2 text-left font-medium">Nombre</th><th class="px-3 py-2 text-right font-medium">Meta</th><th class="px-3 py-2 text-right font-medium">Total venta</th><th class="px-3 py-2 text-center font-medium">Cumplimiento</th>
+        ${th('Nro pedidos', TIP.nped)}${th('Unidades', TIP.unid, 'bg-emerald-50/60')}${th('VPT', TIP.vpt)}${th('Ítems UPT', TIP.itemsUpt)}${th('UPT', TIP.upt)}${th('PPT', TIP.ppt, 'tip-fin')}
+      </tr></thead>
+      <tbody>${filas.map(x => `<tr class="border-t hover:bg-gray-50/70">
+        <td class="col-fija left-0 px-3 py-2.5 font-medium capitalize text-gray-800">${x.n.toLowerCase()}</td>
+        <td class="cifra px-3 py-2.5 text-right">${x.meta === null ? '<span class="text-gray-300">—</span>' : pesos(x.meta)}</td>
+        <td class="cifra px-3 py-2.5 text-right font-semibold ${x.total < 0 ? 'text-red-600' : ''}">${pesos(x.total)}</td>
+        <td class="px-3 py-2.5 text-center">${pill(x.cump)}</td>
+        <td class="cifra px-3 py-2.5 text-right">${x.nped ? entero(x.nped) : '<span class="text-gray-300">—</span>'}</td>
+        <td class="cifra px-3 py-2.5 text-right bg-emerald-50/40">${x.unid ? entero(x.unid) : '<span class="text-gray-300">—</span>'}</td>
+        <td class="cifra px-3 py-2.5 text-right">${x.vpt === null ? '<span class="text-gray-300">—</span>' : pesos(x.vpt)}</td>
+        <td class="cifra px-3 py-2.5 text-right">${x.itemsUpt === null ? '<span class="text-gray-300">—</span>' : entero(x.itemsUpt)}</td>
+        <td class="cifra px-3 py-2.5 text-right">${dec2(x.upt)}</td>
+        <td class="cifra px-3 py-2.5 text-right">${x.ppt === null ? '<span class="text-gray-300">—</span>' : pesos(x.ppt)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr class="border-t-2 border-gray-200 bg-gray-50 font-semibold">
+        <td class="col-fija left-0 bg-gray-50 px-3 py-2.5 text-gray-800">Total</td><td class="cifra px-3 py-2.5 text-right">${pesos(T.meta)}</td><td class="cifra px-3 py-2.5 text-right">${pesos(T.total)}</td><td class="px-3 py-2.5 text-center">${pill(T.total / T.meta * 100)}</td>
+        <td class="cifra px-3 py-2.5 text-right">${entero(T.nped)}</td><td class="cifra px-3 py-2.5 text-right bg-emerald-50/60">${entero(T.unid)}</td><td class="cifra px-3 py-2.5 text-right">${pesos(TIENDA.vpt)}</td><td class="cifra px-3 py-2.5 text-right">${entero(T.itemsUpt)}</td><td class="cifra px-3 py-2.5 text-right">${dec2(TIENDA.upt)}</td><td class="cifra px-3 py-2.5 text-right">${pesos(TIENDA.ppt)}</td>
+      </tr></tfoot>
+    </table></div>
+    <p class="mt-3 text-[11px] text-gray-400">D7: «Unidades» entre «Nro pedidos» y «VPT», ocultable como las demás, con total en el pie. El sombreado verde solo señala la columna nueva en el mockup. Con estas tres columnas la coordinadora verifica UPT = unidades ÷ pedidos y PPT = (Pedidos web + Facturado) ÷ unidades.</p>
+  </section>
+  ${consolidadoHtml(META_TIENDA, pendTienda())}`;
+}
+
+// ═══ MODAL «Carritos por recaudar» (ModalCarritosPorRecaudar.vue · primitivas de reka, clases de ModalDia) ═══
+const PAGO_CHIP = 'bg-slate-400 text-white';
+function filaHtml(f, puedeArchivar) {
+  return `
+  <tr class="align-top hover:bg-slate-50/70" data-fila="${f.id}">
+    <td class="whitespace-nowrap px-4 py-3"><a class="text-xs font-medium text-blue-600 hover:underline" title="Abrir para editar">#${f.id}</a><p class="mt-0.5 text-[11px] text-slate-400">${f.fecha}</p></td>
+    <td class="max-w-56 px-4 py-3 text-xs"><p class="font-medium text-slate-800">${f.cliente}</p><p class="mt-0.5 text-[11px] text-slate-400">${f.cel} · ${f.ciudad}</p></td>
+    <td class="whitespace-nowrap px-4 py-3"><span class="rounded px-2 py-1 text-[11px] font-semibold ${f.origen === 'WhatsApp' ? 'bg-slate-100 text-slate-600' : 'bg-slate-900 text-white'}">${f.origen}</span></td>
+    <td class="px-4 py-3 text-xs"><p class="text-slate-700">${f.msj}</p>${f.cobro ? `<p class="mt-0.5 text-[11px] text-slate-400">${f.cobro}</p>` : ''}</td>
+    <td class="min-w-40 px-4 py-3 text-xs"><p class="text-slate-400">Pendiente</p></td>
+    <td class="whitespace-nowrap px-4 py-3 text-center"><span class="rounded px-2 py-1 text-[11px] font-bold ${PAGO_CHIP}">Pendiente</span></td>
+    <td class="whitespace-nowrap px-4 py-3 text-xs">${f.pedido ? `<p class="font-medium text-slate-700">#${f.pedido}</p><p class="mt-0.5 text-[11px] text-slate-400">Pendiente</p>` : '<span class="text-slate-300">—</span>'}</td>
+    <td class="whitespace-nowrap px-4 py-3 text-xs"><span class="text-slate-300">—</span></td>
+    <td class="px-4 py-3 text-right text-xs tabular-nums text-slate-700">${f.items}</td>
+    <td class="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold tabular-nums text-slate-800">${pesos(f.total)}</td>
+    <td class="whitespace-nowrap px-4 py-3 text-right"><div class="flex justify-end gap-1.5">
+      <a class="inline-flex items-center rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50" title="Abrir para editar" aria-label="Abrir para editar">${ICO.link}</a>
+      ${puedeArchivar ? `<button type="button" title="Archivar" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50" data-archivar="${f.id}">${ICO.archive} Archivar</button>` : ''}
+    </div></td>
+  </tr>`;
+}
+function tablaHtml(filas, puedeArchivar) {
+  return `
+  <div class="overflow-x-auto"><table class="min-w-[1320px] w-full text-left text-sm">
+    <thead class="border-b bg-slate-50 text-[11px] font-semibold tracking-wide text-slate-500 uppercase"><tr>
+      <th class="px-4 py-3">Carrito ID</th><th class="px-4 py-3">Cliente</th><th class="px-4 py-3">Origen</th><th class="px-4 py-3">Mensajería</th><th class="px-4 py-3">Logística</th><th class="px-4 py-3 text-center">Pago</th><th class="px-4 py-3">Pedido</th><th class="px-4 py-3">Factura</th><th class="px-4 py-3 text-right">Ítems</th><th class="px-4 py-3 text-right">Total</th><th class="px-4 py-3 text-right">Acciones</th>
+    </tr></thead>
+    <tbody class="divide-y divide-slate-100">${filas.map(f => filaHtml(f, puedeArchivar)).join('')}</tbody>
+  </table></div>`;
+}
+function cuerpoModal(estado, ambito, puedeArchivar) {
+  if (estado === 'cargando') return `<div class="space-y-3" aria-label="Cargando carritos por recaudar">${[1,2,3].map(() => '<div class="skeleton h-16 rounded-xl"></div>').join('')}</div>`;
+  if (estado === 'error') return `<div class="rounded-xl border border-red-200 bg-red-50 p-8 text-center text-sm text-red-800" role="alert"><p>No pudimos cargar los carritos por recaudar.</p><button type="button" class="mt-3 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700">Reintentar</button></div>`;
+  const b = bloque(ambito === 'tienda' ? null : FAB.cod);
+  if (estado === 'vacio' || b.cantidad === 0) return `<div class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center text-sm text-slate-500">No hay carritos por recaudar en este período.</div>`;
+  const factor = estado === 'siniva' ? 1 / 1.19 : 1;
+  const aviso = '';
+  if (ambito !== 'tienda') return aviso + `<section class="overflow-hidden rounded-2xl border bg-white shadow-sm">${tablaHtml(b.grupos[0].filas, puedeArchivar)}</section>`;
+  return aviso + b.grupos.map(g => `
+  <section class="overflow-hidden rounded-2xl border bg-white shadow-sm" data-grupo="${g.cod}">
+    <header class="flex flex-wrap items-center gap-3 border-b bg-slate-50/70 px-4 py-2.5">
+      <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${AVATAR[g.cod] || 'bg-slate-500'}">${iniciales(g.nombre)}</span>
+      <div class="min-w-0"><p class="text-sm font-semibold capitalize text-slate-900">${g.nombre.toLowerCase()}</p><p class="text-[11px] text-slate-500">código ${g.cod}</p></div>
+      <p class="cifra ml-auto text-xs text-slate-600">${g.filas.length} ${g.filas.length === 1 ? 'carrito' : 'carritos'} · <span class="text-sm font-bold text-slate-900">${pesos(subtotal(g) * factor)}</span></p>
+    </header>
+    ${tablaHtml(g.filas, puedeArchivar)}
+  </section>`).join('<div class="h-3"></div>');
+}
+function modalHtml(estado, ambito, puedeArchivar, encima) {
+  const b = bloque(ambito === 'tienda' ? null : FAB.cod);
+  const sub = ambito === 'tienda' ? 'STIRPE · 1 – 15 sep 2026' : `<span class="capitalize">${FAB.nombre.toLowerCase()}</span> · código ${FAB.cod} · 1 – 15 sep 2026`;
+  // C1: en un mes con base «sin IVA» la cifra de la tarjeta (y la cabecera y los subtotales del modal) es el bruto ÷ 1,19; las filas conservan el bruto.
+  const factor = estado === 'siniva' ? 1 / 1.19 : 1;
+  const cifra = estado === 'cargando' ? '<div class="skeleton h-7 w-40 rounded"></div>' : estado === 'error' ? '<p class="cifra text-xl font-extrabold text-slate-300">—</p>' : `<p class="cifra text-xl leading-tight font-extrabold text-slate-900">${pesos(estado === 'vacio' ? 0 : b.total * factor)}</p><p class="cifra text-[11px] text-slate-500">${estado === 'vacio' ? 0 : b.cantidad} carritos confirmados sin pagar</p>`;
+  const notaBase = estado === 'siniva' ? `<p class="mt-1 text-[11px] text-slate-500">Total y subtotales en la base del mes (<span class="font-semibold">sin IVA</span>); cada fila muestra el valor del carrito.</p>` : '';
+  return `
+  <div class="fixed inset-0 z-${encima ? '50' : '40'} flex items-start justify-center bg-slate-950/40 p-4 pt-20 sm:items-center sm:pt-20" data-backdrop-recaudar>
+    <section role="dialog" aria-modal="true" aria-labelledby="titulo-recaudar" class="flex max-h-[calc(90vh-3rem)] w-full max-w-[min(96vw,1500px)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <header class="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+        <div class="min-w-0">
+          <h2 id="titulo-recaudar" class="text-base font-bold text-slate-900">Carritos por recaudar</h2>
+          <p class="mt-0.5 text-xs text-slate-500">${sub}</p>
+          <p class="mt-1 text-[11px] text-slate-400">Confirmados que el cliente aún no paga. Al archivar uno, sale de esta lista y de la cifra de la tarjeta.</p>${notaBase}
+        </div>
+        <div class="flex items-start gap-4">
+          <div class="text-right">${cifra}</div>
+          <button type="button" aria-label="Cerrar" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600" data-cerrar-recaudar>${ICO.x}</button>
+        </div>
+      </header>
+      <div class="min-h-0 overflow-auto p-4" id="cuerpo-recaudar">${cuerpoModal(estado, ambito, puedeArchivar)}</div>
+    </section>
+  </div>`;
+}
+
+// ═══ Modal de motivo (ModalArchivar.vue, GW-143) — se abre encima del modal de carritos ═══
+const MOTIVOS = { 1:'Desiste de la compra', 2:'No responde', 3:'No pagó a tiempo', 4:'Carrito repetido', 5:'Pruebas de desarrollo' };
+function modalArchivarHtml(f, asesorNombre) {
+  return `
+  <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" data-backdrop-archivar>
+    <div class="w-full max-w-md rounded-2xl bg-white shadow-xl">
+      <div class="border-b px-5 py-4"><h3 class="text-base font-bold text-gray-900">Archivar <span class="cifra">#${f.id}</span></h3><p class="mt-0.5 text-xs text-slate-500">Venta de <span class="font-medium capitalize text-slate-700">${asesorNombre.toLowerCase()}</span></p></div>
+      <div class="space-y-3 px-5 py-4">
+        <div class="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3"><div><p class="text-sm font-medium text-gray-800">${f.cliente}</p><p class="cifra text-[11px] text-gray-500">${f.fecha}</p></div><span class="cifra text-lg font-bold text-gray-900">${pesos(f.total)}</span></div>
+        <div><select id="arch-motivo" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:ring-1 focus:ring-gray-900 focus:outline-none"><option value="">Motivo…</option>${Object.entries(MOTIVOS).map(([k,v]) => `<option value="${k}">${v}</option>`).join('')}</select><p id="arch-error" class="mt-1.5 hidden text-xs font-medium text-rose-600">Elige un motivo.</p></div>
+        <input id="arch-nota" type="text" maxlength="255" class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:ring-1 focus:ring-gray-900 focus:outline-none" placeholder="Nota (opcional)">
+        <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">Sale de la venta y de la comisión. El link de pago del cliente seguirá activo: si paga, el carrito vuelve solo a sus ventas.</p>
+      </div>
+      <div class="flex justify-end gap-2 border-t px-5 py-3.5"><button type="button" class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50" data-cancelar-archivar>Cancelar</button><button type="button" class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800" data-confirmar-archivar="${f.id}">Archivar</button></div>
+    </div>
+  </div>`;
+}
+function toast(texto) { const t = document.createElement('div'); t.className = 'fixed bottom-5 right-5 z-[90] rounded-lg bg-gray-900 px-4 py-2.5 text-sm text-white shadow-lg'; t.textContent = texto; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+
+// ═══ Render ═══
+let filaEnArchivo = null;
+const $ = id => document.getElementById(id);
+function render() {
+  const pantalla = $('pantalla').value, modal = $('modal').value, tarjeta = $('tarjeta').value, permiso = $('permiso').value === 'si';
+  $('tarjeta-wrap').style.visibility = pantalla === 'tienda' ? '' : 'hidden';
+  $('permiso-wrap').style.visibility = (pantalla === 'misventas' || pantalla === 'tabla') ? 'hidden' : '';
+  document.getElementById('modal').parentElement.style.visibility = pantalla === 'tabla' ? 'hidden' : '';
+  let fondo = '', capas = '';
+  FACTOR_CIFRA = modal === 'siniva' ? 1 / 1.19 : 1;
+  if (pantalla === 'tienda') { fondo = pantallaTienda(tarjeta); if (modal !== 'cerrado') capas += modalHtml(modal, 'tienda', permiso, false); }
+  if (pantalla === 'asesor') { const p = pantallaAsesor(); fondo = p.fondo; capas += p.modal; if (modal !== 'cerrado') capas += modalHtml(modal, 'asesor', permiso, true); }
+  if (pantalla === 'misventas') { fondo = pantallaMisVentas(); if (modal !== 'cerrado') capas += modalHtml(modal, 'asesor', true, false); }
+  if (pantalla === 'tabla') { fondo = pantallaTabla(); }
+  if (filaEnArchivo) { const g = GRUPOS.find(g => g.filas.some(f => f.id === filaEnArchivo)); const f = g && g.filas.find(f => f.id === filaEnArchivo); if (f) capas += modalArchivarHtml(f, g.nombre); }
+  $('app').innerHTML = fondo; $('capas').innerHTML = capas;
+  document.body.style.overflow = capas ? 'hidden' : '';
+}
+['pantalla','modal','tarjeta','permiso'].forEach(id => $(id).addEventListener('change', render));
+$('reiniciar').addEventListener('click', () => { GRUPOS = JSON.parse(JSON.stringify(GRUPOS_BASE)); render(); });
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-abrir],[data-cerrar-recaudar],[data-cerrar-asesor],[data-archivar],[data-cancelar-archivar],[data-confirmar-archivar],[data-backdrop-recaudar],[data-backdrop-archivar]');
+  if (!t) return;
+  if (t.dataset.abrir !== undefined) { $('modal').value = 'normal'; render(); return; }
+  if (t.dataset.cerrarRecaudar !== undefined || (t.dataset.backdropRecaudar !== undefined && e.target === t)) { $('modal').value = 'cerrado'; render(); return; }
+  if (t.dataset.cerrarAsesor !== undefined) { $('pantalla').value = 'tienda'; $('modal').value = 'cerrado'; render(); return; }
+  if (t.dataset.archivar !== undefined) { filaEnArchivo = t.dataset.archivar; render(); return; }
+  if (t.dataset.cancelarArchivar !== undefined || (t.dataset.backdropArchivar !== undefined && e.target === t)) { filaEnArchivo = null; render(); return; }
+  if (t.dataset.confirmarArchivar !== undefined) {
+    if (!$('arch-motivo').value) { $('arch-error').classList.remove('hidden'); return; }
+    // D5: el servidor archiva; el front recarga el bloque y la cifra: la fila desaparece y la cifra baja el mismo aporte (en la base del mes).
+    GRUPOS.forEach(g => { g.filas = g.filas.filter(f => f.id !== filaEnArchivo); });
+    filaEnArchivo = null; render(); toast('Carrito archivado correctamente.'); return;
+  }
+});
+const qs = new URLSearchParams(location.search);
+['pantalla','modal','tarjeta','permiso'].forEach(id => { if (qs.get(id)) $(id).value = qs.get(id); });
+render();
+</script>
+</body>
+</html>
