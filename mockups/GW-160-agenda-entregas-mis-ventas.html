@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-160 · Mis Ventas: mensajería interna del día y calendario de entregas en modal, con la tienda en cada tarjeta</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  html, body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .skeleton { background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+  @keyframes sk { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+  .nota { border-left: 3px solid #6366f1; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900 antialiased">
+
+<!-- ══ Barra de control del mockup (no es parte de la UI) ══ -->
+<div class="sticky top-0 z-[80] border-b border-indigo-200 bg-indigo-50/95 px-4 py-2 backdrop-blur">
+  <div class="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+    <span class="font-bold text-indigo-900">GW-160 · mockup</span>
+    <label class="flex items-center gap-1.5"><span class="text-indigo-800">Pantalla:</span>
+      <select id="pantalla" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="misventas">A · Mis Ventas (asesor) — bloque al final del Dashboard + modal</option>
+        <option value="gestionventas">B · Gestión de Ventas (coordinación) — mismo bloque, con chip</option>
+        <option value="gestionentregas">C · Gestión de Entregas — vista Agenda, con chip y sus acciones</option>
+      </select></label>
+    <label class="flex items-center gap-1.5" id="bloque-wrap"><span class="text-indigo-800">Bloque:</span>
+      <select id="bloque" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="datos">Datos (18:00 · ahora)</option>
+        <option value="fuera">Fuera de horario · próximas de mañana</option>
+        <option value="cargando">Cargando</option>
+        <option value="error">Error</option>
+        <option value="vacio">Sin entregas</option>
+      </select></label>
+    <label class="flex items-center gap-1.5" id="modal-wrap"><span class="text-indigo-800">Modal:</span>
+      <select id="modal" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="cerrado">Cerrada</option>
+        <option value="datos">Abierta · datos</option>
+        <option value="cargando">Abierta · cargando</option>
+        <option value="error">Abierta · error</option>
+      </select></label>
+    <select id="chip" class="hidden"><option value="fila">fila</option></select>
+    <span class="ml-auto text-indigo-700">Hoy miércoles 16 sep 2026 · franjas y capacidades reales de <code>horarios_mensajeria</code>; ocupación por tienda y estado real del 14–17 sep; nombres ilustrativos</span>
+  </div>
+</div>
+
+<div id="app" class="mx-auto max-w-[1600px] px-4 py-5"></div>
+<div id="capas"></div>
+
+<script>
+// ═══════════════════════════ DATOS ═══════════════════════════
+const HOY = '2026-09-16';
+const TIENDAS = { 0: 'Stirpe', 1: 'Derek' };
+// Franjas reales (get.horarios_mensajeria, PROD 2026-09-16)
+const FRANJAS = [
+  { id: 2, ini: '10:00', fin: '11:00', cap: 2 }, { id: 3, ini: '11:00', fin: '12:00', cap: 3 },
+  { id: 4, ini: '12:00', fin: '13:00', cap: 4 }, { id: 5, ini: '13:00', fin: '14:00', cap: 3 },
+  { id: 6, ini: '14:00', fin: '15:00', cap: 4 }, { id: 7, ini: '15:00', fin: '16:00', cap: 4 },
+  { id: 8, ini: '16:00', fin: '17:00', cap: 4 }, { id: 9, ini: '17:00', fin: '18:00', cap: 4 },
+  { id: 12, ini: '18:00', fin: '19:00', cap: 4 },
+];
+// [fecha, franja, tienda, estado, n] — conteos reales de PROD (store_carrito + entregas), 14–17 sep
+const OCUPACION = [
+ ['2026-09-14',3,0,'entregada',2],['2026-09-14',3,1,'entregada',1],['2026-09-14',4,0,'entregada',3],['2026-09-14',5,0,'entregada',3],
+ ['2026-09-14',6,0,'entregada',3],['2026-09-14',6,0,'sin_asignar',2],['2026-09-14',6,1,'entregada',1],['2026-09-14',7,0,'entregada',3],
+ ['2026-09-14',7,0,'sin_asignar',2],['2026-09-14',7,1,'entregada',1],['2026-09-14',8,0,'entregada',3],['2026-09-14',8,1,'entregada',1],
+ ['2026-09-14',9,0,'entregada',3],['2026-09-14',9,0,'sin_asignar',1],['2026-09-14',9,1,'entregada',1],['2026-09-14',12,0,'entregada',1],
+ ['2026-09-14',12,1,'entregada',3],
+ ['2026-09-15',2,0,'entregada',2],['2026-09-15',3,0,'entregada',2],['2026-09-15',4,0,'entregada',3],['2026-09-15',5,0,'entregada',1],
+ ['2026-09-15',5,0,'sin_asignar',1],['2026-09-15',6,0,'entregada',2],['2026-09-15',6,1,'entregada',1],['2026-09-15',7,0,'entregada',3],
+ ['2026-09-15',7,1,'entregada',1],['2026-09-15',7,1,'sin_asignar',1],['2026-09-15',8,0,'entregada',3],['2026-09-15',8,0,'sin_asignar',1],
+ ['2026-09-15',8,1,'entregada',1],['2026-09-15',9,0,'entregada',4],['2026-09-15',12,0,'entregada',3],['2026-09-15',12,1,'entregada',1],
+ ['2026-09-16',2,0,'entregada',1],['2026-09-16',2,1,'entregada',1],['2026-09-16',3,0,'entregada',1],['2026-09-16',3,1,'entregada',1],
+ ['2026-09-16',4,0,'entregada',2],['2026-09-16',5,0,'entregada',3],['2026-09-16',6,0,'entregada',4],['2026-09-16',6,0,'sin_asignar',1],
+ ['2026-09-16',7,0,'entregada',3],['2026-09-16',7,1,'entregada',1],['2026-09-16',8,0,'entregada',4],['2026-09-16',9,0,'en_ruta',1],
+ ['2026-09-16',9,0,'entregada',2],['2026-09-16',9,1,'entregada',1],['2026-09-16',12,0,'entregada',1],['2026-09-16',12,0,'sin_asignar',1],
+ ['2026-09-16',12,1,'entregada',2],
+ ['2026-09-17',2,0,'sin_asignar',2],['2026-09-17',3,0,'sin_asignar',2],['2026-09-17',3,1,'recogida',1],['2026-09-17',4,0,'sin_asignar',2],
+ ['2026-09-17',4,1,'asignada',2],['2026-09-17',5,0,'asignada',1],['2026-09-17',5,1,'sin_asignar',1],['2026-09-17',6,0,'asignada',2],
+ ['2026-09-17',6,1,'sin_asignar',1],['2026-09-17',7,0,'sin_asignar',1],['2026-09-17',8,0,'sin_asignar',1],['2026-09-17',9,0,'asignada',2],
+ ['2026-09-18',4,0,'asignada',1],['2026-09-18',7,1,'sin_asignar',1],
+];
+const NOMBRES = ['beatriz adriana gómez','silvia patricia rueda','yenny paola castellanos','andrés mauricio rojas','claudia patricia barajas','jorge iván sarmiento','leidy johana ariza','maría fernanda ortiz','diego fernando quintero','sandra yaneth villamizar','carlos alberto niño','paola andrea mantilla','luz dary pabón','edwin alexander cáceres','martha isabel ruiz','óscar javier tarazona','nataly andrea suárez','gloria esperanza rincón','camilo andrés pérez','ana milena rodríguez','yolanda patricia meneses','wilson hernando ardila','ingrid carolina ramírez','ricardo antonio lozano','diana carolina flórez','julián david hernández','sonia esperanza gómez','fabio nelson sepúlveda','yadira mercedes cáceres','héctor fabio amaya'];
+const BARRIOS = ['Cabecera del Llano','Sotomayor','Cañaveral','Provenza','La Aurora','Lagos del Cacique','Real de Minas','San Alonso','Mutis','El Prado','Terrazas','Álamos'];
+const MENSAJEROS = ['Jhon Fredy','Luis Carlos','Edinson'];
+let seq = 725700;
+const ENTREGAS = [];
+OCUPACION.forEach(([f, h, t, est, n], i) => {
+  for (let k = 0; k < n; k++) {
+    const idx = (seq * 7 + k) % NOMBRES.length;
+    ENTREGAS.push({ fecha: f, franja: h, tienda_id: t, tienda: TIENDAS[t], estado: est, carrito_id: seq++,
+      cliente: NOMBRES[idx], barrio: BARRIOS[(seq + i) % BARRIOS.length],
+      mensajero: est === 'sin_asignar' ? null : MENSAJEROS[(seq + k) % MENSAJEROS.length] });
+  }
+});
+// Las dos tarjetas de la captura (Gestión de Ventas, 18:00 · ahora)
+const franja18 = ENTREGAS.filter(e => e.fecha === HOY && e.franja === 12);
+franja18[0].cliente = 'beatriz adriana gómez'; franja18[0].carrito_id = 725790;
+if (franja18[2]) { franja18[2].cliente = 'silvia patricia rueda'; franja18[2].carrito_id = 725708; }
+
+// ═══════════════════════════ ESTILOS REALES ═══════════════════════════
+// Bloque (MensajeriaInterna.vue · ESTILO_ENTREGA) — 'sin_asignar' no llega al bloque (join interno con entregas)
+const ESTILO_BLOQUE = {
+  atrasado: { label: 'Atrasada', tarjeta: 'border-red-200 bg-red-50 border-l-4 border-l-red-500', texto: 'text-red-700' },
+  en_ruta: { label: 'En ruta', tarjeta: 'border-blue-200 bg-blue-50 border-l-4 border-l-blue-500', texto: 'text-blue-700' },
+  recogida: { label: 'Por salir', tarjeta: 'border-amber-200 bg-amber-50 border-l-4 border-l-amber-500', texto: 'text-amber-700' },
+  asignada: { label: 'Programada', tarjeta: 'border-emerald-100 bg-emerald-50 border-l-4 border-l-emerald-600', texto: 'text-emerald-700' },
+  entregada: { label: 'Entregada', tarjeta: 'border-gray-200 bg-gray-50 border-l-4 border-l-gray-400', texto: 'text-gray-600' },
+};
+// Agenda (constants.ts · agendaEstadoConfig)
+const ESTILO_AGENDA = {
+  sin_asignar: { label: 'Sin asignar', card: 'bg-gray-100 border-gray-300', accent: '#9ca3af' },
+  asignada: { label: 'Asignada', card: 'bg-[#E1F5FE] border-[#B3E5FC]', accent: '#0288D1' },
+  recogida: { label: 'Recogida', card: 'bg-amber-100 border-amber-200', accent: '#D97706' },
+  en_ruta: { label: 'En ruta', card: 'bg-[#F3E5F5] border-[#E1BEE7]', accent: '#7B1FA2' },
+  entregada: { label: 'Entregada', card: 'bg-[#E6F4EA] border-[#A5D6A7]', accent: '#1E7E34' },
+  devuelta: { label: 'Devuelta', card: 'bg-[#FEEBEB] border-[#F5C2C2]', accent: '#C53030' },
+};
+
+// ═══════════════════════════ ÍCONOS (lucide inline) ═══════════════════════════
+const I = {
+  truck: '<svg class="h-4 w-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>',
+  rotate: (c='h-3.5 w-3.5') => `<svg class="${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>`,
+  cal: '<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>',
+  store: '<svg class="h-2.5 w-2.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/></svg>',
+  pin: '<svg width="11" height="11" class="shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>',
+  bike: '<svg width="11" height="11" class="shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>',
+  left: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
+  right: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>',
+  x: '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  alert: (s=18) => `<svg width="${s}" height="${s}" class="shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`,
+  userplus: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>',
+  reasignar: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>',
+};
+
+// ═══════════════════════════ ESTADO DEL MOCKUP ═══════════════════════════
+const st = { pantalla: 'misventas', bloque: 'datos', modal: 'cerrado', chip: 'fila', centro: HOY, ventana: 'movil', expandidas: new Set() };
+const $ = id => document.getElementById(id);
+['pantalla','bloque','modal','chip'].forEach(k => {
+  const p = new URLSearchParams(location.search).get(k);
+  if (p) { st[k] = p; $(k).value = p; }
+  $(k).addEventListener('change', e => { st[k] = e.target.value; render(); });
+});
+
+// ═══════════════════════════ PIEZAS ═══════════════════════════
+// Chip de tienda: sin ícono, color de marca por tienda (D11). Stirpe negro, Derek aguamarina; el resto gris neutro.
+const COLOR_TIENDA = {
+  Stirpe: 'bg-gray-900 text-white border-gray-900',
+  Derek: 'bg-teal-300 text-teal-950 border-teal-300',
+};
+const chip = t => `<span class="inline-flex max-w-full shrink-0 items-center rounded border px-1.5 py-px text-[10px] font-semibold leading-4 ${COLOR_TIENDA[t] ?? 'bg-white/80 text-gray-600 border-gray-200'}" title="Tienda ${t}"><span class="truncate">${t}</span></span>`;
+// Nombre del cliente en formato «Yenny Paola» (D12): la BD lo guarda en minúsculas o mayúsculas sostenidas.
+const nombrePropio = n => n.toLocaleLowerCase('es-CO').split(/\s+/).filter(Boolean).map(w => w.charAt(0).toLocaleUpperCase('es-CO') + w.slice(1)).join(' ');
+
+const DIAS_L = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const DIAS = ['dom','lun','mar','mié','jue','vie','sáb'];
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const pf = iso => new Date(iso + 'T12:00:00');
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const corto = d => `${DIAS[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`;
+
+function tarjetaBloque(e) {
+  const est = ESTILO_BLOQUE[e.estado] ?? ESTILO_BLOQUE.entregada;
+  const filaSup = st.chip === 'fila'
+    ? `<div class="flex items-center justify-between gap-1.5"><div class="text-[9px] font-bold tracking-wider uppercase ${est.texto}">${est.label}</div>${chip(e.tienda)}</div>`
+    : `<div class="text-[9px] font-bold tracking-wider uppercase ${est.texto}">${est.label}</div>`;
+  return `<div class="rounded-md border px-2.5 py-2 ${est.tarjeta}">
+    ${filaSup}
+    <p class="mt-0.5 truncate text-[13px] font-medium text-gray-800">${nombrePropio(e.cliente.split(' ').slice(0,2).join(' '))}</p>
+    ${st.chip === 'nombre' ? `<div class="mt-0.5 mb-0.5">${chip(e.tienda)}</div>` : ''}
+    <p class="text-[11px] tabular-nums text-gray-500">Carrito #${e.carrito_id}</p>
+  </div>`;
+}
+
+function bloque(modo) {
+  // modo: 'misventas' (botón abre modal) | 'gestionventas' (enlace al módulo, sin cambios)
+  const d = new Date(HOY + 'T18:05:00');
+  const hoyTexto = `${DIAS_L[d.getDay()]} ${d.getDate()} ${MESES[d.getMonth()]}`;
+  const fuera = st.bloque === 'fuera';
+  let entregas = ENTREGAS.filter(e => e.fecha === HOY && (e.franja === 9 || e.franja === 12) && e.estado !== 'sin_asignar');
+  if (fuera) entregas = ENTREGAS.filter(e => e.fecha === '2026-09-17' && e.estado !== 'sin_asignar');
+  const porEntregar = ENTREGAS.filter(e => e.fecha === HOY && !['entregada','sin_asignar'].includes(e.estado)).length;
+  const accion = modo === 'misventas'
+    ? `<button type="button" data-abrir-modal class="inline-flex h-[26px] items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-medium text-emerald-700 hover:bg-gray-50">${I.cal} Ver calendario de entregas</button>`
+    : `<a href="#" class="text-xs font-medium text-emerald-700 hover:underline">Ir a Gestión de Entregas</a>`;
+  const header = `<div class="flex flex-wrap items-center gap-2 border-b bg-gray-50 px-4 py-2.5">
+      ${I.truck}
+      <h2 class="text-[13px] font-bold tracking-wide text-gray-500 uppercase">Mensajería interna · hoy ${hoyTexto}</h2>
+      ${['datos','fuera','vacio'].includes(st.bloque) ? `<span class="ml-2 text-[11px] text-gray-500"><span class="font-semibold text-gray-700">${st.bloque==='vacio'?0:porEntregar}</span> por entregar</span>` : ''}
+      ${modo === 'misventas' && st.bloque !== 'cargando' && st.bloque !== 'error' ? `<span class="text-[11px] text-gray-400">· Stirpe y Derek</span>` : ''}
+      <div class="ml-auto flex items-center gap-2">
+        <button type="button" class="inline-flex h-[26px] w-[26px] items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-900 ${st.bloque==='cargando'?'opacity-60':''}" title="Actualizar entregas">${I.rotate(st.bloque==='cargando'?'h-3.5 w-3.5 animate-spin':'h-3.5 w-3.5')}</button>
+        ${accion}
+      </div>
+    </div>`;
+  let cuerpo = '';
+  if (st.bloque === 'cargando') {
+    cuerpo = `<div class="flex gap-3 overflow-x-auto p-4">${Array.from({length:6}).map(()=>`<div class="w-44 shrink-0"><div class="skeleton mb-2 h-3 w-16 rounded"></div><div class="skeleton h-16 rounded-md"></div></div>`).join('')}</div>`;
+  } else if (st.bloque === 'error') {
+    cuerpo = `<div class="p-4"><div class="flex items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-800"><span>No se pudo cargar este bloque.</span><button class="rounded-md border border-rose-300 bg-white px-2.5 py-1 font-medium hover:bg-rose-100">Reintentar</button></div></div>`;
+  } else if (st.bloque === 'vacio') {
+    cuerpo = `<div class="flex items-center justify-center px-4 py-8 text-center text-xs text-gray-400">Sin entregas de mensajería agendadas.</div>`;
+  } else {
+    const sub = fuera ? `<p class="border-b bg-gray-50/60 px-4 py-1.5 text-[11px] tracking-wide text-gray-500 uppercase">Sin entregas en curso hoy · mostrando las próximas programadas para mañana</p>` : '';
+    const cols = FRANJAS.map(f => {
+      const hs = entregas.filter(e => e.franja === f.id);
+      const ahora = !fuera && f.id === 12;
+      return `<div class="w-44 shrink-0 border-l border-gray-100 px-2 first:border-l-0">
+        <div class="mb-2 border-b-2 pb-1.5 text-[11px] font-bold tabular-nums ${ahora?'border-gray-900 text-gray-900':'border-gray-100 text-gray-400'}">${f.ini}${ahora?' · ahora':''}</div>
+        <div class="min-h-[64px] space-y-2">${hs.length ? hs.map(tarjetaBloque).join('') : '<div class="h-[64px] rounded-md border border-dashed border-gray-100"></div>'}</div>
+      </div>`;
+    }).join('');
+    cuerpo = `${sub}<div data-timeline class="flex gap-0 overflow-x-auto p-4" style="scrollbar-width: thin">${cols}</div>`;
+  }
+  return `<div class="mb-4 overflow-hidden rounded-2xl border bg-white shadow-sm">${header}${cuerpo}</div>`;
+}
+
+function diasVentana() {
+  const c = pf(st.centro); let ini, fin;
+  if (st.ventana === 'semana') { ini = new Date(c); const dw = (c.getDay()+6)%7; ini.setDate(c.getDate()-dw); fin = new Date(ini); fin.setDate(ini.getDate()+6); }
+  else { ini = new Date(c); ini.setDate(c.getDate()-2); fin = new Date(c); fin.setDate(c.getDate()+4); }
+  const out = []; const cur = new Date(ini); while (cur <= fin) { out.push(iso(cur)); cur.setDate(cur.getDate()+1); } return out;
+}
+
+function tarjetaAgenda(e, soloLectura) {
+  const cfg = ESTILO_AGENDA[e.estado];
+  const accion = !soloLectura && ['sin_asignar','asignada','recogida'].includes(e.estado)
+    ? `<span role="button" class="-mr-1 -mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-500 hover:bg-white/70 hover:text-gray-900" title="${e.estado==='sin_asignar'?'Asignar mensajero':'Reasignar mensajero'}">${e.estado==='sin_asignar'?I.userplus:I.reasignar}</span>` : '';
+  const filaSup = st.chip === 'fila'
+    ? `<div class="flex items-start justify-between gap-1"><div class="flex min-w-0 items-center gap-1.5"><div class="tabular-nums text-[13px] font-bold leading-tight text-blue-900">#${e.carrito_id}</div>${chip(e.tienda)}</div>${accion}</div>`
+    : `<div class="flex items-start justify-between gap-1"><div class="tabular-nums text-[13px] font-bold leading-tight text-blue-900">#${e.carrito_id}</div>${accion}</div>`;
+  const Tag = soloLectura ? 'div' : 'button';
+  return `<${Tag} ${soloLectura?'':'type="button"'} class="block w-full rounded-md border px-2.5 py-1.5 text-left ${soloLectura?'cursor-default':'transition hover:shadow-sm'} ${cfg.card}" style="border-right-color:${cfg.accent};border-right-width:3px" title="${cfg.label}">
+    ${filaSup}
+    <div class="truncate text-xs leading-snug text-gray-800">${nombrePropio(e.cliente)}</div>
+    ${st.chip === 'nombre' ? `<div class="my-0.5">${chip(e.tienda)}</div>` : ''}
+    <div class="flex items-center gap-1 truncate text-[11px] text-gray-600">${I.pin}<span class="truncate">${e.barrio}</span></div>
+    ${e.mensajero ? `<div class="flex items-center gap-1 truncate text-[11px] text-gray-600">${I.bike}<span class="truncate">${e.mensajero}</span></div>` : `<div class="truncate text-[11px] text-gray-500">— sin asignar</div>`}
+  </${Tag}>`;
+}
+
+function controlesAgenda() {
+  const dias = diasVentana();
+  const rango = `${corto(pf(dias[0]))}  —  ${corto(pf(dias[dias.length-1]))}`;
+  const on = v => st.ventana === v ? 'bg-indigo-600 text-white' : 'font-medium text-gray-600 hover:bg-gray-50';
+  return `<div class="flex flex-wrap items-center gap-2">
+    <button data-nav="-1" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white shadow-sm hover:bg-gray-50" title="Ventana anterior">${I.left}</button>
+    <div class="min-w-[210px] rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-center text-sm font-medium text-gray-800 shadow-sm tabular-nums whitespace-pre">${rango}</div>
+    <button data-nav="1" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white shadow-sm hover:bg-gray-50" title="Ventana siguiente">${I.right}</button>
+    <button data-hoy class="rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-sm font-semibold text-gray-800 shadow-sm hover:bg-gray-50">Hoy</button>
+    <div class="ml-2 flex items-center gap-2"><span class="text-sm text-gray-500">Ventana:</span>
+      <div class="inline-flex gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
+        <button data-ventana="movil" class="rounded-md px-3 py-1 text-xs font-semibold transition-colors ${on('movil')}">Móvil (7 días)</button>
+        <button data-ventana="semana" class="rounded-md px-3 py-1 text-xs font-semibold transition-colors ${on('semana')}">Semana fija (Lun–Dom)</button>
+      </div></div>
+  </div>`;
+}
+
+function grillaAgenda(soloLectura, estado) {
+  if (estado === 'error') return `<div class="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4"><span class="mt-0.5 text-red-600">${I.alert()}</span><div class="flex-1"><p class="text-sm font-medium text-red-800">No se pudo cargar la agenda</p><p class="mt-0.5 text-sm text-red-700">Ocurrió un error al consultar las entregas. Verifica la conexión e intenta de nuevo.</p></div><button class="rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100">Reintentar</button></div>`;
+  if (estado === 'cargando') return `<div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"><div class="space-y-2"><div class="flex gap-2"><div class="skeleton h-9 w-[122px] shrink-0 rounded"></div>${'<div class="skeleton h-9 flex-1 rounded"></div>'.repeat(7)}</div>${('<div class="flex gap-2"><div class="skeleton h-24 w-[122px] shrink-0 rounded"></div>' + '<div class="skeleton h-24 flex-1 rounded"></div>'.repeat(7) + '</div>').repeat(5)}</div></div>`;
+  const dias = diasVentana();
+  const leyendaEstados = (soloLectura ? ['sin_asignar','asignada','recogida','en_ruta','entregada','devuelta'] : Object.keys(ESTILO_AGENDA))
+    .map(k => `<span class="inline-flex items-center gap-1.5 text-gray-700"><span class="h-3.5 w-3.5 rounded border ${ESTILO_AGENDA[k].card}"></span>${ESTILO_AGENDA[k].label}</span>`).join('');
+  const thead = `<tr><th class="sticky left-0 z-10 w-[122px] border-b border-r border-gray-200 bg-gray-50 px-3 py-2.5 text-left text-sm font-medium text-gray-500">Franja</th>${dias.map(d => {
+    const h = d === HOY, x = pf(d);
+    return `<th class="min-w-[168px] border-b border-gray-200 px-2 py-2.5 text-center ${h?'bg-indigo-50':'bg-white'}"><span class="text-sm font-semibold ${h?'text-indigo-700':'text-gray-800'}">${DIAS[x.getDay()]} ${x.getDate()} ${MESES[x.getMonth()]}</span>${h?'<span class="ml-1.5 rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-semibold text-white">hoy</span>':''}</th>`;
+  }).join('')}</tr>`;
+  const tbody = FRANJAS.map(f => `<tr><td class="sticky left-0 z-10 border-t border-r border-gray-200 bg-white px-3 py-2.5 align-top"><div class="tabular-nums whitespace-nowrap text-sm font-semibold text-gray-800">${f.ini} – ${f.fin}</div><div class="tabular-nums text-xs text-gray-400">cap. ${f.cap}</div></td>${dias.map(d => {
+    const t = ENTREGAS.filter(e => e.fecha === d && e.franja === f.id);
+    const n = t.length, clave = d + '|' + f.id, exp = st.expandidas.has(clave);
+    const chipOcup = n === 0 ? `<span class="tabular-nums rounded-md border border-gray-100 bg-white px-1.5 py-0.5 text-[11px] text-gray-300">0/${f.cap}</span>`
+      : n > f.cap ? `<span class="tabular-nums inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-100 px-1.5 py-0.5 text-[11px] font-semibold text-red-700">${I.alert(11)}${n}/${f.cap}</span>`
+      : `<span class="tabular-nums rounded-md border border-gray-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-gray-500">${n}/${f.cap}</span>`;
+    return `<td class="border-t border-l border-gray-200 border-l-gray-100 p-2 align-top ${n > f.cap ? 'bg-red-50/60' : ''}"><div class="mb-1.5 flex justify-end">${chipOcup}</div><div class="min-h-[104px] space-y-1.5">${t.filter((_, i) => i < 4 || exp).map(e => tarjetaAgenda(e, soloLectura)).join('')}${n > 4 ? `<button data-exp="${clave}" class="block w-full py-1 text-center text-xs font-medium text-indigo-600 hover:underline">${exp ? 'Mostrar menos' : `+${n-4} más`}</button>` : ''}</div></td>`;
+  }).join('')}</tr>`).join('');
+  return `<div class="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm"><span class="font-medium text-gray-600">Estado:</span>${leyendaEstados}<span class="ml-3 font-medium text-gray-600">Ocupación:</span><span class="inline-flex items-center gap-1.5 text-gray-700"><span class="tabular-nums rounded-md border border-gray-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-gray-500">3/4</span>normal</span><span class="inline-flex items-center gap-1.5 text-gray-700"><span class="tabular-nums rounded-md border border-red-200 bg-red-100 px-1.5 py-0.5 text-[11px] font-semibold text-red-700">5/4</span>sobre-agendada</span></div>
+  <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"><div class="overflow-x-auto"><table class="w-full border-collapse"><thead>${thead}</thead><tbody>${tbody}</tbody></table></div></div>`;
+}
+
+function modalCalendario() {
+  if (st.pantalla !== 'misventas' || st.modal === 'cerrado') return '';
+  return `<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 pt-24" data-cerrar-fondo>
+    <div class="flex max-h-[90vh] w-full max-w-[min(96vw,1500px)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog" aria-labelledby="modal-cal-titulo">
+      <header class="flex items-start justify-between border-b border-slate-100 px-5 py-4">
+        <div>
+          <h2 id="modal-cal-titulo" class="text-base font-bold text-slate-900">Calendario de entregas</h2>
+          <p class="mt-0.5 text-xs text-slate-500">Mensajería interna de tus tiendas: <span class="font-medium text-slate-700">Stirpe</span> y <span class="font-medium text-slate-700">Derek</span> · solo consulta</p>
+        </div>
+        <button type="button" data-cerrar aria-label="Cerrar" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">${I.x}</button>
+      </header>
+      <div class="border-b border-slate-100 bg-gray-50 px-5 py-3">${controlesAgenda()}</div>
+      <div class="flex-1 overflow-y-auto px-5 py-4">${grillaAgenda(true, st.modal)}</div>
+    </div>
+  </div>`;
+}
+
+function nota(html) { return `<div class="nota mb-4 rounded-md bg-white px-3 py-2 text-[12px] leading-relaxed text-gray-600 shadow-sm">${html}</div>`; }
+
+function pantallaMisVentas() {
+  return `
+  <div class="mb-4 flex items-end justify-between"><div><h1 class="text-2xl font-bold text-gray-900">Mis Ventas</h1><p class="text-sm text-gray-500">Gestiona tus ventas asistidas</p></div><button class="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white">+ Nueva venta</button></div>
+  <nav class="mb-4 flex gap-6 border-b border-slate-200 text-sm font-medium"><button class="border-b-2 border-slate-900 px-1 pb-3 text-slate-900">Dashboard</button><button class="border-b-2 border-transparent px-1 pb-3 text-slate-500">Consultar ventas</button></nav>
+  ${nota('<b>A · Mis Ventas.</b> El bloque va al final de la pestaña Dashboard, después de «Detalle diario» (misma posición que en Gestión de Ventas). Muestra las entregas de <b>todas las tiendas del asesor</b> (D2), no solo la seleccionada arriba. «Ver calendario de entregas» abre la modal y no sale de Mis Ventas.')}
+  <div class="mb-4 space-y-3 opacity-60">
+    <div class="rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-xs text-gray-400">Cabecera de período · Cola de asignados · Tablero del asesor · Comisión proyectada — sin cambios</div>
+    <div class="rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-xs text-gray-400">Detalle diario — sin cambios</div>
+  </div>
+  ${bloque('misventas')}`;
+}
+function pantallaGestionVentas() {
+  return `<div class="mb-4"><h1 class="text-2xl font-bold text-gray-900">Gestión de Ventas</h1><p class="text-sm text-gray-500">Dashboard</p></div>
+  ${nota('<b>B · Gestión de Ventas.</b> El mismo componente, ahora compartido. Solo cambian el chip de tienda (D4) y el número de la tarjeta, que pasa a ser el carrito real (D7). La coordinación <b>conserva</b> «Ir a Gestión de Entregas», porque sí opera ese módulo.')}
+  <div class="mb-4 rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-xs text-gray-400 opacity-60">Tablero de cumplimiento y tabla de asesores — sin cambios</div>
+  ${bloque('gestionventas')}`;
+}
+function pantallaGestionEntregas() {
+  return `<div class="mb-4"><h1 class="text-2xl font-bold text-gray-900">Gestión de Entregas</h1><p class="text-sm text-gray-500">Venta asistida</p></div>
+  ${nota('<b>C · Gestión de Entregas, vista Agenda.</b> Es la misma tarjeta con el chip de tienda (D6). Conserva asignar/reasignar mensajero y el clic que abre el detalle. Los controles se siguen viendo en la fila del interruptor Tabla/Agenda, pero ahora llegan por slot en lugar de Teleport. No debe haber regresión visual.')}
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-3"><div class="inline-flex gap-1 rounded-lg border border-gray-200 bg-white p-1 text-sm shadow-sm"><button class="rounded-md px-3 py-1 text-gray-600">Tabla</button><button class="rounded-md bg-gray-900 px-3 py-1 font-semibold text-white">Agenda</button><button class="rounded-md px-3 py-1 text-gray-600">Alistamiento</button><button class="rounded-md px-3 py-1 text-gray-600">Dashboard</button></div>${controlesAgenda()}</div>
+  ${grillaAgenda(false, 'datos')}`;
+}
+
+function render() {
+  $('bloque-wrap').style.display = st.pantalla === 'gestionentregas' ? 'none' : '';
+  $('modal-wrap').style.display = st.pantalla === 'misventas' ? '' : 'none';
+  $('app').innerHTML = st.pantalla === 'misventas' ? pantallaMisVentas() : st.pantalla === 'gestionventas' ? pantallaGestionVentas() : pantallaGestionEntregas();
+  $('capas').innerHTML = modalCalendario();
+  // Mockup: llevar la línea de tiempo hasta la columna «ahora» (al final del rango).
+  setTimeout(() => document.querySelectorAll('[data-timeline]').forEach(el => { el.scrollLeft = el.scrollWidth; }), 400);
+  document.body.style.overflow = st.pantalla === 'misventas' && st.modal !== 'cerrado' ? 'hidden' : '';
+}
+
+document.addEventListener('click', ev => {
+  const t = ev.target.closest('[data-abrir-modal],[data-cerrar],[data-nav],[data-hoy],[data-ventana],[data-exp],[data-cerrar-fondo]');
+  if (!t) return;
+  if (t.hasAttribute('data-cerrar-fondo') && ev.target !== t) return;
+  if (t.hasAttribute('data-abrir-modal')) { st.modal = 'datos'; $('modal').value = 'datos'; }
+  else if (t.hasAttribute('data-cerrar') || t.hasAttribute('data-cerrar-fondo')) { st.modal = 'cerrado'; $('modal').value = 'cerrado'; }
+  else if (t.dataset.nav) { const c = pf(st.centro); c.setDate(c.getDate() + Number(t.dataset.nav) * (st.ventana === 'semana' ? 7 : 1)); st.centro = iso(c); }
+  else if (t.hasAttribute('data-hoy')) st.centro = HOY;
+  else if (t.dataset.ventana) st.ventana = t.dataset.ventana;
+  else if (t.dataset.exp) { const k = t.dataset.exp; st.expandidas.has(k) ? st.expandidas.delete(k) : st.expandidas.add(k); }
+  render();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && st.modal !== 'cerrado') { st.modal = 'cerrado'; $('modal').value = 'cerrado'; render(); } });
+render();
+</script>
+</body>
+</html>
