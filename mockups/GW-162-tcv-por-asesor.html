@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-162 · Gestión de Ventas: columna «TCV» (tasa de conversión) por asesor en el bloque Asesores</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Pila tipográfica real de get-web (Tailwind v4 compila .font-sans con el stack literal). */
+  html, body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+  /* Tooltip de encabezado (reka Tooltip en el componente real: TooltipContent bg-primary text-primary-foreground rounded-md px-3 py-1.5 text-xs).
+     Mismo mecanismo del mockup GW-157: se oculta con display:none, nunca con opacity. */
+  .tip { position: relative; }
+  .tip::after { content: attr(data-tip); position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 6px; width: 230px; padding: 6px 12px; background: #111827; color: #f9fafb; font-size: 11px; line-height: 1.35; font-weight: 400; text-transform: none; letter-spacing: normal; text-align: left; white-space: normal; border-radius: 6px; box-shadow: 0 6px 16px rgba(15,23,42,.22); display: none; pointer-events: none; z-index: 40; }
+  .tip:hover::after { display: block; }
+  .tip-fin::after { left: auto; right: 0; transform: none; }
+  /* Tooltip de la celda TCV (D5): caja + flecha como TooltipContent/TooltipArrow de reka. Visible en hover o forzada con .tip-abierto (para captura). */
+  .tip-celda { position: relative; display: inline-block; }
+  .tip-celda .tip-caja { display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 8px; z-index: 40; white-space: nowrap; }
+  .tip-celda:hover .tip-caja, .tip-celda.tip-abierto .tip-caja { display: block; }
+  .tip-caja .flecha { position: absolute; top: -4px; left: 50%; width: 10px; height: 10px; transform: translateX(-50%) rotate(45deg); background: #111827; border-radius: 2px; }
+  /* Skeleton real: <Skeleton class="h-10 rounded-lg"/> → animate-pulse rounded-md bg-primary/10 */
+  .skeleton { background: rgba(17,24,39,.10); }
+  @media (prefers-reduced-motion: no-preference) { .animate-pulse { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; } }
+  @keyframes pulse { 50% { opacity: .5; } }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900 antialiased">
+
+<!-- ══ Barra de control del mockup (no es parte de la UI) ══ -->
+<div class="sticky top-0 z-[80] border-b border-indigo-200 bg-indigo-50/95 px-4 py-2 backdrop-blur">
+  <div class="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-2 text-[11px]">
+    <span class="font-bold text-indigo-900">GW-162 · mockup</span>
+    <nav class="flex flex-wrap gap-1" id="tabs" aria-label="Estados">
+      <button data-estado="A" class="rounded border border-indigo-300 bg-white px-2 py-0.5 text-indigo-900">A · con datos</button>
+      <button data-estado="B" class="rounded border border-indigo-300 bg-white px-2 py-0.5 text-indigo-900">B · cargando</button>
+      <button data-estado="C" class="rounded border border-indigo-300 bg-white px-2 py-0.5 text-indigo-900">C · sin tráfico</button>
+      <button data-estado="D" class="rounded border border-indigo-300 bg-white px-2 py-0.5 text-indigo-900">D · columna oculta</button>
+      <button data-estado="tooltip" class="rounded border border-indigo-300 bg-white px-2 py-0.5 text-indigo-900">Tooltip de la celda TCV</button>
+    </nav>
+    <label class="flex items-center gap-1.5"><span class="text-indigo-800">Desplazar la tabla a:</span>
+      <select id="scroll" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5"><option value="tcv" selected>columna TCV (centrada)</option><option value="inicio">inicio (como carga la página real)</option></select></label>
+    <label class="flex items-center gap-1.5"><input type="checkbox" id="resaltar" class="h-3 w-3"> <span class="text-indigo-800">Resaltar la columna nueva</span></label>
+    <label class="flex items-center gap-1.5" title="D5 (2026-09-20): la celda TCV lleva fondo semáforo -100 según la meta del asesor; UPT/VPT siguen con solo texto coloreado (helper vigente 0f1ae)"><input type="checkbox" id="fondo100" checked class="h-3 w-3"> <span class="text-indigo-800">Fondo semáforo en la celda TCV (D5)</span></label>
+    <span class="ml-auto text-indigo-700">STIRPE · 16 – 30 sep 2026 · filas reales de producción al 20 sep; TCV, tráfico y columnas fuera de la captura son ilustrativos</span>
+  </div>
+</div>
+
+<div class="mx-auto max-w-[1148px] px-4 py-5">
+
+  <!-- ══ Qué cambia respecto de hoy ══ -->
+  <section class="mb-4 rounded-xl border border-indigo-200 bg-white px-4 py-3 text-[12px] text-gray-700">
+    <h1 class="mb-1.5 text-[13px] font-bold text-gray-900">GW-162 · Qué cambia respecto de hoy en el bloque Asesores</h1>
+    <ul class="list-disc space-y-0.5 pl-5">
+      <li><b>Columna nueva «TCV»</b> entre «PPT» y «Ped. para TC» (D6): tasa de conversión del asesor con un decimal («23,0%»), coloreada contra la meta <code>tcv</code> del mes con el mismo helper que UPT y VPT (<code>fondoSemaforo</code>: ≥ 95 % verde · ≥ 80 % ámbar · &lt; 80 % rojo). Nace visible y se oculta con el selector «Columnas» como las demás.</li>
+      <li><b>Encabezado del bloque:</b> «Meta del mes: UPT 2,00 · VPT $ 500.000 · PPT sin meta» pasa a terminar en «· TCV 23,0%».</li>
+      <li><b>Tooltip de la celda:</b> «Carritos pagados N ÷ Tráfico atendido M» (D5). Sin tráfico o sin días con archivo, la celda muestra «—» (D4) y el tooltip lo explica.</li>
+      <li><b>Pie de tabla:</b> TCV del equipo como ratio agregado Σ carritos pagados ÷ Σ tráfico (D7), la misma cifra de la tarjeta «Tasa de conversión»; nunca el promedio de las filas.</li>
+    </ul>
+  </section>
+
+  <h2 id="titulo-estado" class="mb-2 text-[12px] font-semibold text-indigo-900"></h2>
+
+  <!-- Contexto (sin cambios, aproximado de la captura de producción): migas y franja de cargas del período. -->
+  <div class="mb-3 flex items-center gap-2 text-[13px] text-gray-500"><span>Dashboard</span><span class="text-gray-300">›</span><span class="text-gray-800">Venta Asistida</span></div>
+  <div class="mb-3 flex flex-wrap items-center gap-2.5 rounded-2xl border bg-white px-4 py-2.5 text-[11px] shadow-sm">
+    <span class="font-bold tracking-wide text-gray-500 uppercase">Cargas del período</span><span class="text-gray-400">· 16 de sept – 30 de sept</span>
+    <span class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-medium text-amber-700">4 / 5 días completos</span>
+    <span class="flex gap-1" id="dias-chips"></span>
+    <span class="flex items-center gap-1 text-amber-700"><svg class="h-3.5 w-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>1 día(s) pendiente(s): 20 de sept (Ventas incompletas)</span>
+  </div>
+
+  <div id="app"></div>
+
+  <p class="mt-3 px-1 text-[11px] text-gray-400">Bloque dibujado con el markup y las clases de <code>TablaAsesoresCumplimiento.vue</code> (encabezado, selector «Columnas», columnas fijas Nombre / Comisión total proy., banda gris, pie). El sombreado verde solo señala la columna nueva en el mockup.</p>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// DATOS · Filas reales de la captura de producción (appget.co/venta-asistida/gestion-ventas, STIRPE,
+// 16 – 30 sep 2026, vista al 20 sep). Lo que la captura no muestra (bono, unidades, tráfico, TCV) es ilustrativo.
+// `pag` = carritos pagados de los días CON archivo (16–19 sep); `traf` = conversaciones cerradas de esos días.
+// nro_pedidos = pedidos web + facturados (incluye el 20 sep, sin archivo) → pag ≤ nro_pedidos.
+// ═══════════════════════════════════════════════════════════════════════════
+const META_UPT = 2.00, META_VPT = 500000, META_TCV = 23.0;
+const ASESORES = [
+  { nombre:'Fabian Andres Prada Rueda',        corto:'Fabian A. Prada R.',   meta:18676503, webV:4453108, webN:12, facV:15330004, facN:31, dev:-1012774, tie:null,   total:18770338, comTotal:259613, bono:{monto:25000,firme:1,prov:0}, unid:92, pag:40, traf:152 },
+  { nombre:'Juan Camilo Vergel Acosta',        corto:'Juan C. Vergel A.',    meta:22109373, webV:7483554, webN:18, facV:12331722, facN:21, dev:-1321118, tie:null,   total:18494158, comTotal:167953, bono:{monto:0,firme:0,prov:0},     unid:71, pag:36, traf:172 },
+  { nombre:'Brayan Javier Ardila Florez',      corto:'Brayan J. Ardila F.',  meta:19640948, webV:7189636, webN:15, facV:10501290, facN:26, dev:-1608030, tie:305950, total:16388846, comTotal:151111, bono:{monto:0,firme:0,prov:0},     unid:86, pag:38, traf:160 },
+  { nombre:'Nicol Dayana Pinzon Peña',         corto:'Nicol D. Pinzon P.',   meta:23261813, webV:7891838, webN:17, facV:8250294,  facN:21, dev:-374901,  tie:290950, total:16058181, comTotal:0,      bono:{monto:0,firme:0,prov:0},     unid:69, pag:35, traf:198 },
+  { nombre:'Valentina Nuñez Caballero',        corto:'Valentina Nuñez C.',   meta:18429117, webV:8313484, webN:14, facV:7034334,  facN:18, dev:-427851,  tie:null,   total:14919967, comTotal:139964, bono:{monto:0,firme:0,prov:0},     unid:60, pag:30, traf:141 },
+  { nombre:'Jhon Alexander Rodriguez Patiño',  corto:'Jhon A. Rodriguez P.', meta:11694828, webV:5150573, webN:8,  facV:11893479, facN:27, dev:-3183853, tie:null,   total:13860199, comTotal:202164, bono:{monto:50000,firme:2,prov:0}, unid:74, pag:33, traf:126 },
+  { nombre:'Andres Felipe Jimenez Quintero',   corto:'Andres F. Jimenez Q.', meta:18676505, webV:5297798, webN:11, facV:10118038, facN:21, dev:-2941865, tie:null,   total:12473971, comTotal:20000,  bono:{monto:20000,firme:0,prov:1}, unid:55, pag:29, traf:174 },
+  { nombre:'Paula Andrea Oliveros Ardila',     corto:'Paula A. Oliveros A.', meta:14088907, webV:2315113, webN:4,  facV:10168447, facN:24, dev:-815511,  tie:null,   total:11668049, comTotal:112178, bono:{monto:0,firme:0,prov:0},     unid:58, pag:26, traf:118 },
+  { nombre:'Silvia Alejandra Camacho',         corto:'Silvia A. Camacho',    meta:11715463, webV:1987969, webN:4,  facV:9794371,  facN:20, dev:-603901,  tie:null,   total:11178439, comTotal:108310, bono:{monto:0,firme:0,prov:0},     unid:50, pag:22, traf:104 },
+  { nombre:'Manuel Humberto Parra Tapias',     corto:'Manuel H. Parra T.',   meta:13655593, webV:3856376, webN:6,  facV:4423001,  facN:14, dev:-2044704, tie:520000, total:6754673,  comTotal:20000,  bono:{monto:20000,firme:1,prov:0}, unid:33, pag:18, traf:131 },
+  { nombre:'Carlos Yorge Cordoba Murallas',    corto:'Carlos Y. Cordoba M.', meta:null,     webV:0,       webN:0,  facV:0,        facN:0,  dev:null,     tie:null,   total:0,        comTotal:0,      bono:{monto:0,firme:0,prov:0},     unid:0,  pag:0,  traf:0 },
+];
+
+// ═══ Helpers portados del código real (nombres de origen entre paréntesis) ═══
+const formatoPesos = n => n === null || n === undefined ? '—' : new Intl.NumberFormat('es-CO', { style:'currency', currency:'COP', maximumFractionDigits:0 }).format(n);           // tablaDetalleDiario.vista.ts
+const pctCumplimiento = n => { if (n === null || n === undefined || Number.isNaN(n)) return '—'; const r = Math.round(n); return (n < 100 && r >= 100 ? 99 : r) + '%'; };            // pctCumplimiento.ts
+const decimal2 = n => n === null || n === undefined ? '—' : n.toLocaleString('es-CO', { minimumFractionDigits:2, maximumFractionDigits:2 });                                       // TablaAsesoresCumplimiento.vue
+const pct1 = n => n === null || n === undefined ? '—' : n.toLocaleString('es-CO', { minimumFractionDigits:1, maximumFractionDigits:1 }) + '%';                                    // GW-162: «23,0%»
+const semaforoGauge = p => p >= 95 ? 'verde' : p >= 80 ? 'ambar' : 'rojo';                                                                                                        // gauge.ts
+const BADGE_CLASE = { verde:'bg-emerald-600', ambar:'bg-amber-500', rojo:'bg-red-500' };                                                                                          // semaforoBadge.ts
+const badgeClase = p => p === null || p === undefined ? null : BADGE_CLASE[semaforoGauge(p)];
+// celdas.ts:173-187 — clases VIGENTES (0f1ae): solo color de texto. La variante -100 es la del docblock/mockup GW-150, no la de producción.
+const FONDO_SEMAFORO_CLASE = { verde:'text-emerald-900', ambar:'text-amber-900', rojo:'text-red-900' };
+const FONDO_SEMAFORO_100   = { verde:'text-emerald-900', ambar:'text-amber-900', rojo:'text-red-900' };
+const FONDO_TD_100 = { verde:'bg-emerald-100', ambar:'bg-amber-100', rojo:'bg-red-100' };
+const fondoTdTcv = v => (UI.fondo100 && v !== null && v !== undefined && META_TCV > 0) ? FONDO_TD_100[semaforoGauge((v / META_TCV) * 100)] : '';
+const tcvEquipo = F => { const T = F.reduce((a, x) => a + (x.traf || 0), 0), P = F.reduce((a, x) => a + (x.pag || 0), 0); return T > 0 ? P / T * 100 : null; };
+function fondoSemaforo(valor, meta) { if (valor === null || valor === undefined || meta === null || meta === undefined || meta <= 0) return null; return (UI.fondo100 ? FONDO_SEMAFORO_100 : FONDO_SEMAFORO_CLASE)[semaforoGauge((valor / meta) * 100)]; }
+const tituloMetrica = (valor, meta, f) => valor === null ? 'Sin dato: el asesor no tiene pedidos en el período' : (meta === null || meta <= 0) ? `${f(valor)} · sin meta definida para el mes` : `${f(valor)} · meta ${f(meta)} · ${pctCumplimiento((valor / meta) * 100)} de la meta`;
+const inicialesAvatar = n => { const p = n.trim().split(/\s+/); return p.length === 1 ? p[0].slice(0,2).toUpperCase() : (p[0][0] + p[p.length-1][0]).toUpperCase(); };
+const PALETA_AVATAR = ['bg-violet-600','bg-blue-600','bg-pink-600','bg-emerald-600','bg-amber-500','bg-sky-600','bg-rose-500','bg-indigo-600','bg-teal-600','bg-fuchsia-600','bg-orange-500','bg-cyan-600'];
+const colorAvatar = i => PALETA_AVATAR[i % PALETA_AVATAR.length];
+const conSigno = v => !v ? '—' : `${v < 0 ? '−' : '+'}${formatoPesos(Math.abs(v))}`;
+const parValorCantidad = par => (!par || !par.valor) ? { valor:'—', cantidad:null } : { valor: formatoPesos(par.valor), cantidad:`(${par.cantidad})` };
+const celdaPorCumplir = (cump, umbral, monto) => cump === null ? { tipo:'sin-meta' } : cump >= umbral ? { tipo:'meta-cumplida' } : { tipo:'monto', monto: monto ?? 0, color: umbral === 80 ? 'rojo' : umbral === 90 ? 'naranja' : 'verde' };
+const celdaBono = b => (b.firme + b.prov) === 0 ? { tipo:'sin-dias' } : { tipo:'con-dias', monto:b.monto, dias:b.firme + b.prov, prov:b.prov };
+const estadoPedFaltan = v => v === null ? { tipo:'sin-dato' } : v <= 0 ? { tipo:'cumple' } : { tipo:'valor', valor:v };
+const estadoItemsUpt = v => v === null ? { tipo:'sin-dato' } : v === 0 ? { tipo:'ya-cumple' } : { tipo:'valor', valor:v };
+const ICO = {
+  chev:  '<svg class="h-3.5 w-3.5 text-gray-400" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
+  check: '<svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  clock: '<svg class="h-3 w-3 shrink-0" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+};
+
+// ═══ Catálogo COLUMNAS_TABLA_ASESORES (celdas.ts:301-331) + `tcv` entre ppt y ped_tc (D6) ═══
+const BANDA = { pedidos_web:'#f7f9fc', facturado:'#f3f6fa', devoluciones:'#eff3f8', tienda_fisica:'#eaeff6', total_venta:'#e3e9f2' };
+const COLUMNAS = [
+  { clave:'nombre', titulo:'Nombre', al:'left', siempre:true, sticky:'izq' },
+  { clave:'meta', titulo:'Meta', al:'right', siempre:true, tip:'Presupuesto asignado al asesor en el período (suma de los días).' },
+  { clave:'pedidos_web', titulo:'Pedidos web', al:'right', banda:BANDA.pedidos_web, tip:'Pedidos ya pagados por el cliente, a la espera de la factura del ERP. Cuentan desde ya: el dinero entró.' },
+  { clave:'facturado', titulo:'Facturado', al:'right', banda:BANDA.facturado, tip:'Pedidos que ya llegaron facturados en el archivo del ERP. Se toma el valor de la factura, no el del carrito.' },
+  { clave:'devoluciones', titulo:'Devoluciones', al:'right', banda:BANDA.devoluciones, tip:'Facturas M del archivo del ERP: devoluciones recibidas en tienda física. Restan del total.' },
+  { clave:'tienda_fisica', titulo:'Tienda física', al:'right', banda:BANDA.tienda_fisica, tip:'Facturas X del archivo del ERP: compras hechas en el punto físico, sin pasar por un carrito web.' },
+  { clave:'total_venta', titulo:'Total venta', al:'right', banda:BANDA.total_venta, siempre:true, tip:'Pedidos web + Facturado + Tienda física − Devoluciones. La misma cifra que ve el asesor en Mis Ventas y sobre la que se paga la comisión.' },
+  { clave:'cumplimiento', titulo:'Cumplimiento', al:'center', siempre:true, tip:'Total venta dividido por la Meta del período.' },
+  { clave:'pc80', titulo:'Por cumplir 80%', al:'right', tip:'Lo que falta vender para llegar a ese porcentaje de la meta, sobre el Total venta.' },
+  { clave:'pc90', titulo:'Por cumplir 90%', al:'right', tip:'Lo que falta vender para llegar a ese porcentaje de la meta, sobre el Total venta.' },
+  { clave:'pc100', titulo:'Por cumplir 100%', al:'right', tip:'Lo que falta vender para llegar a ese porcentaje de la meta, sobre el Total venta.' },
+  { clave:'bono', titulo:'Bono acumulado', al:'right', tip:'Bonos diarios ganados en el período: verdes (facturado) más amarillos (provisionales, dependen de pedidos pagados sin factura).' },
+  { clave:'nro_pedidos', titulo:'Nro pedidos', al:'right', tip:'Pedidos contados en Pedidos web y Facturado. Las facturas de tienda física no tienen pedido.' },
+  { clave:'unidades', titulo:'Unidades', al:'right', tip:'Unidades de los pedidos web pagados y facturados, sin la línea de flete. PPT = venta de pedidos web ÷ unidades' },
+  { clave:'vpt', titulo:'VPT', al:'right', tip:'Venta por transacción: (Pedidos web + Facturado) ÷ Nro pedidos. Sin tienda física ni devoluciones.' },
+  { clave:'items_upt', titulo:'Ítems UPT', al:'right', tip:'Unidades que faltan para llegar a la meta de UPT con los pedidos hechos.' },
+  { clave:'upt', titulo:'UPT', al:'right', tip:'Unidades por transacción: unidades ÷ Nro pedidos.' },
+  { clave:'ppt', titulo:'PPT', al:'right', tip:'Precio por unidad: (Pedidos web + Facturado) ÷ unidades. Sin meta.' },
+  // GW-162 (D6): nueva. TIP_TCV propuesto (no está en el código):
+  { clave:'tcv', titulo:'TCV', al:'right', nueva:true, tip:'Tasa de conversión: carritos pagados ÷ tráfico atendido (conversaciones cerradas), solo los días con archivo cargado. La misma cifra del modal del asesor y de Mis Ventas.' },
+  { clave:'ped_tc', titulo:'Ped. para TC', al:'right', tip:'Pedidos que debería llevar para cumplir la meta de tasa de conversión: tráfico atendido × meta de TC.' },
+  { clave:'ped_faltan', titulo:'Ped. que faltan', al:'right', tip:'Ped. para TC menos los pedidos hechos. «Cumple» si ya los superó.' },
+  { clave:'comision', titulo:'Comisión proy.', al:'right', tip:'Comisión proyectada: sobre lo facturado más lo pagado sin factura, con la escala vigente.' },
+  { clave:'comision_total', titulo:'Comisión total proy.', al:'right', siempre:true, sticky:'der', tip:'Comisión proyectada + Bono acumulado.' },
+];
+const ocultables = COLUMNAS.filter(c => !c.siempre);
+
+// ═══ Filas: misma aritmética que TablaAsesoresDetalleDiario::filas() (ilustrativa para lo que la captura no trae) ═══
+function fila(a, sinTrafico) {
+  const nped = a.webN + a.facN, ventaPed = a.webV + a.facV;
+  const traf = sinTrafico ? 0 : a.traf, pag = sinTrafico ? 0 : a.pag;
+  const cump = a.meta ? a.total / a.meta * 100 : null;
+  const pc = u => cump === null ? null : Math.max(0, a.meta * u / 100 - a.total);
+  const pedTc = traf > 0 ? Math.ceil(traf * META_TCV / 100) : null;
+  return { ...a, nped, ventaPed, traf, pag, cump, pc80:pc(80), pc90:pc(90), pc100:pc(100),
+    vpt: nped ? ventaPed / nped : null, upt: nped ? a.unid / nped : null, ppt: a.unid ? ventaPed / a.unid : null,
+    itemsUpt: nped ? Math.max(0, Math.ceil(META_UPT * nped) - a.unid) : null,
+    tcv: traf > 0 ? pag / traf * 100 : null,                       // D4: sin tráfico (o sin días con archivo) → null → «—»
+    pedTc, pedFaltan: pedTc === null ? null : pedTc - nped,
+    comision: a.comTotal - a.bono.monto };
+}
+
+// ═══ Render del bloque (TablaAsesoresCumplimiento.vue :318-712) ═══
+const UI = { estado:'A', resaltar:false, fondo100:true };
+const $ = id => document.getElementById(id);
+const gris = '<span class="text-gray-300">—</span>';
+const claseAl = c => c.al === 'left' ? 'text-left' : c.al === 'center' ? 'text-center' : 'text-right';
+const estiloBanda = c => c.banda ? ` style="background:${c.banda}"` : '';
+const stickyTh = c => c.sticky === 'izq' ? 'sticky left-0 z-10 bg-white shadow-[2px_0_0_0_#e5e7eb]' : c.sticky === 'der' ? 'sticky right-0 z-10 bg-emerald-50 text-emerald-700 shadow-[-2px_0_0_0_#e5e7eb]' : '';
+const stickyTd = c => c.sticky === 'izq' ? 'sticky left-0 z-10 bg-white shadow-[2px_0_0_0_#e5e7eb] group-hover:bg-gray-50' : c.sticky === 'der' ? 'sticky right-0 z-10 bg-emerald-50 shadow-[-2px_0_0_0_#e5e7eb] group-hover:bg-emerald-100' : '';
+const stickyTf = c => c.sticky === 'izq' ? 'sticky left-0 z-10 bg-gray-50 shadow-[2px_0_0_0_#e5e7eb]' : c.sticky === 'der' ? 'sticky right-0 z-10 bg-emerald-100 shadow-[-2px_0_0_0_#e5e7eb]' : '';
+const nuevaTh = c => c.nueva && UI.resaltar ? 'bg-emerald-50/70' : '';
+const nuevaTd = c => c.nueva && UI.resaltar ? 'bg-emerald-50/40' : '';
+const cumpleBadge = t => `<span class="inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">${t}</span>`;
+
+function tooltipTcv(x, abierto) {
+  const texto = x.tcv === null ? 'Sin tráfico atendido en los días con archivo del período' : `Carritos pagados ${x.pag.toLocaleString('es-CO')} ÷ Tráfico atendido ${x.traf.toLocaleString('es-CO')}`;
+  return `<span class="tip-celda ${abierto ? 'tip-abierto' : ''}"><span class="cursor-help font-semibold ${x.tcv === null ? 'text-gray-300' : (fondoSemaforo(x.tcv, META_TCV) ?? 'text-gray-800')}">${pct1(x.tcv)}</span><span class="tip-caja rounded-md bg-gray-900 px-3 py-1.5 text-xs text-gray-50 shadow-md"><span class="flecha"></span>${texto}</span></span>`;
+}
+
+function celda(c, x, idx, abrirTip) {
+  switch (c.clave) {
+    case 'nombre': return `<span class="inline-flex items-center gap-2"><span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${colorAvatar(idx)}">${inicialesAvatar(x.nombre)}</span><span class="font-medium text-gray-800" title="${x.nombre}">${x.corto}</span></span>`;
+    case 'meta': return `<span class="text-gray-800">${x.meta === null ? '—' : formatoPesos(x.meta)}</span>`;
+    case 'pedidos_web': case 'facturado': { const p = parValorCantidad(c.clave === 'pedidos_web' ? { valor:x.webV, cantidad:x.webN } : { valor:x.facV, cantidad:x.facN }); return `<span class="text-gray-800">${p.valor}</span>${p.cantidad ? `<span class="ml-1 text-[11px] text-gray-400">${p.cantidad}</span>` : ''}`; }
+    case 'devoluciones': return `<span class="${x.dev ? 'text-red-600' : 'text-gray-400'}">${conSigno(x.dev)}</span>`;
+    case 'tienda_fisica': return `<span class="${x.tie ? 'text-emerald-700' : 'text-gray-400'}">${conSigno(x.tie)}</span>`;
+    case 'total_venta': return `<span class="font-bold ${x.total < 0 ? 'text-red-600' : 'text-gray-900'}">${formatoPesos(x.total)}</span>`;
+    case 'cumplimiento': { const b = badgeClase(x.cump); return b ? `<span class="inline-block min-w-[46px] rounded px-1.5 py-0.5 text-center text-xs font-bold text-white ${b}">${pctCumplimiento(x.cump)}</span>` : gris; }
+    case 'pc80': case 'pc90': case 'pc100': { const u = c.clave === 'pc80' ? 80 : c.clave === 'pc90' ? 90 : 100; const cel = celdaPorCumplir(x.cump, u, x['pc' + u]);
+      if (cel.tipo === 'sin-meta') return gris; if (cel.tipo === 'meta-cumplida') return cumpleBadge('Cumple');
+      return `<span class="font-semibold ${cel.color === 'rojo' ? 'text-red-600' : cel.color === 'naranja' ? 'text-orange-500' : 'text-emerald-700'}">${formatoPesos(cel.monto)}</span>`; }
+    case 'bono': { const b = celdaBono(x.bono); if (b.tipo === 'sin-dias') return gris;
+      return `<span class="font-semibold text-gray-800">${formatoPesos(b.monto)}</span> <span class="text-[11px] text-gray-400">(${b.dias})</span>${b.prov > 0 ? `<span class="ml-1 inline-flex cursor-help items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">${ICO.clock}${b.prov} prov.</span>` : ''}`; }
+    case 'nro_pedidos': return `<span class="font-semibold text-gray-800">${x.nped.toLocaleString('es-CO')}</span>`;
+    case 'unidades': return `<span class="font-semibold text-gray-800">${x.unid.toLocaleString('es-CO')}</span>`;
+    case 'vpt': return `<span class="font-semibold ${fondoSemaforo(x.vpt, META_VPT) ?? 'text-gray-800'}" title="${tituloMetrica(x.vpt, META_VPT, formatoPesos)}">${x.vpt === null ? '—' : formatoPesos(x.vpt)}</span>`;
+    case 'items_upt': { const e = estadoItemsUpt(x.itemsUpt); return e.tipo === 'sin-dato' ? gris : e.tipo === 'ya-cumple' ? cumpleBadge('Cumple') : `<span class="font-semibold text-gray-800">${e.valor.toLocaleString('es-CO')}</span>`; }
+    case 'upt': return `<span class="font-semibold ${fondoSemaforo(x.upt, META_UPT) ?? 'text-gray-800'}" title="${tituloMetrica(x.upt, META_UPT, decimal2)}">${decimal2(x.upt)}</span>`;
+    case 'ppt': return `<span class="font-semibold text-gray-800" title="${tituloMetrica(x.ppt, null, formatoPesos)}">${x.ppt === null ? '—' : formatoPesos(x.ppt)}</span>`;
+    case 'tcv': return tooltipTcv(x, abrirTip);
+    case 'ped_tc': return `<span class="font-semibold text-gray-800">${x.pedTc === null ? '—' : x.pedTc.toLocaleString('es-CO')}</span>`;
+    case 'ped_faltan': { const e = estadoPedFaltan(x.pedFaltan); return e.tipo === 'sin-dato' ? gris : e.tipo === 'cumple' ? cumpleBadge('Cumple') : `<span class="font-semibold text-gray-800">${e.valor.toLocaleString('es-CO')}</span>`; }
+    case 'comision': return `<span class="${x.comision ? 'text-gray-500' : 'text-gray-300'}">${x.comision ? formatoPesos(x.comision) : '—'}</span>`;
+    case 'comision_total': return `<span class="font-bold ${x.comTotal ? 'text-emerald-800' : 'text-gray-300'}">${x.comTotal ? formatoPesos(x.comTotal) : '—'}</span>`;
+  }
+}
+
+function pie(c, F) {
+  const sum = k => F.reduce((s, x) => s + (x[k] ?? 0), 0);
+  const conNull = k => F.every(x => x[k] === null) ? null : sum(k);
+  switch (c.clave) {
+    case 'nombre': return '<span class="text-gray-800">Total</span>';
+    case 'meta': return `<span class="text-gray-800">${formatoPesos(sum('meta'))}</span>`;
+    case 'pedidos_web': return `<span class="text-gray-800">${formatoPesos(sum('webV'))}</span>`;
+    case 'facturado': return `<span class="text-gray-800">${formatoPesos(sum('facV'))}</span>`;
+    case 'devoluciones': { const v = conNull('dev'); return v === null ? gris : `<span class="text-red-600">${conSigno(v)}</span>`; }
+    case 'tienda_fisica': { const v = conNull('tie'); return v === null ? gris : `<span class="text-emerald-700">${conSigno(v)}</span>`; }
+    case 'total_venta': return `<span class="text-gray-900">${formatoPesos(sum('total'))}</span>`;
+    case 'cumplimiento': { const m = sum('meta'), p = m > 0 ? sum('total') / m * 100 : null; const b = badgeClase(p); return b ? `<span class="inline-block min-w-[46px] rounded px-1.5 py-0.5 text-center text-xs font-bold text-white ${b}">${pctCumplimiento(p)}</span>` : gris; }
+    case 'bono': { const prov = F.reduce((s, x) => s + x.bono.prov, 0); return `<span class="text-gray-800">${formatoPesos(F.reduce((s, x) => s + x.bono.monto, 0))}</span>${prov > 0 ? `<div class="text-[10px] font-normal text-amber-700">${prov} provisionales</div>` : ''}`; }
+    case 'nro_pedidos': return `<span class="text-gray-800">${sum('nped').toLocaleString('es-CO')}</span>`;
+    case 'unidades': return `<span class="text-gray-800">${sum('unid').toLocaleString('es-CO')}</span>`;
+    // GW-162 (D7): ratio agregado Σ pagados ÷ Σ tráfico, igual a tcvEquipoPeriodo(); nunca promedio de filas.
+    case 'tcv': { const T = sum('traf'), P = sum('pag'); const eq = T > 0 ? { tcv: P / T * 100, pag: P, traf: T } : { tcv: null, pag: 0, traf: 0 }; return tooltipTcv(eq, false); }
+    case 'comision': return `<span class="text-gray-800">${formatoPesos(sum('comision'))}</span>`;
+    case 'comision_total': return `<span class="text-emerald-900">${formatoPesos(sum('comTotal'))}</span>`;
+    default: return ''; // pc80/pc90/pc100/vpt/items_upt/upt/ppt/ped_tc/ped_faltan: sin total a propósito (componente real)
+  }
+}
+
+function dropdown(ocultas) {
+  return `<div class="absolute right-0 top-full z-50 mt-1 w-60 rounded-md border bg-white p-1 text-gray-900 shadow-md">
+    ${ocultables.map(c => `<div class="relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-[12px] select-none ${c.nueva ? 'bg-gray-100' : ''}"><span class="pointer-events-none absolute left-2 flex h-3.5 w-3.5 items-center justify-center">${ocultas.has(c.clave) ? '' : ICO.check}</span>${c.titulo}</div>`).join('')}
+    <div class="-mx-1 my-1 h-px bg-gray-200"></div>
+    <div class="relative flex cursor-default items-center gap-2 rounded px-2 py-1.5 text-[12px] text-gray-500 select-none">Mostrarlas todas</div>
+  </div>`;
+}
+
+function bloque() {
+  const e = UI.estado;
+  const cargando = e === 'B', sinTrafico = e === 'C', abierto = e === 'D';
+  const ocultas = new Set(abierto ? ['tcv'] : []);
+  const visibles = COLUMNAS.filter(c => c.siempre || !ocultas.has(c.clave));
+  const F = ASESORES.map(a => fila(a, sinTrafico));
+  const metas = `Meta del mes: UPT ${decimal2(META_UPT)} · VPT ${formatoPesos(META_VPT)} · PPT sin meta · TCV ${pct1(META_TCV)}`;
+  const nOc = ocultas.size;
+  const cabecera = `
+    <div class="flex flex-wrap items-center gap-2 border-b bg-gray-50 px-4 py-2.5">
+      <h2 class="text-[13px] font-bold tracking-wide text-gray-500 uppercase">Asesores</h2>
+      <div class="ml-auto flex items-center gap-3">
+        ${cargando ? '' : `<span class="text-[11px] text-gray-400">${metas}</span>`}
+        ${cargando ? '' : `<div class="relative"><button type="button" class="flex items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1 text-[12px] font-medium text-gray-600 hover:bg-gray-50 ${abierto ? 'bg-gray-50' : ''}">Columnas ${nOc ? `<span class="rounded bg-gray-800 px-1.5 text-[10px] font-semibold text-white tabular-nums">${ocultables.length - nOc}/${ocultables.length}</span>` : ''}${ICO.chev}</button>${abierto ? dropdown(ocultas) : ''}</div>`}
+      </div>
+    </div>`;
+  if (cargando) return `<div class="overflow-hidden rounded-2xl border bg-white shadow-sm">${cabecera}<div class="space-y-2 p-4">${[1,2,3,4,5].map(() => '<div class="skeleton animate-pulse h-10 rounded-lg"></div>').join('')}</div></div>`;
+  const filaTipAbierta = e === 'tooltip' ? 1 : -1; // Juan C. Vergel A.
+  return `
+  <div class="overflow-hidden rounded-2xl border bg-white shadow-sm">
+    ${cabecera}
+    <div class="overflow-x-auto" id="scroller">
+      <table class="w-full text-[13px] tabular-nums">
+        <thead><tr class="border-b border-gray-100 text-[11px] tracking-wide text-gray-400 uppercase">
+          ${visibles.map(c => `<th data-clave="${c.clave}" class="px-3 py-2 font-medium whitespace-nowrap ${claseAl(c)} ${stickyTh(c)} ${nuevaTh(c)} ${c.clave === 'total_venta' ? 'text-gray-900' : ''}"${estiloBanda(c)}>${c.tip ? `<span class="tip ${c.sticky === 'der' || c.clave === 'comision' ? 'tip-fin' : ''}" data-tip="${c.tip}"><span class="cursor-help border-b border-dotted border-gray-300 pb-px">${c.titulo}</span></span>` : c.titulo}</th>`).join('')}
+        </tr></thead>
+        <tbody>${F.map((x, i) => `<tr class="group border-b border-gray-50 cursor-pointer hover:bg-gray-50">
+          ${visibles.map(c => `<td class="px-3 py-2 whitespace-nowrap ${claseAl(c)} ${stickyTd(c)} ${nuevaTd(c)} ${c.clave === 'tcv' ? fondoTdTcv(x.tcv) : ''}"${estiloBanda(c)}>${celda(c, x, i, c.clave === 'tcv' && i === filaTipAbierta)}</td>`).join('')}
+        </tr>`).join('')}</tbody>
+        <tfoot><tr class="border-t-2 border-gray-200 bg-gray-50 font-bold">
+          ${visibles.map(c => `<td class="px-3 py-2.5 whitespace-nowrap ${claseAl(c)} ${stickyTf(c)} ${c.nueva && UI.resaltar ? 'bg-emerald-50/70' : ''} ${c.clave === 'tcv' ? fondoTdTcv(tcvEquipo(F)) : ''}"${estiloBanda(c)}>${pie(c, F)}</td>`).join('')}
+        </tr></tfoot>
+      </table>
+    </div>
+    ${sinTrafico ? '<p class="border-t border-gray-100 px-4 py-2 text-[11px] text-gray-500"><strong>TCV</strong>: sin archivo de conversaciones en el período. La tasa se calcula solo sobre los días con archivo cargado; sin ellos no hay tráfico contra qué medir y la columna muestra «—» (también en el total).</p>' : ''}
+    <p class="border-t border-gray-100 px-4 py-2.5 text-[11px] text-gray-400">
+      La <strong>banda gris</strong> marca las columnas que suman al <strong>Total venta</strong>: la misma cifra que el asesor ve en Mis Ventas y sobre la que se paga la comisión. Un <strong>bono provisional</strong> se ganó contando pedidos pagados que aún no se facturan. Clic en la fila para ver el detalle diario del asesor.
+      <strong>Nombre</strong>, <strong>Meta</strong>, <strong>Total venta</strong>, <strong>Cumplimiento</strong> y <strong>Comisión total proy.</strong> no se pueden ocultar.
+    </p>
+  </div>`;
+}
+
+const TITULOS = {
+  A: 'A · Con datos (happy path): la coordinadora compara la TCV de cada asesor contra la meta del mes (23,0%) y lee el total del equipo en el pie',
+  B: 'B · Cargando: la prop lazy `tablaAsesores` aún no llega — cabecera sin leyenda ni selector y skeleton de 5 filas (estado real del componente)',
+  C: 'C · Sin tráfico en todo el período: ningún día con archivo de conversaciones → TCV «—» en todas las filas y en el pie, con nota bajo la tabla',
+  D: 'D · Columna oculta: el selector «Columnas» abierto con «TCV» desmarcada; la tabla se pinta sin la columna y el botón muestra 17/18',
+  tooltip: 'A · Con datos, tooltip de la celda TCV de Juan C. Vergel A. visible: «Carritos pagados 36 ÷ Tráfico atendido 172»',
+};
+function render() {
+  $('app').innerHTML = bloque();
+  $('titulo-estado').textContent = TITULOS[UI.estado];
+  document.querySelectorAll('#tabs button').forEach(b => { const on = b.dataset.estado === UI.estado; b.classList.toggle('bg-indigo-600', on); b.classList.toggle('text-white', on); b.classList.toggle('bg-white', !on); b.classList.toggle('text-indigo-900', !on); });
+  desplazar();
+}
+// Solo para el mockup: la tabla real tiene scroll horizontal (23 columnas) y la página carga en scrollLeft 0. Para que la
+// captura muestre la columna nueva, se centra TCV (o el punto PPT | Ped. para TC cuando está oculta) entre las dos fijas.
+function desplazar() {
+  const s = $('scroller'); if (!s) return;
+  if ($('scroll').value === 'inicio') { s.scrollLeft = 0; return; }
+  const th = s.querySelector('th[data-clave="tcv"]') || s.querySelector('th[data-clave="ped_tc"]'); if (!th) return;
+  s.scrollLeft = th.offsetLeft + th.offsetWidth / 2 - s.clientWidth / 2;
+}
+$('dias-chips').innerHTML = Array.from({ length: 15 }, (_, i) => 16 + i).map(d => `<span class="inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-semibold ${d <= 19 ? 'bg-emerald-500 text-white' : d === 20 ? 'bg-amber-400 text-white' : 'bg-gray-100 text-gray-400'}">${d}</span>`).join('');
+
+// Estado desde location.hash (#A · #B · #C · #D · #tooltip) — captura con Chrome headless, una URL por estado.
+function desdeHash() { const h = (location.hash || '#A').slice(1); UI.estado = TITULOS[h] ? h : 'A'; render(); }
+window.addEventListener('hashchange', desdeHash);
+document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.estado; }));
+$('resaltar').addEventListener('change', ev => { UI.resaltar = ev.target.checked; render(); });
+$('scroll').addEventListener('change', desplazar);
+$('fondo100').addEventListener('change', ev => { UI.fondo100 = ev.target.checked; render(); });
+desdeHash();
+// Tailwind CDN inyecta su CSS después de este script: hasta entonces la tabla no desborda y scrollLeft se queda en 0.
+window.addEventListener('load', desplazar);
+[150, 400, 900, 1800].forEach(ms => setTimeout(desplazar, ms));
+</script>
+</body>
+</html>
