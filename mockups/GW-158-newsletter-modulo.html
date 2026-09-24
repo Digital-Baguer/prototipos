@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup · GW-158 · Módulo Newsletter en get-web (configuración + suscriptores)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet">
+<style>
+  body { font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif; }
+  .lbl { font-size: .875rem; font-weight: 500; color: #262626; }
+  .inp { width:100%; border:1px solid #d1d5db; border-radius:.5rem; padding:.5rem .75rem; font-size:.875rem; background:#fff; }
+  .inp::placeholder { color:#9ca3af; }
+  .card { border:1px solid #e5e7eb; background:#fff; border-radius:.5rem; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  .nuevo { position:relative; }
+  .nuevo::after { content:'NUEVO'; position:absolute; top:-8px; right:-8px; background:#059669; color:#fff;
+                  font-size:9px; font-weight:700; padding:2px 6px; border-radius:9999px; letter-spacing:.04em; }
+  .cambia::after { content:'CAMBIA'; position:absolute; top:-8px; right:-8px; background:#171717; color:#fff;
+                  font-size:9px; font-weight:700; padding:2px 6px; border-radius:9999px; letter-spacing:.04em; }
+  .ico { width:1rem; height:1rem; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; display:inline-block; vertical-align:-2px; }
+  .tab { padding:.4rem .9rem; border-radius:.375rem; font-size:.875rem; font-weight:500; color:#525252; }
+  .tab.on { background:#fff; color:#171717; box-shadow:0 1px 2px rgba(0,0,0,.08); }
+  .chip { display:inline-flex; align-items:center; border-radius:9999px; padding:.125rem .625rem; font-size:.75rem; font-weight:500; }
+  .btn { border-radius:.5rem; padding:.5rem 1rem; font-size:.875rem; font-weight:500; }
+</style>
+</head>
+<body class="bg-gray-50 text-neutral-900 antialiased">
+
+<!-- ═══════ Barra del mockup (neutra) ═══════ -->
+<div class="sticky top-0 z-50 border-b border-gray-300 bg-white px-6 py-2">
+  <div class="flex flex-wrap items-center justify-between gap-3 text-sm">
+    <div class="flex items-center gap-3">
+      <span class="rounded bg-neutral-900 px-2 py-0.5 text-xs font-bold text-white">MOCKUP GW-158</span>
+      <span class="text-gray-700">get-web · módulo «Newsletter» · datos reales de configuración (stirpe 15 % / 7 días)</span>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-xs text-gray-500">Pantalla:</span>
+      <button onclick="ver('conf')" id="t-conf" class="rounded px-2 py-1 text-xs font-medium">Newsletter · Configuración</button>
+      <button onclick="ver('sus')" id="t-sus" class="rounded px-2 py-1 text-xs font-medium">Newsletter · Suscriptores</button>
+      <button onclick="ver('promo')" id="t-promo" class="rounded px-2 py-1 text-xs font-medium">Promociones · listado</button>
+      <span class="mx-1 h-4 w-px bg-gray-300"></span>
+      <span class="text-xs text-gray-500">Estado:</span>
+      <select id="estado" onchange="render()" class="rounded border border-gray-300 px-2 py-1 text-xs">
+        <option value="ok">normal</option>
+        <option value="guardado">guardado con éxito</option>
+        <option value="error">error de validación</option>
+        <option value="sinficha">tienda sin ficha (clover)</option>
+        <option value="reenviando">reenviando cupón</option>
+        <option value="vacio">sin resultados</option>
+        <option value="cargando">cargando</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="flex min-h-screen">
+  <!-- Sidebar real -->
+  <aside class="flex w-14 shrink-0 flex-col items-center gap-5 bg-neutral-900 py-5">
+    <div class="h-8 w-8 rounded-lg bg-neutral-700"></div>
+    <div class="mt-2 h-5 w-5 rounded bg-neutral-700/60"></div>
+    <div class="h-5 w-5 rounded bg-neutral-700/60"></div>
+    <div id="sb-promo" class="h-5 w-5 rounded bg-neutral-700/60"></div>
+    <div id="sb-news" class="nuevo h-5 w-5 rounded bg-emerald-500/90" title="Menú nuevo: Newsletter"></div>
+    <div class="h-5 w-5 rounded bg-neutral-700/60"></div>
+    <div class="h-5 w-5 rounded bg-neutral-700/60"></div>
+  </aside>
+
+  <div class="flex-1">
+    <header class="flex items-center justify-between border-b border-gray-200 bg-white px-8 py-3">
+      <div class="w-72 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-400">Filtrar menú…</div>
+      <div class="flex items-center gap-2 text-sm">
+        <div class="h-8 w-8 rounded-full bg-gradient-to-br from-orange-400 to-rose-500"></div>
+        <div><p class="font-medium leading-tight">Francisco L.</p><p class="text-xs leading-tight text-gray-400">Admin</p></div>
+      </div>
+    </header>
+
+    <!-- HeaderLayout real -->
+    <div id="hl" class="flex items-center justify-between border-b border-gray-200 bg-white px-8 py-4"></div>
+
+    <div class="space-y-6 px-8 py-6">
+      <div id="toast" class="hidden"></div>
+      <div id="cuerpo" class="space-y-6"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let PANT = 'conf';
+const E = () => document.getElementById('estado').value;
+
+const I = {
+  mail:'<svg class="ico" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
+  send:'<svg class="ico" viewBox="0 0 24 24"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>',
+  ext:'<svg class="ico" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+  pencil:'<svg class="ico" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/></svg>',
+  copy:'<svg class="ico" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>',
+  archive:'<svg class="ico" viewBox="0 0 24 24"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>',
+  x:'<svg class="ico" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  check:'<svg class="ico" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+  lock:'<svg class="ico" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  plus:'<svg class="ico" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
+};
+
+const tiendas = { stirpe:{pct:15,dias:7,eleg:'SOLO_FULL',promo:1021}, derek:{pct:20,dias:7,eleg:'SOLO_FULL',promo:1022}, u82:{pct:10,dias:7,eleg:'SOLO_FULL',promo:1023}, typer:{pct:20,dias:7,eleg:'SOLO_FULL',promo:1024} };
+
+const tabs = (on) => `
+<div class="inline-flex gap-1 rounded-lg bg-gray-100 p-1">
+  <button onclick="ver('conf')" class="tab ${on==='conf'?'on':''}">Configuración</button>
+  <button onclick="ver('sus')" class="tab ${on==='sus'?'on':''}">Suscriptores</button>
+</div>`;
+
+/* ─────────── Configuración ─────────── */
+function conf() {
+  const est = E(), sinFicha = est==='sinficha', err = est==='error';
+  const t = tiendas.stirpe;
+  const selectorTienda = `
+  <div class="flex flex-wrap items-end gap-3">
+    <div class="min-w-[200px]"><label class="lbl">Tienda</label>
+      <select class="inp mt-1">${sinFicha?'<option>clover</option>':''}<option ${sinFicha?'':'selected'}>stirpe</option><option>derek</option><option>u82</option><option>typer</option>${sinFicha?'':'<option>clover</option>'}</select></div>
+    ${sinFicha ? '' : `<p class="mb-2 text-xs text-gray-500">Ficha del motor: promoción <span class="font-mono">#${t.promo}</span> · <span class="chip bg-emerald-100 text-emerald-800">Activa</span> desde el 22 sep 2026 · última edición 08 sep 2026 por Marketing</p>`}
+  </div>`;
+
+  if (sinFicha) return `${tabs('conf')}${selectorTienda}
+  <div class="card px-6 py-12 text-center">
+    <span class="text-gray-400">${I.mail}</span>
+    <p class="mt-2 font-medium text-neutral-800">clover no tiene cupón de bienvenida configurado</p>
+    <p class="mx-auto mt-1 max-w-md text-sm text-gray-500">Mientras no exista la ficha, quien se suscriba en cloverbolsos.com no recibe código. Al crearla, el motor empieza a generar uno por cada registro.</p>
+    <button class="btn mt-4 bg-neutral-900 text-white">${I.plus} Crear configuración para clover</button>
+  </div>`;
+
+  return `${tabs('conf')}${selectorTienda}
+  <div class="grid grid-cols-5 gap-6">
+    <div class="col-span-3 space-y-6">
+      <div class="nuevo card p-5 space-y-4">
+        <p class="text-base font-semibold">Cupón de bienvenida</p>
+        <div class="grid grid-cols-3 gap-4">
+          <div><label class="lbl">Descuento</label>
+            <div class="mt-1 flex items-center gap-2"><input class="inp ${err?'border-rose-500':''}" value="${err?'':t.pct}" placeholder="15"><span class="text-sm text-gray-500">%</span></div>
+            ${err?'<p class="mt-1 text-xs text-rose-600">El descuento es obligatorio (entre 1 y 100).</p>':''}</div>
+          <div><label class="lbl">Días de vigencia del código</label><input class="inp mt-1" value="${t.dias}">
+            <p class="mt-1 text-xs text-gray-500">Vence a las 23:59 del día ${t.dias} desde el registro.</p></div>
+          <div><label class="lbl">Aplica sobre productos</label><select class="inp mt-1"><option>Solo a precio full</option><option>Todos</option><option>Solo con descuento</option></select></div>
+        </div>
+        <div class="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
+          Cada registro en la tienda crea un código personal de 8 caracteres ligado al correo, para <b>una sola compra</b>, y lo envía por WhatsApp y correo. Aquí no se crean códigos: solo se define qué entregan.
+        </div>
+      </div>
+
+      <div class="nuevo card p-5 space-y-4">
+        <p class="text-base font-semibold">Sección Newsletter del home</p>
+        <div><label class="lbl">Título</label><input class="inp mt-1 ${err?'border-rose-500':''}" value="Regístrate y recibe {{porcentaje}}% de descuento">
+          <p class="mt-1 text-xs ${err?'text-rose-600':'text-gray-500'}">${err?'El título debe incluir {{porcentaje}} para que muestre el descuento configurado.':'Escribe <span class="font-mono">{{porcentaje}}</span> donde va el descuento; el sistema pone el valor de arriba.'}</p></div>
+        <div><label class="lbl">Descripción</label><input class="inp mt-1" value="Descubre tendencias, promociones y mucho más"></div>
+      </div>
+
+      <div class="nuevo card p-5 space-y-3">
+        <p class="text-base font-semibold">Imagen del modal de suscripción</p>
+        <div class="flex items-center gap-4">
+          <div class="h-24 w-40 shrink-0 rounded-lg bg-gradient-to-br from-neutral-800 to-neutral-500"></div>
+          <div class="flex-1 space-y-1">
+            <p class="truncate text-xs text-gray-600">newsletter_septiembre_2026.jpg · subida el 08 sep 2026</p>
+            <div class="rounded-lg border-2 border-dashed border-gray-200 py-4 text-center text-xs text-gray-400">Arrastra la imagen del mes o haz clic (jpg/png/webp · máx. 2 MB)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <p class="text-xs text-gray-400">Los cambios aplican de inmediato a los registros nuevos. Los códigos ya enviados conservan su descuento y su fecha.</p>
+        <button class="btn bg-neutral-900 text-white">Guardar cambios</button>
+      </div>
+    </div>
+
+    <div class="col-span-2">
+      <div class="card sticky top-16 p-5 space-y-3">
+        <p class="text-sm font-semibold">Así se ve en stirpe.co</p>
+        <p class="text-xs text-gray-500">Sección del home con el título resuelto.</p>
+        <div class="overflow-hidden rounded-lg border border-gray-200">
+          <div class="bg-[#525252] p-4 text-white">
+            <p class="text-[10px] uppercase tracking-wide text-gray-300">Newsletter</p>
+            <p class="mt-1 text-sm font-semibold">Regístrate y recibe ${t.pct}% de descuento</p>
+            <p class="text-xs text-gray-200">Descubre tendencias, promociones y mucho más</p>
+            <button class="mt-3 rounded bg-[#C6FF00] px-3 py-1.5 text-xs font-semibold text-black">Suscribirme</button>
+          </div>
+        </div>
+        <p class="text-xs text-gray-500">Modal «Tu pase a lo nuevo» con la imagen de fondo.</p>
+        <div class="overflow-hidden rounded-lg border border-gray-200">
+          <div class="relative h-40 bg-gradient-to-br from-neutral-800 to-neutral-500 p-3 text-white">
+            <p class="text-sm font-bold">Tu pase a lo nuevo</p>
+            <p class="text-[11px] text-gray-200">${t.pct}% OFF en tu primera compra + acceso a drops exclusivos y toda la vibra Stirpe.</p>
+            <div class="mt-2 space-y-1"><div class="h-5 rounded bg-white/90"></div><div class="h-5 rounded bg-white/90"></div><div class="h-5 rounded bg-white/90"></div></div>
+          </div>
+        </div>
+        <p class="text-xs text-gray-400">Si cambias el descuento, la tienda y el carrito cambian juntos: es un solo dato.</p>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ─────────── Suscriptores ─────────── */
+const SUS = [
+  ['16 sep 11:44','laura.gomez@ejemplo.com','Laura Gómez','300 812 4471','KX4128QM','23 sep','vigente',null,true,false],
+  ['16 sep 11:31','andres.p@ejemplo.com','Andrés Pérez','311 209 6630','RB4127TA','23 sep','vigente',null,true,false],
+  ['15 sep 19:02','camila.r@ejemplo.com','Camila Ruiz','—','ZQ4102LM','22 sep','vigente',null,false,false],
+  ['14 sep 08:15','jorge.mtz@ejemplo.com','Jorge Martínez','315 998 1204','PD4056WE','21 sep','usado','#3841927',true,false],
+  ['09 sep 17:40','sofia.c@ejemplo.com','Sofía Castro','301 445 8890','TA3921HK','16 sep','vencido',null,true,false],
+  ['08 sep 12:03','daniel.v@ejemplo.com','Daniel Vega','—','MC3888PL','15 sep','usado','#3839110',true,true],
+  ['07 sep 09:20','valentina.o@ejemplo.com','Valentina Ortiz','318 770 2231','HN3860RS','14 sep','vencido',null,false,true],
+];
+const chipEstado = (e, ped) => e==='vigente' ? '<span class="chip bg-emerald-100 text-emerald-800">Vigente</span>'
+  : e==='usado' ? `<span class="chip bg-neutral-900 text-white">Usado</span> <span class="ml-1 text-xs text-gray-500">${ped}</span>`
+  : e==='vencido' ? '<span class="chip bg-gray-100 text-gray-600">Vencido</span>'
+  : '<span class="chip bg-rose-100 text-rose-800">Sin cupón</span>';
+
+function sus() {
+  const est = E();
+  const filas = est==='vacio' ? '' : est==='cargando'
+    ? Array(5).fill('<tr class="border-b border-gray-50"><td colspan="9" class="px-4 py-3"><div class="h-4 w-full animate-pulse rounded bg-gray-100"></div></td></tr>').join('')
+    : SUS.map(([f,c,n,cel,cod,v,e,ped,wa,legacy],i)=>`
+      <tr class="border-b border-gray-50 hover:bg-gray-50">
+        <td class="px-4 py-3 text-xs text-gray-600 whitespace-nowrap">${f}</td>
+        <td class="px-4 py-3"><span class="font-medium text-neutral-900">${c}</span><br><span class="text-xs text-gray-400">${n}</span></td>
+        <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${cel}</td>
+        <td class="px-4 py-3"><span class="font-mono text-sm">${cod}</span>${legacy?'<br><span class="text-[10px] text-gray-400" title="Cupón creado antes del corte: vive en las tablas anteriores hasta vencer">cupón anterior</span>':''}</td>
+        <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${v} 23:59</td>
+        <td class="px-4 py-3 whitespace-nowrap">${chipEstado(e,ped)}</td>
+        <td class="px-4 py-3 text-center">${wa?'<span class="text-emerald-600">'+I.check+'</span>':'<span class="text-gray-300">—</span>'}</td>
+        <td class="px-4 py-3">
+          <div class="flex items-center justify-end gap-1">
+            ${e==='vigente' ? `<button class="rounded p-1.5 text-gray-600 hover:bg-gray-100 ${est==='reenviando'&&i===0?'opacity-50':''}" title="Reenviar cupón por correo">${I.send}</button>` : `<span class="p-1.5 text-gray-300" title="Solo se reenvía un cupón vigente">${I.send}</span>`}
+          </div>
+        </td>
+      </tr>`).join('');
+
+  return `${tabs('sus')}
+  <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+    <div class="card p-5"><p class="text-xs font-medium uppercase tracking-wide text-gray-500">Registros hoy</p><p class="mt-1 text-3xl font-bold">612</p></div>
+    <div class="card p-5"><p class="text-xs font-medium uppercase tracking-wide text-gray-500">Registros 7 días</p><p class="mt-1 text-3xl font-bold">4.318</p></div>
+    <div class="card p-5"><p class="text-xs font-medium uppercase tracking-wide text-gray-500">Cupones vigentes</p><p class="mt-1 text-3xl font-bold">4.106</p></div>
+    <div class="card p-5"><p class="text-xs font-medium uppercase tracking-wide text-gray-500">Redimidos 30 días</p><p class="mt-1 text-3xl font-bold">183</p><p class="text-xs text-gray-400">$ 9.640.500 en descuentos</p></div>
+  </div>
+
+  <div class="flex flex-wrap items-end gap-3">
+    <div class="min-w-[220px] flex-1"><input class="inp" placeholder="Buscar por correo…" value="${est==='vacio'?'nadie@ejemplo.com':''}"></div>
+    <div class="min-w-[150px]"><select class="inp"><option>stirpe</option><option>derek</option><option>u82</option><option>typer</option></select></div>
+    <div><input class="inp" value="2026-09-01"></div><span class="pb-2 text-gray-400">→</span><div><input class="inp" value="2026-09-16"></div>
+    <div class="min-w-[150px]"><select class="inp"><option>Todos los estados</option><option>Vigente</option><option>Usado</option><option>Vencido</option><option>Sin cupón</option></select></div>
+    <button class="btn border border-gray-300 bg-white text-sm">${I.x} Limpiar</button>
+  </div>
+
+  <div class="nuevo">
+  <div class="card overflow-hidden">
+    <table class="w-full text-sm">
+      <thead><tr class="border-b border-gray-100 bg-gray-50 text-left text-gray-600">
+        <th class="px-4 py-3 font-medium">Registro</th><th class="px-4 py-3 font-medium">Suscriptor</th><th class="px-4 py-3 font-medium">Celular</th>
+        <th class="px-4 py-3 font-medium">Código</th><th class="px-4 py-3 font-medium">Vence</th><th class="px-4 py-3 font-medium">Cupón</th>
+        <th class="px-4 py-3 font-medium text-center">WhatsApp</th><th class="px-4 py-3 font-medium text-right">Acciones</th></tr></thead>
+      <tbody>
+        ${est==='vacio' ? `<tr><td colspan="9" class="px-4 py-12 text-center text-gray-400"><span class="opacity-40">${I.mail}</span><p class="mt-2">No hay suscriptores que coincidan con los filtros.</p></td></tr>` : filas}
+      </tbody>
+    </table>
+    ${est==='vacio'||est==='cargando'?'':'<div class="flex items-center justify-between border-t border-gray-100 px-4 py-2 text-xs text-gray-500"><span>4.318 suscriptores · 20 por página</span><span>‹ 1 2 3 … 216 ›</span></div>'}
+  </div>
+  </div>
+  <p class="text-xs text-gray-400">Reemplaza el detalle y el reenvío de «Ventas WhatsApp → Suscriptores» de cms-stirpe para los códigos nuevos. La asignación de suscriptores a vendedores sigue en cms-stirpe.</p>`;
+}
+
+/* ─────────── Promociones · listado ─────────── */
+function promo() {
+  const fila = (id, nombre, act, ben, tienda, vig, est, chip, red, acciones) => `
+  <tr class="border-b border-gray-50 hover:bg-gray-50">
+    <td class="px-4 py-3"><span class="font-medium text-neutral-900">${nombre}</span><span class="ml-2 text-xs text-gray-400">#${id}</span></td>
+    <td class="px-4 py-3 text-gray-600">${act}</td><td class="px-4 py-3 text-gray-600">${ben}</td><td class="px-4 py-3 text-gray-600">${tienda}</td>
+    <td class="px-4 py-3 text-xs text-gray-600">${vig}</td><td class="px-4 py-3"><span class="chip ${chip}">${est}</span></td>
+    <td class="px-4 py-3 text-right text-gray-700">${red}</td><td class="px-4 py-3"><div class="flex items-center justify-end gap-1">${acciones}</div></td></tr>`;
+  const acc = `<span class="rounded p-1.5 text-gray-600">${I.pencil}</span><span class="rounded p-1.5 text-gray-600">${I.copy}</span><span class="rounded p-1.5 text-gray-600">${I.archive}</span>`;
+  const accSus = `<a class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50" title="Esta promoción se administra en Newsletter">${I.ext} Configurar en Newsletter</a><span class="p-1.5 text-gray-300" title="Solo lectura desde aquí">${I.lock}</span>`;
+  return `
+  <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+    <div class="card p-5"><p class="text-xs font-medium uppercase tracking-wide text-gray-500">Activas</p><p class="mt-1 text-3xl font-bold">6</p></div>
+    <div class="card p-5"><p class="text-xs font-medium uppercase tracking-wide text-gray-500">Programadas</p><p class="mt-1 text-3xl font-bold">1</p></div>
+    <div class="card p-5"><p class="text-xs font-medium uppercase tracking-wide text-gray-500">Redimidas 30d</p><p class="mt-1 text-3xl font-bold">412</p></div>
+    <div class="card p-5"><p class="text-xs font-medium uppercase tracking-wide text-gray-500">Descuento otorgado 30d</p><p class="mt-1 text-2xl font-bold">$ 31.204.900</p></div>
+  </div>
+  <div class="flex flex-wrap items-end gap-3">
+    <div class="min-w-[180px] flex-1"><input class="inp" placeholder="Buscar por nombre..."></div>
+    <div class="min-w-[160px]"><select class="inp"><option>Todas las tiendas</option></select></div>
+    <div class="min-w-[160px] cambia"><select class="inp"><option>Activación</option><option>Todas</option><option>Automática</option><option>Por código</option><option>Código único</option><option>Suscripción</option></select></div>
+    <div class="min-w-[160px]"><select class="inp"><option>Estado</option></select></div>
+    <button class="btn border border-gray-300 bg-white text-sm">${I.x} Limpiar</button>
+  </div>
+  <div class="card overflow-hidden">
+    <table class="w-full text-sm">
+      <thead><tr class="border-b border-gray-100 bg-gray-50 text-left text-gray-600">
+        <th class="px-4 py-3 font-medium">Promoción</th><th class="px-4 py-3 font-medium">Activación</th><th class="px-4 py-3 font-medium">Beneficio</th><th class="px-4 py-3 font-medium">Tienda</th>
+        <th class="px-4 py-3 font-medium">Vigencia</th><th class="px-4 py-3 font-medium">Estado</th><th class="px-4 py-3 font-medium text-right">Redimidos</th><th class="px-4 py-3 font-medium text-right">Acciones</th></tr></thead>
+      <tbody>
+        ${fila(1021,'Bienvenida newsletter stirpe','<span class="inline-flex items-center gap-1">'+I.mail+' Suscripción</span>','Porcentaje','stirpe','22 sep 2026 → <span class="text-gray-400">sin fin</span>','Activa','bg-emerald-100 text-emerald-800','183<br><span class="text-xs text-gray-400">$ 9.640.500</span>',accSus)}
+        ${fila(1022,'Bienvenida newsletter derek','<span class="inline-flex items-center gap-1">'+I.mail+' Suscripción</span>','Porcentaje','derek','22 sep 2026 → <span class="text-gray-400">sin fin</span>','Activa','bg-emerald-100 text-emerald-800','64<br><span class="text-xs text-gray-400">$ 4.112.000</span>',accSus)}
+        ${fila(1017,'20 % pagando con PSE','Automática','Porcentaje','stirpe','01 sep 2026 → 30 sep 2026','Activa','bg-emerald-100 text-emerald-800','98<br><span class="text-xs text-gray-400">$ 8.930.400</span>',acc)}
+        ${fila(1010,'Cupón SEPTIEMBRE15','Por código','Porcentaje','stirpe','01 sep 2026 → 30 sep 2026','Activa','bg-emerald-100 text-emerald-800','67<br><span class="text-xs text-gray-400">$ 8.522.000</span>',acc)}
+        ${fila(1003,'2x1 en perfumes','Automática','Regalo','stirpe','27 ago 2026 → 31 ago 2026','Vencida','bg-gray-100 text-gray-600','—',`<span class="rounded p-1.5 text-gray-600">${I.copy}</span><span class="rounded p-1.5 text-gray-600">${I.archive}</span>`)}
+      </tbody>
+    </table>
+  </div>
+  <p class="text-xs text-gray-400">La ficha de suscripción se ve como cualquier promoción pero no se edita, duplica ni archiva desde aquí: el enlace lleva a Newsletter · Configuración.</p>`;
+}
+
+function render() {
+  const est = E();
+  const H = {
+    conf: ['Newsletter','Cupón de bienvenida y sección del home por tienda', ''],
+    sus:  ['Newsletter','Cupón de bienvenida y sección del home por tienda', ''],
+    promo:['Promociones de descuento','Gestiona ofertas, códigos y beneficios para tus tiendas', '<button class="btn bg-neutral-900 text-white">'+I.plus+' Crear promoción</button>'],
+  }[PANT];
+  document.getElementById('hl').innerHTML = `<div><h1 class="text-xl font-bold">${H[0]}</h1><p class="text-sm text-gray-500">${H[1]}</p></div><div>${H[2]}</div>`;
+  document.getElementById('cuerpo').innerHTML = ({conf, sus, promo})[PANT]();
+  const t = document.getElementById('toast');
+  let toast = '';
+  if (PANT==='conf' && est==='guardado') toast = `<div class="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">${I.check} Configuración de stirpe guardada. Los registros nuevos reciben 15 % por 7 días.</div>`;
+  if (PANT==='conf' && est==='error') toast = `<div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">Revisa los campos marcados: no se guardó nada.</div>`;
+  if (PANT==='sus' && est==='reenviando') toast = `<div class="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">${I.send} Cupón KX4128QM reenviado a laura.gomez@ejemplo.com.</div>`;
+  t.innerHTML = toast; t.classList.toggle('hidden', !toast);
+  for (const k of ['conf','sus','promo'])
+    document.getElementById('t-'+k).className = 'rounded px-2 py-1 text-xs font-medium ' + (k===PANT ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-800 border border-gray-300');
+  document.getElementById('sb-news').className = 'nuevo h-5 w-5 rounded ' + (PANT==='promo' ? 'bg-neutral-700/60' : 'bg-emerald-500/90');
+  document.getElementById('sb-promo').className = 'h-5 w-5 rounded ' + (PANT==='promo' ? 'bg-emerald-500/90' : 'bg-neutral-700/60');
+}
+function ver(p) { PANT = p; render(); }
+if (location.hash && ['conf','sus','promo'].includes(location.hash.slice(1))) PANT = location.hash.slice(1);
+render();
+</script>
+</body>
+</html>

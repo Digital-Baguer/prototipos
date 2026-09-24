@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-164 · Liquidación de comisiones: «Por facturar» pasa a «Pedidos web» (misma cifra que Gestión y Mis Ventas)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Pila tipográfica real de get-web (resources/css/app.css --font-sans; verificada contra el CSS
+     compilado en GW-150/152 — este checkout no trae public/build). */
+  html, body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+  .cifra { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .marcar-on .cambio { outline: 2px dashed #6366f1; outline-offset: 2px; border-radius: 4px; }
+  .skeleton { background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+  @keyframes sk { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+  /* Tooltip = TooltipContent de reka (components/ui/tooltip/TooltipContent.vue): bg-primary hsl(0 0% 9%),
+     text-xs, rounded-md, px-3 py-1.5; en Gestión va con max-w-60 text-left text-[11px] leading-snug.
+     Oculto con display:none, no opacity:0 (ADR-006). */
+  .tip { position: relative; }
+  .tip::after {
+    content: attr(data-tip);
+    position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    margin-top: 6px; width: 240px; padding: 6px 12px;
+    background: hsl(0 0% 9%); color: hsl(0 0% 98%);
+    font-size: 11px; line-height: 1.375; font-weight: 400;
+    text-transform: none; letter-spacing: normal; text-align: left; white-space: normal;
+    border-radius: 6px; display: none; pointer-events: none; z-index: 40;
+  }
+  .tip:hover::after { display: block; }
+  .tip-fin::after { left: auto; right: 0; transform: none; }
+  .tip-ini::after { left: 0; transform: none; }
+  /* shadcn Table (components/ui/table): TableHead h-10 px-2 font-medium; TableCell p-2 align-middle whitespace-nowrap */
+  table.ui th { height: 2.5rem; padding: 0 .5rem; text-align: left; vertical-align: middle; font-weight: 500; white-space: nowrap; }
+  table.ui td { padding: .5rem; vertical-align: middle; white-space: nowrap; }
+  table.ui tr { border-bottom: 1px solid #e5e7eb; }
+  table.ui tfoot tr, table.ui tbody tr:last-child { border-bottom: 0; }
+</style>
+</head>
+<body class="overflow-x-hidden bg-gray-100 text-gray-900 antialiased">
+
+<!-- ══ Barra de control del mockup (no es parte de la UI) ══ -->
+<div class="sticky top-0 z-50 border-b border-indigo-200 bg-indigo-50/95 px-4 py-2 backdrop-blur">
+  <div class="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+    <span class="font-bold text-indigo-900">GW-164 · mockup</span>
+    <div class="flex flex-wrap gap-1" id="pestanas">
+      <button data-estado="conpw"  class="pestana rounded-md border border-indigo-300 bg-white px-2.5 py-1 font-medium text-indigo-900">1 · Q1 sep 2026 · con pedidos web</button>
+      <button data-estado="cero"   class="pestana rounded-md border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-white">2 · Q1 sep 2026 · 0 tras cargar «1-22 STIRPE.xls»</button>
+      <button data-estado="antes"  class="pestana rounded-md border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-white">3 · Q2 ago 2026 · anterior al corte 1 sep</button>
+      <button data-estado="carga"  class="pestana rounded-md border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-white">4 · Carga y error del bloque</button>
+    </div>
+    <label class="flex items-center gap-1.5">
+      <span class="text-indigo-800">Variante de color:</span>
+      <select id="variante" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="A">A · gris neutro (cifra informativa)</option>
+        <option value="B">B · esmeralda (cifra positiva: el dinero entró)</option>
+      </select>
+    </label>
+    <label id="subestado-wrap" class="hidden items-center gap-1.5">
+      <span class="text-indigo-800">Bloque:</span>
+      <select id="subestado" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="cargando">Cargando (skeleton)</option>
+        <option value="error">Error al cargar · Reintentar</option>
+      </select>
+    </label>
+    <label class="flex items-center gap-1.5">
+      <input id="marcar" type="checkbox" class="rounded border-indigo-300" checked>
+      <span class="text-indigo-800">Marcar lo que cambia</span>
+    </label>
+    <span class="text-indigo-700 lg:ml-auto">Stirpe (tienda 0) · datos de PROD 3308 del 2026-09-22/23 · 1440 px</span>
+  </div>
+</div>
+
+<div id="pagina" class="marcar-on mx-auto max-w-[1440px] px-4 py-5"></div>
+
+<!-- ══ Nota al pie: qué difiere de la UI actual ══ -->
+<div class="mx-auto max-w-[1440px] px-4 pb-10">
+  <div class="rounded-xl border border-indigo-200 bg-white p-5 text-[12px] leading-relaxed text-gray-700">
+    <p class="mb-2 text-sm font-semibold text-gray-900">Qué difiere de la UI actual (get-web master, 2026-09-23)</p>
+    <table class="w-full text-left text-[11.5px]">
+      <thead><tr class="border-b text-gray-500"><th class="py-1 pr-3">Bloque</th><th class="py-1 pr-3">Hoy</th><th class="py-1 pr-3">Mockup</th><th class="py-1">Componente real copiado</th></tr></thead>
+      <tbody class="divide-y">
+        <tr><td class="py-1.5 pr-3 font-medium">Tarjeta KPI</td><td class="py-1.5 pr-3"><b>Nombre</b> «Pendiente por facturar» · <b>color</b> ámbar (border-2 amber-300 / bg-amber-50) cuando &gt; 0, esmeralda en 0 · sub «N pedido(s) pagados de carritos X a Y sin factura» · sin tooltip · <b>fuente</b> consulta viva de <code>PendienteFacturarService</code></td><td class="py-1.5 pr-3"><b>Nombre</b> «Pedidos web» · <b>color</b> A gris neutro / B esmeralda (ámbar prohibido, ADR-006) · sub «N pedidos · no suma al cumplimiento ni a la comisión» · <b>tooltip</b> de Gestión de Ventas en el ícono lucide <code>info</code> · <b>fuente</b> sello del cron (Σ <code>venta_pedidos_web</code>, Σ <code>pedidos_sin_factura</code>); antes del 2026-09-01 muestra 0 con nota «Se mide desde el 1 sep 2026»</td><td class="py-1.5"><code>Liquidacion.vue:215-241</code> (grid de 5 tarjetas y clases de la tarjeta)</td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Columna por asesor</td><td class="py-1.5 pr-3">«Por facturar» · banda ámbar (<code>bg-amber-50</code> / <code>bg-amber-50/60</code>, <code>text-amber-700</code>) · sin tooltip · «valor (conteo)»</td><td class="py-1.5 pr-3">«Pedidos web» · banda A gris / B esmeralda · tooltip en el encabezado con el mismo texto literal (<code>TIP_PEDIDOS_WEB</code>, subrayado punteado + cursor-help) · mismo formato «valor (conteo)» · pie de totales sigue vacío (D6 de GW-118)</td><td class="py-1.5"><code>Liquidacion.vue:293, 326-329, 391</code> · trigger del tooltip <code>gestionVentas/components/TablaAsesoresCumplimiento.vue:397-402</code> · texto <code>tablaAsesoresCumplimiento.celdas.ts:268</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Leyenda al pie</td><td class="py-1.5 pr-3">«Por facturar = venta pagada aún sin factura: no suma al cumplimiento hasta que llegue en un archivo»</td><td class="py-1.5 pr-3">«Pedidos web = pedidos ya pagados a la espera de la factura del ERP: no suma al cumplimiento ni a la comisión hasta que llegue en un archivo»</td><td class="py-1.5"><code>Liquidacion.vue:426-431</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Badge por día (detalle del asesor)</td><td class="py-1.5 pr-3">«N sin facturar» ámbar (<code>bg-amber-100 text-amber-700</code>) + fila teñida <code>bg-amber-50/50</code> que pesa más que el esmeralda de «gana bono» · <code>title</code> nativo</td><td class="py-1.5 pr-3">«N pedidos web» A gris (<code>bg-gray-100 text-gray-600</code>) / B esmeralda (<code>bg-emerald-100 text-emerald-700</code>) · <b>sin teñir la fila</b> (el fondo esmeralda de «gana bono» vuelve a mandar) · tooltip con valor + texto de Gestión · datos de <code>venta_pedidos_web</code> / <code>pedidos_sin_factura</code> del día</td><td class="py-1.5"><code>components/ModalDetalleAsesor.vue:333-349</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Checklist del cierre</td><td class="py-1.5 pr-3">Fila ámbar «⚠ N pedidos pagados sin facturar (valor) de carritos de esta quincena…» con caracteres ⚠/✓ · checkbox «Entiendo el rezago…» solo si N &gt; 0 · fuente viva</td><td class="py-1.5 pr-3">Fila <b>rosa</b> (bloquea el cierre hasta marcar) con lucide <code>triangle-alert</code>: «N pedidos web (valor) de esta quincena aún sin factura del ERP…»; en 0, fila esmeralda con lucide <code>circle-check</code> «Sin pedidos web pendientes de factura» y sin checkbox · misma cifra del sello (Σ quincena y tienda) · el 422 de <code>CierrePeriodoService:286-290</code> cambia a «Hay N pedidos web por $X sin factura del ERP. Confirma…»</td><td class="py-1.5"><code>components/ModalDetalleQuincena.vue:224-272</code> · <code>app/Services/Comisiones/CierrePeriodoService.php:279-291</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Carga y error</td><td class="py-1.5 pr-3">La tarjeta comparte el gate de la fila de KPI (GW-118 C1); modales con skeleton + alerta roja con «Reintentar»</td><td class="py-1.5 pr-3">Sin cambio de patrón: fila de KPI y tabla en skeleton; error del bloque con «Reintentar» de <code>BloqueError.vue</code> (GW-157 P2-1); modales igual que hoy</td><td class="py-1.5"><code>gestionVentas/components/BloqueError.vue</code> · <code>ModalDetalleAsesor.vue:143-152</code> · <code>ModalDetalleQuincena.vue:154-162</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Excel</td><td class="py-1.5 pr-3">Encabezado «Por facturar» en <code>LiquidacionExport</code></td><td class="py-1.5 pr-3">Encabezado «Pedidos web» (D3) — no se dibuja aquí</td><td class="py-1.5">—</td></tr>
+      </tbody>
+    </table>
+    <p class="mt-3 text-[11px] text-gray-500">
+      Fuera del mockup: modal de desglose de los pedidos web (D8: no hay), Gestión de Ventas y Mis Ventas (solo cambian de fuente por D6, no de UI), sidebar del AppLayout (omitida como en GW-155/GW-148),
+      vista a 390 px. Las filas «Archivo de ventas» e «Infobip» del checklist y los banners ámbar de base mixta / recálculo no se tocan en GW-164. La variante B pone dos tarjetas esmeralda en la fila (junto a «Total a pagar»): decisión abierta para el arquitecto.
+    </p>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Datos. Stirpe (tienda 0), quincena 2026-09-01 → 2026-09-15. Los pedidos web son los del
+// brainstorming GW-164 §2.1/§2.9/§2.10 (PROD 3308): Silvia 5.322.965 en 11 (09-14/15), Brayan
+// 2.197.158 en 4, Andrés 1.991.550 en 3. El resto son cifras plausibles de una quincena real.
+// ─────────────────────────────────────────────────────────────────────────────
+const TIP_PEDIDOS_WEB = 'Pedidos ya pagados por el cliente, a la espera de la factura del ERP. Cuentan desde ya: el dinero entró.';
+const DIAS_RANGO = 13; // 1–15 sep sin los domingos 6 y 13
+const BONO_DIA = 30000;
+
+const ASESORES = [
+  { nombre: 'silvia a. camacho', cod: '5432100', meta: 46800000, venta: 48960400, dev: 0,      devN: 0, pw: 5322965, pwN: 11, ped: 104, tcv: 27.3, pctVenta: 1.34, pctVpt: 0.08, pctTcv: 0.08, diasBono: 9 },
+  { nombre: 'brayan j. ardila',  cod: '7784400', meta: 47250000, venta: 51573212, dev: 612300, devN: 2, pw: 2197158, pwN: 4,  ped: 110, tcv: 26.0, pctVenta: 1.34, pctVpt: 0.08, pctTcv: 0.08, diasBono: 10 },
+  { nombre: 'andrés f. jiménez', cod: '7133900', meta: 44100000, venta: 39412870, dev: 289900, devN: 1, pw: 1991550, pwN: 3,  ped: 87,  tcv: 22.1, pctVenta: 1.10, pctVpt: 0,    pctTcv: 0,    diasBono: 5 },
+];
+
+// Resumen diario de Silvia (modal 👁): los 11 pedidos web viven en el 14 y el 15 (G fechadas 16/17 sep).
+const DIARIO_SILVIA = [
+  { f:'2026-09-01', venta:3812400, n:8, upt:2.1, ok:true },
+  { f:'2026-09-02', venta:4105900, n:9, upt:2.0, ok:true },
+  { f:'2026-09-03', venta:3290150, n:7, upt:1.7, ok:false, falla:'upt' },
+  { f:'2026-09-04', venta:3976300, n:8, upt:2.2, ok:true },
+  { f:'2026-09-05', venta:4412800, n:9, upt:2.0, ok:true },
+  { f:'2026-09-07', venta:3155700, n:7, upt:2.0, ok:false, falla:'ventas' },
+  { f:'2026-09-08', venta:3688250, n:8, upt:2.1, ok:true },
+  { f:'2026-09-09', venta:4021900, n:9, upt:2.0, ok:true },
+  { f:'2026-09-10', venta:3540600, n:7, upt:2.3, ok:true },
+  { f:'2026-09-11', venta:3897450, n:8, upt:2.0, ok:true },
+  { f:'2026-09-12', venta:4260900, n:9, upt:2.1, ok:true },
+  { f:'2026-09-14', venta:3610838, n:8, upt:1.8, ok:false, falla:'upt',    pw:2905115, pwN:6 },
+  { f:'2026-09-15', venta:3187212, n:7, upt:2.0, ok:false, falla:'ventas', pw:2417850, pwN:5 },
+];
+const META_DIA_SILVIA = 3600000;
+
+const ESTADOS = {
+  conpw: {
+    titulo: '1 · Quincena con pedidos web: tarjeta, columna, badge diario y cierre que exige «Entiendo el rezago»',
+    desde: '2026-09-01', hasta: '2026-09-15', quincena: 1, mesNombre: 'Septiembre', anio: 2026, base: 'con_iva', congelada: false,
+    archivo: { nombre: '1-15 STIRPE.xls', procesado: '15-sep 18:02', filas: '4.870' },
+    sello: '23-sep 08:35 · hace 12 min',
+    asesores: ASESORES,
+    diario: DIARIO_SILVIA,
+  },
+  cero: {
+    titulo: '2 · Quincena con 0 pedidos web tras cargar el archivo completo: tarjeta en 0 y cierre sin la marca',
+    desde: '2026-09-01', hasta: '2026-09-15', quincena: 1, mesNombre: 'Septiembre', anio: 2026, base: 'con_iva', congelada: false,
+    archivo: { nombre: '1-22 STIRPE.xls', procesado: '22-sep 16:28', filas: '6.412' },
+    sello: '23-sep 08:35 · hace 12 min',
+    // Al llegar la G, el sello baja venta_pedidos_web y sube venta_neta (brainstorming §2.3/§2.9)
+    asesores: ASESORES.map(a => ({ ...a, venta: a.venta + a.pw, ped: a.ped + a.pwN, pw: 0, pwN: 0 })),
+    diario: DIARIO_SILVIA.map(d => d.pw ? { ...d, venta: d.venta + d.pw, n: d.n + d.pwN, pw: 0, pwN: 0, ok: d.falla !== 'upt', falla: d.falla === 'upt' ? 'upt' : undefined } : d),
+  },
+  antes: {
+    titulo: '3 · Quincena anterior al corte del 1 sep 2026: tarjeta en 0 con nota corta (D4), sin badge y sin marca',
+    desde: '2026-08-16', hasta: '2026-08-31', quincena: 2, mesNombre: 'Agosto', anio: 2026, base: 'sin_iva', congelada: true,
+    archivo: { nombre: '16-31 STIRPE.xls', procesado: '01-sep 09:14', filas: '5.108' },
+    sello: '01-sep 09:20 · cerrada el 02-sep',
+    asesores: [
+      { ...ASESORES[0], meta: 44200000, venta: 45318700, dev: 154200, devN: 1, pw: 0, pwN: 0, ped: 98, tcv: 25.4, diasBono: 8 },
+      { ...ASESORES[1], meta: 45100000, venta: 47905310, dev: 0,      devN: 0, pw: 0, pwN: 0, ped: 103, tcv: 24.9, diasBono: 9 },
+      { ...ASESORES[2], meta: 42800000, venta: 36240180, dev: 402350, devN: 2, pw: 0, pwN: 0, ped: 81, tcv: 21.2, diasBono: 4 },
+    ],
+    diario: DIARIO_SILVIA.map((d, i) => ({ ...d, f: ['2026-08-17','2026-08-18','2026-08-19','2026-08-20','2026-08-21','2026-08-22','2026-08-24','2026-08-25','2026-08-26','2026-08-27','2026-08-28','2026-08-29','2026-08-31'][i], pw: 0, pwN: 0 })),
+  },
+  carga: {
+    titulo: '4 · Carga (skeleton) y error del bloque con «Reintentar» (patrón GW-157 P2-1)',
+    desde: '2026-09-01', hasta: '2026-09-15', quincena: 1, mesNombre: 'Septiembre', anio: 2026, base: 'con_iva', congelada: false,
+    archivo: { nombre: '1-15 STIRPE.xls', procesado: '15-sep 18:02', filas: '4.870' },
+    sello: '23-sep 08:35 · hace 12 min',
+    asesores: ASESORES, diario: DIARIO_SILVIA,
+  },
+};
+
+// ─── Helpers (espejo de lib/utils formatCurrency y comisiones/constantes.ts) ───
+const pesos = n => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+const pct1  = n => n === null ? '—' : n.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+const pct2  = n => n.toFixed(2).replace('.', ',') + '%';
+const MESES_CORTOS = ['ene','feb','mar','abr','may','jun','jul','ago','sept','oct','nov','dic'];
+const fechaCorta = iso => { const [, m, d] = iso.split('-'); return `${d}-${MESES_CORTOS[Number(m)-1]}`; };
+const fechaDiaMes = iso => { const [, m, d] = iso.split('-'); return `${Number(d)} de ${MESES_CORTOS[Number(m)-1].slice(0,3)}`; };
+const capital = s => s.replace(/(^|\s)\S/g, c => c.toUpperCase());
+const clasePct = p => p === null ? 'text-gray-400' : p >= 100 ? 'text-emerald-600 font-semibold' : p >= 70 ? 'text-gray-700' : 'text-amber-600';
+const sk = (h, extra = '') => `<div class="skeleton ${h} rounded-lg ${extra}"></div>`;
+
+// lucide (h-3.5 w-3.5 / h-4 w-4 como en los componentes reales)
+const ICO = {
+  fileSpreadsheet: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>',
+  upload: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>',
+  clipboardList: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>',
+  clock: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  messageSquare: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  fileSmall: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>',
+  download: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
+  eye: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>',
+  info: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+  infoMd: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+  check: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  x: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  xMd: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  triangleAlert: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+  circleCheck: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>',
+};
+
+// ─── Paleta de la variante (ADR-006: gris neutro / esmeralda positivo) ───
+const PALETA = {
+  A: {
+    card: 'rounded-xl border bg-white p-5', cardLabel: 'text-gray-500', cardCifra: 'text-gray-900', cardCifraCero: 'text-gray-400', cardSub: 'text-gray-500',
+    th: 'bg-gray-100 text-gray-600', td: 'bg-gray-50/60', tdValor: 'font-medium text-gray-700',
+    badge: 'bg-gray-100 text-gray-600',
+  },
+  B: {
+    card: 'rounded-xl border border-emerald-200 bg-emerald-50 p-5', cardLabel: 'text-emerald-600', cardCifra: 'text-emerald-700', cardCifraCero: 'text-emerald-700', cardSub: 'text-emerald-600',
+    th: 'bg-emerald-50 text-emerald-700', td: 'bg-emerald-50/40', tdValor: 'font-medium text-emerald-700',
+    badge: 'bg-emerald-100 text-emerald-700',
+  },
+};
+
+const ui = () => ({
+  estado: document.querySelector('.pestana.bg-white')?.dataset.estado ?? 'conpw',
+  v: document.getElementById('variante').value,
+  sub: document.getElementById('subestado').value,
+});
+
+// ─── Cálculos espejo de Liquidacion.vue (kpis computed) ───
+function filasCalculadas(asesores) {
+  return asesores.map(a => {
+    const cumpl = a.venta / a.meta * 100;
+    const pctTotal = a.pctVenta + a.pctVpt + a.pctTcv;
+    const comision = Math.round(a.venta * pctTotal / 100);
+    const bono = a.diasBono * BONO_DIA;
+    return { ...a, cumpl, pctTotal, comision, bono, total: comision + bono, vpt: Math.round(a.venta / a.ped) };
+  });
+}
+function totales(filas) {
+  const s = k => filas.reduce((acc, f) => acc + f[k], 0);
+  const venta = s('venta'), meta = s('meta');
+  return { asesores: filas.length, meta, venta, cumpl: venta / meta * 100, ped: s('ped'), comision: s('comision'), diasBono: s('diasBono'), bono: s('bono'), total: s('total'), pw: s('pw'), pwN: s('pwN'), cumplen: filas.filter(f => f.cumpl >= 100).length };
+}
+
+// ═══════════════════════════════ CHROME (AppLayout + HeaderLayout) ═══════════════════════════════
+function chrome(E) {
+  return `
+    <nav class="mb-3 text-xs text-gray-500">Dashboard <span class="mx-1">›</span> Venta Asistida <span class="mx-1">›</span> <span class="text-gray-800">Liquidación de comisiones</span></nav>
+    <section class="rounded-t-xl border border-b-0 border-gray-200 bg-white px-8 py-6">
+      <h1 class="text-2xl font-bold text-gray-900">Liquidación de comisiones</h1>
+      <p class="text-sm text-gray-600 md:text-base">Cálculo por asesor según ventas netas, VPT, TCV y bono diario · período libre</p>
+    </section>`;
+}
+
+function tabsComisiones() {
+  const tab = (ico, txt, on) => `<span class="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${on ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}">${ico} ${txt}</span>`;
+  return `<div class="flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-gray-200/70 p-1">${tab(ICO.fileSpreadsheet, 'Liquidación', true)}${tab(ICO.upload, 'Cargar archivos')}${tab(ICO.clipboardList, 'Bitácora de cargas')}</div>`;
+}
+
+function filtros(E) {
+  const baseCls = E.base === 'con_iva' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-700';
+  const baseTxt = E.base === 'con_iva' ? 'CON IVA' : 'SIN IVA';
+  const btnOutline = 'inline-flex h-8 items-center rounded-md border border-gray-200 bg-white px-3 text-xs font-medium text-gray-900 shadow-xs hover:bg-gray-50';
+  return `
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="flex h-9 w-48 items-center justify-between rounded-md border border-gray-200 bg-white px-3 text-sm"><span>Stirpe</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-400"><path d="m6 9 6 6 6-6"/></svg></div>
+      <div class="flex items-center gap-2">
+        <span class="cifra rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">${E.desde.split('-').reverse().join('/')}</span>
+        <span class="text-sm text-gray-500">a</span>
+        <span class="cifra rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">${E.hasta.split('-').reverse().join('/')}</span>
+      </div>
+      <div class="flex gap-1.5"><span class="${btnOutline}">Q1 actual</span><span class="${btnOutline}">Q2 actual</span><span class="${btnOutline}">Mes anterior</span></div>
+      <span class="inline-flex h-9 items-center rounded-md bg-gray-900 px-4 text-sm font-medium text-white">Consultar</span>
+      <div class="ml-auto flex items-center gap-2 text-xs"><span class="text-gray-500">Base:</span><span class="rounded px-2 py-0.5 font-semibold ${baseCls}">${baseTxt}</span></div>
+    </div>`;
+}
+
+function bannerEstado(E) {
+  const chips = Array.from({ length: DIAS_RANGO }, (_, i) => `<span class="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-emerald-500 text-[9px] font-medium text-white"></span>`).join('');
+  return `
+    <div class="overflow-hidden rounded-xl border bg-white">
+      <div class="flex items-center gap-4 bg-blue-50/60 p-4">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700">${ICO.clock}</div>
+        <div class="grid flex-1 grid-cols-3 gap-4">
+          <div><p class="text-[10px] tracking-wider text-blue-700 uppercase">Última actualización</p><p class="mt-0.5 text-sm font-medium">${E.sello}</p></div>
+          <div><p class="flex items-center gap-1 text-[10px] tracking-wider text-gray-500 uppercase">${ICO.fileSmall} Último archivo Ventas</p>
+            <p class="mt-0.5 truncate text-xs font-medium">${E.archivo.nombre}</p><p class="text-[10px] text-gray-500">procesado ${E.archivo.procesado} · ${E.archivo.filas} filas</p></div>
+          <div><p class="flex items-center gap-1 text-[10px] tracking-wider text-gray-500 uppercase">${ICO.messageSquare} Último archivo Infobip</p>
+            <p class="mt-0.5 truncate text-xs font-medium">Infobip_Stirpe_${E.desde.slice(5,7)}-${E.anio}.xlsx</p><p class="text-[10px] text-gray-500">procesado ${E.archivo.procesado.split(' ')[0]} 18:40 · 1.912 filas</p></div>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 bg-white px-4 py-2.5">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-[11px] tracking-wide text-gray-500 uppercase">Completitud del rango:</span>
+          <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">${DIAS_RANGO} / ${DIAS_RANGO} días</span>
+          <span class="flex gap-0.5">${chips}</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════ KPI cards ═══════════════════════════════
+function kpiCards(E, u) {
+  const P = PALETA[u.v];
+  const filas = filasCalculadas(E.asesores), T = totales(filas);
+  const pctProm = T.venta > 0 ? (T.comision / T.venta * 100).toFixed(2) : '0';
+  const antesCorte = E.hasta < '2026-09-01';
+  const card = (label, cifra, sub, cls = '', extra = {}) => `
+    <div class="${cls || 'rounded-xl border bg-white p-5'}">
+      <p class="text-[11px] tracking-wide uppercase ${extra.label ?? 'text-gray-500'}">${label}</p>
+      <p class="cifra mt-1 text-2xl font-bold ${extra.cifra ?? ''}">${cifra}</p>
+      <p class="mt-1 text-[11px] ${extra.sub ?? 'text-gray-500'}">${sub}</p>
+    </div>`;
+  const subPw = antesCorte ? 'Se mide desde el 1 sep 2026'
+    : T.pwN > 0 ? `${T.pwN} pedidos · no suma al cumplimiento ni a la comisión`
+    : 'Sin pedidos web pendientes de factura';
+  const cardPw = `
+    <div class="cambio ${P.card}">
+      <p class="flex items-center gap-1 text-[11px] tracking-wide uppercase ${P.cardLabel}">Pedidos web
+        <span class="tip tip-ini cursor-help" data-tip="${TIP_PEDIDOS_WEB}">${ICO.info}</span></p>
+      <p class="cifra mt-1 text-2xl font-bold ${T.pwN > 0 ? P.cardCifra : P.cardCifraCero}">${pesos(T.pw)}</p>
+      <p class="mt-1 text-[11px] ${P.cardSub}">${subPw}</p>
+    </div>`;
+  return `
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      ${card('Venta neta total', pesos(T.venta), `${T.asesores} asesor(es) · ${T.ped} pedidos`)}
+      ${cardPw}
+      ${card('Cumplim. promedio', pct1(T.cumpl), `${T.cumplen} de ${T.asesores} cumplen ≥ 100%`, '', { cifra: clasePct(T.cumpl) })}
+      ${card('Comisión venta', pesos(T.comision), `${pctProm}% promedio sobre venta`)}
+      ${card('Total a pagar', pesos(T.total), `comisión + ${pesos(T.bono)} bono`, 'rounded-xl border border-emerald-500 bg-gradient-to-br from-emerald-50 to-white p-5', { label: 'text-emerald-600', cifra: 'text-emerald-700', sub: 'text-emerald-600' })}
+    </div>`;
+}
+
+function kpiSkeleton() {
+  return `<div class="grid grid-cols-2 gap-4 lg:grid-cols-5" aria-busy="true">${Array(5).fill(sk('h-[92px]', 'rounded-xl')).join('')}</div>`;
+}
+
+// ═══════════════════════════════ Tabla por asesor ═══════════════════════════════
+function tablaAsesores(E, u) {
+  const P = PALETA[u.v];
+  const filas = filasCalculadas(E.asesores), T = totales(filas);
+  const th = (txt, cls = 'text-right text-xs text-gray-500') => `<th class="${cls}">${txt}</th>`;
+  const diasCls = d => d >= 7 ? 'bg-green-100 text-green-700' : d >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500';
+  const fila = f => `
+    <tr class="hover:bg-gray-50/50">
+      <td><div class="text-[13px] font-medium">${capital(f.nombre)}</div><div class="cifra text-[11px] text-gray-400">${f.cod}</div></td>
+      <td class="cifra text-right text-xs text-gray-500">${pesos(f.meta)}</td>
+      <td class="cifra text-right text-xs font-semibold">${pesos(f.venta)}</td>
+      <td class="cifra bg-rose-50/60 text-right text-xs ${f.dev === 0 ? 'text-gray-400' : 'font-medium text-rose-600'}">${pesos(f.dev)} <span class="text-[10px]">(${f.devN})</span></td>
+      <td class="cambio cifra ${P.td} text-right text-xs ${f.pwN === 0 ? 'text-gray-400' : P.tdValor}">${pesos(f.pw)} <span class="text-[10px]">(${f.pwN})</span></td>
+      <td class="cifra text-right text-xs ${clasePct(f.cumpl)}">${pct1(f.cumpl)}</td>
+      <td class="cifra text-right text-xs text-gray-600">${f.ped}</td>
+      <td class="cifra text-right text-xs text-gray-600">${pesos(f.vpt)}</td>
+      <td class="cifra text-right text-xs ${f.pctVpt > 0 ? 'font-medium text-emerald-600' : 'text-gray-400'}">${f.pctVpt > 0 ? '+' + pct2(f.pctVpt) : '—'}</td>
+      <td class="cifra text-right text-xs text-gray-600">${f.tcv.toLocaleString('es-CO', { minimumFractionDigits: 1 })}%</td>
+      <td class="cifra text-right text-xs ${f.pctTcv > 0 ? 'font-medium text-emerald-600' : 'text-gray-400'}">${f.pctTcv > 0 ? '+' + pct2(f.pctTcv) : '—'}</td>
+      <td class="cifra text-right text-xs font-semibold">${pct2(f.pctTotal)}</td>
+      <td class="cifra text-right text-xs">${pesos(f.comision)}</td>
+      <td class="text-center"><span class="rounded-full px-2 py-0.5 text-[11px] ${diasCls(f.diasBono)}">${f.diasBono}/${DIAS_RANGO}</span></td>
+      <td class="cifra text-right text-xs">${pesos(f.bono)}</td>
+      <td class="cifra bg-emerald-50/60 text-right text-xs font-bold text-emerald-700">${pesos(f.total)}</td>
+      <td class="text-center"><span class="inline-flex text-gray-400 hover:text-gray-700" title="Ver detalle del asesor">${ICO.eye}</span></td>
+    </tr>`;
+  return `
+    <div class="overflow-x-auto">
+      <table class="ui w-full caption-bottom text-sm">
+        <thead>
+          <tr class="bg-gray-50">
+            ${th('Asesor', 'text-xs text-gray-500')}${th('PPTO')}${th('Venta neta')}
+            ${th('Devoluciones', 'bg-rose-50 text-right text-xs text-rose-700')}
+            <th class="cambio ${P.th} text-right text-xs"><span class="tip tip-fin cursor-help border-b border-dotted border-gray-300 pb-px" data-tip="${TIP_PEDIDOS_WEB}">Pedidos web</span></th>
+            ${th('Cumpl.')}${th('Ped.')}${th('VPT')}${th('%VPT')}${th('TCV')}${th('%TCV')}${th('% Total')}${th('Comisión venta')}
+            ${th('Días', 'text-center text-xs text-gray-500')}${th('Bono')}
+            ${th('TOTAL', 'bg-emerald-50 text-right text-xs font-semibold text-emerald-700')}<th></th>
+          </tr>
+        </thead>
+        <tbody>${filas.map(fila).join('')}</tbody>
+        <tfoot>
+          <tr class="bg-gray-50 font-semibold">
+            <td class="text-xs">TOTAL · ${T.asesores} asesor(es)</td>
+            <td class="cifra text-right text-xs text-gray-500">${pesos(T.meta)}</td>
+            <td class="cifra text-right text-xs">${pesos(T.venta)}</td>
+            <td colspan="2" class="bg-gray-50"></td>
+            <td class="cifra text-right text-xs ${clasePct(T.cumpl)}">${pct1(T.cumpl)}</td>
+            <td class="cifra text-right text-xs">${T.ped}</td>
+            <td colspan="5"></td>
+            <td class="cifra text-right text-xs">${pesos(T.comision)}</td>
+            <td class="cifra text-center text-xs">${T.diasBono}</td>
+            <td class="cifra text-right text-xs">${pesos(T.bono)}</td>
+            <td class="cifra bg-emerald-100/60 text-right text-xs font-bold text-emerald-700">${pesos(T.total)}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="border-t border-gray-100 bg-gray-50 px-5 py-2 text-[11px] text-gray-500">
+      <span class="font-medium text-gray-600">Venta neta</span> = solo lo facturado ·
+      <span class="font-medium text-gray-600">Devoluciones</span> = notas sin cambio que las compense (los cambios M+X se anulan y no cuentan) ·
+      <span class="cambio"><span class="font-medium text-gray-600">Pedidos web</span> = pedidos ya pagados a la espera de la factura del ERP: no suma al cumplimiento ni a la comisión hasta que llegue en un archivo</span>
+    </div>`;
+}
+
+function cardTabla(E, u, cuerpo) {
+  return `
+    <div class="overflow-hidden rounded-xl border bg-white">
+      <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
+        <div>
+          <div class="flex items-center gap-2"><h3 class="text-sm font-semibold">Liquidación por asesor</h3>
+            ${E.congelada ? '<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600" title="Este período está cerrado: se muestran las cifras congeladas al cierre, no se recalculan.">🔒 Período cerrado</span>' : ''}</div>
+          <p class="mt-0.5 text-[11px] text-gray-500">Período ${E.desde} a ${E.hasta} · ${E.asesores.length} asesor(es)</p>
+        </div>
+        <span class="inline-flex h-8 items-center gap-1 rounded-md border border-gray-200 bg-white px-3 text-xs font-medium shadow-xs">${ICO.download} Exportar Excel</span>
+      </div>
+      ${cuerpo}
+    </div>`;
+}
+
+function tablaSkeleton() {
+  return `<div class="space-y-2 p-4" aria-busy="true">${sk('h-9')}${Array(3).fill(sk('h-10', 'bg-gray-50')).join('')}${sk('h-9', 'w-2/3')}</div>`;
+}
+// BloqueError.vue (GW-78 P3-1, reutilizado en GW-157 P2-1)
+const bloqueError = () => `<div class="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
+  <p class="text-sm text-gray-500">No se pudieron cargar los datos.</p>
+  <button type="button" class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100">Reintentar</button></div>`;
+
+// ═══════════════════════════════ Pantalla completa ═══════════════════════════════
+function pantallaLiquidacion(E, u) {
+  const esCarga = u.estado === 'carga';
+  const kpi = esCarga ? (u.sub === 'cargando' ? kpiSkeleton() : '') : kpiCards(E, u);
+  const tabla = esCarga ? cardTabla(E, u, u.sub === 'cargando' ? tablaSkeleton() : bloqueError()) : cardTabla(E, u, tablaAsesores(E, u));
+  return `
+    ${chrome(E)}
+    <div class="space-y-4 rounded-b-xl border border-t-0 border-gray-200 bg-gray-100 p-6">
+      ${tabsComisiones()}
+      ${filtros(E)}
+      ${bannerEstado(E)}
+      ${kpi}
+      ${tabla}
+    </div>`;
+}
+
+// ═══════════════════════════════ Modal · Detalle del asesor (Resumen diario) ═══════════════════════════════
+function modalAsesor(E, u) {
+  const P = PALETA[u.v];
+  const esCarga = u.estado === 'carga';
+  const filas = filasCalculadas(E.asesores);
+  const silvia = filas[0];
+  const pwTotal = E.diario.reduce((a, d) => a + (d.pw ?? 0), 0);
+  const kpi = (l, v) => `<div><p class="text-[10px] tracking-wide text-gray-500 uppercase">${l}</p><p class="cifra mt-0.5 text-sm font-bold">${v}</p></div>`;
+  const chip = (txt, ok) => `<span class="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] ${ok ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}">${txt} ${ok ? ICO.check : ICO.x}</span>`;
+  const filaDia = d => {
+    const cumpl = d.venta / META_DIA_SILVIA * 100;
+    const okVentas = d.falla !== 'ventas', okUpt = d.falla !== 'upt';
+    const gana = okVentas && okUpt;
+    const badge = (d.pwN ?? 0) > 0
+      ? `<span class="cambio tip tip-ini ml-1 cursor-help rounded px-1 py-0.5 text-[10px] ${P.badge}" data-tip="${pesos(d.pw)} en ${d.pwN} pedidos web · ${TIP_PEDIDOS_WEB}">${d.pwN} pedidos web</span>` : '';
+    return `
+      <tr class="${gana ? 'bg-emerald-50/40' : ''}">
+        <td class="text-xs">${fechaCorta(d.f)}${badge}</td>
+        <td class="cifra text-right text-xs text-gray-500">${pesos(META_DIA_SILVIA)}</td>
+        <td class="cifra text-right text-xs font-medium">${pesos(d.venta)}</td>
+        <td class="text-right text-xs"><span class="text-gray-400">—</span></td>
+        <td class="cifra text-right text-xs ${cumpl >= 100 ? 'font-medium text-emerald-600' : ''}">${pct1(cumpl)}</td>
+        <td class="cifra text-right text-xs">${d.n}</td>
+        <td class="cifra text-right text-xs">${d.upt.toLocaleString('es-CO', { minimumFractionDigits: 1 })}<span class="text-gray-400"> / 2</span></td>
+        <td><div class="flex flex-wrap gap-1">${chip(`ventas ≥90% · ${pct1(cumpl)}`, okVentas)}${chip(`upt ≥2 · ${d.upt.toLocaleString('es-CO', { minimumFractionDigits: 1 })}`, okUpt)}</div></td>
+        <td class="cifra text-right text-xs font-medium ${gana ? 'text-emerald-700' : 'text-gray-400'}">${gana ? pesos(BONO_DIA) : '—'}</td>
+      </tr>`;
+  };
+  const cuerpo = esCarga
+    ? (u.sub === 'cargando'
+        ? `<div class="space-y-2 py-4" aria-busy="true"><div class="grid grid-cols-4 gap-3">${Array(4).fill(sk('h-14', 'bg-gray-100')).join('')}</div>${sk('h-8', 'w-1/2')}${Array(6).fill(sk('h-9', 'bg-gray-50')).join('')}</div>`
+        : `<div class="my-6 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3"><p class="text-sm text-red-700">No se pudo cargar el detalle del asesor.</p><span class="inline-flex h-8 items-center rounded-md border border-gray-200 bg-white px-3 text-xs font-medium shadow-xs">Reintentar</span></div>`)
+    : `
+      <div class="grid grid-cols-6 gap-3 rounded-lg bg-gray-50 px-4 py-3">
+        ${kpi('Venta neta', pesos(silvia.venta))}${kpi('Facturas', silvia.ped + 3)}${kpi('Devoluciones', pesos(silvia.dev))}${kpi('Unidades', Math.round(silvia.ped * 2.04))}${kpi('VPT real', pesos(silvia.vpt))}${kpi('UPT real', '2,04')}
+      </div>
+      <div class="mt-3 inline-flex rounded-lg bg-gray-100 p-1 text-xs">
+        <span class="px-3 py-1 text-gray-500">Facturas <span class="ml-1 text-[10px] opacity-60">(${silvia.ped + 3})</span></span>
+        <span class="rounded-md bg-white px-3 py-1 font-medium text-gray-900 shadow-sm">Resumen diario <span class="ml-1 text-[10px] opacity-60">(${E.diario.length} días)</span></span>
+        <span class="px-3 py-1 text-gray-500">Conversaciones Infobip</span>
+      </div>
+      <div class="mt-3 flex items-start gap-2 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-indigo-800">
+        <span class="mt-0.5 shrink-0 text-indigo-400">${ICO.infoMd}</span>
+        <p class="text-[11px] leading-relaxed">La venta de cada día agrupa las ventas por su <span class="font-semibold">fecha de carrito</span>, sin importar cuándo se facturaron. Las devoluciones y cambios de tienda física se restan en la fecha de su factura.</p>
+      </div>
+      <div class="mt-3 max-h-[420px] overflow-auto rounded-lg border border-gray-100">
+        <table class="ui w-full text-sm">
+          <thead><tr class="bg-gray-50">
+            <th class="text-xs text-gray-500">Fecha</th><th class="text-right text-xs text-gray-500">Meta</th><th class="text-right text-xs text-gray-500">Venta</th>
+            <th class="text-right text-xs text-gray-500">Devol. del día</th><th class="text-right text-xs text-gray-500">Cumpl.</th><th class="text-right text-xs text-gray-500">Ventas</th>
+            <th class="text-right text-xs text-gray-500">UPT</th><th class="text-xs text-gray-500">Condiciones del bono</th><th class="text-right text-xs text-gray-500">Bono</th>
+          </tr></thead>
+          <tbody>${E.diario.map(filaDia).join('')}</tbody>
+        </table>
+      </div>
+      ${pwTotal > 0 ? `<p class="cambio mt-1.5 inline-block text-[11px] text-gray-400">Los pedidos web del día (${pesos(pwTotal)} en ${E.diario.reduce((a, d) => a + (d.pwN ?? 0), 0)}) no entran en «Venta» ni en el bono hasta que llegue su factura.</p>` : ''}
+      <div class="mt-3 flex items-center justify-end border-t border-gray-100 pt-3">
+        <span class="inline-flex h-9 items-center gap-1 rounded-md bg-gray-900 px-4 text-sm font-medium text-white">${ICO.download} Exportar Excel (3 hojas)</span>
+      </div>`;
+  return `
+    <div class="relative rounded-2xl bg-gray-900/40 p-4 sm:p-8">
+      <div class="mx-auto max-w-5xl rounded-lg border bg-white p-6 shadow-lg">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-semibold leading-none">${capital(silvia.nombre)}</h2>
+            <p class="mt-1.5 text-sm text-gray-500">Detalle del período ${fechaCorta(E.desde)} – ${fechaCorta(E.hasta)} · código ${silvia.cod}</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="rounded px-2 py-0.5 text-xs font-semibold ${E.base === 'con_iva' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-700'}">${E.base === 'con_iva' ? 'CON IVA' : 'SIN IVA'}</span>
+            <span class="text-gray-400">${ICO.xMd}</span>
+          </div>
+        </div>
+        <div class="mt-4">${cuerpo}</div>
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════ Modal · Cierre de quincena ═══════════════════════════════
+function modalCierre(E, u) {
+  const esCarga = u.estado === 'carga';
+  const filas = filasCalculadas(E.asesores), T = totales(filas);
+  const fila = f => `
+    <tr><td class="text-xs">${capital(f.nombre)}</td>
+      <td class="cifra text-right text-xs">${pesos(f.venta)}</td>
+      <td class="cifra text-right text-xs ${f.cumpl >= 100 ? 'text-emerald-600' : ''}">${pct1(f.cumpl)}</td>
+      <td class="cifra text-right text-xs">${pct2(f.pctTotal)}</td>
+      <td class="cifra text-right text-xs">${pesos(f.comision)}</td>
+      <td class="cifra text-center text-xs">${f.diasBono}/${DIAS_RANGO}</td>
+      <td class="cifra text-right text-xs font-semibold text-emerald-700">${pesos(f.total)}</td></tr>`;
+  const ok = (txt) => `<div class="flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800"><span class="font-bold text-emerald-600">✓</span><span>${txt}</span></div>`;
+  const filaPw = T.pwN > 0
+    ? `<div class="cambio flex items-start gap-2.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+        <span class="mt-px shrink-0 text-rose-600">${ICO.triangleAlert}</span>
+        <span><b>${T.pwN} pedidos web</b> (${pesos(T.pw)}) de esta quincena aún sin factura del ERP. No suman a la comisión; si cierras ahora, entran a la quincena siguiente por fecha de factura.</span>
+       </div>
+       <label class="cambio flex w-fit items-center gap-2 pt-1 text-[11px] text-gray-500">
+        <input type="checkbox" class="rounded" id="chk-rezago-${u.estado}" onchange="document.getElementById('btn-cerrar-${u.estado}').toggleAttribute('disabled', !this.checked)">
+        Entiendo el rezago y quiero cerrar de todas formas
+       </label>`
+    : `<div class="cambio flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800"><span class="shrink-0 text-emerald-600">${ICO.circleCheck}</span><span>Sin pedidos web pendientes de factura</span></div>`;
+  const checklist = E.congelada ? '' : `
+    <div class="mt-4 space-y-2 border-t border-gray-100 pt-3">
+      ${ok(`Archivo de ventas cargado con facturas hasta el <b>${E.archivo.nombre === '1-15 STIRPE.xls' ? '18 de sep' : fechaDiaMes(E.archivo.procesado === '22-sep 16:28' ? '2026-09-22' : E.hasta)}</b>`)}
+      <p class="pl-[26px] text-[11px] text-gray-400">La operativa es cargar el archivo el día 19 con las facturas emitidas hasta el 18 (~97% de cobertura).</p>
+      ${ok('Conversaciones Infobip cargadas todos los días')}
+      ${filaPw}
+    </div>`;
+  const btnOutline = 'inline-flex h-9 items-center rounded-md border border-gray-200 bg-white px-4 text-sm font-medium shadow-xs';
+  const pie = E.congelada
+    ? `<p class="text-[11.5px] text-amber-700">Quincena cerrada · valores congelados.</p><div class="flex gap-2"><span class="${btnOutline}">Cerrar ventana</span><span class="${btnOutline}">Reabrir (admin)</span></div>`
+    : `<p class="text-[11.5px] text-amber-700">Al cerrar, estos valores quedan congelados: no se recalcula ni se editan sus insumos.</p>
+       <div class="flex gap-2"><span class="${btnOutline}">Cerrar ventana</span>
+        <button id="btn-cerrar-${u.estado}" ${T.pwN > 0 ? 'disabled' : ''} class="inline-flex h-9 items-center rounded-md bg-red-500 px-4 text-sm font-medium text-white disabled:pointer-events-none disabled:opacity-50">Cerrar quincena</button></div>`;
+  const cuerpo = esCarga
+    ? (u.sub === 'cargando'
+        ? `<div class="space-y-2 py-4" aria-busy="true">${sk('h-8', 'bg-gray-100')}${Array(4).fill(sk('h-9', 'bg-gray-50')).join('')}${sk('h-8', 'w-2/3 bg-gray-100')}</div>`
+        : `<div class="my-6 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3"><p class="text-sm text-red-700">No se pudo cargar el detalle de la quincena.</p><span class="inline-flex h-8 items-center rounded-md border border-gray-200 bg-white px-3 text-xs font-medium shadow-xs">Reintentar</span></div>`)
+    : `
+      <div class="overflow-hidden rounded-lg border border-gray-100">
+        <table class="ui w-full text-sm">
+          <thead><tr class="bg-gray-50">
+            <th class="text-xs text-gray-500">Asesor</th><th class="text-right text-xs text-gray-500">Venta neta</th><th class="text-right text-xs text-gray-500">Cumpl.</th>
+            <th class="text-right text-xs text-gray-500">% Com.</th><th class="text-right text-xs text-gray-500">Comisión</th><th class="text-center text-xs text-gray-500">Días bono</th><th class="text-right text-xs text-gray-500">Total a pagar</th>
+          </tr></thead>
+          <tbody>${filas.map(fila).join('')}
+            <tr class="bg-gray-50 font-semibold"><td class="text-xs">TOTAL · ${T.asesores} asesor(es)</td><td class="cifra text-right text-xs">${pesos(T.venta)}</td><td></td><td></td>
+              <td class="cifra text-right text-xs">${pesos(T.comision)}</td><td class="cifra text-center text-xs">${T.diasBono}</td><td class="cifra text-right text-xs font-bold text-emerald-700">${pesos(T.total)}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      ${checklist}
+      <div class="mt-4 flex items-center justify-between gap-3 border-t border-gray-100 pt-3">${pie}</div>`;
+  return `
+    <div class="relative rounded-2xl bg-gray-900/40 p-4 sm:p-8">
+      <div class="mx-auto max-w-4xl rounded-lg border bg-white p-6 shadow-lg">
+        <h2 class="text-lg font-semibold leading-none">Quincena ${E.quincena} de ${E.mesNombre} ${E.anio}</h2>
+        <p class="mt-1.5 text-sm text-gray-500">Detalle de la liquidación por asesor · lo que se ${E.congelada ? 'congeló' : 'congelaría'}</p>
+        <div class="mt-4">${cuerpo}</div>
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════ Render ═══════════════════════════════
+function seccion(titulo, sub, cuerpo) {
+  return `<section class="mb-8">
+    <h2 class="mb-1 text-sm font-semibold text-gray-800">${titulo}</h2>
+    <p class="mb-3 text-[11px] text-gray-500">${sub}</p>
+    ${cuerpo}
+  </section>`;
+}
+
+function render() {
+  const u = ui();
+  const E = ESTADOS[u.estado];
+  document.getElementById('subestado-wrap').classList.toggle('hidden', u.estado !== 'carga');
+  document.getElementById('subestado-wrap').classList.toggle('flex', u.estado === 'carga');
+  document.getElementById('pagina').classList.toggle('marcar-on', document.getElementById('marcar').checked);
+  document.getElementById('pagina').innerHTML = `
+    <h1 class="mb-4 text-base font-bold text-indigo-900">${E.titulo}</h1>
+    ${seccion('Pantalla · Liquidación de comisiones', 'Venta Asistida → Comisiones → Liquidación · Liquidacion.vue · la tarjeta «Pedidos web» comparte el gate de carga de la fila de KPI (GW-118 C1)', pantallaLiquidacion(E, u))}
+    ${seccion('Modal · Detalle del asesor · pestaña «Resumen diario»', 'Se abre con el ojo de la fila (ModalDetalleAsesor.vue) · badge por día con la misma etiqueta y paleta que la columna', modalAsesor(E, u))}
+    ${seccion('Modal · Cierre de quincena', 'Se abre desde Cierre de períodos (ModalDetalleQuincena.vue) · el checklist lee Σ pedidos_sin_factura y Σ venta_pedidos_web del sello para la quincena y la tienda (D5)', modalCierre(E, u))}
+  `;
+}
+
+document.querySelectorAll('.pestana').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.pestana').forEach(x => { x.className = 'pestana rounded-md border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-white'; });
+  b.className = 'pestana rounded-md border border-indigo-300 bg-white px-2.5 py-1 font-medium text-indigo-900';
+  render();
+}));
+['variante', 'subestado', 'marcar'].forEach(id => document.getElementById(id).addEventListener('change', render));
+render();
+</script>
+</body>
+</html>

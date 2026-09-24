@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-165 · Facturas del ERP: estado del día</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .tab-on  { background:#fff; color:#111827; box-shadow:0 1px 2px 0 rgb(0 0 0 / .05); }
+  .tab-off { color:#4b5563; }
+  [data-estado] { display:none; }
+  [data-estado].activo { display:block; }
+  .num { font-variant-numeric: tabular-nums; }
+  details > summary { list-style: none; }
+  details > summary::-webkit-details-marker { display: none; }
+  details[open] .chev { transform: rotate(180deg); }
+
+  /* ── Tabla por asesor: a menos de 640 px las filas se apilan como tarjetas (lección P2 de GW-154) ── */
+  @media (max-width: 639px) {
+    .tabla-asesores thead { display: none; }
+    .tabla-asesores, .tabla-asesores tbody, .tabla-asesores tfoot, .tabla-asesores tr, .tabla-asesores td { display: block; width: 100%; }
+    .tabla-asesores tr { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 8px; padding: 10px 12px; }
+    .tabla-asesores td { padding: 0 !important; text-align: left !important; }
+    .tabla-asesores td.c-asesor { grid-column: 1 / -1; margin-bottom: 4px; }
+    .tabla-asesores td.c-neta { grid-column: 1 / -1; margin-top: 4px; padding-top: 6px !important; border-top: 1px dashed #e5e7eb; display: flex; justify-content: space-between; }
+    .tabla-asesores td[data-l]::before { content: attr(data-l); display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; font-weight: 400; }
+    .tabla-asesores td.c-neta[data-l]::before { display: inline; font-size: 11px; text-transform: none; letter-spacing: 0; }
+    .tabla-asesores tfoot tr { background: #f9fafb; }
+  }
+  /* Marco de la vista móvil (no es parte de la pantalla) */
+  #marco-movil { display: none; }
+  #marco-movil.abierto { display: block; }
+  body.movil #conmutador, body.movil aside { display: none !important; }
+</style>
+</head>
+<body class="bg-gray-50">
+
+<!-- ══════════════ CONMUTADOR DE ESTADOS (no es parte de la pantalla) ══════════════ -->
+<div id="conmutador" class="sticky top-0 z-50 border-b border-slate-700 bg-slate-900 px-4 py-2.5">
+  <div class="flex flex-wrap items-center gap-2">
+    <span class="mr-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Mockup GW-165 · estado a mostrar</span>
+    <button onclick="ver('aldia')"    class="btn-estado rounded-md px-3 py-1 text-xs font-medium">1 · Al día</button>
+    <button onclick="ver('atrasada')" class="btn-estado rounded-md px-3 py-1 text-xs font-medium">2 · Atrasada</button>
+    <button onclick="ver('vacio')"    class="btn-estado rounded-md px-3 py-1 text-xs font-medium">3 · Sin datos aún (7:05 a. m.)</button>
+    <button onclick="ver('error')"    class="btn-estado rounded-md px-3 py-1 text-xs font-medium">4 · Error en la última corrida</button>
+    <button onclick="ver('apagada')"  class="btn-estado rounded-md px-3 py-1 text-xs font-medium">5 · Descarga apagada</button>
+    <span class="mx-2 h-4 w-px bg-slate-700"></span>
+    <button onclick="movil()" id="btn-movil" class="rounded-md border border-slate-600 px-3 py-1 text-xs font-medium text-slate-300 hover:bg-slate-800">6 · Ver a 390 px</button>
+  </div>
+</div>
+
+<!-- Marco de 390 px: carga este mismo archivo en un iframe con ?movil=1 para que apliquen los breakpoints reales -->
+<div id="marco-movil" class="fixed right-4 top-14 z-40 rounded-2xl border-4 border-slate-800 bg-slate-800 shadow-2xl">
+  <div class="flex items-center justify-between px-3 py-1.5 text-[11px] text-slate-300">
+    <span>390 × 844 · misma pantalla, mismo estado</span>
+    <button onclick="movil()" class="rounded px-1.5 text-slate-400 hover:bg-slate-700 hover:text-white">cerrar</button>
+  </div>
+  <iframe id="iframe-movil" title="Vista a 390 px" width="390" height="800" class="block rounded-xl bg-white"></iframe>
+</div>
+
+<div class="flex min-h-screen">
+
+  <!-- ══════════════ SIDEBAR (chrome real de get-web) ══════════════ -->
+  <aside class="hidden w-60 shrink-0 bg-slate-900 lg:block">
+    <div class="flex items-center gap-2 px-5 py-4">
+      <div class="flex h-8 w-8 items-center justify-center rounded-md bg-emerald-500 text-sm font-bold text-white">G</div>
+      <span class="text-sm font-semibold text-white">GET · Panel interno</span>
+    </div>
+    <nav class="mt-2 space-y-0.5 px-3 text-sm">
+      <div class="rounded-md px-3 py-2 text-slate-400">Dashboard</div>
+      <div class="rounded-md px-3 py-2 text-slate-400">Pedidos</div>
+      <div class="mt-3 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Venta asistida</div>
+      <div class="rounded-md px-3 py-2 text-slate-400">Gestión de ventas</div>
+      <div class="rounded-md px-3 py-2 text-slate-400">Presupuesto</div>
+      <div class="rounded-md bg-slate-800 px-3 py-2 font-medium text-white">Liquidación de comisiones</div>
+      <div class="rounded-md px-3 py-2 text-slate-400">Equipos</div>
+      <div class="rounded-md px-3 py-2 text-slate-400">Cierre de períodos</div>
+    </nav>
+  </aside>
+
+  <!-- ══════════════ CONTENIDO ══════════════ -->
+  <main class="min-w-0 flex-1">
+
+    <div class="border-b bg-white px-4 py-4 md:px-6">
+      <p class="text-xs text-gray-500">Venta asistida · Comisiones</p>
+      <h1 class="mt-0.5 text-xl font-semibold text-gray-900">Cargar archivos del día</h1>
+      <!-- Subtítulo de HeaderLayout: cambia según el modo (D16: get-web infiere el modo por cabecera automática de hoy o ayer) -->
+      <p id="subtitulo-auto" class="mt-1 text-sm text-gray-500">
+        Las facturas del ERP y las conversaciones de Infobip se descargan solas cada 20 minutos, de 7:00 a. m. a 10:00 p. m.
+      </p>
+      <p id="subtitulo-manual" class="mt-1 hidden text-sm text-gray-500">
+        Las conversaciones de Infobip se descargan solas cada 20 minutos, de 7:00 a. m. a 10:00 p. m. · las facturas se siguen cargando a mano
+      </p>
+    </div>
+
+    <div class="space-y-4 p-4 md:p-6">
+
+      <!-- Tabs del módulo (componente real TabsComisiones) -->
+      <div class="flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-gray-200/70 p-1">
+        <a href="#" class="tab-off flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium">Liquidación</a>
+        <a href="#" class="tab-on  flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium">Cargar archivos</a>
+        <a href="#" class="tab-off flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium">Bitácora de cargas</a>
+      </div>
+
+      <!-- Selector de tienda + chip de base declarada (GW-107 B1, igual que GW-154) -->
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex w-56 items-center justify-between rounded-md border bg-white px-3 py-2 text-sm">
+          <span>STIRPE</span><span class="text-gray-400">▾</span>
+        </div>
+        <div class="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-sm">
+          <svg class="h-4 w-4 shrink-0 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span class="text-slate-700">Septiembre 2026 · STIRPE está declarado</span>
+          <span class="rounded bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">Con IVA</span>
+        </div>
+      </div>
+
+      <!--
+        Sub-tabs por tipo de archivo.
+        CAMBIA EL LAYOUT DE: el título del sub-tab pasa de «Facturas físicas (.xls)» a «Facturas»;
+        la extensión .xls solo se muestra dentro del formulario de respaldo. Con la descarga encendida
+        el distintivo del sub-tab refleja el estado de la descarga (como el de Infobip en GW-154), no «✓ hoy / falta hoy» del archivo.
+      -->
+      <div class="flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-gray-200/70 p-1">
+        <div class="tab-on flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium">
+          Facturas <span id="ext-subtab" class="hidden font-normal text-gray-400">(.xls)</span>
+          <span id="chip-subtab" class="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] text-emerald-700">✓ hoy</span>
+        </div>
+        <div class="tab-off flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium">
+          Conversaciones de agentes
+          <span class="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] text-emerald-700">✓ hoy</span>
+        </div>
+      </div>
+
+      <!-- ─────────── ESTADO 1 · AL DÍA ─────────── -->
+      <div data-estado="aldia" class="activo space-y-4">
+        <div class="rounded-xl border bg-white p-5">
+          <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p class="text-[11px] uppercase tracking-wide text-gray-500">Descarga automática</p>
+              <h3 class="text-base font-semibold text-gray-900">Facturas del ERP · martes 22 de septiembre</h3>
+              <p class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
+                <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">STIRPE</span>
+                <span>bodegas QEC · CentroContrato 315 · vista v_Ventas_QEC_WEB</span>
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">Al día</span>
+              <button class="rounded-md px-2 py-1 text-gray-500 hover:bg-gray-100" title="Actualizar">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-3">
+            <div class="rounded-lg border bg-gray-50 p-3.5">
+              <p class="text-[11px] text-gray-500">Última actualización</p>
+              <p class="mt-0.5 text-lg font-semibold text-gray-900 num">4:40 p. m.</p>
+              <p class="text-xs text-gray-500">hace 3 minutos · próxima corrida 5:00 p. m.</p>
+            </div>
+            <div class="rounded-lg border bg-gray-50 p-3.5">
+              <p class="text-[11px] text-gray-500">Facturas de hoy</p>
+              <p class="mt-0.5 text-lg font-semibold text-gray-900 num">104 <span class="text-sm font-normal text-gray-500">G</span></p>
+              <p class="text-xs text-gray-500 num">14 devoluciones (M) · 1 cambio (X)</p>
+            </div>
+            <div class="rounded-lg border bg-gray-50 p-3.5">
+              <p class="text-[11px] text-gray-500">Venta neta de hoy</p>
+              <p class="mt-0.5 text-lg font-semibold text-gray-900 num">$ 32.457.147</p>
+              <p class="text-xs text-gray-500">10 asesores · 1 nit sin asesor</p>
+            </div>
+          </div>
+
+          <!-- D10/D14: reconciliación de la quincena abierta en la última corrida -->
+          <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+            <span class="inline-flex items-center gap-1.5">
+              <svg class="h-3.5 w-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h5"/><path d="M17.5 17.5 16 16.3V14"/><circle cx="16" cy="16" r="6"/></svg>
+              Última corrida 4:40 p. m. · <span class="font-medium text-gray-700">1 día actualizado de 22 revisados</span> · quincena abierta desde el 1 de septiembre
+            </span>
+          </div>
+          <!-- Aviso discreto: un día anterior a hoy cambió en la última corrida (D14). Solo aparece cuando hubo cambio. -->
+          <div class="mt-2 flex gap-2 rounded-lg border bg-gray-50 px-3.5 py-2.5 text-xs text-gray-700">
+            <svg class="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            <p>
+              <span class="font-medium">El 2 de septiembre recibió 33 facturas nuevas del ERP.</span>
+              El día se reemplazó completo y la comisión de ese día se vuelve a calcular en la próxima corrida de cálculos (máx. 10 min).
+              <a href="#" class="font-medium text-gray-900 underline decoration-gray-300 underline-offset-2">Ver en la bitácora</a>
+            </p>
+          </div>
+
+          <!-- Tabla del día por asesor (D12) · se dibuja desde DATOS.completo -->
+          <div class="mt-4 overflow-hidden rounded-lg border" data-tabla="completo"></div>
+
+          <p class="mt-3 text-xs text-gray-500">
+            La venta neta suma las G y X y descuenta las M. «Sin asesor» agrupa los nit del ERP que no corresponden a un usuario:
+            esas facturas quedan guardadas pero no liquidan comisión hasta que el nit se asocie al asesor en Equipos.
+          </p>
+        </div>
+
+        <!-- Respaldo manual (D8): el formulario de facturas de siempre, plegado -->
+        <details class="rounded-xl border bg-white p-5">
+          <summary class="flex cursor-pointer items-center justify-between text-sm font-medium text-gray-700">
+            Cargar un archivo a mano
+            <svg class="chev h-4 w-4 text-gray-400 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </summary>
+          <p class="mb-4 mt-2 text-xs text-gray-500">
+            Con la descarga automática encendida, la tarea vuelve a escribir el día en la siguiente corrida y reemplaza lo que se suba aquí.
+            Para cargar a mano hay que apagar primero la descarga automática (es una tarea de sistemas).
+          </p>
+          <!--
+            CAMBIA EL LAYOUT DE: el bloque de resultado del /procesar (Filas guardadas · descartadas · IVA fuera de lo esperado)
+            y el aviso de IVA anómalo (GW-107 B1) siguen viviendo solo dentro de este formulario de respaldo. La descarga
+            automática no los muestra en el bloque de estado: si hace falta ver IVA anómalo de una corrida, va en la bitácora.
+          -->
+          <div class="mb-3 flex items-start justify-between">
+            <div>
+              <p class="text-[11px] uppercase tracking-wide text-gray-500">Archivo de Ventas</p>
+              <h3 class="text-base font-semibold">Facturas físicas <span class="text-sm font-normal text-gray-400">(.xls)</span></h3>
+            </div>
+            <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500">Sin archivo</span>
+          </div>
+          <label class="block cursor-pointer rounded-lg border-2 border-dashed border-gray-300 py-10 text-center">
+            <svg class="mx-auto mb-2 h-7 w-7 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg>
+            <p class="text-sm font-medium">Arrastra el archivo aquí</p>
+            <p class="mt-1 text-xs text-gray-500">o haz click para seleccionar (.xls)</p>
+          </label>
+        </details>
+      </div>
+
+      <!-- ─────────── ESTADO 2 · ATRASADA ─────────── -->
+      <div data-estado="atrasada" class="space-y-4">
+        <!-- D16: umbral configurable en config/properties.php de get-web; en el mockup, 45 min -->
+        <div class="flex gap-2.5 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          <svg class="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+          <div>
+            <p class="font-medium">La descarga de facturas lleva 82 minutos sin actualizarse.</p>
+            <p class="mt-0.5 text-xs">
+              Lo último que se alcanzó a traer del ERP fue de las 3:18 p. m. Las facturas de hoy están incompletas y la comisión del día
+              se está calculando sobre ese dato parcial. Avisa a sistemas si el aviso sigue en la próxima media hora.
+            </p>
+          </div>
+        </div>
+        <div class="rounded-xl border bg-white p-5">
+          <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p class="text-[11px] uppercase tracking-wide text-gray-500">Descarga automática</p>
+              <h3 class="text-base font-semibold text-gray-900">Facturas del ERP · martes 22 de septiembre</h3>
+              <p class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
+                <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">STIRPE</span>
+                <span>bodegas QEC · CentroContrato 315 · vista v_Ventas_QEC_WEB</span>
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="rounded-full bg-rose-100 px-2.5 py-0.5 text-[11px] font-medium text-rose-700">Atrasada</span>
+              <button class="rounded-md px-2 py-1 text-gray-500 hover:bg-gray-100" title="Actualizar">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-3">
+            <div class="rounded-lg border border-rose-200 bg-rose-50/50 p-3.5">
+              <p class="text-[11px] text-gray-500">Última actualización</p>
+              <p class="mt-0.5 text-lg font-semibold text-rose-700 num">3:18 p. m.</p>
+              <p class="text-xs text-rose-600">hace 82 minutos · umbral 45 min</p>
+            </div>
+            <div class="rounded-lg border bg-gray-50 p-3.5">
+              <p class="text-[11px] text-gray-500">Facturas de hoy</p>
+              <p class="mt-0.5 text-lg font-semibold text-gray-900 num">71 <span class="text-sm font-normal text-gray-500">G</span></p>
+              <p class="text-xs text-gray-500 num">9 devoluciones (M) · 1 cambio (X) · dato parcial</p>
+            </div>
+            <div class="rounded-lg border bg-gray-50 p-3.5">
+              <p class="text-[11px] text-gray-500">Descarga detenida</p>
+              <p class="mt-0.5 text-sm font-medium text-gray-900">El ERP no respondió o la tarea no corrió</p>
+              <p class="text-xs text-gray-500">se reintenta cada 20 min</p>
+            </div>
+          </div>
+          <div class="mt-3 text-xs text-gray-500">
+            Última corrida completa 3:18 p. m. · <span class="font-medium text-gray-700">0 días actualizados de 22 revisados</span> · quincena abierta desde el 1 de septiembre
+          </div>
+          <div class="mt-4 overflow-hidden rounded-lg border" data-tabla="parcial"></div>
+          <p class="mt-3 text-xs text-gray-500">
+            Lo que se ve es lo último recibido a las 3:18 p. m. En cuanto la descarga vuelva a correr, el día se reemplaza completo.
+          </p>
+        </div>
+        <details class="rounded-xl border bg-white p-5">
+          <summary class="flex cursor-pointer items-center justify-between text-sm font-medium text-gray-700">
+            Cargar un archivo a mano
+            <svg class="chev h-4 w-4 text-gray-400 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-2 text-xs text-gray-500">
+            Con la descarga automática encendida, la tarea vuelve a escribir el día en la siguiente corrida y reemplaza lo que se suba aquí.
+            Para cargar a mano hay que apagar primero la descarga automática (es una tarea de sistemas).
+          </p>
+        </details>
+      </div>
+
+      <!-- ─────────── ESTADO 3 · SIN DATOS AÚN ─────────── -->
+      <!-- Chip «Sin movimiento» = estado `sin_datos` del componente (misma etiqueta que GW-154). La hora es la de la última corrida de HOY, nunca la de ayer. -->
+      <div data-estado="vacio" class="space-y-4">
+        <div class="rounded-xl border bg-white p-5">
+          <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p class="text-[11px] uppercase tracking-wide text-gray-500">Descarga automática</p>
+              <h3 class="text-base font-semibold text-gray-900">Facturas del ERP · martes 22 de septiembre</h3>
+              <p class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
+                <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">STIRPE</span>
+                <span>bodegas QEC · CentroContrato 315 · vista v_Ventas_QEC_WEB</span>
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">Sin movimiento</span>
+              <button class="rounded-md px-2 py-1 text-gray-500 hover:bg-gray-100" title="Actualizar">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="rounded-lg border border-dashed py-10 text-center">
+            <p class="text-sm font-medium text-gray-700">Todavía no hay facturas hoy</p>
+            <p class="mx-auto mt-1 max-w-md text-xs text-gray-500">
+              La descarga corrió a las 7:05 a. m. y el ERP no tiene facturas del 22 de septiembre todavía. Es lo normal a primera hora:
+              la tabla se llena cuando la tienda empieza a facturar.
+            </p>
+            <p class="mt-3 text-xs text-gray-400">Próxima actualización: 7:20 a. m.</p>
+          </div>
+          <div class="mt-3 text-xs text-gray-500">
+            Última corrida 7:05 a. m. · <span class="font-medium text-gray-700">0 días actualizados de 22 revisados</span> · quincena abierta desde el 1 de septiembre
+          </div>
+        </div>
+        <details class="rounded-xl border bg-white p-5">
+          <summary class="flex cursor-pointer items-center justify-between text-sm font-medium text-gray-700">
+            Cargar un archivo a mano
+            <svg class="chev h-4 w-4 text-gray-400 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-2 text-xs text-gray-500">
+            Con la descarga automática encendida, la tarea vuelve a escribir el día en la siguiente corrida y reemplaza lo que se suba aquí.
+            Para cargar a mano hay que apagar primero la descarga automática (es una tarea de sistemas).
+          </p>
+        </details>
+      </div>
+
+      <!-- ─────────── ESTADO 4 · ERROR EN LA ÚLTIMA CORRIDA ─────────── -->
+      <!-- La última corrida falló pero el último dato válido tiene 27 min (< 45): el chip sigue «Al día». Si el error persiste, el reloj lo lleva a «Atrasada». -->
+      <div data-estado="error" class="space-y-4">
+        <div class="rounded-xl border bg-white p-5">
+          <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p class="text-[11px] uppercase tracking-wide text-gray-500">Descarga automática</p>
+              <h3 class="text-base font-semibold text-gray-900">Facturas del ERP · martes 22 de septiembre</h3>
+              <p class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
+                <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-700">STIRPE</span>
+                <span>bodegas QEC · CentroContrato 315 · vista v_Ventas_QEC_WEB</span>
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700">Al día</span>
+              <button class="rounded-md px-2 py-1 text-gray-500 hover:bg-gray-100" title="Actualizar">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-3">
+            <div class="rounded-lg border bg-gray-50 p-3.5">
+              <p class="text-[11px] text-gray-500">Última actualización</p>
+              <p class="mt-0.5 text-lg font-semibold text-gray-900 num">4:00 p. m.</p>
+              <p class="text-xs text-gray-500">hace 27 minutos · próxima corrida 4:40 p. m.</p>
+            </div>
+            <div class="rounded-lg border bg-gray-50 p-3.5">
+              <p class="text-[11px] text-gray-500">Facturas de hoy</p>
+              <p class="mt-0.5 text-lg font-semibold text-gray-900 num">104 <span class="text-sm font-normal text-gray-500">G</span></p>
+              <p class="text-xs text-gray-500 num">14 devoluciones (M) · 1 cambio (X)</p>
+            </div>
+            <div class="rounded-lg border bg-gray-50 p-3.5">
+              <p class="text-[11px] text-gray-500">Venta neta de hoy</p>
+              <p class="mt-0.5 text-lg font-semibold text-gray-900 num">$ 32.457.147</p>
+              <p class="text-xs text-gray-500">10 asesores · 1 nit sin asesor</p>
+            </div>
+          </div>
+
+          <!-- Tarjeta «Último error»: la corrida de las 4:20 falló; se conserva lo último válido (D10: si el ERP falla no se toca nada) -->
+          <div class="mt-3 rounded-lg border border-rose-200 bg-white p-3.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="flex items-center gap-1.5 text-sm font-medium text-rose-700">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16h.01"/><path d="M12 8v4"/><path d="M15.312 2a2 2 0 0 1 1.414.586l4.688 4.688A2 2 0 0 1 22 8.688v6.624a2 2 0 0 1-.586 1.414l-4.688 4.688a2 2 0 0 1-1.414.586H8.688a2 2 0 0 1-1.414-.586l-4.688-4.688A2 2 0 0 1 2 15.312V8.688a2 2 0 0 1 .586-1.414l4.688-4.688A2 2 0 0 1 8.688 2z"/></svg>
+                Último error · 4:20 p. m.
+              </p>
+              <span class="text-xs text-gray-500">Se reintenta a las 4:40 p. m.</span>
+            </div>
+            <p class="mt-1.5 break-words rounded bg-gray-50 px-2.5 py-1.5 font-mono text-[11px] text-gray-700">
+              SQLSTATE[08001] conexión vswear: TCP Provider: Error code 0x2749 · tiempo de espera agotado al leer v_Ventas_QEC_WEB (CentroContrato 315, 2026-09-01 a 2026-09-22)
+            </p>
+            <p class="mt-1.5 text-xs text-gray-500">
+              No se tocó ningún día: la tabla muestra lo último válido, de las 4:00 p. m. Si el error sigue a las 4:45 p. m. el estado pasa a «Atrasada».
+            </p>
+          </div>
+
+          <div class="mt-3 text-xs text-gray-500">
+            Última corrida completa 4:00 p. m. · <span class="font-medium text-gray-700">0 días actualizados de 22 revisados</span> · quincena abierta desde el 1 de septiembre
+          </div>
+          <div class="mt-4 overflow-hidden rounded-lg border" data-tabla="completo"></div>
+        </div>
+        <details class="rounded-xl border bg-white p-5">
+          <summary class="flex cursor-pointer items-center justify-between text-sm font-medium text-gray-700">
+            Cargar un archivo a mano
+            <svg class="chev h-4 w-4 text-gray-400 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </summary>
+          <p class="mt-2 text-xs text-gray-500">
+            Con la descarga automática encendida, la tarea vuelve a escribir el día en la siguiente corrida y reemplaza lo que se suba aquí.
+            Para cargar a mano hay que apagar primero la descarga automática (es una tarea de sistemas).
+          </p>
+        </details>
+      </div>
+
+      <!-- ─────────── ESTADO 5 · DESCARGA APAGADA (modo manual, como hoy) ─────────── -->
+      <div data-estado="apagada" class="space-y-4">
+        <div class="flex gap-2.5 rounded-lg border bg-gray-50 px-4 py-3 text-sm text-gray-700">
+          <span class="mt-0.5 shrink-0 text-gray-400">■</span>
+          <div>
+            <p class="font-medium">La descarga automática de facturas está apagada.</p>
+            <p class="mt-0.5 text-xs text-gray-500">
+              Mientras esté apagada, las facturas se cargan con el archivo del ERP como siempre. Encenderla o apagarla es una tarea de sistemas
+              y no toca la descarga de conversaciones.
+            </p>
+          </div>
+        </div>
+        <!-- UI existente sin cambios (GW-48 · GW-107): formulario de ventas tal como se ve hoy -->
+        <div class="rounded-xl border bg-white p-5">
+          <div class="mb-3 flex items-start justify-between">
+            <div>
+              <p class="text-[11px] uppercase tracking-wide text-gray-500">Archivo de Ventas</p>
+              <h3 class="text-base font-semibold">Facturas físicas <span class="text-sm font-normal text-gray-400">(.xls)</span></h3>
+            </div>
+            <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-500">Sin archivo</span>
+          </div>
+          <label class="block cursor-pointer rounded-lg border-2 border-dashed border-gray-300 py-10 text-center">
+            <svg class="mx-auto mb-2 h-7 w-7 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg>
+            <p class="text-sm font-medium">Arrastra el archivo aquí</p>
+            <p class="mt-1 text-xs text-gray-500">o haz click para seleccionar (.xls)</p>
+          </label>
+        </div>
+      </div>
+
+      <!-- Calendario de cobertura (componente real CalendarioCargas, fuera de los sub-tabs, igual que hoy) -->
+      <div class="rounded-xl border bg-white p-5">
+        <div class="mb-3 flex items-center justify-between">
+          <h3 class="text-base font-semibold text-gray-900">Cobertura del mes</h3>
+          <div class="flex w-44 items-center justify-between rounded-md border px-3 py-1.5 text-sm"><span>Septiembre 2026</span><span class="text-gray-400">▾</span></div>
+        </div>
+        <div class="grid grid-cols-7 gap-1.5 text-center text-xs">
+          <div class="py-1 font-medium text-gray-400">L</div><div class="py-1 font-medium text-gray-400">M</div><div class="py-1 font-medium text-gray-400">M</div>
+          <div class="py-1 font-medium text-gray-400">J</div><div class="py-1 font-medium text-gray-400">V</div><div class="py-1 font-medium text-gray-400">S</div><div class="py-1 font-medium text-gray-400">D</div>
+          <div class="rounded border bg-white py-2 text-gray-300">31</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">1</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">2</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">3</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">4</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">5</div>
+          <div class="rounded border bg-white py-2 text-gray-400">6</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">7</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">8</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">9</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">10</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">11</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">12</div>
+          <div class="rounded border bg-white py-2 text-gray-400">13</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">14</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">15</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">16</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">17</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">18</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">19</div>
+          <div class="rounded border bg-white py-2 text-gray-400">20</div>
+          <div class="rounded border border-emerald-200 bg-emerald-50 py-2 text-emerald-800">21</div>
+          <div class="rounded border-2 border-slate-900 bg-slate-900 py-2 font-semibold text-white">22</div>
+        </div>
+        <p class="mt-3 text-xs text-gray-500">19 de 19 días hábiles con facturas · el día en curso se marca en negro</p>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script>
+// ── Datos reales: get.v_Ventas_QEC_WEB · CentroContrato 315 (STIRPE) · 2026-09-22 · nombre desde users.contact_id → contacts ──
+// La fila «Sin asesor» es un EJEMPLO: nit 7415200 no existe en la vista ese día; se inventa para mostrar el caso.
+const FILAS = [
+  { nit: '8932900', asesor: 'Juan Camilo Vergel Acosta',      g: 18, m: 3, x: 1, neta: 5504799 },
+  { nit: '7284300', asesor: 'Valentina Núñez Caballero',      g: 10, m: 1, x: 0, neta: 4972291 },
+  { nit: '7133900', asesor: 'Andrés Felipe Jiménez Quintero', g: 11, m: 2, x: 0, neta: 4618626 },
+  { nit: '7784400', asesor: 'Brayan Javier Ardila Flórez',    g: 16, m: 2, x: 0, neta: 4600965 },
+  { nit: '8443600', asesor: 'Manuel Humberto Parra Tapias',   g:  9, m: 0, x: 0, neta: 3218545 },
+  { nit: '5432100', asesor: 'Silvia Alejandra Camacho',       g:  7, m: 2, x: 0, neta: 3195063 },
+  { nit: '8969900', asesor: 'Fabián Andrés Prada Rueda',      g:  9, m: 1, x: 0, neta: 3136070 },
+  { nit: '7374400', asesor: 'Jhon Alexander Rodríguez Patiño',g:  9, m: 1, x: 0, neta: 2035583 },
+  { nit: '8907100', asesor: 'Paula Andrea Oliveros Ardila',   g:  4, m: 1, x: 0, neta:  643150 },
+  { nit: '8960200', asesor: 'Nicol Dayana Pinzón Peña',       g:  9, m: 1, x: 0, neta:   45155 },
+  { nit: '7415200', asesor: null,                              g:  2, m: 0, x: 0, neta:  486900 }, // ejemplo
+];
+// Dato parcial (estado «Atrasada»): lo recibido hasta las 3:18 p. m.
+const PARCIAL = [
+  { nit: '8932900', asesor: 'Juan Camilo Vergel Acosta',      g: 12, m: 2, x: 1, neta: 3812450 },
+  { nit: '7784400', asesor: 'Brayan Javier Ardila Flórez',    g: 11, m: 1, x: 0, neta: 3204900 },
+  { nit: '7284300', asesor: 'Valentina Núñez Caballero',      g:  7, m: 1, x: 0, neta: 3164291 },
+  { nit: '7133900', asesor: 'Andrés Felipe Jiménez Quintero', g:  8, m: 1, x: 0, neta: 3097626 },
+  { nit: '8443600', asesor: 'Manuel Humberto Parra Tapias',   g:  7, m: 0, x: 0, neta: 2546545 },
+  { nit: '8969900', asesor: 'Fabián Andrés Prada Rueda',      g:  6, m: 1, x: 0, neta: 2211070 },
+  { nit: '5432100', asesor: 'Silvia Alejandra Camacho',       g:  5, m: 1, x: 0, neta: 2058063 },
+  { nit: '7374400', asesor: 'Jhon Alexander Rodríguez Patiño',g:  6, m: 1, x: 0, neta: 1436583 },
+  { nit: '8907100', asesor: 'Paula Andrea Oliveros Ardila',   g:  3, m: 1, x: 0, neta:  481150 },
+  { nit: '8960200', asesor: 'Nicol Dayana Pinzón Peña',       g:  5, m: 0, x: 0, neta:  318400 },
+  { nit: '7415200', asesor: null,                              g:  1, m: 0, x: 0, neta:  238900 }, // ejemplo
+];
+const DATOS = { completo: FILAS, parcial: PARCIAL };
+
+const cop = n => (n < 0 ? '−' : '') + '$ ' + Math.abs(n).toLocaleString('es-CO');
+
+function tabla(filas) {
+  const asesores = filas.filter(f => f.asesor);
+  const sin = filas.filter(f => !f.asesor);
+  const tot = filas.reduce((a, f) => ({ g: a.g + f.g, m: a.m + f.m, x: a.x + f.x, neta: a.neta + f.neta }), { g: 0, m: 0, x: 0, neta: 0 });
+  const fila = f => `
+    <tr class="${f.asesor ? '' : 'bg-gray-50/60'}">
+      <td class="c-asesor px-3 py-2">
+        ${f.asesor
+          ? `<span class="text-gray-900">${f.asesor}</span> <span class="ml-1 text-[11px] text-gray-400 num">${f.nit}</span>`
+          : `<span class="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">Sin asesor</span> <span class="ml-1 text-[11px] text-gray-500">nit <span class="num">${f.nit}</span> · no corresponde a un usuario</span>`}
+      </td>
+      <td data-l="Ventas G" class="px-3 py-2 text-right num">${f.g}</td>
+      <td data-l="Devol. M" class="px-3 py-2 text-right num ${f.m ? 'text-gray-700' : 'text-gray-400'}">${f.m}</td>
+      <td data-l="Cambios X" class="px-3 py-2 text-right num ${f.x ? 'text-gray-700' : 'text-gray-400'}">${f.x}</td>
+      <td data-l="Venta neta" class="c-neta px-3 py-2 text-right font-medium num">${cop(f.neta)}</td>
+    </tr>`;
+  return `
+    <table class="tabla-asesores w-full text-sm">
+      <thead class="bg-gray-50 text-left text-[11px] uppercase tracking-wide text-gray-500">
+        <tr>
+          <th class="px-3 py-2 font-medium">Asesor</th>
+          <th class="px-3 py-2 text-right font-medium" title="Facturas de venta">G</th>
+          <th class="px-3 py-2 text-right font-medium" title="Devoluciones">M</th>
+          <th class="px-3 py-2 text-right font-medium" title="Cambios">X</th>
+          <th class="px-3 py-2 text-right font-medium">Venta neta</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">${asesores.map(fila).join('')}${sin.map(fila).join('')}</tbody>
+      <tfoot class="border-t bg-gray-50 text-sm font-semibold">
+        <tr>
+          <td class="c-asesor px-3 py-2">Total del día</td>
+          <td data-l="Ventas G" class="px-3 py-2 text-right num">${tot.g}</td>
+          <td data-l="Devol. M" class="px-3 py-2 text-right num">${tot.m}</td>
+          <td data-l="Cambios X" class="px-3 py-2 text-right num">${tot.x}</td>
+          <td data-l="Venta neta" class="c-neta px-3 py-2 text-right num">${cop(tot.neta)}</td>
+        </tr>
+      </tfoot>
+    </table>`;
+}
+document.querySelectorAll('[data-tabla]').forEach(el => { el.innerHTML = tabla(DATOS[el.dataset.tabla]); });
+
+// ── Conmutador de estados ──
+const CHIP = {
+  aldia:    ['bg-emerald-100 text-emerald-700', '✓ hoy'],
+  atrasada: ['bg-rose-100 text-rose-700',       'atrasada'],
+  vacio:    ['bg-slate-100 text-slate-600',     'sin movimiento'],
+  error:    ['bg-emerald-100 text-emerald-700', '✓ hoy'],
+  // Modo manual: distintivo actual de la tienda («falta hoy» en ámbar es UI existente de GW-48, no se toca)
+  apagada:  ['bg-amber-100 text-amber-700',     'falta hoy'],
+};
+let estadoActual = 'aldia';
+function ver(id) {
+  estadoActual = id;
+  document.querySelectorAll('[data-estado]').forEach(e => e.classList.toggle('activo', e.dataset.estado === id));
+  document.querySelectorAll('.btn-estado').forEach(b => {
+    const on = b.getAttribute('onclick').includes("'" + id + "'");
+    b.className = 'btn-estado rounded-md px-3 py-1 text-xs font-medium ' + (on ? 'bg-white text-slate-900' : 'text-slate-300 hover:bg-slate-800');
+  });
+  const chip = document.getElementById('chip-subtab');
+  chip.className = 'rounded-full px-1.5 py-0.5 text-[10px] ' + CHIP[id][0];
+  chip.textContent = CHIP[id][1];
+  const manual = id === 'apagada';
+  document.getElementById('subtitulo-auto').classList.toggle('hidden', manual);
+  document.getElementById('subtitulo-manual').classList.toggle('hidden', !manual);
+  document.getElementById('ext-subtab').classList.toggle('hidden', !manual);
+  const marco = document.getElementById('marco-movil');
+  if (marco.classList.contains('abierto')) cargarMovil();
+}
+function cargarMovil() {
+  document.getElementById('iframe-movil').src = location.pathname + '?movil=1&estado=' + estadoActual;
+}
+function movil() {
+  const marco = document.getElementById('marco-movil');
+  marco.classList.toggle('abierto');
+  if (marco.classList.contains('abierto')) cargarMovil();
+}
+
+const q = new URLSearchParams(location.search);
+if (q.get('movil') === '1') document.body.classList.add('movil');
+ver(q.get('estado') || 'aldia');
+</script>
+</body>
+</html>
