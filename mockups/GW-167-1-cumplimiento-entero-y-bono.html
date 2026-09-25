@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-167-1 · % de cumplimiento entero en todas las pantallas y bono del día con el mismo redondeo (D3 + D6)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Pila tipográfica real de get-web (Tailwind v4 compila .font-sans con el stack literal; verificada en GW-150/152/164). */
+  html, body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+  .cifra { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .marcar-on .cambio { outline: 2px dashed #6366f1; outline-offset: 2px; border-radius: 6px; }
+  .marcar-on span.cambio, .marcar-on .cambio.rounded-full { border-radius: 9999px; }
+  .skeleton { background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+  @keyframes sk { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+  /* Tooltip = TooltipContent de reka (components/ui/tooltip): bg-primary hsl(0 0% 9%), text-[11px], rounded-md. */
+  .tip { position: relative; }
+  .tip::after {
+    content: attr(data-tip);
+    position: absolute; top: 100%; left: 0;
+    margin-top: 6px; width: 260px; padding: 6px 12px;
+    background: hsl(0 0% 9%); color: hsl(0 0% 98%);
+    font-size: 11px; line-height: 1.375; font-weight: 400;
+    text-transform: none; letter-spacing: normal; text-align: left; white-space: normal;
+    border-radius: 6px; display: none; pointer-events: none; z-index: 40;
+  }
+  .tip.tip-fin::after { left: auto; right: 0; }
+  .tip:hover::after { display: block; }
+  /* shadcn Table (components/ui/table): TableHead h-10 px-2 font-medium; TableCell p-2 align-middle whitespace-nowrap */
+  table.ui th { height: 2.5rem; padding: 0 .5rem; text-align: left; vertical-align: middle; font-weight: 500; white-space: nowrap; }
+  table.ui td { padding: .5rem; vertical-align: middle; white-space: nowrap; }
+  table.ui tr { border-bottom: 1px solid #e5e7eb; }
+  table.ui tbody tr:last-child { border-bottom: 0; }
+  /* TablaDetalleDiario: Fecha y Meta ancladas (ANCHO_FECHA 96 / ANCHO_META 136) */
+  .col-fija { position: sticky; }
+  .col-meta { box-shadow: inset -1px 0 0 #e2e8f0; }
+  .nav-item.activo { background: #fff; color: #1e1b4b; font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / .06); }
+</style>
+</head>
+<body class="overflow-x-hidden bg-gray-100 text-gray-900 antialiased">
+
+<!-- ══ Barra de control del mockup (no es parte de la UI) ══ -->
+<div class="sticky top-0 z-50 border-b border-indigo-200 bg-indigo-50/95 px-4 py-2 backdrop-blur">
+  <div class="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+    <span class="font-bold text-indigo-900">GW-167-1 · mockup</span>
+    <div class="flex gap-1" id="modos">
+      <button data-modo="hoy"  class="modo rounded-md border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-white">Hoy · get-web master 2026-09-24</button>
+      <button data-modo="prop" class="modo rounded-md border border-indigo-300 bg-white px-2.5 py-1 font-medium text-indigo-900">Propuesta · D3 + D6 · todo % de cumplimiento entero</button>
+    </div>
+    <label class="flex items-center gap-1.5">
+      <span class="text-indigo-800">Estado:</span>
+      <select id="estado" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="ok">Con datos</option>
+        <option value="cargando">Cargando (skeleton)</option>
+        <option value="error">Error · Reintentar</option>
+      </select>
+    </label>
+    <label class="flex items-center gap-1.5">
+      <input id="provNegro" type="checkbox" class="rounded border-indigo-300" checked>
+      <span class="text-indigo-800">Chip provisional en negro «en curso» (paleta ADR-006, opcional)</span>
+    </label>
+    <label class="flex items-center gap-1.5">
+      <input id="marcar" type="checkbox" class="rounded border-indigo-300" checked>
+      <span class="text-indigo-800">Marcar lo que cambia</span>
+    </label>
+    <span class="text-indigo-700 lg:ml-auto">Silvia A. Camacho · Stirpe · Q2 sep 2026 (hoy 24) · día 18: 99,8 % · quincena a la fecha: 90,95 %</span>
+  </div>
+</div>
+
+<div class="mx-auto flex max-w-[1440px] gap-4 px-4 py-5">
+  <!-- Navegación lateral del mockup: una entrada por pantalla -->
+  <aside class="w-56 shrink-0">
+    <nav id="nav" class="sticky top-14 space-y-1 rounded-xl border border-indigo-200 bg-indigo-50 p-2 text-[12px] text-indigo-800"></nav>
+  </aside>
+  <div id="pagina" class="marcar-on min-w-0 flex-1"></div>
+</div>
+
+<!-- ══ Nota al pie: qué difiere de la UI actual ══ -->
+<div class="mx-auto max-w-[1440px] px-4 pb-10">
+  <div class="rounded-xl border border-indigo-200 bg-white p-5 text-[12px] leading-relaxed text-gray-700">
+    <p class="mb-2 text-sm font-semibold text-gray-900">Qué difiere de la UI actual (get-web master, 2026-09-24) · una fila por bloque tocado</p>
+    <table class="w-full text-left text-[11.5px]">
+      <thead><tr class="border-b text-gray-500"><th class="py-1 pr-3">Pantalla · bloque</th><th class="py-1 pr-3">Hoy</th><th class="py-1 pr-3">Propuesta (D6)</th><th class="py-1">Componente real copiado</th></tr></thead>
+      <tbody class="divide-y">
+        <tr><td class="py-1.5 pr-3 font-medium">Mis Ventas · gauge y «(x) proyectado con confirmados»</td><td class="py-1.5 pr-3"><code>formatoPct1</code> trunca a un decimal: 90,95 → «90,9%» · 95,00 → «95,0%»</td><td class="py-1.5 pr-3"><code>pctCumplimiento</code>: «91%» · «95%» · el semáforo del arco sigue con el crudo (sin cambio)</td><td class="py-1.5"><code>TableroAsesor.vue:154,157</code> · <code>tableroAsesor.vista.ts:36</code> · <code>gauge.ts</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Mis Ventas · % Pedidos esperados</td><td class="py-1.5 pr-3">«99,6%» (<code>formatoPct1</code>)</td><td class="py-1.5 pr-3"><b>Sin cambio</b>: es un avance sin escalón, no un cumplimiento (GW-167 P2-1, <code>pctAvance</code>). Si el arquitecto quiere unificarlo, entra como tarea aparte.</td><td class="py-1.5"><code>TableroAsesor.vue:205</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Mis Ventas · panel de comisión «llevas X»</td><td class="py-1.5 pr-3">«llevas 90,9%» (<code>porcentajeVisible</code> → <code>formatoPct1</code>) · VPT/TCV: «91,2% de $ 144.000», «102,5% de 12,0%»</td><td class="py-1.5 pr-3">«llevas 91%» · el % de cumplimiento de VPT y TCV también entero («91% de $ 144.000», «103% de 12,0%»); el valor de la métrica conserva su decimal (12,3%)</td><td class="py-1.5"><code>PanelComisionProyectada.vue:110,63-65</code> · <code>panelComision.vista.ts:22-25</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Mis Ventas · Detalle diario · bono del 18-sept</td><td class="py-1.5 pr-3">Cumplimiento ya entero («100%») pero bono «No»: el cron compara 99,80 &lt; 100</td><td class="py-1.5 pr-3">«Sí · $ 30.000» provisional (D1 + D2: el cron redondea y reencola el día; el 18 tiene 1 pedido web sin factura). El chip provisional hoy es ámbar; la propuesta lo pinta negro «en curso» (ADR-006) <b>como cambio de paleta opcional, no asumido</b>: el checkbox de la barra lo devuelve a ámbar.</td><td class="py-1.5"><code>TablaDetalleDiario.vue:267-287</code> · <code>tablaDetalleDiario.vista.ts:estadoBono</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Gestión de Ventas · Equipo por rol</td><td class="py-1.5 pr-3">Badge «91%» (<code>pctEntero</code>) y fila Cumplimiento «91,0% (95,0%)» (<code>pct1</code> local) en la misma tarjeta</td><td class="py-1.5 pr-3">Los dos en entero: «91%» y «91% (95%)» · el paréntesis sigue apareciendo solo si los enteros difieren (<code>celdaPctRecaudado</code>)</td><td class="py-1.5"><code>EquipoRoles.vue:137,163,168,216-219</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Liquidación · KPI «Cumplim. promedio»</td><td class="py-1.5 pr-3">«92,4%» (<code>pct1</code> de constantes)</td><td class="py-1.5 pr-3">«92%» · la clase de color (<code>clasePct</code>) sigue con el crudo</td><td class="py-1.5"><code>Liquidacion.vue:247</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Liquidación · fila del asesor y total</td><td class="py-1.5 pr-3"><code>Math.ceil</code> ad hoc si la fracción ≥ ,5: 90,95 → «91,0%», 87,5 → «88,0%», pero 99,49 → «99,5%» y 104,2 → «104,2%» (tres formatos en la misma columna)</td><td class="py-1.5 pr-3">«91%», «88%», «99%», «104%» · el ⚠ de días sin repartir no cambia</td><td class="py-1.5"><code>Liquidacion.vue:333,392</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Liquidación · modal de quincena</td><td class="py-1.5 pr-3">«91,0%» (<code>pct1</code>)</td><td class="py-1.5 pr-3">«91%» · esmeralda si el crudo ≥ 100 (sin cambio)</td><td class="py-1.5"><code>ModalDetalleQuincena.vue:178</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Modal Detalle del asesor · columna «Cumpl.»</td><td class="py-1.5 pr-3">«99,8%» gris · 19-sept «99,5%» (<code>pct1</code> redondea a un decimal) sin bono: se lee como si estuviera a medio punto</td><td class="py-1.5 pr-3">«100%» esmeralda (coloreada con <code>Math.round(pct) &gt;= 100</code>) · 19-sept «99%» gris · 17-sept «101%» esmeralda sin bono (falla UPT 99)</td><td class="py-1.5"><code>ModalDetalleAsesor.vue:370-375</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Modal Detalle del asesor · chip de condición y veredicto</td><td class="py-1.5 pr-3">«venta ≥100% · 99.8» · «upt ≥100% · 100.77» (JSON con 2 decimales, punto de JS) · 18-sept sin bono</td><td class="py-1.5 pr-3"><b>D3:</b> «venta ≥ 100 % · 100» · «upt ≥ 100 % · 101» (<code>Math.round(valor)</code>) · 18-sept gana bono (D1 en el cron: <code>round($valor) &gt;= $umbral</code>) · misma paleta esmeralda/gris, lucide check/x</td><td class="py-1.5"><code>ModalDetalleAsesor.vue:98-103, 383-392</code> · <code>api-crontab-v2 CondicionesBonoEvaluador.php:39,74</code></td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Histórico · card «Cumplimiento» y fila por asesor</td><td class="py-1.5 pr-3"><code>toFixed(1)</code>: «91,0%» · «104,2%» · «99,5%» · «67,6%»</td><td class="py-1.5 pr-3">«91%» · «104%» · «99%» · «68%» · barras, colores y chips En meta/En proceso/Bajo meta sin cambio (ya usan el crudo)</td><td class="py-1.5"><code>Historico.vue:255,376</code></td></tr>
+      </tbody>
+    </table>
+    <p class="mt-3 text-[11px] text-gray-500">
+      <b>Formato del helper:</b> <code>pctCumplimiento</code> imprime «91%» sin espacio (así lo ven ya TableroKpis, Consolidado, EquipoRoles, CompararTiendas, TablaAsesoresCumplimiento y TablaDetalleDiario). El mockup respeta ese texto. Si se prefiere «91 %» con espacio, cambia el helper para las seis pantallas de una vez; no se abre un tercer formato.
+      · <b>Semáforos y clases de color</b> (gauge, badge, <code>clasePct</code>, barras del Histórico) siguen decidiendo con el crudo salvo la columna «Cumpl.» del modal, que pasa a colorear con el entero para que el número y su color digan lo mismo.
+      · <b>Fuera del mockup:</b> pestañas «Facturas» y «Conversaciones Infobip» del modal, Excel de 3 hojas (la hoja diaria sigue con 2 decimales), Consulta de ventas, Comparar tiendas, Cargas del período, sidebar del AppLayout y vista a 390 px. PHP sigue enviando el crudo (D6); el JSON <code>condiciones_evaluadas</code> conserva <code>valor</code> con 2 decimales (D1).
+    </p>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Datos. Stirpe (tienda 0), quincena 2026-09-16 → 2026-09-30, hoy 24. Silvia con meta diaria
+// $5.000.000 y meta UPT 1,30 (siembra GW-51: venta ≥ 100 y UPT ≥ 100). Los % de las condiciones
+// son los que persiste el cron: round(real/meta*100, 2).
+// ─────────────────────────────────────────────────────────────────────────────
+const HOY = '2026-09-24';
+const META_DIA = 5000000;
+const META_UPT = 1.30;
+const META_VPT = 144000;
+const META_TCV = 12.0;
+const BONO_DIA = 30000;
+const ASESOR = { nombre: 'silvia a. camacho', cod: '5432100' };
+const PERIODO = { desde: '2026-09-16', hasta: '2026-09-30' };
+
+// venta = total venta del día (pedidos web + facturado + tienda física − devoluciones) · pw = pedidos web pagados
+// sin factura del ERP incluidos en la venta (GW-148 D14/D15) · tf = tienda física · dev = devoluciones (negativo)
+const DIAS = [
+  { f: '2026-09-16', venta: 5000000, n: 38, upt: 1.30, dev: 0,       tf: 0,      pw: 0,      pwN: 0, pend: 0,       pendN: 0, arc: 210000, arcN: 1 },
+  { f: '2026-09-17', venta: 5060000, n: 39, upt: 1.29, dev: 0,       tf: 0,      pw: 0,      pwN: 0, pend: 0,       pendN: 0, arc: 0,      arcN: 0 }, // UPT 99,23 % → 99: sin bono
+  { f: '2026-09-18', venta: 4990000, n: 37, upt: 1.31, dev: 0,       tf: 0,      pw: 260000, pwN: 1, pend: 0,       pendN: 0, arc: 0,      arcN: 0 }, // 99,80 % → el caso del REQ
+  { f: '2026-09-19', venta: 4974500, n: 38, upt: 1.35, dev: 0,       tf: 0,      pw: 0,      pwN: 0, pend: 0,       pendN: 0, arc: 145000, arcN: 1 }, // 99,49 % → 99, sin bono
+  { f: '2026-09-21', venta: 4250000, n: 32, upt: 1.22, dev: -189900, tf: 0,      pw: 0,      pwN: 0, pend: 0,       pendN: 0, arc: 0,      arcN: 0 },
+  { f: '2026-09-22', venta: 5430000, n: 41, upt: 1.42, dev: 0,       tf: 320000, pw: 0,      pwN: 0, pend: 0,       pendN: 0, arc: 0,      arcN: 0 },
+  { f: '2026-09-23', venta: 5150000, n: 40, upt: 1.33, dev: 0,       tf: 0,      pw: 540000, pwN: 2, pend: 0,       pendN: 0, arc: 0,      arcN: 0 }, // bono provisional (pedidos web)
+  { f: '2026-09-24', venta: 1525500, n: 12, upt: 1.25, dev: 0,       tf: 0,      pw: 1525500, pwN: 12, pend: 1620000, pendN: 3, arc: 0,   arcN: 0 }, // hoy, en curso
+];
+const META_QUINCENA_FECHA = DIAS.length * META_DIA;                 // $ 40.000.000 (8 días con meta hasta hoy)
+const VENTA_RECAUDADA = DIAS.reduce((a, d) => a + d.venta, 0);      // $ 36.380.000
+const PENDIENTE_PAGO = DIAS.reduce((a, d) => a + d.pend, 0);        // $ 1.620.000 confirmado sin pagar
+const PCT_RECAUDADO = VENTA_RECAUDADA / META_QUINCENA_FECHA * 100;  // 90,95
+const PCT_CONFIRMADO = (VENTA_RECAUDADA + PENDIENTE_PAGO) / META_QUINCENA_FECHA * 100; // 95,00
+const PEDIDOS = DIAS.reduce((a, d) => a + d.n, 0);                  // 277
+const UNIDADES = DIAS.reduce((a, d) => a + Math.round(d.n * d.upt), 0);
+const PED_ESPERADOS = Math.round(META_QUINCENA_FECHA / META_VPT);   // 278
+const PCT_PEDIDOS = PEDIDOS / PED_ESPERADOS * 100;                  // 99,64 → avance, no cumplimiento
+const VPT_REAL = Math.round(VENTA_RECAUDADA / PEDIDOS);
+const TCV_REAL = 12.3;
+const TCV_CUMPL = 102.5;   // valor del backend con 2 decimales (12,3 / 12,0)
+const VPT_CUMPL = 91.2;
+
+// Liquidación por asesor · Stirpe · 16 – 30 sep (venta neta = solo lo facturado)
+const ASESORES = [
+  { nombre: 'silvia a. camacho',   cod: '5432100', meta: 40000000, venta: 36380000, dev: 189900, devN: 1, pf: 800000, pfN: 3, ped: 277, tcv: 12.3, pctTcv: 0.10, pctVpt: 0,    diasBonoHoy: 3, diasBonoProp: 4 },
+  { nombre: 'fabián prada',        cod: '7374400', meta: 38000000, venta: 39596000, dev: 0,      devN: 0, pf: 0,      pfN: 0, ped: 301, tcv: 13.1, pctTcv: 0.10, pctVpt: 0.05, diasBonoHoy: 6, diasBonoProp: 6 },
+  { nombre: 'jhon a. rodríguez p.', cod: '7374401', meta: 36000000, venta: 35816400, dev: 0,     devN: 0, pf: 420000, pfN: 2, ped: 265, tcv: 11.4, pctTcv: 0,    pctVpt: 0,    diasBonoHoy: 3, diasBonoProp: 3 },
+  { nombre: 'diana rojas',         cod: '5432101', meta: 32000000, venta: 28000000, dev: 96500,  devN: 1, pf: 0,      pfN: 0, ped: 210, tcv: 10.2, pctTcv: 0,    pctVpt: 0,    diasBonoHoy: 2, diasBonoProp: 2 },
+  { nombre: 'luis cárdenas',       cod: '5432102', meta: 30000000, venta: 22890000, dev: 0,      devN: 0, pf: 0,      pfN: 0, ped: 176, tcv: 9.8,  pctTcv: 0,    pctVpt: 0,    diasBonoHoy: 1, diasBonoProp: 1 },
+];
+const DIAS_RANGO = 15;
+// Escalón de comisión (ADR-011): con el entero redondeado del % · 80 → 0,50 % · 90 → 0,60 % · 100 → 0,70 %
+const escalonDe = pct => { const e = Math.round(pct); return e >= 100 ? { cumpl: 100, tasa: 0.70 } : e >= 90 ? { cumpl: 90, tasa: 0.60 } : e >= 80 ? { cumpl: 80, tasa: 0.50 } : null; };
+function filasLiquidacion(modo) {
+  return ASESORES.map(a => {
+    const cumpl = Math.round(a.venta / a.meta * 10000) / 100;
+    const esc = escalonDe(cumpl);
+    const pctTotal = (esc ? esc.tasa : 0) + a.pctVpt + a.pctTcv;
+    const comision = Math.round(a.venta * pctTotal / 100);
+    const diasBono = modo === 'hoy' ? a.diasBonoHoy : a.diasBonoProp;
+    const bono = diasBono * BONO_DIA;
+    return { ...a, cumpl, esc, pctTotal, comision, diasBono, bono, total: comision + bono, vpt: Math.round(a.venta / a.ped) };
+  });
+}
+function totalesLiquidacion(filas) {
+  const s = k => filas.reduce((acc, f) => acc + f[k], 0);
+  const venta = s('venta'), meta = s('meta');
+  return { asesores: filas.length, meta, venta, cumpl: Math.round(venta / meta * 10000) / 100, ped: s('ped'), comision: s('comision'), diasBono: s('diasBono'), bono: s('bono'), total: s('total'), cumplen: filas.filter(f => f.cumpl >= 100).length };
+}
+
+// Equipo por rol (GW-131): desempeño del titular en el período elegido; la plata anclada a la quincena vigente
+const EQUIPO = [
+  { rol: 'Coordinador', nombre: 'Carolina Peña',     asignados: 5,  universo: 5,  recaudada: 160072000, confirmada: 167200000, meta: 176000000, oficial: 612400, proyectada: 688900, bonoHoy: 20000 },
+  { rol: 'Supervisor',  nombre: 'Andrés Villamil',   asignados: 5,  universo: 5,  recaudada: 160072000, confirmada: 167200000, meta: 176000000, oficial: 410200, proyectada: 461300, bonoHoy: null },
+  { rol: 'Director',    nombre: 'Luz Marina Torres', asignados: 11, universo: 11, recaudada: 298400000, confirmada: 311800000, meta: 336000000, oficial: 780000, proyectada: 852600, bonoHoy: null },
+];
+
+// Histórico · Stirpe · septiembre 2026 (mes en curso)
+const HIST = {
+  meta_mes: 352000000, realizado_mes: 320144000, mejor_dia: '7 sep',
+  dias: [121.0, 54.4, 82.3, 80.6, 96.2, 101.4, 141.3, 95.9, 88.7, 103.2, 79.4, 92.5, 110.8, 97.1, 84.9, 100.0, 101.2, 99.8, 99.49, 85.0, 108.6, 103.0, 91.3, 30.5].map((p, i) => ({ dia: i + 1, cumplimiento_pct: p })),
+  por_asesor: [
+    { nombre: 'Silvia A. Camacho',   meta: 80000000, realizado: 72760000, estado: 'en_proceso' },
+    { nombre: 'Fabián Prada',        meta: 76000000, realizado: 79192000, estado: 'en_meta' },
+    { nombre: 'Jhon A. Rodríguez P.', meta: 72000000, realizado: 71632800, estado: 'en_proceso' },
+    { nombre: 'Diana Rojas',         meta: 64000000, realizado: 56000000, estado: 'en_proceso' },
+    { nombre: 'Luis Cárdenas',       meta: 60000000, realizado: 40559200, estado: 'bajo_meta' },
+  ].map(a => ({ ...a, cumplimiento: Math.round(a.realizado / a.meta * 10000) / 100, falta: Math.max(0, a.meta - a.realizado) })),
+};
+
+// ─── Reglas de cumplimiento y condiciones del bono ───
+const r2 = x => Math.round(x * 100) / 100;
+const condicionesDe = d => [
+  { metrica: 'venta', umbral: 100, valor: r2(d.venta / META_DIA * 100) },
+  { metrica: 'upt',   umbral: 100, valor: r2(d.upt / META_UPT * 100) },
+];
+// hoy: el cron compara el valor con 2 decimales (CondicionesBonoEvaluador.php:39). Propuesta: D1, round($valor) >= $umbral.
+const cumpleSegun = (modo, c) => modo === 'hoy' ? c.valor >= c.umbral : Math.round(c.valor) >= c.umbral;
+const esHoy = d => d.f === HOY;
+function bonoDia(d, modo) {
+  if (esHoy(d)) return { estado: 'no', monto: 0, enCurso: true };
+  const conds = condicionesDe(d);
+  const gana = conds.every(c => cumpleSegun(modo, c));
+  if (!gana) return { estado: 'no', monto: 0 };
+  return { estado: d.pwN > 0 ? 'provisional' : 'firme', monto: BONO_DIA };
+}
+// Texto del chip de condición (espejo de textoCondicion, ModalDetalleAsesor.vue:98-103)
+const TEXTO_COND = {
+  hoy:  c => `${c.metrica} ≥${c.umbral}% · ${c.valor}`,
+  prop: c => `${c.metrica} ≥ ${c.umbral} % · ${Math.round(c.valor)}`,
+};
+
+// ─── Formatos reales (espejo de cada helper de get-web) ───
+const pesos = n => n === null || n === undefined ? '—' : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+const pct1 = n => n === null || n === undefined ? '—' : n.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';        // comisiones/constantes.ts pct1 · EquipoRoles pct1 local
+const formatoPct1 = n => n === null || n === undefined ? '—' : (Math.floor(n * 10) / 10).toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'; // presupuesto/utils.ts (trunca)
+const pctCumplimiento = n => n === null || n === undefined ? '—' : Math.round(n) + '%';                                                                    // gestionVentas/components/pctCumplimiento.ts
+const ceilAdHoc = n => pct1(n % 1 >= 0.5 ? Math.ceil(n) : n);                                                                                              // Liquidacion.vue:333
+const toFixed1 = n => n ? n.toFixed(1).replace('.', ',') + '%' : '—';                                                                                       // Historico.vue:255,376
+const pctFrac = f => (f).toFixed(2).replace('.', ',') + '%';                                                                                                // Liquidacion.vue pct (fracción → puntos)
+const upt2 = n => n.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const entero = n => n === null || n === undefined ? '—' : n.toLocaleString('es-CO', { maximumFractionDigits: 0 });
+const MESES_CORTOS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const fechaDiaria = iso => { const [, m, d] = iso.split('-'); return `${Number(d)} ${MESES_CORTOS[Number(m)-1]}`; };          // tablaDetalleDiario.vista.ts fechaDiariaVista
+const fechaCortaCom = iso => { const [, m, d] = iso.split('-'); return `${d}-${MESES_CORTOS[Number(m)-1]}${m === '09' ? 't' : ''}`; }; // comisiones/constantes.ts fechaCorta (es-CO «18-sept»)
+const capital = s => s.replace(/(^|\s)\S/g, c => c.toUpperCase());
+const sk = (h, extra = '') => `<div class="skeleton ${h} rounded-lg ${extra}"></div>`;
+const iniciales = nombre => { const p = nombre.trim().split(/\s+/); return p.length === 1 ? p[0].slice(0, 2).toUpperCase() : (p[0][0] + p[p.length - 1][0]).toUpperCase(); };
+
+// gauge.ts: semicírculo R 52 centrado en (70, 64), cap visual 110 %, semáforo con el crudo (≥95 verde · ≥80 ámbar · <80 rojo)
+const gaugeAngulo = v => (Math.min(Math.max(v, 0), 110) / 110) * 180;
+function gaugeArco(ang) { const rad = ((180 - ang) * Math.PI) / 180; const x = 70 + 52 * Math.cos(rad), y = 64 - 52 * Math.sin(rad); return `M 18 64 A 52 52 0 0 1 ${x.toFixed(1)} ${y.toFixed(1)}`; }
+const semaforo = p => p >= 95 ? 'verde' : p >= 80 ? 'ambar' : 'rojo';
+const GAUGE_HEX = { verde: '#059669', ambar: '#d97706', rojo: '#dc2626' };
+const BADGE_CLASE = { verde: 'bg-emerald-600', ambar: 'bg-amber-500', rojo: 'bg-red-500' };
+const BORDE_CLASE = { verde: 'border-l-emerald-600', ambar: 'border-l-amber-500', rojo: 'border-l-red-500' };
+
+// lucide
+const svg = (p, s = 14) => `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const ICO = {
+  check: svg('<path d="M20 6 9 17l-5-5"/>', 10),
+  x: svg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', 10),
+  xMd: svg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>', 16),
+  infoMd: svg('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>', 14),
+  download: svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>'),
+  eye: svg('<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>', 16),
+  clock: svg('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', 12),
+  clockLg: svg('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', 20),
+  fileSpreadsheet: svg('<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/>'),
+  upload: svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>'),
+  clipboardList: svg('<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>'),
+  plus: svg('<path d="M5 12h14"/><path d="M12 5v14"/>', 16),
+  calendar: svg('<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>'),
+  chevL: svg('<path d="m15 18-6-6 6-6"/>', 16),
+  chevR: svg('<path d="m9 18 6-6-6-6"/>', 16),
+  chevD: svg('<path d="m6 9 6 6 6-6"/>', 14),
+  lock: svg('<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>', 12),
+};
+
+// ─── Estado de la barra ───
+const PANTALLAS = [
+  { id: 'misventas',  titulo: 'Mis Ventas › Tablero del asesor', sub: 'gauge · panel de comisión · Detalle diario' },
+  { id: 'equipo',     titulo: 'Gestión de Ventas › Equipo por rol', sub: 'badge y fila «Cumplimiento»' },
+  { id: 'liquidacion', titulo: 'Comisiones › Liquidación', sub: 'KPI promedio · fila del asesor · modal de quincena' },
+  { id: 'modal',      titulo: 'Modal · Detalle del asesor', sub: 'columna «Cumpl.» · chip de condición · bono (D3)' },
+  { id: 'historico',  titulo: 'Gestión de Ventas › Histórico', sub: 'card del mes · fila por asesor' },
+];
+let modo = 'prop';
+let pantalla = 'misventas';
+let vistaHist = 'dias';
+const ui = () => ({ modo, estado: document.getElementById('estado').value, provNegro: document.getElementById('provNegro').checked });
+const esProp = u => u.modo === 'prop';
+// El % de cumplimiento según el modo: hoy = el helper que usa hoy ese bloque; propuesta = pctCumplimiento (D6)
+const pctSegun = (u, hoyFmt, v) => esProp(u) ? pctCumplimiento(v) : hoyFmt(v);
+const marca = (u, cambia = true) => esProp(u) && cambia ? 'cambio' : '';
+
+// ═══════════════════════════════ CHROME (AppLayout + HeaderLayout) ═══════════════════════════════
+function chrome(bc, titulo, sub, accion = '') {
+  return `
+    <nav class="mb-3 text-xs text-gray-500">${bc.map((b, i) => i === bc.length - 1 ? `<span class="text-gray-800">${b}</span>` : `${b} <span class="mx-1">›</span> `).join('')}</nav>
+    <section class="rounded-t-xl border border-b-0 border-gray-200 bg-white px-8 py-6">
+      <header class="flex items-center justify-between gap-5">
+        <div><h1 class="text-2xl font-bold text-gray-900">${titulo}</h1><p class="text-sm text-gray-600 md:text-base">${sub}</p></div>
+        ${accion}
+      </header>
+    </section>`;
+}
+const cuerpoPagina = (inner, cls = 'space-y-4 p-6') => `<div class="${cls} rounded-b-xl border border-t-0 border-gray-200 bg-gray-100">${inner}</div>`;
+const tabsSubrayado = (items, activo, cls = 'flex gap-5 border-b text-sm') => `<div class="${cls}">${items.map(t => `<span class="px-1 pb-2 ${t === activo ? 'border-b-2 border-gray-900 font-semibold text-gray-900' : 'border-b-2 border-transparent text-gray-500'}">${t}</span>`).join('')}</div>`;
+const chips = (items, activo, w = 'px-3') => `<div class="inline-flex overflow-hidden rounded-lg border border-gray-200 text-sm font-medium">${items.map((t, i) => `<span class="${w} py-1.5 ${i > 0 ? 'border-l border-gray-200' : ''} ${t === activo ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'}">${t}</span>`).join('')}</div>`;
+const navPeriodo = label => `<div class="flex items-center gap-1"><span class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500">${ICO.chevL}</span><span class="min-w-[110px] text-center text-sm font-semibold text-gray-700 capitalize">${label}</span><span class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 opacity-40">${ICO.chevR}</span></div>`;
+const selectorPeriodo = () => `<div class="flex flex-wrap items-center gap-2"><span class="text-[11px] tracking-wide text-gray-400 uppercase">Período</span>${chips(['Quincena', 'Mes', 'Día', 'Personalizado'], 'Quincena')}${navPeriodo('Q2 · sep 2026')}<span class="inline-flex h-[26px] w-[26px] items-center justify-center rounded-lg border border-gray-200 bg-white text-sm text-gray-500">↻</span></div>`;
+const selectorTienda = (activo = 'STIRPE', items = ['STIRPE', 'DEREK', 'Comparar']) => `<div class="flex flex-wrap items-center gap-2"><span class="text-[11px] tracking-wide text-gray-400 uppercase">Tienda</span>${chips(items, activo, 'px-4')}</div>`;
+const alertaError = (txt, cls = 'rounded-2xl') => `<div class="flex min-h-40 flex-col items-center justify-center gap-3 ${cls} border border-red-200 bg-red-50 p-5 text-center" role="alert"><p class="text-sm text-red-900">${txt}</p><span class="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700">Reintentar</span></div>`;
+const bloqueError = () => `<div class="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center"><p class="text-sm text-gray-500">No se pudieron cargar los datos.</p><span class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700">Reintentar</span></div>`;
+
+// ═══════════════════════════════ 1 · MIS VENTAS ═══════════════════════════════
+// TableroAsesor.vue: gauge (porcentajeGauge = formatoPct1) + recuadros
+function gaugeSvg(pctPrincipal, pctFondo, texto, colorHex) {
+  return `<svg viewBox="0 0 140 74" class="mx-auto w-full max-w-[190px]" role="img">
+    <path d="${gaugeArco(180)}" fill="none" stroke="#f1f5f9" stroke-width="11" stroke-linecap="round"/>
+    ${pctFondo !== null ? `<path d="${gaugeArco(gaugeAngulo(pctFondo))}" fill="none" stroke="${colorHex}55" stroke-width="11" stroke-linecap="round"/>` : ''}
+    <path d="${gaugeArco(gaugeAngulo(pctPrincipal))}" fill="none" stroke="${colorHex}" stroke-width="11" stroke-linecap="round"/>
+    <text x="70" y="58" text-anchor="middle" class="cifra" style="font-size:21px;font-weight:800;fill:#0f172a">${texto}</text>
+  </svg>`;
+}
+const recuadro = (titulo, cifra, sub, borde, cifraCls = '') => `<div class="rounded-md border border-l-4 border-slate-200 ${borde} px-3 py-2"><p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">${titulo}</p><p class="cifra text-xl leading-tight font-extrabold ${cifraCls}">${cifra}</p>${sub ? `<p class="cifra text-[10px] text-slate-500">${sub}</p>` : ''}</div>`;
+function tableroAsesor(u) {
+  if (u.estado === 'cargando') return `<div class="grid grid-cols-1 gap-4 lg:grid-cols-3">${Array(3).fill(`<article class="rounded-2xl border bg-white p-4 shadow-sm"><div class="animate-pulse space-y-3"><div class="h-3 w-44 rounded bg-slate-200"></div><div class="h-24 rounded-xl bg-slate-100"></div><div class="h-12 rounded bg-slate-100"></div></div></article>`).join('')}</div>`;
+  if (u.estado === 'error') return alertaError('No pudimos cargar tu tablero.');
+  const color = GAUGE_HEX[semaforo(PCT_RECAUDADO)];
+  const porVender = META_QUINCENA_FECHA - VENTA_RECAUDADA;
+  const tcOk = TCV_REAL >= META_TCV;
+  return `
+  <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <article class="rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="mb-1 text-[11px] font-bold tracking-wide text-slate-500 uppercase">% Cump. presupuesto neto</h2>
+      <div class="flex items-center gap-3">
+        <div class="w-[46%] shrink-0">
+          <div class="${marca(u)}">${gaugeSvg(PCT_RECAUDADO, PCT_CONFIRMADO, pctSegun(u, formatoPct1, PCT_RECAUDADO), color)}</div>
+          <p class="text-center text-[11px] text-slate-600">(<span class="${marca(u)}">${pctSegun(u, formatoPct1, PCT_CONFIRMADO)}</span>) proyectado con confirmados</p>
+          <p class="mt-0.5 text-center text-[11px] text-slate-600">Meta ${pesos(META_QUINCENA_FECHA)}</p>
+        </div>
+        <div class="min-w-0 flex-1 space-y-2">
+          ${recuadro('Venta recaudada', pesos(VENTA_RECAUDADA), `<span class="underline decoration-dotted underline-offset-[3px]">+ ${pesos(PENDIENTE_PAGO)} confirmada por recaudar</span>`, 'border-l-emerald-600')}
+          ${recuadro('Por vender y recaudar', pesos(porVender), `${pesos(porVender - PENDIENTE_PAGO)} por vender · <span class="underline decoration-dotted underline-offset-[3px]">+ ${pesos(PENDIENTE_PAGO)} por recaudar de lo ya vendido</span>`, 'border-l-red-500', 'text-red-600')}
+        </div>
+      </div>
+    </article>
+    <article class="rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="mb-1 text-[11px] font-bold tracking-wide text-slate-500 uppercase">% Pedidos esperados</h2>
+      <div class="flex items-center gap-3">
+        <div class="w-[46%] shrink-0">
+          ${gaugeSvg(PCT_PEDIDOS, null, formatoPct1(PCT_PEDIDOS), GAUGE_HEX[semaforo(PCT_PEDIDOS)])}
+          <p class="text-center text-[11px] text-slate-600">${entero(PED_ESPERADOS)} esperados</p>
+        </div>
+        <div class="min-w-0 flex-1 space-y-2">
+          <div class="rounded-md border border-l-4 border-slate-200 border-l-emerald-600 px-3 py-2"><p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Pedidos realizados</p><p class="cifra text-xl font-extrabold">${entero(PEDIDOS)}</p><p class="cifra text-[10px] text-slate-400">${entero(UNIDADES)} unidades</p><p class="cifra text-[10px] text-slate-400">+ 3 confirmados sin pagar</p></div>
+          <div class="rounded-md border border-l-4 border-slate-200 border-l-slate-300 px-3 py-2"><p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Pedidos por realizar</p><p class="cifra text-xl font-extrabold text-slate-600">${entero(PED_ESPERADOS - PEDIDOS)}</p></div>
+        </div>
+      </div>
+    </article>
+    <article class="flex flex-col rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">Tasa de conversión</h2>
+      <div class="mt-2 flex flex-1 flex-col items-center justify-center rounded-md py-3 ${tcOk ? 'bg-emerald-50' : 'bg-slate-50'}">
+        <p class="cifra text-4xl font-extrabold ${tcOk ? 'text-emerald-700' : 'text-slate-700'}">${formatoPct1(TCV_REAL)}</p>
+        <p class="mt-1 px-3 text-center text-[11px] font-semibold text-slate-500">Sobre 7 de 8 días con archivo cargado</p>
+        <p class="mt-1 text-[11px] text-slate-600">Meta: ${formatoPct1(META_TCV)}</p>
+      </div>
+      <div class="mt-2 space-y-1.5 border-t pt-2 text-sm">
+        <div class="flex justify-between"><span class="text-slate-500">Tráfico atendido</span><span class="cifra font-semibold">2.154</span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Carritos de la comisión</span><span class="cifra font-semibold">265</span></div>
+        <p class="text-right text-[10px] text-slate-400">en los días con archivo: los mismos que se dividen</p>
+      </div>
+    </article>
+  </div>`;
+}
+
+// PanelComisionProyectada.vue
+function panelComision(u) {
+  if (u.estado === 'cargando') return `<section class="rounded-2xl border bg-white p-5 shadow-sm"><div class="animate-pulse space-y-4"><div class="h-4 w-56 rounded bg-slate-200"></div><div class="h-28 rounded-xl bg-slate-100"></div><div class="h-20 rounded-xl bg-slate-100"></div></div></section>`;
+  const esc = escalonDe(PCT_RECAUDADO);
+  const comisionVenta = Math.round(VENTA_RECAUDADA * esc.tasa / 100);
+  const comisionTcv = Math.round(VENTA_RECAUDADA * 0.10 / 100);
+  const diasBono = DIAS.filter(d => bonoDia(d, u.modo).estado !== 'no').length;
+  const total = comisionVenta + comisionTcv + diasBono * BONO_DIA;
+  const faltan100 = Math.round(META_QUINCENA_FECHA * 0.995) - VENTA_RECAUDADA;
+  const umbral = (p, tasa) => { const ok = Math.round(PCT_RECAUDADO) >= p; return `<div class="rounded-xl bg-gray-50 p-3 text-center"><p class="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">Meta ${p}&nbsp;%</p><p class="mt-1 text-sm font-bold ${ok ? 'text-emerald-700' : 'text-gray-800'}">${ok ? 'Cumplido' : pesos(faltan100)}</p><p class="cifra mt-0.5 text-[11px] text-gray-500">${ok ? 'umbral superado' : `≈ ${Math.ceil(faltan100 / VPT_REAL)} pedidos según tu VPT · `}${ok ? '' : `paga ${tasa}`}</p></div>`; };
+  const errorBanner = u.estado === 'error' ? `<div class="mb-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900" role="alert"><p class="min-w-0 flex-1">No pudimos actualizar la comisión; se muestran los últimos datos disponibles.</p><span class="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700">Reintentar</span></div>` : '';
+  return `
+  <section class="rounded-2xl border bg-white p-5 shadow-sm">
+    ${errorBanner}
+    <div class="mb-4 flex items-center justify-between gap-2"><h2 class="text-sm font-semibold text-gray-700">Comisión proyectada de la quincena</h2></div>
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div>
+        <p class="text-[11px] tracking-wide text-gray-400 uppercase">Comisión que llevarías</p>
+        <p class="cifra mt-1 text-4xl leading-none font-bold text-emerald-700 ${marca(u)}">${pesos(total)}</p>
+        <p class="cifra mt-2 text-xs text-gray-500">Escalón actual: <span class="font-semibold text-gray-700">${esc.cumpl}% de cumplimiento paga ${pctFrac(esc.tasa)}</span> · llevas <span class="font-semibold text-gray-700 ${marca(u)}">${pctSegun(u, formatoPct1, PCT_RECAUDADO)}</span></p>
+        <p class="cifra mt-1 text-xs text-gray-500">Para el 100% te faltan ${pesos(faltan100)}</p>
+      </div>
+      <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+        <div><p class="text-[11px] tracking-wide text-gray-400 uppercase">Comisión oficial</p><p class="text-[11px] text-gray-500">con los días que ya tienen facturas cargadas</p></div>
+        <span class="cifra text-3xl font-bold text-slate-700">${pesos(198400)}</span>
+      </div>
+    </div>
+    <div class="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3">${umbral(80, '0,50%')}${umbral(90, '0,60%')}${umbral(100, '0,70%')}</div>
+    <div class="mt-5 border-t border-gray-100 pt-4">
+      <p class="mb-2.5 text-[11px] font-semibold tracking-wide text-gray-400 uppercase">Comisión adicional</p>
+      <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+          <div><p class="text-sm font-medium text-gray-600">VPT · venta por pedido</p><p class="cifra text-[11px] text-gray-600">${pesos(VPT_REAL)} · <span class="${marca(u)}">${pctSegun(u, formatoPct1, VPT_CUMPL)}</span> de ${pesos(META_VPT)}</p></div>
+          <span class="rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-500">+0,00%</span>
+        </div>
+        <div class="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+          <div><p class="text-sm font-medium text-emerald-900">TCV · tasa de conversión</p><p class="cifra text-[11px] text-gray-600">${formatoPct1(TCV_REAL)} · <span class="${marca(u)}">${pctSegun(u, formatoPct1, TCV_CUMPL)}</span> de ${formatoPct1(META_TCV)}</p></div>
+          <span class="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white">+0,10%</span>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+// TablaDetalleDiario.vue (14 columnas, Fecha y Meta ancladas, banda gris = columnas que suman al Total venta)
+const TIP_BONO_PROV = 'Aún no se ha facturado. Este bono cuenta pedidos pagados que el ERP todavía no factura. Si la factura llega por menos y el día baja del 100 %, el bono se retira.';
+function chipBono(b, u, cambia) {
+  if (b.estado === 'no') return `<span class="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-400">No</span>`;
+  const texto = `Sí · ${pesos(b.monto)}`;
+  if (b.estado === 'firme') return `<span class="inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 ${marca(u, cambia)}">${texto}</span>`;
+  const cls = esProp(u) && u.provNegro ? 'bg-gray-900 text-white' : 'border border-amber-200 bg-amber-50 text-amber-700';
+  return `<span class="tip inline-block ${marca(u, cambia)}" data-tip="${TIP_BONO_PROV}"><span class="inline-flex cursor-help items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${cls}">${ICO.clock}${texto}</span></span>`;
+}
+const COLS_DIA = [
+  { t: 'Fecha', al: 'text-left', fija: 'fecha' }, { t: 'Meta del día', al: 'text-right', fija: 'meta' },
+  { t: 'Carritos pendientes', al: 'text-right' }, { t: 'Archivado', al: 'text-right' },
+  { t: 'Pedidos web', al: 'text-right', bg: '#f7f9fc' }, { t: 'Facturado', al: 'text-right', bg: '#f3f6fa' },
+  { t: 'Devoluciones', al: 'text-right', bg: '#eff3f8' }, { t: 'Tienda física', al: 'text-right', bg: '#eaeff6' },
+  { t: 'Total venta', al: 'text-right', bg: '#e3e9f2', th: 'text-slate-900' },
+  { t: 'Cumplimiento', al: 'text-center' }, { t: 'Bono diario', al: 'text-center' },
+  { t: 'Nro pedidos', al: 'text-right' }, { t: 'VPT', al: 'text-right' }, { t: 'UPT', al: 'text-right' },
+];
+function tablaDetalleDiario(u) {
+  const header = `<header class="flex items-center justify-between gap-4 rounded-t-2xl border-b border-slate-100 px-5 py-2.5"><h2 class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">Detalle diario</h2><span class="flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1 text-[12px] font-medium text-slate-600">Columnas ${ICO.chevD}</span></header>`;
+  if (u.estado === 'cargando') return `<section class="rounded-2xl border bg-white shadow-sm">${header}<div class="space-y-3 p-5">${Array(3).fill('<div class="h-12 animate-pulse rounded-xl bg-slate-100"></div>').join('')}</div></section>`;
+  if (u.estado === 'error') return `<section class="rounded-2xl border bg-white shadow-sm">${header}<div class="border-b border-red-200 bg-red-50 px-5 py-3 text-sm text-red-800" role="alert">No pudimos actualizar el detalle diario; se muestran los últimos datos disponibles.</div>${cuerpoTablaDiaria(u)}</section>`;
+  return `<section class="rounded-2xl border bg-white shadow-sm">${header}${cuerpoTablaDiaria(u)}
+    <p class="rounded-b-2xl border-t border-slate-100 px-5 py-2.5 text-[11px] text-slate-400">La <strong>banda gris</strong> marca las columnas que suman al <strong>Total venta</strong>. Fuera de ella, en gris claro, lo que no cuenta: carritos pendientes de pago y archivados. Una venta cuenta en el día en que <strong>el cliente confirmó el carrito</strong>, así se pague o se facture después. <strong>Fecha</strong>, <strong>Meta</strong>, <strong>Total venta</strong> y <strong>Cumplimiento</strong> no se pueden ocultar. Un <strong>bono ${esProp(u) && u.provNegro ? 'en negro' : 'en amarillo'}</strong> se ganó contando pedidos pagados que aún no se facturan: se confirma al llegar la factura.</p>
+  </section>`;
+}
+function cuerpoTablaDiaria(u) {
+  const estilo = c => { const e = []; if (c.bg) e.push(`background:${c.bg}`); if (c.fija === 'fecha') e.push('left:0;width:96px;min-width:96px'); if (c.fija === 'meta') e.push('left:96px;width:136px;min-width:136px'); return e.length ? ` style="${e.join(';')}"` : ''; };
+  const clsFija = c => c.fija ? ` col-fija z-10 ${c.fija === 'meta' ? 'col-meta' : ''}` : '';
+  const conNum = (v, n) => v ? `${pesos(v)}<span class="ml-1 text-[11px] text-slate-400">(${n})</span>` : '—';
+  const signo = v => !v ? '—' : `${v < 0 ? '−' : '+'}${pesos(Math.abs(v))}`;
+  const fila = d => {
+    const hoy = esHoy(d);
+    const cumpl = d.venta / META_DIA * 100;
+    const fac = d.venta - d.pw - d.tf - d.dev;
+    const bHoy = bonoDia(d, 'hoy'), b = bonoDia(d, u.modo);
+    const cambia = bHoy.estado !== b.estado;
+    const bgFila = hoy ? 'bg-emerald-50' : 'bg-white';
+    const celdas = [
+      `<span class="font-medium text-slate-800">${fechaDiaria(d.f)}</span>${hoy ? '<span class="font-normal text-slate-500"> · hoy</span>' : ''}`,
+      `<span class="text-slate-600">${pesos(META_DIA)}</span>`,
+      `<span class="text-slate-400">${conNum(d.pend, d.pendN)}</span>`,
+      `<span class="text-slate-400">${conNum(d.arc, d.arcN)}</span>`,
+      `<span class="text-slate-800">${conNum(d.pw, d.pwN)}</span>`,
+      `<span class="text-slate-800">${conNum(fac, d.n - d.pwN)}</span>`,
+      `<span class="${d.dev ? 'text-red-600' : 'text-slate-400'}">${signo(d.dev)}</span>`,
+      `<span class="${d.tf ? 'text-emerald-700' : 'text-slate-400'}">${signo(d.tf)}</span>`,
+      `<span class="font-bold text-slate-900">${pesos(d.venta)}</span>`,
+      `<span class="inline-block min-w-[46px] rounded px-1.5 py-0.5 text-xs font-bold text-white ${BADGE_CLASE[semaforo(cumpl)]}">${pctCumplimiento(cumpl)}</span>`,
+      chipBono(b, u, cambia),
+      `<span class="text-slate-800">${d.n}</span>`,
+      `<span class="text-slate-800">${pesos(Math.round((d.venta - d.tf - d.dev) / d.n))}</span>`,
+      `<span class="text-slate-800">${upt2(d.upt)}</span>`,
+    ];
+    return `<tr class="group cursor-pointer border-b border-slate-50 tabular-nums last:border-0">${COLS_DIA.map((c, i) => `<td class="px-2.5 py-3 whitespace-nowrap ${c.al}${clsFija(c)} ${c.fija || !c.bg ? bgFila : ''}"${estilo(c)}>${celdas[i]}</td>`).join('')}</tr>`;
+  };
+  return `<div class="overflow-x-auto"><table class="w-full text-[13px]">
+    <thead class="border-b border-slate-100"><tr class="font-semibold text-slate-600">${COLS_DIA.map(c => `<th class="z-20 bg-white px-2.5 pt-3.5 pb-2.5 text-[12px] leading-tight whitespace-nowrap ${c.al}${clsFija(c)} ${c.th || ''}"${estilo(c)}><span class="cursor-help border-b border-dotted border-slate-300 pb-px">${c.t}</span></th>`).join('')}</tr></thead>
+    <tbody>${DIAS.map(fila).join('')}</tbody></table></div>`;
+}
+
+function pantallaMisVentas(u) {
+  const accion = `<span class="inline-flex h-9 items-center gap-2 rounded-md bg-gray-900 px-4 text-sm font-medium text-white">${ICO.plus} Nueva Venta</span>`;
+  const cabecera = `<div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+      <div class="flex items-center gap-2"><span class="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Tienda</span>${chips(['Stirpe', 'Derek'], 'Stirpe', 'px-4')}</div>
+      ${selectorPeriodo()}
+      <span class="ml-auto inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700"><span class="text-slate-400">${ICO.calendar}</span><span>Indicadores del 16 – 30 sep 2026</span></span>
+    </div>`;
+  return chrome(['Dashboard', 'Venta Asistida'], 'Mis Ventas', 'Gestiona tus ventas asistidas', accion) + cuerpoPagina(`
+    ${tabsSubrayado(['Dashboard cumplimiento', 'Consultar ventas'], 'Dashboard cumplimiento', 'flex gap-6 border-b border-slate-200 text-sm font-medium')}
+    ${cabecera}
+    ${tableroAsesor(u)}
+    ${panelComision(u)}
+    ${tablaDetalleDiario(u)}`, 'space-y-5 px-6 py-5');
+}
+
+// ═══════════════════════════════ 2 · EQUIPO POR ROL ═══════════════════════════════
+function tarjetaRol(t, u) {
+  const pctRec = Math.round(t.recaudada / t.meta * 10000) / 100;
+  const pctConf = Math.round(t.confirmada / t.meta * 10000) / 100;
+  const difiere = Math.round(pctRec) !== Math.round(pctConf);
+  const difiereVenta = Math.round(t.recaudada) !== Math.round(t.confirmada);
+  const fmtFila = v => pctSegun(u, pct1, v);
+  return `
+  <div class="flex flex-col rounded-2xl border bg-white p-4 shadow-sm">
+    <div class="flex items-baseline justify-between gap-2"><h2 class="text-[11px] font-bold tracking-wide text-gray-500 uppercase">${t.rol}</h2><span class="shrink-0 text-[10px] text-gray-400 tabular-nums">16 sep – 30 sep</span></div>
+    <div class="flex flex-1 flex-col divide-y divide-gray-100">
+      <div class="flex flex-1 flex-col py-3 first:pt-3 last:pb-0">
+        <div class="flex items-center gap-2.5">
+          <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-700 text-xs font-bold text-white">${iniciales(t.nombre)}</span>
+          <div class="min-w-0"><p class="truncate text-sm font-semibold text-gray-800">${t.nombre}</p><p class="text-[11px] text-gray-400">Partición: ${t.asignados} de ${t.universo} asesores</p></div>
+          <span class="ml-auto shrink-0 rounded px-1.5 py-0.5 text-center text-xs font-bold text-white tabular-nums ${BADGE_CLASE[semaforo(pctRec)]}">${pctCumplimiento(pctRec)}</span>
+        </div>
+        <div class="mt-3 space-y-1.5 text-sm">
+          <div class="flex justify-between gap-2"><span class="text-gray-500">Venta recaudada</span><span class="text-right font-bold tabular-nums">${pesos(t.recaudada)}${difiereVenta ? `<span class="block text-[10px] font-normal text-gray-400">+ ${pesos(t.confirmada - t.recaudada)} por recaudar (${pesos(t.confirmada)} confirmada)</span>` : ''}</span></div>
+          <div class="flex justify-between gap-2"><span class="text-gray-500">Meta</span><span class="font-bold tabular-nums">${pesos(t.meta)}</span></div>
+          <div class="flex justify-between gap-2"><span class="text-gray-500">Cumplimiento</span><span class="text-right font-bold tabular-nums"><span class="${marca(u)}">${fmtFila(pctRec)}</span>${difiere ? ` <span class="text-[10px] font-normal text-gray-400 ${marca(u)}">(${fmtFila(pctConf)})</span>` : ''}</span></div>
+        </div>
+        <div class="mt-3 flex flex-1 flex-col justify-end border-t border-gray-100 pt-2.5">
+          <p class="mb-1.5 text-[10px] font-bold tracking-wide text-gray-400 uppercase">Comisión · Quincena 16 sep – 30 sep</p>
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-2"><div class="min-w-0"><p class="text-[13px] font-medium text-gray-700">Oficial</p><p class="text-[10px] leading-snug text-gray-400">Sobre la venta facturada</p></div><p class="shrink-0 text-base font-bold tabular-nums text-gray-900">${pesos(t.oficial)}</p></div>
+            <div class="flex items-center justify-between gap-3 rounded-md bg-emerald-50 px-3 py-2"><div class="min-w-0"><p class="text-[13px] font-medium text-emerald-800">Proyectada</p><p class="text-[10px] leading-snug text-emerald-800/60">Suma los carritos confirmados aún sin facturar</p></div><p class="shrink-0 text-base font-bold tabular-nums text-emerald-700">${pesos(t.proyectada)}</p></div>
+            <div class="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-2"><p class="text-[13px] font-medium text-gray-700">Bono del día · 24 sep</p><p class="shrink-0 text-base font-bold tabular-nums">${t.bonoHoy ? pesos(t.bonoHoy) : '—'}</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function equipoRoles(u) {
+  if (u.estado === 'cargando') return `<div class="grid grid-cols-1 gap-4 md:grid-cols-3">${Array(3).fill(`<div class="rounded-2xl border bg-white p-4 shadow-sm">${sk('h-3 w-24', 'mb-3')}<div class="mt-1 flex items-center gap-2.5">${sk('h-9 w-9', 'rounded-full')}${sk('h-4 w-32')}</div>${sk('h-16', 'mt-4 rounded-xl')}${sk('h-28', 'mt-3 rounded-xl')}</div>`).join('')}</div>`;
+  if (u.estado === 'error') return `<div class="rounded-2xl border bg-white shadow-sm">${bloqueError()}</div>`;
+  return `<div class="grid grid-cols-1 gap-4 md:grid-cols-3">${EQUIPO.map(t => tarjetaRol(t, u)).join('')}</div>`;
+}
+function pantallaEquipo(u) {
+  return chrome(['Dashboard', 'Venta Asistida', 'Gestión de Ventas'], 'Gestión de Ventas', 'Panel de control para supervisar ventas de todos los asesores') + cuerpoPagina(`
+    ${tabsSubrayado(['Dashboard', 'Consulta de ventas', 'Histórico'], 'Dashboard')}
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-3">${selectorTienda()}${selectorPeriodo()}</div>
+    <p class="text-[11px] text-gray-400">… franja KPI y Consolidado (ya en entero, sin cambio) …</p>
+    ${equipoRoles(u)}
+    <p class="text-[11px] text-gray-400">… Cargas del período y Asesores (ya en entero, sin cambio) …</p>`, 'space-y-4 px-6 py-4');
+}
+
+// ═══════════════════════════════ 3 · LIQUIDACIÓN ═══════════════════════════════
+const clasePct = p => p === null ? 'text-gray-400' : p >= 100 ? 'text-emerald-600 font-semibold' : p >= 70 ? 'text-gray-700' : 'text-amber-600';
+function tabsComisiones() {
+  const tab = (ico, txt, on) => `<span class="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${on ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}">${ico} ${txt}</span>`;
+  return `<div class="flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-gray-200/70 p-1">${tab(ICO.fileSpreadsheet, 'Liquidación', true)}${tab(ICO.upload, 'Cargar archivos')}${tab(ICO.clipboardList, 'Bitácora de cargas')}</div>`;
+}
+function filtrosLiquidacion() {
+  const btn = 'inline-flex h-8 items-center rounded-md border border-gray-200 bg-white px-3 text-xs font-medium text-gray-900 shadow-xs';
+  return `<div class="flex flex-wrap items-center gap-3">
+    <div class="flex h-9 w-48 items-center justify-between rounded-md border border-gray-200 bg-white px-3 text-sm"><span>Stirpe</span><span class="text-gray-400">${ICO.chevD}</span></div>
+    <div class="flex items-center gap-2"><span class="cifra rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">16/09/2026</span><span class="text-sm text-gray-500">a</span><span class="cifra rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">30/09/2026</span></div>
+    <div class="flex gap-1.5"><span class="${btn}">Q1 actual</span><span class="${btn}">Q2 actual</span><span class="${btn}">Mes anterior</span></div>
+    <span class="inline-flex h-9 items-center rounded-md bg-gray-900 px-4 text-sm font-medium text-white">Consultar</span>
+    <div class="ml-auto flex items-center gap-2 text-xs"><span class="text-gray-500">Base:</span><span class="rounded bg-slate-200 px-2 py-0.5 font-semibold text-slate-700">SIN IVA</span></div>
+  </div>`;
+}
+function bannerEstado() {
+  const chipsDias = Array.from({ length: DIAS_RANGO }, (_, i) => `<span class="inline-flex h-4 w-4 items-center justify-center rounded-sm ${i < 8 ? 'bg-emerald-500' : 'bg-gray-200'}"></span>`).join('');
+  return `<div class="overflow-hidden rounded-xl border bg-white">
+    <div class="flex items-center gap-4 bg-blue-50/60 p-4">
+      <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700">${ICO.clockLg}</div>
+      <div class="grid flex-1 grid-cols-3 gap-4">
+        <div><p class="text-[10px] tracking-wider text-blue-700 uppercase">Última actualización</p><p class="mt-0.5 text-sm font-medium">24 sep 2026 · 07:40</p></div>
+        <div><p class="text-[10px] tracking-wider text-gray-500 uppercase">Último archivo Ventas</p><p class="mt-0.5 truncate text-xs font-medium">Ventas_Stirpe_23-09-2026.xlsx</p><p class="text-[10px] text-gray-500">procesado 24 sep 07:12 · 1.284 filas</p></div>
+        <div><p class="text-[10px] tracking-wider text-gray-500 uppercase">Último archivo Infobip</p><p class="mt-0.5 truncate text-xs font-medium">Infobip_Stirpe_09-2026.xlsx</p><p class="text-[10px] text-gray-500">procesado 23 sep 18:40 · 1.912 filas</p></div>
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 bg-white px-4 py-2.5">
+      <div class="flex flex-wrap items-center gap-2"><span class="text-[11px] tracking-wide text-gray-500 uppercase">Completitud del rango:</span><span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">8 / ${DIAS_RANGO} días</span><span class="flex gap-0.5">${chipsDias}</span></div>
+    </div>
+  </div>`;
+}
+function kpiCards(u) {
+  if (u.estado === 'cargando') return `<div class="grid grid-cols-2 gap-4 lg:grid-cols-5" aria-busy="true">${Array(5).fill(sk('h-[92px]', 'rounded-xl')).join('')}</div>`;
+  if (u.estado === 'error') return '';
+  const T = totalesLiquidacion(filasLiquidacion(u.modo));
+  const pctProm = (T.comision / T.venta * 100).toFixed(2);
+  const card = (label, cifra, sub, cls = 'rounded-xl border bg-white p-5', x = {}) => `<div class="${cls}"><p class="text-[11px] tracking-wide uppercase ${x.label ?? 'text-gray-500'}">${label}</p><p class="cifra mt-1 text-2xl font-bold ${x.cifra ?? ''}">${cifra}</p><p class="mt-1 text-[11px] ${x.sub ?? 'text-gray-500'}">${sub}</p></div>`;
+  const pf = ASESORES.reduce((a, f) => a + f.pf, 0), pfN = ASESORES.reduce((a, f) => a + f.pfN, 0);
+  return `<div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+    ${card('Venta neta total', pesos(T.venta), `${T.asesores} asesor(es) · ${T.ped} pedidos`)}
+    ${card('Pendiente por facturar', pesos(pf), `${pfN} pedido(s) pagados de carritos 2026-09-16 a 2026-09-30 sin factura`, 'rounded-xl border-2 border-amber-300 bg-amber-50 p-5', { label: 'font-semibold text-amber-700', cifra: 'text-amber-800', sub: 'text-amber-700' })}
+    ${card('Cumplim. promedio', `<span class="${marca(u)}">${pctSegun(u, pct1, T.cumpl)}</span>`, `${T.cumplen} de ${T.asesores} cumplen ≥ 100%`, undefined, { cifra: clasePct(T.cumpl) })}
+    ${card('Comisión venta', pesos(T.comision), `${pctProm}% promedio sobre venta`)}
+    ${card('Total a pagar', pesos(T.total), `comisión + ${pesos(T.bono)} bono`, 'rounded-xl border border-emerald-500 bg-gradient-to-br from-emerald-50 to-white p-5', { label: 'text-emerald-600', cifra: 'text-emerald-700', sub: 'text-emerald-600' })}
+  </div>`;
+}
+function tablaAsesores(u) {
+  const filas = filasLiquidacion(u.modo), T = totalesLiquidacion(filas);
+  const th = (txt, cls = 'text-right text-xs text-gray-500') => `<th class="${cls}">${txt}</th>`;
+  const diasCls = d => d >= 7 ? 'bg-green-100 text-green-700' : d >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500';
+  const fmtCumpl = v => pctSegun(u, ceilAdHoc, v);
+  const fila = f => `<tr class="${f.cod === ASESOR.cod ? 'bg-indigo-50/40' : ''}">
+    <td><div class="text-[13px] font-medium">${capital(f.nombre)}</div><div class="cifra text-[11px] text-gray-400">${f.cod}</div></td>
+    <td class="cifra text-right text-xs text-gray-500">${pesos(f.meta)}</td>
+    <td class="cifra text-right text-xs font-semibold">${pesos(f.venta)}</td>
+    <td class="cifra bg-rose-50/60 text-right text-xs ${f.dev === 0 ? 'text-gray-400' : 'font-medium text-rose-600'}">${pesos(f.dev)} <span class="text-[10px]">(${f.devN})</span></td>
+    <td class="cifra bg-amber-50/60 text-right text-xs ${f.pf === 0 ? 'text-gray-400' : 'font-medium text-amber-700'}">${pesos(f.pf)} <span class="text-[10px]">(${f.pfN})</span></td>
+    <td class="cifra text-right text-xs ${clasePct(f.cumpl)}"><span class="${marca(u)}">${fmtCumpl(f.cumpl)}</span></td>
+    <td class="cifra text-right text-xs text-gray-600">${f.ped}</td>
+    <td class="cifra text-right text-xs text-gray-600">${pesos(f.vpt)}</td>
+    <td class="cifra text-right text-xs ${f.pctVpt > 0 ? 'font-medium text-emerald-600' : 'text-gray-400'}">${f.pctVpt > 0 ? '+' + pctFrac(f.pctVpt) : '—'}</td>
+    <td class="cifra text-right text-xs text-gray-600">${f.tcv.toLocaleString('es-CO', { minimumFractionDigits: 1 })}%</td>
+    <td class="cifra text-right text-xs ${f.pctTcv > 0 ? 'font-medium text-emerald-600' : 'text-gray-400'}">${f.pctTcv > 0 ? '+' + pctFrac(f.pctTcv) : '—'}</td>
+    <td class="cifra text-right text-xs font-semibold">${pctFrac(f.pctTotal)}</td>
+    <td class="cifra text-right text-xs">${pesos(f.comision)}</td>
+    <td class="text-center"><span class="rounded-full px-2 py-0.5 text-[11px] ${diasCls(f.diasBono)} ${marca(u, f.diasBonoHoy !== f.diasBonoProp)}">${f.diasBono}/${DIAS_RANGO}</span></td>
+    <td class="cifra text-right text-xs ${f.bono > 0 ? '' : 'text-gray-400'} ${marca(u, f.diasBonoHoy !== f.diasBonoProp)}">${f.bono > 0 ? pesos(f.bono) : '—'}</td>
+    <td class="cifra bg-emerald-50/60 text-right text-xs font-bold text-emerald-700">${pesos(f.total)}</td>
+    <td class="text-center"><span class="inline-flex text-gray-400" title="Ver detalle del asesor">${ICO.eye}</span></td>
+  </tr>`;
+  return `<div class="overflow-x-auto"><table class="ui w-full text-sm">
+    <thead><tr class="bg-gray-50">${th('Asesor', 'text-xs text-gray-500')}${th('PPTO')}${th('Venta neta')}${th('Devoluciones', 'bg-rose-50 text-right text-xs text-rose-700')}${th('Por facturar', 'bg-amber-50 text-right text-xs text-amber-700')}${th('Cumpl.')}${th('Ped.')}${th('VPT')}${th('%VPT')}${th('TCV')}${th('%TCV')}${th('% Total')}${th('Comisión venta')}${th('Días', 'text-center text-xs text-gray-500')}${th('Bono')}${th('TOTAL', 'bg-emerald-50 text-right text-xs font-semibold text-emerald-700')}<th></th></tr></thead>
+    <tbody>${filas.map(fila).join('')}</tbody>
+    <tfoot><tr class="bg-gray-50 font-semibold">
+      <td class="text-xs">TOTAL · ${T.asesores} asesor(es)</td><td class="cifra text-right text-xs text-gray-500">${pesos(T.meta)}</td><td class="cifra text-right text-xs">${pesos(T.venta)}</td><td colspan="2" class="bg-gray-50"></td>
+      <td class="cifra text-right text-xs ${clasePct(T.cumpl)}"><span class="${marca(u)}">${pctSegun(u, pct1, T.cumpl)}</span></td>
+      <td class="cifra text-right text-xs">${T.ped}</td><td colspan="5"></td><td class="cifra text-right text-xs">${pesos(T.comision)}</td><td class="cifra text-center text-xs">${T.diasBono}</td><td class="cifra text-right text-xs">${pesos(T.bono)}</td>
+      <td class="cifra bg-emerald-100/60 text-right text-xs font-bold text-emerald-700">${pesos(T.total)}</td><td></td>
+    </tr></tfoot>
+  </table></div>
+  <div class="border-t border-gray-100 bg-gray-50 px-5 py-2 text-[11px] text-gray-500"><span class="font-medium text-gray-600">Venta neta</span> = solo lo facturado · <span class="font-medium text-gray-600">Devoluciones</span> = notas sin cambio que las compense (los cambios M+X se anulan y no cuentan) · <span class="font-medium text-gray-600">Por facturar</span> = venta pagada aún sin factura: no suma al cumplimiento hasta que llegue en un archivo</div>`;
+}
+function cardTabla(u) {
+  const cuerpo = u.estado === 'cargando' ? `<div class="space-y-2 p-4" aria-busy="true">${sk('h-9')}${Array(3).fill(sk('h-10', 'bg-gray-50')).join('')}${sk('h-9', 'w-2/3')}</div>` : u.estado === 'error' ? bloqueError() : tablaAsesores(u);
+  return `<div class="overflow-hidden rounded-xl border bg-white">
+    <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
+      <div><h3 class="text-sm font-semibold">Liquidación por asesor</h3><p class="mt-0.5 text-[11px] text-gray-500">Período 2026-09-16 a 2026-09-30 · ${ASESORES.length} asesor(es)</p></div>
+      <span class="inline-flex h-8 items-center gap-1 rounded-md border border-gray-200 bg-white px-3 text-xs font-medium shadow-xs">${ICO.download} Exportar Excel</span>
+    </div>${cuerpo}</div>`;
+}
+// ModalDetalleQuincena.vue (DialogContent sm:max-w-4xl = 896 px)
+function modalQuincena(u) {
+  const filas = filasLiquidacion(u.modo), T = totalesLiquidacion(filas);
+  const cuerpo = u.estado === 'cargando'
+    ? `<div class="space-y-2 py-4" aria-busy="true">${sk('h-8', 'bg-gray-100')}${Array(5).fill(sk('h-9', 'bg-gray-50')).join('')}${sk('h-8', 'w-2/3 bg-gray-100')}</div>`
+    : u.estado === 'error'
+    ? `<div class="my-6 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3"><p class="text-sm text-red-700">No se pudo cargar el detalle de la quincena.</p><span class="inline-flex h-8 items-center rounded-md border border-gray-200 bg-white px-3 text-xs font-medium shadow-xs">Reintentar</span></div>`
+    : `<div class="overflow-hidden rounded-lg border border-gray-100"><table class="ui w-full text-sm">
+        <thead><tr class="bg-gray-50"><th class="text-xs text-gray-500">Asesor</th><th class="text-right text-xs text-gray-500">Venta neta</th><th class="text-right text-xs text-gray-500">Cumpl.</th><th class="text-right text-xs text-gray-500">% Com.</th><th class="text-right text-xs text-gray-500">Comisión</th><th class="text-center text-xs text-gray-500">Días bono</th><th class="text-right text-xs text-gray-500">Total a pagar</th></tr></thead>
+        <tbody>${filas.map(f => `<tr><td class="text-xs capitalize">${f.nombre}</td><td class="cifra text-right text-xs">${pesos(f.venta)}</td><td class="cifra text-right text-xs ${f.cumpl >= 100 ? 'text-emerald-600' : ''}"><span class="${marca(u)}">${pctSegun(u, pct1, f.cumpl)}</span></td><td class="cifra text-right text-xs">${pctFrac(f.pctTotal)}</td><td class="cifra text-right text-xs">${pesos(f.comision)}</td><td class="cifra text-center text-xs ${marca(u, f.diasBonoHoy !== f.diasBonoProp)}">${f.diasBono}/${DIAS_RANGO}</td><td class="cifra text-right text-xs font-semibold text-emerald-700">${pesos(f.total)}</td></tr>`).join('')}
+        <tr class="bg-gray-50 font-semibold"><td class="text-xs">TOTAL · ${T.asesores} asesor(es)</td><td class="cifra text-right text-xs">${pesos(T.venta)}</td><td></td><td></td><td class="cifra text-right text-xs">${pesos(T.comision)}</td><td class="cifra text-center text-xs">${T.diasBono}</td><td class="cifra text-right text-xs font-bold text-emerald-700">${pesos(T.total)}</td></tr></tbody></table></div>
+      <div class="mt-3 space-y-2 border-t border-gray-100 pt-3">
+        <div class="flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800"><span class="font-bold text-emerald-600">✓</span><span>Archivo de ventas cargado con facturas hasta el <b>23 de sep</b></span></div>
+        <div class="flex items-center gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800"><span class="font-bold text-emerald-600">✓</span><span>Conversaciones Infobip cargadas todos los días</span></div>
+        <div class="flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800"><span class="font-bold text-amber-600">⚠</span><span><b>5 pedidos pagados sin facturar</b> (${pesos(1220000)}) de carritos de esta quincena. Si cierras ahora, entrarán a la quincena siguiente por fecha de factura.</span></div>
+      </div>
+      <div class="mt-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
+        <p class="text-[11.5px] text-amber-700">Al cerrar, estos valores quedan congelados: no se recalcula ni se editan sus insumos.</p>
+        <div class="flex gap-2"><span class="inline-flex h-9 items-center rounded-md border border-gray-200 bg-white px-4 text-sm font-medium shadow-xs">Cerrar ventana</span><span class="inline-flex h-9 items-center rounded-md bg-red-600 px-4 text-sm font-medium text-white opacity-50">Cerrar quincena</span></div>
+      </div>`;
+  return `<div class="relative rounded-2xl bg-gray-900/40 p-4 sm:p-8"><div class="mx-auto max-w-4xl rounded-lg border bg-white p-6 shadow-lg">
+    <div class="flex items-start justify-between gap-3"><div><h2 class="text-lg font-semibold leading-none">Quincena 2 de septiembre 2026</h2><p class="mt-1.5 text-sm text-gray-500">Detalle de la liquidación por asesor · lo que se congelaría</p></div><span class="text-gray-400">${ICO.xMd}</span></div>
+    <div class="mt-4">${cuerpo}</div></div></div>`;
+}
+function pantallaLiquidacion(u) {
+  return chrome(['Dashboard', 'Venta Asistida', 'Liquidación de comisiones'], 'Liquidación de comisiones', 'Cálculo por asesor según ventas netas, VPT, TCV y bono diario · período libre') + cuerpoPagina(`${tabsComisiones()}${filtrosLiquidacion()}${bannerEstado()}${kpiCards(u)}${cardTabla(u)}`)
+    + seccion('Modal · Quincena 2 de septiembre 2026', 'Comisiones → Cierre de períodos → ojo de la quincena (ModalDetalleQuincena.vue, sm:max-w-4xl) · misma columna «Cumpl.» con el mismo helper', modalQuincena(u), 'mt-8');
+}
+
+// ═══════════════════════════════ 4 · MODAL DETALLE DEL ASESOR ═══════════════════════════════
+function chipCond(c, u, marcar) {
+  const ok = cumpleSegun(u.modo, c);
+  return `<span class="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] ${ok ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'} ${marcar ? marca(u) : ''}">${TEXTO_COND[u.modo](c)} ${ok ? ICO.check : ICO.x}</span>`;
+}
+function filaModal(d, u) {
+  const conds = condicionesDe(d);
+  const cumpl = r2(d.venta / META_DIA * 100);
+  const hoy = esHoy(d);
+  const gana = !hoy && conds.every(c => cumpleSegun(u.modo, c));
+  const ganaHoy = !hoy && conds.every(c => cumpleSegun('hoy', c));
+  const cambioVeredicto = gana !== ganaHoy;
+  const cumplOk = esProp(u) ? Math.round(cumpl) >= 100 : cumpl >= 100;
+  const cambioColor = cumplOk !== (cumpl >= 100);
+  const badge = d.pwN > 0 && !hoy ? `<span class="tip ml-1 cursor-help rounded bg-gray-100 px-1 py-0.5 text-[10px] text-gray-600" data-tip="Bono provisional: la venta del día incluye ${pesos(d.pw)} en ${d.pwN} pedido${d.pwN > 1 ? 's' : ''} web pagado${d.pwN > 1 ? 's' : ''} a la espera de la factura del ERP. Queda en firme cuando llegue la factura.">${d.pwN} pedido${d.pwN > 1 ? 's' : ''} web</span>` : '';
+  return `<tr class="${gana ? 'bg-emerald-50/40' : ''}">
+    <td class="text-xs">${fechaCortaCom(d.f)}${badge}${hoy ? '<span class="ml-1 text-[10px] text-gray-400">en curso</span>' : ''}</td>
+    <td class="cifra text-right text-xs text-gray-500">${pesos(META_DIA)}</td>
+    <td class="cifra text-right text-xs font-medium">${pesos(d.venta)}</td>
+    <td class="cifra text-right text-xs">${d.dev < 0 ? `<span class="text-red-600">${pesos(d.dev)}</span>` : '<span class="text-gray-400">—</span>'}</td>
+    <td class="cifra text-right text-xs ${cumplOk ? 'font-medium text-emerald-600' : ''}"><span class="${marca(u, cambioColor || true)}">${pctSegun(u, pct1, cumpl)}</span></td>
+    <td class="cifra text-right text-xs">${d.n}</td>
+    <td class="cifra text-right text-xs">${upt2(d.upt)}<span class="text-gray-400"> / ${upt2(META_UPT)}</span></td>
+    <td><div class="flex flex-wrap gap-1">${hoy ? '<span class="text-[10px] text-gray-400">se evalúa al cierre del día</span>' : conds.map(c => chipCond(c, u, true)).join('')}</div></td>
+    <td class="cifra text-right text-xs font-medium ${gana ? 'text-emerald-700' : 'text-gray-400'} ${cambioVeredicto ? marca(u) : ''}">${gana ? pesos(BONO_DIA) : '—'}</td>
+  </tr>`;
+}
+function modalAsesor(u) {
+  const dias = DIAS;
+  const ventaNeta = dias.reduce((a, d) => a + d.venta, 0);
+  const devol = dias.reduce((a, d) => a + d.dev, 0);
+  const kpi = (l, v) => `<div><p class="text-[10px] tracking-wide text-gray-500 uppercase">${l}</p><p class="cifra mt-0.5 text-sm font-bold">${v}</p></div>`;
+  let cuerpo;
+  if (u.estado === 'cargando') {
+    cuerpo = `<div class="space-y-2 py-4" aria-busy="true"><div class="grid grid-cols-4 gap-3">${Array(4).fill(sk('h-14', 'bg-gray-100')).join('')}</div>${sk('h-8', 'w-1/2')}${Array(6).fill(sk('h-9', 'bg-gray-50')).join('')}</div>`;
+  } else if (u.estado === 'error') {
+    cuerpo = `<div class="my-6 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3"><p class="text-sm text-red-700">No se pudo cargar el detalle del asesor.</p><span class="inline-flex h-8 items-center rounded-md border border-gray-200 bg-white px-3 text-xs font-medium shadow-xs">Reintentar</span></div>`;
+  } else {
+    cuerpo = `
+      <div class="grid grid-cols-6 gap-3 rounded-lg bg-gray-50 px-4 py-3">${kpi('Venta neta', pesos(ventaNeta))}${kpi('Facturas', PEDIDOS + 1)}${kpi('Devoluciones', `<span class="text-red-600">${pesos(devol)}</span>`)}${kpi('Unidades', UNIDADES)}${kpi('VPT real', pesos(VPT_REAL))}${kpi('UPT real', upt2(UNIDADES / PEDIDOS))}</div>
+      <div class="mt-3 inline-flex rounded-lg bg-gray-100 p-1 text-xs"><span class="px-3 py-1 text-gray-500">Facturas <span class="ml-1 text-[10px] opacity-60">(${PEDIDOS + 1})</span></span><span class="rounded-md bg-white px-3 py-1 font-medium text-gray-900 shadow-sm">Resumen diario <span class="ml-1 text-[10px] opacity-60">(${dias.length} días)</span></span><span class="px-3 py-1 text-gray-500">Conversaciones Infobip</span></div>
+      <div class="mt-3 flex items-start gap-2 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-indigo-800"><span class="mt-0.5 shrink-0 text-indigo-400">${ICO.infoMd}</span><p class="text-[11px] leading-relaxed">La venta de cada día agrupa las ventas por su <span class="font-semibold">fecha de carrito</span>, sin importar cuándo se facturaron. Las devoluciones y cambios de tienda física se restan en la fecha de su factura.</p></div>
+      <div class="mt-3 max-h-[460px] overflow-auto rounded-lg border border-gray-100"><table class="ui w-full text-sm">
+        <thead><tr class="bg-gray-50"><th class="text-xs text-gray-500">Fecha</th><th class="text-right text-xs text-gray-500">Meta</th><th class="text-right text-xs text-gray-500">Venta</th><th class="text-right text-xs text-gray-500">Devol. del día</th><th class="text-right text-xs text-gray-500">Cumpl.</th><th class="text-right text-xs text-gray-500">Ventas</th><th class="text-right text-xs text-gray-500">UPT</th><th class="text-xs text-gray-500">Condiciones del bono</th><th class="text-right text-xs text-gray-500">Bono</th></tr></thead>
+        <tbody>${dias.map(d => filaModal(d, u)).join('')}</tbody></table></div>
+      <div class="mt-3 flex items-center justify-end border-t border-gray-100 pt-3"><span class="inline-flex h-9 items-center gap-1 rounded-md bg-gray-900 px-4 text-sm font-medium text-white">${ICO.download} Exportar Excel (3 hojas)</span></div>`;
+  }
+  return `<div class="relative rounded-2xl bg-gray-900/40 p-4 sm:p-8"><div class="mx-auto max-w-5xl rounded-lg border bg-white p-6 shadow-lg">
+    <div class="flex items-start justify-between gap-3"><div><h2 class="text-lg font-semibold leading-none">${capital(ASESOR.nombre)}</h2><p class="mt-1.5 text-sm text-gray-500">Detalle del período ${fechaCortaCom(PERIODO.desde)} – ${fechaCortaCom(PERIODO.hasta)} · código ${ASESOR.cod}</p></div>
+      <div class="flex items-center gap-3"><span class="rounded bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">SIN IVA</span><span class="text-gray-400">${ICO.xMd}</span></div></div>
+    <div class="mt-4">${cuerpo}</div></div></div>`;
+}
+function comparativa18() {
+  const d = DIAS.find(x => x.f === '2026-09-18');
+  const conds = condicionesDe(d);
+  const cumpl = r2(d.venta / META_DIA * 100);
+  const fila = (m, titulo, nota) => { const u = { modo: m }; const gana = conds.every(c => cumpleSegun(m, c)); const ok = m === 'hoy' ? cumpl >= 100 : Math.round(cumpl) >= 100;
+    return `<tr><td class="text-xs font-medium">${titulo}</td><td class="cifra text-right text-xs ${ok ? 'font-medium text-emerald-600' : ''}">${m === 'hoy' ? pct1(cumpl) : pctCumplimiento(cumpl)}</td><td><div class="flex flex-wrap gap-1">${conds.map(c => chipCond(c, u, false)).join('')}</div></td><td class="cifra text-right text-xs font-medium ${gana ? 'text-emerald-700' : 'text-gray-400'}">${gana ? pesos(BONO_DIA) : '—'}</td><td class="text-[11px] text-gray-500" style="white-space:normal">${nota}</td></tr>`; };
+  return `<div class="mx-auto max-w-5xl overflow-hidden rounded-lg border border-gray-200 bg-white"><table class="ui w-full text-sm">
+    <thead><tr class="bg-gray-50"><th class="text-xs text-gray-500">Modo</th><th class="text-right text-xs text-gray-500">Cumpl.</th><th class="text-xs text-gray-500">Condiciones del bono · 18-sept · venta ${pesos(d.venta)} de ${pesos(META_DIA)} · UPT ${upt2(d.upt)} / ${upt2(META_UPT)}</th><th class="text-right text-xs text-gray-500">Bono</th><th class="text-xs text-gray-500">Lectura</th></tr></thead>
+    <tbody>${fila('hoy', 'Hoy', 'Tres cifras para el mismo día: «99,8%» en la columna, «99.8» en el chip y «100%» en Mis Ventas. El cron compara con 2 decimales (99,8 &lt; 100): sin bono.')}${fila('prop', 'Propuesta (D3 + D6)', 'Un solo entero en todas partes: «100%» esmeralda, chip «venta ≥ 100 % · 100» y bono $ 30.000 (provisional hasta que llegue la factura del pedido web). El 99,8 queda en el JSON y en el Excel para trazabilidad.')}</tbody></table></div>`;
+}
+function pantallaModal(u) {
+  return `<div class="rounded-xl border border-gray-200 bg-gray-100 p-6">
+    <p class="mb-3 text-[11px] text-gray-500">Venta Asistida → Comisiones → Liquidación → ojo de la fila de Silvia (ModalDetalleAsesor.vue, DialogContent sm:max-w-5xl = 1024 px) · pestaña «Resumen diario» · un chip por condición vigente; el bono se gana cumpliendo todas (AND) · badge gris «N pedidos web» = bono provisional (mockup GW-164 A)</p>
+    ${modalAsesor(u)}
+  </div>
+  ${seccion('La fila del 18-sept, hoy y propuesta, a tamaño real', 'Mismos datos (99,80 % de venta, 100,77 % de UPT), mismo chip real (rounded-full px-1.5 py-0.5 text-[10px]) · cambia el texto, el color de «Cumpl.» y el veredicto que llega del cron', comparativa18(), 'mt-8')}`;
+}
+
+// ═══════════════════════════════ 5 · HISTÓRICO ═══════════════════════════════
+const colorBarra = p => p >= 100 ? 'bg-emerald-500' : p >= 80 ? 'bg-amber-400' : 'bg-red-400';
+const cumplimientoColor = p => p >= 100 ? 'text-emerald-600' : p >= 80 ? 'text-amber-600' : 'text-red-600';
+const CHIP_ESTADO = { en_meta: ['En meta', 'bg-emerald-100 text-emerald-700'], en_proceso: ['En proceso', 'bg-amber-100 text-amber-700'], bajo_meta: ['Bajo meta', 'bg-red-100 text-red-700'] };
+const COLORES_AVATAR = ['#6366f1', '#ec4899', '#0ea5e9', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444', '#14b8a6'];
+const colorAvatar = n => { let h = 0; for (let i = 0; i < n.length; i++) h = n.charCodeAt(i) + ((h << 5) - h); return COLORES_AVATAR[Math.abs(h) % COLORES_AVATAR.length]; };
+const inicialesHist = n => n.split(' ').slice(0, 2).map(p => p[0]?.toUpperCase() ?? '').join('');
+function historico(u) {
+  if (u.estado === 'cargando') return `<div class="space-y-4">${sk('h-9 w-2/3')}<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">${Array(4).fill(sk('h-[62px]', 'rounded-xl')).join('')}</div>${sk('h-56', 'rounded-2xl')}</div>`;
+  if (u.estado === 'error') return `<div class="rounded-2xl border border-dashed bg-white py-16 text-center text-sm text-gray-400">No se pudo cargar el histórico. <span class="ml-1 font-medium text-blue-600 underline">Reintentar</span></div>`;
+  const pctMes = HIST.realizado_mes / HIST.meta_mes * 100;
+  const toggle = `<div class="inline-flex overflow-hidden rounded-lg border border-gray-200 text-xs font-medium"><button data-vista="dias" class="px-3 py-1.5 ${vistaHist === 'dias' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'}">Día a día</button><button data-vista="asesor" class="border-l border-gray-200 px-3 py-1.5 ${vistaHist === 'asesor' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700'}">Por asesor</button></div>`;
+  const card = (l, v, cls = 'text-gray-900') => `<div class="rounded-xl border bg-white p-3"><p class="text-[11px] text-gray-400">${l}</p><p class="text-base font-semibold ${cls}">${v}</p></div>`;
+  const barras = `<div class="rounded-2xl border bg-white p-5 shadow-sm">
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-2"><h3 class="text-sm font-semibold text-gray-700">Cumplimiento día a día · % de la meta diaria</h3>
+      <div class="flex gap-3 text-[11px] text-gray-500"><span><span class="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500 align-middle"></span>En meta</span><span><span class="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-amber-400 align-middle"></span>En proceso</span><span><span class="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-red-400 align-middle"></span>Bajo meta</span></div></div>
+    <div class="relative" style="height:140px">
+      <div class="pointer-events-none absolute inset-x-0 border-t border-dashed border-gray-300" style="bottom:100px"><span class="absolute -top-4 right-0 bg-white pl-1 text-[10px] text-gray-400">meta 100%</span></div>
+      <div class="flex h-full items-end gap-[3px]">${HIST.dias.map((d, i) => `<div class="flex flex-1 flex-col justify-end" style="height:100%" title="Día ${d.dia}: ${d.cumplimiento_pct}%">${i === 15 ? '<div class="absolute bottom-0 h-full border-l border-gray-200"></div>' : ''}<div class="w-full rounded-t ${colorBarra(d.cumplimiento_pct)}" style="height:${Math.round(Math.min(d.cumplimiento_pct, 150))}px"></div></div>`).join('')}${Array(6).fill('<div class="flex-1"></div>').join('')}</div>
+    </div>
+    <div class="mt-1 flex text-[10px] font-medium text-gray-400"><span class="flex-1 border-r border-gray-100 text-center">Q1 · días 1–15</span><span class="flex-1 text-center">Q2 · días 16–31</span></div>
+  </div>`;
+  const porAsesor = `<div class="rounded-2xl border bg-white shadow-sm">
+    <div class="grid grid-cols-12 gap-2 border-b px-4 py-2 text-[11px] tracking-wide text-gray-400 uppercase"><div class="col-span-3">Asesor</div><div class="col-span-2 text-right">Meta mes</div><div class="col-span-2 text-right">Realizado</div><div class="col-span-4">Cumplimiento</div><div class="col-span-1 text-right">Falta</div></div>
+    <div class="divide-y">${HIST.por_asesor.map(a => `<div class="grid grid-cols-12 items-center gap-2 px-4 py-2.5">
+      <div class="col-span-3 flex items-center gap-2"><span class="inline-flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white" style="background:${colorAvatar(a.nombre)}">${inicialesHist(a.nombre)}</span><span class="truncate text-sm font-medium text-gray-800">${a.nombre}</span></div>
+      <div class="col-span-2 text-right text-sm text-gray-600">${pesos(a.meta)}</div>
+      <div class="col-span-2 text-right text-sm font-medium text-emerald-700">${pesos(a.realizado)}</div>
+      <div class="col-span-4 flex items-center gap-2"><div class="relative h-2.5 flex-1 overflow-hidden rounded-full bg-gray-200"><div class="h-full rounded-full ${colorBarra(a.cumplimiento)}" style="width:${Math.min(100, a.cumplimiento)}%"></div></div><span class="w-10 text-right text-xs font-semibold text-gray-900 ${marca(u)}">${pctSegun(u, toFixed1, a.cumplimiento)}</span><span class="rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${CHIP_ESTADO[a.estado][1]}">${CHIP_ESTADO[a.estado][0]}</span></div>
+      <div class="col-span-1 text-right text-xs text-gray-500">${pesos(a.falta)}</div></div>`).join('')}</div>
+  </div>`;
+  return `<div class="space-y-4">
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div><h2 class="text-base font-semibold text-gray-800">Histórico · <span class="font-normal text-gray-500">STIRPE QEC</span></h2><p class="text-xs text-gray-400">El ámbito de tienda viene del selector de arriba (STIRPE / DEREK / Comparar).</p></div>
+      <div class="flex flex-wrap items-center gap-2"><div class="flex items-center gap-1"><span class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600">◀</span><span class="min-w-[92px] text-center text-sm font-semibold text-gray-800 capitalize">septiembre de 2026</span><span class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 opacity-40">▶</span></div>${toggle}<span class="inline-flex h-[26px] w-[26px] items-center justify-center rounded-lg border border-gray-200 bg-white text-sm text-gray-500">↻</span></div>
+    </div>
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">${card('Meta del mes', pesos(HIST.meta_mes))}${card('Realizado', pesos(HIST.realizado_mes), 'text-emerald-700')}${card('Cumplimiento', `<span class="${marca(u)}">${pctSegun(u, toFixed1, pctMes)}</span>`, cumplimientoColor(pctMes))}${card('Mejor día', HIST.mejor_dia)}</div>
+    ${vistaHist === 'dias' ? barras : porAsesor}
+  </div>`;
+}
+function pantallaHistorico(u) {
+  return chrome(['Dashboard', 'Venta Asistida', 'Gestión de Ventas'], 'Gestión de Ventas', 'Panel de control para supervisar ventas de todos los asesores') + cuerpoPagina(`
+    ${tabsSubrayado(['Dashboard', 'Consulta de ventas', 'Histórico'], 'Histórico')}
+    ${selectorTienda('STIRPE', ['STIRPE', 'DEREK'])}
+    ${historico(u)}`, 'space-y-4 px-6 py-4');
+}
+
+// ═══════════════════════════════ Render ═══════════════════════════════
+function seccion(titulo, sub, cuerpo, cls = '') {
+  return `<section class="${cls}"><h2 class="mb-1 text-sm font-semibold text-gray-800">${titulo}</h2><p class="mb-3 text-[11px] text-gray-500">${sub}</p>${cuerpo}</section>`;
+}
+const RENDER = { misventas: pantallaMisVentas, equipo: pantallaEquipo, liquidacion: pantallaLiquidacion, modal: pantallaModal, historico: pantallaHistorico };
+const TITULO_MODO = {
+  hoy: 'Hoy · cinco formatos distintos para el mismo % de cumplimiento (entero, un decimal truncado, un decimal redondeado, ceil ad hoc, toFixed) y el bono del 18-sept no se paga',
+  prop: 'Propuesta · D6: todo % de cumplimiento con pctCumplimiento (Math.round) y D3: el chip del bono con el mismo entero · el 18-sept (99,8 %) gana el bono',
+};
+function render() {
+  const u = ui();
+  const p = PANTALLAS.find(x => x.id === pantalla);
+  document.getElementById('pagina').classList.toggle('marcar-on', document.getElementById('marcar').checked);
+  document.getElementById('nav').innerHTML = `<p class="px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wide text-indigo-500">Pantallas</p>` + PANTALLAS.map((x, i) => `<button data-pantalla="${x.id}" class="nav-item block w-full rounded-lg px-2.5 py-2 text-left hover:bg-white/70 ${x.id === pantalla ? 'activo' : ''}"><span class="block">${i + 1}. ${x.titulo}</span><span class="block text-[10px] font-normal text-indigo-500">${x.sub}</span></button>`).join('');
+  document.getElementById('pagina').innerHTML = `
+    <h1 class="mb-1 text-base font-bold text-indigo-900">${TITULO_MODO[u.modo]}</h1>
+    <p class="mb-4 text-[11px] text-gray-500">${p.titulo} · ${p.sub}</p>
+    ${RENDER[pantalla](u)}`;
+  document.querySelectorAll('[data-pantalla]').forEach(b => b.addEventListener('click', () => { pantalla = b.dataset.pantalla; render(); window.scrollTo({ top: 0 }); }));
+  document.querySelectorAll('[data-vista]').forEach(b => b.addEventListener('click', () => { vistaHist = b.dataset.vista; render(); }));
+}
+document.querySelectorAll('.modo').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.modo').forEach(x => { x.className = 'modo rounded-md border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-white'; });
+  b.className = 'modo rounded-md border border-indigo-300 bg-white px-2.5 py-1 font-medium text-indigo-900';
+  modo = b.dataset.modo;
+  render();
+}));
+['estado', 'provNegro', 'marcar'].forEach(id => document.getElementById(id).addEventListener('change', render));
+render();
+</script>
+</body>
+</html>
