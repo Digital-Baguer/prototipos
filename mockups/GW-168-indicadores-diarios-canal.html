@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-168 · Gestión de Ventas — Indicadores diarios del canal con el bono de cada rol</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Pila tipográfica real de get-web (Tailwind v4 compila .font-sans con el stack literal). */
+  html, body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .skeleton { background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+  @keyframes sk { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+
+  /* Tooltips: display:none (ADR-006), nunca opacity:0. */
+  .tip { position: relative; }
+  .tip > .tip-t { cursor: help; }
+  .tip > .tip-p { cursor: help; border-bottom: 1px dotted #cbd5e1; padding-bottom: 1px; }
+  .tip::after {
+    content: attr(data-tip); position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    margin-top: 6px; width: 220px; padding: 8px 10px; background: #0f172a; color: #f8fafc;
+    font-size: 11px; line-height: 1.45; font-weight: 400; text-transform: none; letter-spacing: normal;
+    text-align: left; white-space: normal; border-radius: 6px; box-shadow: 0 6px 16px rgba(15,23,42,.22);
+    display: none; pointer-events: none; z-index: 40;
+  }
+  .tip:hover::after { display: block; }
+  .tip-ini::after { left: 0; transform: none; }
+  .tip-fin::after { left: auto; right: 0; transform: none; }
+  .tip-arriba::after { top: auto; bottom: 100%; margin-top: 0; margin-bottom: 6px; }
+
+  /* Columnas fijas (misma técnica que TablaDetalleDiario.vue: sticky + sombra de 1 px en Meta). */
+  .col-fija { position: sticky; z-index: 10; }
+  thead .col-fija { z-index: 30; }
+  .col-meta { box-shadow: inset -1px 0 0 #e2e8f0; }
+  thead th { position: sticky; top: 36px; z-index: 20; background: #fff; }
+  thead th.col-fija { z-index: 30; }
+</style>
+</head>
+<body class="bg-neutral-100 text-slate-900 antialiased">
+
+<!-- ══ Barra de control del mockup (no es parte de la UI) ══ -->
+<div class="sticky top-0 z-[60] flex flex-wrap items-center gap-3 bg-slate-900 px-4 py-2 text-xs text-white">
+  <span class="font-bold tracking-wide">GW-168 · MOCKUP</span>
+  <span class="text-slate-400">Variante:</span>
+  <div class="flex gap-1" id="ctrl-estados">
+    <button data-estado="A" class="rounded px-2 py-0.5 bg-emerald-600">Estado A · Quincena cerrada 1–15 sept</button>
+    <button data-estado="B" class="rounded px-2 py-0.5 bg-slate-700 hover:bg-slate-600">Estado B · Quincena en curso 16–30 sept (hoy 24 sept)</button>
+    <button data-estado="C" class="rounded px-2 py-0.5 bg-slate-700 hover:bg-slate-600">Estado C · Cargando</button>
+    <button data-estado="D" class="rounded px-2 py-0.5 bg-slate-700 hover:bg-slate-600">Estado D · Sin datos (día sin reparto)</button>
+  </div>
+  <label class="ml-auto flex cursor-pointer items-center gap-1.5 text-slate-300">
+    <input type="checkbox" id="ctrl-permiso" class="h-3.5 w-3.5 accent-emerald-500">
+    Ver como usuario sin permiso <code class="rounded bg-slate-800 px-1 text-[11px]">ver_comision_director</code>
+  </label>
+</div>
+
+<div class="mx-auto flex min-h-screen w-[1440px] bg-neutral-100">
+
+  <!-- ══ SIDEBAR (GW-115, superficie oscura) ══ -->
+  <aside class="flex w-14 shrink-0 flex-col items-center gap-5 bg-neutral-900 py-4">
+    <svg class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <svg class="h-4 w-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+    <svg class="h-4 w-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <svg class="h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+    <svg class="h-4 w-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+    <svg class="mt-auto h-4 w-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+  </aside>
+
+  <div class="min-w-0 flex-1">
+
+    <!-- ══ TOPBAR + BREADCRUMB ══ -->
+    <div class="flex items-center gap-4 border-b border-slate-200 bg-white px-6 py-2.5">
+      <div class="flex w-72 items-center gap-2 rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-slate-400">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        Filtrar menú...
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        <div class="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-700 text-xs font-semibold text-white">FL</div>
+        <div class="text-xs leading-tight"><div class="font-semibold">Francisco L.</div><div class="text-slate-400">Admin</div></div>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 border-b border-slate-200 bg-white px-6 py-2 text-xs text-slate-500">
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>›</span><span>Dashboard</span><span>›</span><span class="text-slate-700">Venta Asistida</span>
+    </div>
+
+    <!-- ══ ENCABEZADO (HeaderLayout + pestañas de Index.vue) ══ -->
+    <div class="border-b border-slate-200 bg-white px-6 pt-5 pb-0">
+      <h1 class="text-3xl font-bold">Gestión de Ventas</h1>
+      <p class="mt-1 text-sm text-slate-500">Panel de control para supervisar ventas de todos los asesores</p>
+      <div class="mt-4 flex gap-5 text-sm">
+        <button class="border-b-2 border-gray-900 px-1 pb-2 font-semibold text-gray-900">Dashboard</button>
+        <button class="border-b-2 border-transparent px-1 pb-2 text-gray-500 hover:text-gray-700">Consulta de ventas</button>
+        <button class="border-b-2 border-transparent px-1 pb-2 text-gray-500 hover:text-gray-700">Histórico</button>
+      </div>
+    </div>
+
+    <!-- ══ DASHBOARD ══ -->
+    <main class="max-w-[1400px] space-y-4 p-6">
+
+      <!-- Controles: TIENDA + PERÍODO (SelectorTiendaAmbito + SelectorPeriodo) -->
+      <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-semibold tracking-wider text-slate-400">TIENDA</span>
+          <div class="flex rounded-lg border border-slate-200 bg-white p-0.5">
+            <button class="rounded-md bg-slate-900 px-3 py-1 text-sm text-white">stirpe</button>
+            <button class="rounded-md px-3 py-1 text-sm text-slate-600 hover:bg-slate-100">derek</button>
+            <button class="rounded-md px-3 py-1 text-sm text-slate-600 hover:bg-slate-100">Comparar tiendas</button>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-[11px] font-semibold tracking-wider text-slate-400">PERÍODO</span>
+          <div class="flex rounded-lg border border-slate-200 bg-white p-0.5" id="per-grupo">
+            <button data-per="quincena" class="rounded-md px-3 py-1 text-sm">Quincena</button>
+            <button data-per="mes" class="rounded-md px-3 py-1 text-sm">Mes</button>
+            <button data-per="dia" class="rounded-md px-3 py-1 text-sm">Día</button>
+            <button data-per="rango" class="rounded-md px-3 py-1 text-sm">Personalizado</button>
+          </div>
+          <div id="per-nav" class="flex items-center gap-1">
+            <button class="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white hover:bg-slate-50"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+            <span class="px-1 text-sm font-semibold tnum" id="per-label">Quincena · 1 de sept – 15 de sept 2026</span>
+            <button class="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white hover:bg-slate-50" id="per-next"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+          </div>
+          <div id="per-rango" class="hidden items-center gap-1 text-sm">
+            <input type="date" value="2026-09-21" class="rounded-md border border-slate-200 bg-white px-2 py-1">
+            <span class="text-slate-400">→</span>
+            <input type="date" value="2026-09-21" class="rounded-md border border-slate-200 bg-white px-2 py-1">
+          </div>
+          <button class="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white hover:bg-slate-50" title="Actualizar"><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></button>
+        </div>
+      </div>
+
+      <!-- TableroKpis · Consolidado (baja fidelidad, plegados: no cambian en GW-168) -->
+      <div class="grid grid-cols-3 gap-4" id="lofi-kpis"></div>
+      <div id="lofi-consolidado"></div>
+
+      <!-- ══ EquipoRoles.vue (cambia la fila de bono, D9) ══ -->
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-3" id="equipo"></div>
+
+      <!-- ══ NUEVO (D10) · Indicadores diarios del canal ══ -->
+      <section class="rounded-2xl border bg-white shadow-sm" id="indicadores" aria-label="Indicadores diarios del canal">
+        <header class="flex items-center justify-between gap-4 rounded-t-2xl px-5 py-2.5" id="ind-header">
+          <button type="button" id="ind-toggle" class="flex min-w-0 items-center gap-2.5 text-left" aria-expanded="true">
+            <svg id="ind-chevron" class="h-4 w-4 shrink-0 text-slate-400 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            <span>
+              <span class="block text-[11px] font-bold tracking-wide text-slate-500 uppercase">Indicadores diarios del canal</span>
+              <span class="block text-[11px] text-slate-400" id="ind-sub">Tienda Stirpe · 1 al 15 de sept · venta confirmada</span>
+            </span>
+          </button>
+          <div class="flex items-center gap-2" id="ind-acciones">
+            <span class="hidden rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 tnum" id="ind-resumen"></span>
+          </div>
+        </header>
+        <div id="ind-cuerpo"></div>
+      </section>
+
+      <!-- CargasPeriodo · TablaAsesoresCumplimiento (baja fidelidad, plegados) -->
+      <div id="lofi-cargas"></div>
+      <div id="lofi-asesores"></div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// DATOS · STIRPE (tienda 0). Meta y Total venta del 1 al 15 de sept son los de la idea
+// (get.liquidacion_va_calculo_dia agregado por día). tie = facturas X (tienda física),
+// dev = facturas M (devoluciones, negativas), webV/webN = pedidos pagados sin factura.
+// facturado = total − tie − dev − webV (así Facturado + Tienda física + Devoluciones + Web = Total).
+// nped, unid (UPT) y tcv son coherentes pero ilustrativos; tcv null = día sin archivo Infobip (D16).
+// ═══════════════════════════════════════════════════════════════════════════
+const FILAS_A = [
+  { f:'2026-09-01', meta:43560426, total:31591502, tie:0,       dev:-412300,  webV:0, webN:0, nped:72,  unid:148, tcv:22.4 },
+  { f:'2026-09-02', meta:41267772, total:33882511, tie:289900,  dev:-1104550, webV:0, webN:0, nped:78,  unid:160, tcv:24.1 },
+  { f:'2026-09-03', meta:38975118, total:31688457, tie:958474,  dev:-818474,  webV:0, webN:0, nped:70,  unid:141, tcv:21.7 },
+  { f:'2026-09-04', meta:37828791, total:28105758, tie:0,       dev:-756193,  webV:0, webN:0, nped:66,  unid:120, tcv:19.8 },
+  { f:'2026-09-05', meta:33243483, total:31378072, tie:419851,  dev:-302355,  webV:0, webN:0, nped:74,  unid:158, tcv:25.6 },
+  { f:'2026-09-06', meta:16048578, total:25564793, tie:0,       dev:0,        webV:0, webN:0, nped:61,  unid:131, tcv:null },
+  { f:'2026-09-07', meta:45853080, total:41654959, tie:762359,  dev:-1327316, webV:0, webN:0, nped:96,  unid:207, tcv:27.3 },
+  { f:'2026-09-08', meta:46999407, total:41657210, tie:341851,  dev:-2053852, webV:0, webN:0, nped:93,  unid:196, tcv:26.0 },
+  { f:'2026-09-09', meta:42414099, total:59434003, tie:2655250, dev:-1235653, webV:0, webN:0, nped:132, unid:301, tcv:31.4 },
+  { f:'2026-09-10', meta:40121445, total:37779919, tie:280703,  dev:-700851,  webV:0, webN:0, nped:84,  unid:172, tcv:23.9 },
+  { f:'2026-09-11', meta:38975118, total:34894409, tie:0,       dev:-2372091, webV:0, webN:0, nped:80,  unid:165, tcv:22.8 },
+  { f:'2026-09-12', meta:33243483, total:28681416, tie:295801,  dev:-509951,  webV:0, webN:0, nped:68,  unid:130, tcv:20.5 },
+  { f:'2026-09-13', meta:19487559, total:18383388, tie:0,       dev:-209857,  webV:0, webN:0, nped:46,  unid:88,  tcv:null },
+  { f:'2026-09-14', meta:44706753, total:28718997, tie:0,       dev:-2973162, webV:0, webN:0, nped:70,  unid:128, tcv:18.6 },
+  { f:'2026-09-15', meta:45853080, total:34352761, tie:559900,  dev:-1837456, webV:0, webN:0, nped:76,  unid:151, tcv:21.2 },
+];
+// Quincena en curso (hoy 24 de sept): el 24 va parcial y con pedidos web pagados sin factura.
+const FILAS_B = [
+  { f:'2026-09-16', meta:41267772, total:36215880, tie:0,       dev:-655900,  webV:0, webN:0, nped:82,  unid:170, tcv:23.2 },
+  { f:'2026-09-17', meta:38975118, total:33410266, tie:349900,  dev:-1210400, webV:0, webN:0, nped:76,  unid:155, tcv:22.0 },
+  { f:'2026-09-18', meta:45853080, total:39805411, tie:0,       dev:-890350,  webV:0, webN:0, nped:90,  unid:190, tcv:24.7 },
+  { f:'2026-09-19', meta:46999407, total:37128905, tie:1120600, dev:-1540200, webV:0, webN:0, nped:84,  unid:176, tcv:21.9 },
+  { f:'2026-09-20', meta:16048578, total:12980660, tie:0,       dev:0,        webV:0, webN:0, nped:31,  unid:60,  tcv:null },
+  { f:'2026-09-21', meta:43560426, total:40113212, tie:0,       dev:-730200,  webV:0, webN:0, nped:92,  unid:195, tcv:25.8 },
+  { f:'2026-09-22', meta:42414099, total:35771540, tie:512300,  dev:-1985700, webV:0, webN:0, nped:80,  unid:162, tcv:20.4 },
+  { f:'2026-09-23', meta:40121445, total:35228910, tie:0,       dev:-1104300, webV:0, webN:0, nped:79,  unid:158, tcv:22.6 },
+  { f:'2026-09-24', meta:44706753, total:45120388, tie:0,       dev:0,        webV:8244900, webN:17, nped:101, unid:214, tcv:27.9, hoy:true },
+];
+// Día sin reparto de meta (D6): la fila existe, la meta es nula y no evalúa bono.
+const FILAS_D = [
+  { f:'2026-09-21', meta:null, total:0, tie:0, dev:0, webV:0, webN:0, nped:0, unid:0, tcv:null, sinReparto:true },
+];
+
+const HOY = '2026-09-24';
+const BONO_SUPERVISOR = 25000;           // monto vigente del bono del supervisor (venta ≥ 100 % del día)
+const UMBRAL = 100;
+
+// Tarjetas: desempeño real de la captura (Estado A). Comisión anclada a la quincena vigente (GW-131 D3).
+const ROLES = [
+  { rol:'coordinador', label:'Coordinador', titular:'Fredy Alexander Puerto Ruiz',     bono:'cero' },
+  { rol:'supervisor',  label:'Supervisor',  titular:'Lady Stephanie Guevara Samaca',   bono:'configurado' },
+  { rol:'director',    label:'Director',    titular:'Erika Julieth Gómez',             bono:'sin_configurar' },
+];
+const DESEMPENO_A = { recaudada:502476673, porRecaudar:6217428, meta:568578192, pctRec:88.4, pctConf:89.5 };
+
+// ═══ Helpers de formato (formatCurrency / formatoPesos / pctCumplimiento / fechaCorta reales) ═══
+const pesos  = n => n === null || n === undefined ? '—' : (n < 0 ? '−' : '') + '$ ' + Math.abs(Math.round(n)).toLocaleString('es-CO');
+const signo  = n => !n ? '—' : (n < 0 ? '−' : '+') + '$ ' + Math.abs(Math.round(n)).toLocaleString('es-CO');
+const entero = n => n === null || n === undefined ? '—' : Math.round(n).toLocaleString('es-CO');
+const dec2   = n => n === null || n === undefined ? '—' : n.toLocaleString('es-CO', { minimumFractionDigits:2, maximumFractionDigits:2 });
+const pct1   = n => n === null || n === undefined ? '—' : n.toLocaleString('es-CO', { minimumFractionDigits:1, maximumFractionDigits:1 }) + ' %';
+const pctEnt = n => n === null || n === undefined ? '—' : Math.round(n) + '%';   // pctCumplimiento.ts (ADR-011)
+const MESES  = ['ene','feb','mar','abr','may','jun','jul','ago','sept','oct','nov','dic'];
+const fechaDia = f => { const [,m,d] = f.split('-'); return `${parseInt(d)} ${MESES[parseInt(m)-1]}`; };          // fechaDiariaVista
+const fechaDe  = f => { const [,m,d] = f.split('-'); return `${parseInt(d)} de ${MESES[parseInt(m)-1]}`; };      // «1 de sept»
+const iniciales = n => { const p = n.trim().split(/\s+/); return (p[0][0] + p[p.length-1][0]).toUpperCase(); };
+
+// Badge de cumplimiento (paleta ADR-006): ≥100 esmeralda · 80–99 negro · <80 rosa. Sin meta: pastilla «Sin meta».
+function badgeClase(p) { if (p === null || p === undefined) return null; return p >= 100 ? 'bg-emerald-600' : p >= 80 ? 'bg-slate-900' : 'bg-rose-500'; }
+function badge(p, extra) {
+  const c = badgeClase(p);
+  if (!c) return `<span class="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-400">Sin meta</span>`;
+  return `<span class="inline-block min-w-[46px] rounded px-1.5 py-0.5 text-xs font-bold text-white tnum ${c} ${extra||''}">${pctEnt(p)}</span>`;
+}
+
+// lucide-vue-next: Check (en firme), Clock (provisional), Info (aviso), ChevronDown
+const ICO = {
+  check: '<svg class="h-3 w-3 shrink-0" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  clock: '<svg class="h-3 w-3 shrink-0" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  info:  '<svg class="h-4 w-4 shrink-0" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+  chev:  '<svg class="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>',
+};
+
+// ═══ Cálculo de la fila y del bono del rol (lo que hará el evaluador reutilizable, D12) ═══
+function derivar(r) {
+  const fac = r.total - r.tie - r.dev - r.webV;
+  const cump = r.meta ? r.total / r.meta * 100 : null;                    // confirmada (facturado + pagado sin factura)
+  const cumpFirme = r.meta ? (r.total - r.webV) / r.meta * 100 : null;    // solo facturado
+  const vpt = r.nped ? (fac + r.webV) / r.nped : null;
+  const upt = r.nped ? r.unid / r.nped : null;
+  // D7/D8: cumple con el % redondeado al entero; firme si lo facturado alcanza, provisional si solo con web.
+  const gana = p => p !== null && Math.round(p) >= UMBRAL;
+  const veredicto = r.meta === null ? 'sin_meta' : gana(cumpFirme) ? 'firme' : gana(cump) ? 'provisional' : 'no';
+  return { ...r, fac, cump, cumpFirme, vpt, upt, veredicto };
+}
+
+function celdaBono(rol, d, arriba) {
+  const pos = arriba ? 'tip-arriba tip-fin' : 'tip-fin';
+  const guion = tip => `<span class="tip ${pos}" data-tip="${tip}"><span class="tip-t text-slate-300">—</span></span>`;
+  if (rol.bono === 'cero') return guion('Sin bono configurado para este rol (monto 0 en Comisiones · Configuración).');
+  if (rol.bono === 'sin_configurar') return guion('Sin bono configurado para este rol.');
+  if (d.veredicto === 'sin_meta') return guion('Día sin reparto de meta: no evalúa bono.');
+  const pctTxt = `Partición 12 de 12 · ${pctEnt(d.cump)}`;
+  if (d.veredicto === 'no') return guion(`No cumple: venta del día ${pctEnt(d.cump)} de la meta (umbral ${UMBRAL} %). ${pctTxt}.`);
+  if (d.veredicto === 'firme') {
+    return `<span class="tip ${pos}" data-tip="En firme: lo facturado alcanza el ${UMBRAL} % de la meta del día. ${pctTxt}.">
+      <span class="tip-t inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">${ICO.check}${pesos(BONO_SUPERVISOR)}</span></span>`;
+  }
+  // Provisional: única excepción de ámbar (GW-148 D16).
+  return `<span class="tip ${pos}" data-tip="Provisional · pendiente de factura del ERP. Cuenta pedidos pagados que aún no se facturan: solo con lo facturado el día va en ${pctEnt(d.cumpFirme)}. Si la factura llega por menos, el bono se retira.">
+    <span class="tip-t inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">${ICO.clock}${pesos(BONO_SUPERVISOR)}</span></span>`;
+}
+
+// Resumen del bono del rol en el rango (mismo dato para la tarjeta D9 y la fila de totales D15).
+function resumenBono(rol, filas) {
+  if (rol.bono !== 'configurado') return { texto:'—', firmes:0, prov:0, total:0 };
+  const firmes = filas.filter(d => d.veredicto === 'firme').length;
+  const prov = filas.filter(d => d.veredicto === 'provisional').length;
+  const dias = firmes + prov;
+  return { texto: dias ? `${dias} ${dias === 1 ? 'día' : 'días'} · ${pesos(dias * BONO_SUPERVISOR)}` : '—', firmes, prov, total: dias * BONO_SUPERVISOR };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ESTADOS
+// ═══════════════════════════════════════════════════════════════════════════
+const ESTADOS = {
+  A: { per:'quincena', label:'Quincena · 1 de sept – 15 de sept 2026', rango:'1 de sept – 15 de sept', rangoBono:'1 al 15 de sept', sub:'Tienda Stirpe · 1 al 15 de sept · venta confirmada', filas:FILAS_A, next:false },
+  B: { per:'quincena', label:'Quincena · 16 de sept – 30 de sept 2026', rango:'16 de sept – 30 de sept', rangoBono:'16 al 30 de sept', sub:'Tienda Stirpe · 16 al 30 de sept · venta confirmada · corte hoy 24 de sept', filas:FILAS_B, next:true },
+  C: { per:'quincena', label:'Quincena · 1 de sept – 15 de sept 2026', rango:'1 de sept – 15 de sept', rangoBono:'1 al 15 de sept', sub:'Tienda Stirpe · 1 al 15 de sept · venta confirmada', filas:FILAS_A, cargando:true, next:false },
+  D: { per:'rango', label:'Personalizado · 21 de sept', rango:'21 de sept', rangoBono:'21 de sept', sub:'Tienda Stirpe · 21 de sept · venta confirmada', filas:FILAS_D, next:false },
+};
+let estado = 'A';
+let sinPermiso = false;
+let plegado = false;
+
+// ─── Bloques de baja fidelidad (no cambian en GW-168) ───
+function lofi(titulo, nota) {
+  return `<div class="flex items-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white/70 px-5 py-3">
+    ${ICO.chev}<span class="text-[11px] font-bold tracking-wide text-slate-400 uppercase">${titulo}</span>
+    <span class="text-[11px] text-slate-400">${nota}</span></div>`;
+}
+function renderLofi() {
+  document.getElementById('lofi-kpis').innerHTML = ['Cumplimiento de ventas · gauge', 'Pedidos y tráfico', 'Comisión proyectada del equipo']
+    .map(t => lofi(t, 'sin cambios')).join('');
+  document.getElementById('lofi-consolidado').innerHTML = lofi('Consolidado · STIRPE', 'sin cambios');
+  document.getElementById('lofi-cargas').innerHTML = lofi('Cargas del período', 'sin cambios');
+  document.getElementById('lofi-asesores').innerHTML = lofi('Asesores · cumplimiento', 'sin cambios · sigue siendo el consolidado por asesor');
+}
+
+// ─── Selector de período ───
+function renderSelector(e) {
+  document.querySelectorAll('#per-grupo button').forEach(b => {
+    const on = b.dataset.per === e.per;
+    b.className = 'rounded-md px-3 py-1 text-sm ' + (on ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100');
+  });
+  document.getElementById('per-label').textContent = e.label;
+  document.getElementById('per-nav').classList.toggle('hidden', e.per === 'rango');
+  document.getElementById('per-rango').classList.toggle('hidden', e.per !== 'rango');
+  document.getElementById('per-rango').classList.toggle('flex', e.per === 'rango');
+  const next = document.getElementById('per-next');
+  next.disabled = !e.next; next.classList.toggle('text-slate-300', !e.next);
+}
+
+// ─── EquipoRoles.vue ───
+function renderEquipo(e, filas) {
+  const cont = document.getElementById('equipo');
+  const roles = ROLES.filter(r => !(sinPermiso && r.rol === 'director'));
+  if (e.cargando) {
+    cont.innerHTML = roles.map(() => `<div class="rounded-2xl border bg-white p-4 shadow-sm">
+      <div class="skeleton mb-3 h-3 w-24 rounded"></div>
+      <div class="mt-1 flex items-center gap-2.5"><div class="skeleton h-9 w-9 shrink-0 rounded-full"></div><div class="skeleton h-4 w-32 rounded"></div></div>
+      <div class="skeleton mt-4 h-16 rounded-xl"></div><div class="skeleton mt-3 h-28 rounded-xl"></div></div>`).join('');
+    return;
+  }
+  // Desempeño: Estado A usa las cifras de la captura; B y D se derivan de las filas del rango.
+  let des;
+  if (estado === 'A') des = DESEMPENO_A;
+  else {
+    const meta = filas.some(d => d.meta !== null) ? filas.reduce((s, d) => s + (d.meta || 0), 0) : null;
+    const conf = filas.reduce((s, d) => s + d.total, 0);
+    const web = filas.reduce((s, d) => s + d.webV, 0);
+    des = { recaudada: conf - web, porRecaudar: web, meta, pctRec: meta ? (conf - web) / meta * 100 : null, pctConf: meta ? conf / meta * 100 : null };
+  }
+  const fila = (l, v) => `<div class="flex justify-between gap-2"><span class="text-gray-500">${l}</span>${v}</div>`;
+
+  cont.innerHTML = roles.map(r => {
+    const rb = resumenBono(r, filas);
+    let bonoCelda;
+    if (r.bono !== 'configurado' || !rb.total) {
+      const tip = r.bono === 'cero' ? 'Bono configurado en $ 0 para este rol.' : r.bono === 'sin_configurar' ? 'Sin bono configurado para este rol.' : 'Ningún día del rango alcanzó el 100 % de la meta.';
+      bonoCelda = `<span class="tip tip-fin tip-arriba" data-tip="${tip}"><span class="tip-t text-base font-bold tnum text-gray-400">—</span></span>`;
+    } else if (rb.prov) {
+      bonoCelda = `<span class="tip tip-fin tip-arriba inline-flex items-center gap-2" data-tip="${rb.prov} día pendiente de factura: cuenta pedidos pagados que el ERP aún no factura.">
+        <span class="tip-t inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">${ICO.clock}Provisional</span>
+        <span class="whitespace-nowrap text-base font-bold tnum text-gray-900">${rb.texto}</span></span>`;
+    } else {
+      bonoCelda = `<span class="inline-flex items-center gap-2">
+        <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">${ICO.check}En firme</span>
+        <span class="text-base font-bold tnum text-gray-900">${rb.texto}</span></span>`;
+    }
+    return `<div class="flex flex-col rounded-2xl border bg-white p-4 shadow-sm">
+      <div class="flex items-baseline justify-between gap-2">
+        <h2 class="text-[11px] font-bold tracking-wide text-gray-500 uppercase">${r.label}</h2>
+        <span class="shrink-0 text-[10px] text-gray-400 tnum">${e.rango}</span>
+      </div>
+      <div class="flex flex-1 flex-col py-3 last:pb-0">
+        <div class="flex items-center gap-2.5">
+          <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-700 text-xs font-bold text-white">${iniciales(r.titular)}</span>
+          <div class="min-w-0">
+            <p class="truncate text-sm font-semibold text-gray-800">${r.titular}</p>
+            <p class="text-[11px] text-gray-400">Partición: 12 de 12 asesores</p>
+          </div>
+          ${badgeClase(des.pctRec) ? `<span class="ml-auto shrink-0 rounded px-1.5 py-0.5 text-center text-xs font-bold text-white tnum ${badgeClase(des.pctRec)}">${pctEnt(des.pctRec)}</span>` : `<span class="ml-auto shrink-0 text-gray-300">—</span>`}
+        </div>
+        <div class="mt-3 space-y-1.5 text-sm">
+          ${fila('Venta recaudada', `<span class="text-right font-bold tnum">${pesos(des.recaudada)}${des.porRecaudar ? `<span class="block text-[10px] font-normal text-gray-400">+ ${pesos(des.porRecaudar)} por recaudar</span>` : ''}</span>`)}
+          ${fila('Meta', `<span class="font-bold tnum">${pesos(des.meta)}</span>`)}
+          ${fila('Cumplimiento', `<span class="text-right font-bold tnum">${des.pctRec === null ? '—' : pct1(des.pctRec).replace(' %','%')}${des.pctConf !== null && Math.round(des.pctConf*10) !== Math.round(des.pctRec*10) ? ` <span class="text-[10px] font-normal text-gray-400">(${pct1(des.pctConf).replace(' %','%')})</span>` : ''}</span>`)}
+        </div>
+        <div class="mt-3 flex flex-1 flex-col justify-end border-t border-gray-100 pt-2.5">
+          <p class="mb-1.5 text-[10px] font-bold tracking-wide text-gray-400 uppercase">Comisión · Quincena 16 de sept – 30 de sept</p>
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-2">
+              <div class="min-w-0"><p class="text-[13px] font-medium text-gray-700">Oficial</p><p class="text-[10px] leading-snug text-gray-400">Sobre la venta facturada</p></div>
+              <p class="shrink-0 text-base font-bold tnum text-gray-400">$ 0</p>
+            </div>
+            <div class="flex items-center justify-between gap-3 rounded-md bg-emerald-50 px-3 py-2">
+              <div class="min-w-0"><p class="text-[13px] font-medium text-emerald-800">Proyectada</p><p class="text-[10px] leading-snug text-emerald-800/60">Suma los carritos confirmados aún sin facturar</p></div>
+              <p class="shrink-0 text-base font-bold tnum text-emerald-700/50">$ 0</p>
+            </div>
+            <!-- D9: el bono sigue el filtro de período (antes: «Bono del día · 23 de sept») -->
+            <div class="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-2">
+              <div class="min-w-0"><p class="whitespace-nowrap text-[13px] font-medium text-gray-700">Bono · ${e.rangoBono}</p><p class="text-[10px] leading-snug text-gray-400">Días con venta ≥ 100 % de la meta de su partición</p></div>
+              <div class="shrink-0">${bonoCelda}</div>
+            </div>
+          </div>
+          <p class="mt-1.5 text-[10px] text-gray-400">La escala del rol paga desde el 80 % de cumplimiento de la quincena.</p>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Tabla «Indicadores diarios del canal» (estilo TablaDetalleDiario.vue) ───
+const ANCHO_FECHA = 72, ANCHO_META = 104;
+const BANDA = { web:'#f7f9fc', fac:'#f3f6fa', tie:'#eaeff6', dev:'#eff3f8', total:'#e3e9f2' };
+function columnas() {
+  const cols = [
+    { k:'fecha', t:'Día', al:'left', fija:'fecha', tip:'Día de confirmación del carrito o de la factura de tienda.' },
+    { k:'meta', t:'Meta', al:'right', fija:'meta', tip:'Σ del reparto de meta del día de todos los asesores de la tienda (presupuesto_va_asesor).' },
+    { k:'web', t:'Pedidos<br>web', al:'right', banda:BANDA.web, tip:'Pedidos ya pagados por el cliente, a la espera de la factura del ERP.' },
+    { k:'fac', t:'Facturado', al:'right', banda:BANDA.fac, tip:'Pedidos que ya llegaron facturados en el archivo del ERP.' },
+    { k:'tie', t:'Tienda<br>física', al:'right', banda:BANDA.tie, tip:'Facturas X del ERP: compras en el punto físico, sin carrito web.' },
+    { k:'dev', t:'Devoluciones', al:'right', banda:BANDA.dev, tip:'Facturas M del ERP: devoluciones recibidas en tienda. Restan del total.' },
+    { k:'total', t:'Total venta', al:'right', banda:BANDA.total, tip:'Pedidos web + Facturado + Tienda física − Devoluciones. Venta confirmada del canal en el día.' },
+    { k:'cump', t:'Cumpl.', al:'center', tip:'Total venta dividido por la Meta del día, redondeado al entero (ADR-011).' },
+    { k:'nped', t:'Nro<br>pedidos', al:'right', tip:'Pedidos web + facturas del día.' },
+    { k:'vpt', t:'VPT', al:'right', tip:'Venta por ticket: venta de pedidos ÷ Nro pedidos.' },
+    { k:'upt', t:'UPT', al:'right', tip:'Unidades por ticket: unidades ÷ Nro pedidos.' },
+    { k:'tcv', t:'TCV', al:'right', tip:'Tasa de conversión del día: carritos confirmados ÷ conversaciones cerradas (Infobip). Solo en días con archivo de tráfico.' },
+    { k:'b_coordinador', t:'Bono<br>coordinador', al:'right', rol:ROLES[0], tip:'Bono diario del coordinador, evaluado con la venta y la meta del día de su partición.' },
+    { k:'b_supervisor', t:'Bono<br>supervisor', al:'right', rol:ROLES[1], tip:'Bono diario del supervisor, evaluado con la venta y la meta del día de su partición. Verde: en firme (solo facturado). Provisional: cuenta pedidos pagados sin factura.' },
+    { k:'b_director', t:'Bono<br>director', al:'right', rol:ROLES[2], tip:'Bono diario del director. Solo con la operación ver_comision_director.' },
+  ];
+  return cols.filter(c => !(sinPermiso && c.k === 'b_director'));
+}
+function estiloCol(c) {
+  const s = [];
+  if (c.banda) s.push(`background:${c.banda}`);
+  if (c.fija === 'fecha') s.push(`left:0px;width:${ANCHO_FECHA}px;min-width:${ANCHO_FECHA}px`);
+  if (c.fija === 'meta') s.push(`left:${ANCHO_FECHA}px;width:${ANCHO_META}px;min-width:${ANCHO_META}px`);
+  return s.join(';');
+}
+function claseCol(c) {
+  return [c.al === 'left' ? 'text-left' : c.al === 'center' ? 'text-center' : 'text-right', c.fija ? 'col-fija' : '', c.fija === 'meta' ? 'col-meta' : ''].join(' ');
+}
+
+function celda(c, d, i, n) {
+  const arriba = i >= n - 3;
+  switch (c.k) {
+    case 'fecha': return `<span class="font-medium text-slate-800">${fechaDia(d.f)}</span>${d.hoy ? '<span class="font-normal text-slate-500"> · hoy</span>' : ''}`;
+    case 'meta': return d.meta === null
+      ? `<span class="tip tip-ini ${arriba ? 'tip-arriba' : ''}" data-tip="Día sin reparto de meta para la tienda."><span class="tip-t text-slate-400">—</span></span>`
+      : `<span class="text-slate-600">${pesos(d.meta)}</span>`;
+    case 'web': return d.webV ? `<span class="text-slate-800">${pesos(d.webV)} <span class="text-[11px] text-slate-400">(${d.webN})</span></span>` : '<span class="text-slate-400">—</span>';
+    case 'fac': return d.fac ? `<span class="text-slate-800">${pesos(d.fac)}</span>` : '<span class="text-slate-400">—</span>';
+    case 'tie': return `<span class="${d.tie ? 'text-emerald-700' : 'text-slate-400'}">${signo(d.tie)}</span>`;
+    case 'dev': return `<span class="${d.dev ? 'text-rose-600' : 'text-slate-400'}">${signo(d.dev)}</span>`;
+    case 'total': return `<span class="font-bold text-slate-900">${pesos(d.total)}</span>`;
+    case 'cump': return badge(d.cump);
+    case 'nped': return `<span class="text-slate-800">${d.nped ? entero(d.nped) : '—'}</span>`;
+    case 'vpt': return `<span class="text-slate-800">${d.vpt === null ? '—' : pesos(d.vpt)}</span>`;
+    case 'upt': return `<span class="text-slate-800">${dec2(d.upt)}</span>`;
+    case 'tcv': return d.tcv === null
+      ? `<span class="tip tip-fin ${arriba ? 'tip-arriba' : ''}" data-tip="Sin archivo de tráfico ese día. El TCV del rango no lo suma y una condición de bono por TCV ese día no cumple."><span class="tip-t text-slate-400">—</span></span>`
+      : `<span class="text-slate-800">${pct1(d.tcv)}</span>`;
+    default: return celdaBono(c.rol, d, arriba);
+  }
+}
+
+function totales(filas) {
+  const meta = filas.some(d => d.meta !== null) ? filas.reduce((s, d) => s + (d.meta || 0), 0) : null;
+  const sum = k => filas.reduce((s, d) => s + d[k], 0);
+  const conArchivo = filas.filter(d => d.tcv !== null);
+  const nped = sum('nped');
+  return {
+    meta, webV: sum('webV'), webN: sum('webN'), fac: sum('fac'), tie: sum('tie'), dev: sum('dev'), total: sum('total'),
+    cump: meta ? sum('total') / meta * 100 : null, nped,
+    vpt: nped ? (sum('fac') + sum('webV')) / nped : null, upt: nped ? sum('unid') / nped : null,
+    tcv: conArchivo.length ? conArchivo.reduce((s, d) => s + d.tcv * d.nped, 0) / conArchivo.reduce((s, d) => s + d.nped, 0) : null,
+    diasArchivo: conArchivo.length,
+  };
+}
+
+function celdaTotal(c, t, filas) {
+  switch (c.k) {
+    case 'fecha': return '<span class="font-semibold text-slate-800">Total</span>';
+    case 'meta': return `<span class="font-semibold text-slate-700">${pesos(t.meta)}</span>`;
+    case 'web': return t.webV ? `<span class="font-semibold text-slate-800">${pesos(t.webV)} <span class="text-[11px] font-normal text-slate-400">(${t.webN})</span></span>` : '<span class="text-slate-400">—</span>';
+    case 'fac': return t.fac ? `<span class="font-semibold text-slate-800">${pesos(t.fac)}</span>` : '<span class="text-slate-400">—</span>';
+    case 'tie': return `<span class="font-semibold ${t.tie ? 'text-emerald-700' : 'text-slate-400'}">${signo(t.tie)}</span>`;
+    case 'dev': return `<span class="font-semibold ${t.dev ? 'text-rose-600' : 'text-slate-400'}">${signo(t.dev)}</span>`;
+    case 'total': return `<span class="font-bold text-slate-900">${pesos(t.total)}</span>`;
+    case 'cump': return t.cump === null ? '<span class="text-slate-400">—</span>' : `<span class="tip tip-arriba" data-tip="Cumplimiento del rango: Σ Total venta ÷ Σ Meta. Se muestra con un decimal; el escalón usa el entero (ADR-011)."><span class="tip-t font-bold text-slate-900">${pct1(t.cump)}</span></span>`;
+    case 'nped': return `<span class="font-semibold text-slate-800">${t.nped ? entero(t.nped) : '—'}</span>`;
+    case 'vpt': return `<span class="tip tip-arriba tip-fin" data-tip="Promedio del rango: venta de pedidos ÷ Nro pedidos."><span class="tip-t font-semibold text-slate-800">${t.vpt === null ? '—' : pesos(t.vpt)}</span></span>`;
+    case 'upt': return `<span class="tip tip-arriba tip-fin" data-tip="Promedio del rango: unidades ÷ Nro pedidos."><span class="tip-t font-semibold text-slate-800">${dec2(t.upt)}</span></span>`;
+    case 'tcv': return t.tcv === null ? '<span class="text-slate-400">—</span>' : `<span class="tip tip-arriba tip-fin" data-tip="TCV del rango: solo suma los ${t.diasArchivo} días con archivo de tráfico Infobip."><span class="tip-t font-semibold text-slate-800">${pct1(t.tcv)}</span></span>`;
+    default: {
+      const rb = resumenBono(c.rol, filas);
+      if (rb.texto === '—') return '<span class="text-slate-300">—</span>';
+      const chip = rb.prov
+        ? `<span class="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">${ICO.clock}${rb.texto}</span>`
+        : `<span class="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">${ICO.check}${rb.texto}</span>`;
+      return `<span class="tip tip-arriba tip-fin" data-tip="El mismo dato de la tarjeta del rol: ${rb.firmes} en firme${rb.prov ? ` + ${rb.prov} provisional (pendiente de factura)` : ''} × ${pesos(BONO_SUPERVISOR)}."><span class="tip-t">${chip}</span></span>`;
+    }
+  }
+}
+
+function renderIndicadores(e) {
+  document.getElementById('ind-sub').textContent = e.sub;
+  const cuerpo = document.getElementById('ind-cuerpo');
+  const resumen = document.getElementById('ind-resumen');
+  const chevron = document.getElementById('ind-chevron');
+  chevron.style.transform = plegado ? 'rotate(-90deg)' : '';
+  document.getElementById('ind-toggle').setAttribute('aria-expanded', String(!plegado));
+  document.getElementById('ind-header').classList.toggle('border-b', !plegado);
+  document.getElementById('ind-header').classList.toggle('border-slate-100', !plegado);
+
+  const filas = e.filas.map(derivar);
+  const cols = columnas();
+  const rb = resumenBono(ROLES[1], filas);
+  resumen.textContent = e.cargando ? '' : `${filas.length} ${filas.length === 1 ? 'día' : 'días'} · Bono supervisor ${rb.texto}`;
+  resumen.classList.toggle('hidden', !plegado || e.cargando);
+
+  if (plegado) { cuerpo.innerHTML = ''; return; }
+
+  if (e.cargando) {
+    cuerpo.innerHTML = `<div class="space-y-3 p-5" aria-label="Cargando indicadores diarios">${'<div class="skeleton h-12 rounded-xl"></div>'.repeat(4)}</div>`;
+    return;
+  }
+
+  const t = totales(filas);
+  const th = cols.map(c => `<th scope="col" class="px-1.5 pt-3 pb-2 text-[11px] leading-tight whitespace-nowrap align-bottom ${claseCol(c)} ${c.k === 'total' ? 'text-slate-900' : ''}" style="${estiloCol(c)}">
+      <span class="tip ${c.fija ? 'tip-ini' : c.k.startsWith('b_') || c.k === 'tcv' ? 'tip-fin' : ''}" data-tip="${c.tip}"><span class="tip-p">${c.t}</span></span></th>`).join('');
+  const tr = filas.map((d, i) => `<tr class="group border-b border-slate-50 tnum last:border-0">${cols.map(c => {
+      const fondo = (c.fija || !c.banda) ? (d.hoy ? 'bg-emerald-50' : 'bg-white group-hover:bg-slate-50') : '';
+      return `<td class="px-1.5 py-2.5 whitespace-nowrap ${claseCol(c)} ${fondo}" style="${estiloCol(c)}">${celda(c, d, i, filas.length)}</td>`;
+    }).join('')}</tr>`).join('');
+  const tf = `<tr class="border-t border-slate-200 bg-slate-50 tnum">${cols.map(c =>
+      `<td class="px-1.5 py-2.5 whitespace-nowrap ${claseCol(c)} ${c.banda ? '' : 'bg-slate-50'}" style="${estiloCol(c)}${c.fija ? ';background:#f8fafc' : ''}">${celdaTotal(c, t, filas)}</td>`).join('')}</tr>`;
+
+  const avisoSinReparto = filas.some(d => d.sinReparto)
+    ? `<div class="mx-5 mt-4 flex items-center gap-2.5 rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] text-slate-600">
+        <span class="text-slate-400">${ICO.info}</span>Día sin reparto de meta: no evalúa bono. La venta del día cuenta para el rango, la meta queda en «—».</div>`
+    : '';
+
+  cuerpo.innerHTML = `${avisoSinReparto}
+    <div class="overflow-x-clip ${avisoSinReparto ? 'mt-3' : ''}">
+      <table class="w-full text-[12px]">
+        <caption class="sr-only">Indicadores diarios del canal con el bono de cada rol</caption>
+        <thead class="border-b border-slate-100"><tr class="font-semibold text-slate-600">${th}</tr></thead>
+        <tbody>${tr}</tbody>
+        <tfoot>${tf}</tfoot>
+      </table>
+    </div>
+    <div class="space-y-1.5 rounded-b-2xl border-t border-slate-100 px-5 py-3 text-[11px] text-slate-400">
+      <p>La <strong>banda gris</strong> marca las columnas que suman al <strong>Total venta</strong>. Meta, venta y % del día son de <strong>todos los asesores de la tienda</strong>; cada celda de bono se evalúa con la venta y la meta de la <strong>partición de su rol</strong>. Si la partición del rol no cubre toda la tienda, la celda muestra su propio % en el tooltip (ej. «Partición 8 de 12 · 131 %»).</p>
+      <p>Meta del día del rol = Σ metas del día de su partición · Bono en firme = solo facturado · Provisional = facturado + pagado sin factura · Cumple con el % redondeado al entero (ADR-011).</p>
+    </div>`;
+}
+
+// ─── Orquestación ───
+function render() {
+  const e = ESTADOS[estado];
+  const filas = e.filas.map(derivar);
+  renderSelector(e);
+  renderEquipo(e, filas);
+  renderIndicadores(e);
+}
+
+document.getElementById('ctrl-estados').addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  estado = b.dataset.estado;
+  document.querySelectorAll('#ctrl-estados button').forEach(x => x.className = 'rounded px-2 py-0.5 ' + (x === b ? 'bg-emerald-600' : 'bg-slate-700 hover:bg-slate-600'));
+  render();
+});
+document.getElementById('ctrl-permiso').addEventListener('change', ev => { sinPermiso = ev.target.checked; render(); });
+document.getElementById('ind-toggle').addEventListener('click', () => { plegado = !plegado; renderIndicadores(ESTADOS[estado]); });
+
+// Abrir directo en una variante: #A · #B · #C · #D
+const inicial = (location.hash || '').replace('#', '').toUpperCase();
+if (ESTADOS[inicial]) {
+  estado = inicial;
+  document.querySelectorAll('#ctrl-estados button').forEach(x => x.className = 'rounded px-2 py-0.5 ' + (x.dataset.estado === estado ? 'bg-emerald-600' : 'bg-slate-700 hover:bg-slate-600'));
+}
+renderLofi();
+render();
+</script>
+</body>
+</html>
