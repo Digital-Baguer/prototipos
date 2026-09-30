@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-173 · Mis Ventas, detalle diario: fila Total al pie de la tabla</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Pila tipográfica real de get-web (Tailwind v4 compila .font-sans con el stack literal). */
+  html, body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+  .skeleton { background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+  @keyframes sk { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+  /* Tooltips de encabezado (en get-web son Tooltip de shadcn). display:none para no inflar el scrollWidth. */
+  .tip { position: relative; }
+  .tip::after {
+    content: attr(data-tip); position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    margin-top: 6px; width: 240px; padding: 8px 10px; background: #0f172a; color: #f8fafc;
+    font-size: 11px; line-height: 1.45; font-weight: 400; text-align: left; white-space: normal;
+    border-radius: 6px; box-shadow: 0 6px 16px rgba(15,23,42,.22); display: none; pointer-events: none; z-index: 40;
+  }
+  .tip:hover::after { display: block; }
+  .tip-ini::after { left: 0; transform: none; }
+  .tip-fin::after { left: auto; right: 0; transform: none; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900 antialiased">
+
+<!-- ══ Barra de control del mockup (no es parte de la UI) ══ -->
+<div class="sticky top-0 z-[70] border-b border-indigo-200 bg-indigo-50/95 px-4 py-2 backdrop-blur">
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px]">
+    <span class="font-bold text-indigo-900">GW-173 · mockup</span>
+    <nav id="pestanas" class="flex flex-wrap gap-1"></nav>
+    <label class="flex items-center gap-1.5" id="estado-wrap">
+      <span class="text-indigo-800">Estado de la tabla:</span>
+      <select id="estado" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="normal">Con datos</option>
+        <option value="cargando">Cargando</option>
+        <option value="error">Error (se ven los últimos datos)</option>
+        <option value="vacio">Sin días en el período</option>
+      </select>
+    </label>
+    <label class="flex items-center gap-1.5">
+      <span class="text-indigo-800">Ancho de pantalla:</span>
+      <select id="ancho" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="auto">Mi ventana</option>
+        <option value="1440">1440 px</option>
+        <option value="1920">1920 px</option>
+      </select>
+    </label>
+  </div>
+</div>
+
+<div class="px-4 pt-4">
+  <h1 id="titulo" class="text-base font-bold text-gray-900"></h1>
+</div>
+<div class="overflow-x-auto px-4 py-4"><div id="app"></div></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// Formatos (iguales a tablaDetalleDiario.vista.ts)
+// ═══════════════════════════════════════════════════════════════════════════
+const pesos = n => '$ ' + Math.round(Math.abs(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const dec2 = n => n.toFixed(2).replace('.', ',');
+const conSigno = n => !n ? '—' : (n < 0 ? '−' : '+') + pesos(n);
+
+const ICO = {
+  chev: '<svg class="h-3.5 w-3.5 text-slate-400" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
+  clock: '<svg class="h-3 w-3 shrink-0" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+  check: '<svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  x: '<svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  home: '<svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>',
+  plus: '<svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>',
+  truck: '<svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>',
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DATOS · captura de Mis Ventas del asesor, quincena 16–30 sep 2026, hoy 28 sep
+// par = [valor, cantidad] · dev negativo · bono: 'no' | 'firme' | 'provisional'
+// ═══════════════════════════════════════════════════════════════════════════
+const HOY = '28 sep';
+const DIAS_SEP = [
+  { f:'16 sep', meta:4604959, pend:null,         arc:null,          web:null,          fac:[2344415,6],  dev:0,        tie:0, bono:'no',          nped:6,    vpt:390736, upt:1.67 },
+  { f:'17 sep', meta:5020912, pend:null,         arc:[495800,2],    web:null,          fac:[4318200,8],  dev:0,        tie:0, bono:'no',          nped:8,    vpt:539775, upt:1.63 },
+  { f:'18 sep', meta:4463033, pend:null,         arc:null,          web:null,          fac:[6302312,14], dev:-2017751, tie:0, bono:'no',          nped:14,   vpt:450165, upt:1.79 },
+  { f:'19 sep', meta:4587601, pend:null,         arc:null,          web:null,          fac:[2137800,3],  dev:-1192868, tie:0, bono:'no',          nped:3,    vpt:712600, upt:1.67 },
+  { f:'20 sep', meta:null,    pend:null,         arc:null,          web:null,          fac:null,         dev:0,        tie:0, bono:'no',          nped:0,    vpt:null,   upt:null },
+  { f:'21 sep', meta:3603288, pend:null,         arc:[1479700,3],   web:null,          fac:[4988314,10], dev:0,        tie:0, bono:'firme',       nped:10,   vpt:498831, upt:1.70 },
+  { f:'22 sep', meta:3838285, pend:null,         arc:[1299950,2],   web:null,          fac:[3565953,7],  dev:-69952,   tie:0, bono:'no',          nped:7,    vpt:509422, upt:1.57 },
+  { f:'23 sep', meta:3651051, pend:null,         arc:null,          web:null,          fac:[3680393,8],  dev:0,        tie:0, bono:'firme',       nped:8,    vpt:460049, upt:2.88 },
+  { f:'24 sep', meta:3782880, pend:null,         arc:[669800,2],    web:[289950,1],    fac:[5449862,10], dev:-390900,  tie:0, bono:'firme',       nped:11,   vpt:521801, upt:1.82 },
+  { f:'25 sep', meta:3610930, pend:null,         arc:[395955,1],    web:[1902550,5],   fac:[3921226,9],  dev:-1015753, tie:0, bono:'provisional', nped:14,   vpt:415984, upt:1.43 },
+  { f:'26 sep', meta:2991913, pend:null,         arc:null,          web:[2649873,5],   fac:[4843005,3],  dev:0,        tie:0, bono:'firme',       nped:8,    vpt:936610, upt:4.63 },
+  { f:'27 sep', meta:4871889, pend:[377800,1],   arc:[909800,1],    web:[5403675,5],   fac:[399900,1],   dev:0,        tie:0, bono:'provisional', nped:6,    vpt:967263, upt:3.67 },
+  { f:'28 sep', meta:4853876, pend:[1787700,2],  arc:null,          web:[303850,1],    fac:null,         dev:0,        tie:0, bono:'no',          nped:1,    vpt:303850, upt:3.00 },
+  { f:'29 sep', meta:null,    pend:null,         arc:null,          web:null,          fac:null,         dev:0,        tie:0, bono:'no',          nped:null, vpt:null,   upt:null },
+  { f:'30 sep', meta:null,    pend:null,         arc:null,          web:null,          fac:null,         dev:0,        tie:0, bono:'no',          nped:null, vpt:null,   upt:null },
+];
+const BONO_DIA = 20000;
+
+// Estado 4: el 23 sep llega sin desglose (solo su Total venta). Todo lo demás igual.
+const DIAS_SIN_DESGLOSE = DIAS_SEP.map(d => d.f !== '23 sep' ? d
+  : { ...d, sinDesglose:true, totalFijo:3680393, fac:null, dev:0, tie:0, web:null, nped:null, vpt:null, upt:null });
+
+// Estado 5: inicio de quincena, hoy 1 oct antes de la primera venta.
+const DIAS_OCT = Array.from({ length: 15 }, (_, i) => i === 0
+  ? { f:'1 oct', meta:4738210, pend:null, arc:null, web:null, fac:null, dev:0, tie:0, bono:'no', nped:0, vpt:null, upt:null, hoy:true }
+  : { f:`${i + 1} oct`, meta:null, pend:null, arc:null, web:null, fac:null, dev:0, tie:0, bono:'no', nped:null, vpt:null, upt:null });
+
+// UPT del período: el servidor lo calcula con las unidades (las filas no las traen).
+const UPT_PERIODO = 2.15;
+
+function totalDia(d) { return d.totalFijo ?? ((d.web?.[0] || 0) + (d.fac?.[0] || 0) + d.tie + d.dev); }
+function cumpDia(d) { return d.meta ? totalDia(d) / d.meta * 100 : null; }
+
+/** La fila Total: lo que manda el servidor (regla de Gestión de Ventas). */
+function totalPeriodo(dias, upt) {
+  const sinDesglose = dias.some(d => d.sinDesglose);
+  const suma = k => dias.reduce((a, d) => a + (d[k]?.[0] || 0), 0);
+  const cant = k => dias.reduce((a, d) => a + (d[k]?.[1] || 0), 0);
+  const par = k => suma(k) ? [suma(k), cant(k)] : null;
+  const meta = dias.reduce((a, d) => a + (d.meta || 0), 0);
+  const total = dias.reduce((a, d) => a + totalDia(d), 0);
+  const conBono = dias.filter(d => d.bono !== 'no');
+  const nped = dias.reduce((a, d) => a + (d.nped || 0), 0);
+  return {
+    meta: meta || null,
+    pend: par('pend'), arc: par('arc'),
+    web: sinDesglose ? null : par('web'),
+    fac: sinDesglose ? null : par('fac'),
+    dev: sinDesglose ? 0 : dias.reduce((a, d) => a + d.dev, 0),
+    tie: sinDesglose ? 0 : dias.reduce((a, d) => a + d.tie, 0),
+    total,
+    cump: meta ? Math.round(total / meta * 100) : null,
+    bono: conBono.length ? { monto: conBono.length * BONO_DIA, dias: conBono.length,
+      firmes: conBono.filter(d => d.bono === 'firme').length, prov: conBono.filter(d => d.bono === 'provisional').length } : null,
+    nped: sinDesglose || !nped ? null : nped,
+    vpt: sinDesglose || !nped ? null : (suma('web') + suma('fac')) / nped,
+    upt: sinDesglose || !nped ? null : upt,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COLUMNAS · orden, títulos, tips y bandas de COLUMNAS_DETALLE_DIARIO
+// ═══════════════════════════════════════════════════════════════════════════
+const TIP_TOTAL = {
+  propia: 'Pedidos web + Facturado + Tienda física − Devoluciones. Este es el valor sobre el que se calcula tu cumplimiento.',
+  equipo: 'Pedidos web + Facturado + Tienda física − Devoluciones. Este es el valor sobre el que se calcula su cumplimiento.',
+};
+const COLS = [
+  { k:'fecha', t:'Fecha', al:'left', fija:'fecha', siempre:true, tip:'Día en que el cliente confirmó el carrito. La venta cuenta aquí aunque se pague o se facture días después.' },
+  { k:'meta', t:'Meta del día', al:'right', fija:'meta', siempre:true, tip:'Presupuesto asignado a este asesor para ese día.' },
+  { k:'pendientes', t:'Carritos pendientes', al:'right', tip:'Carritos confirmados que el cliente todavía no ha pagado. No suman al total.' },
+  { k:'archivado', t:'Archivado', al:'right', tip:'Carritos archivados sin venta. Se muestran para que cuadres el día, pero no suman al total.' },
+  { k:'pedidos_web', t:'Pedidos web', al:'right', banda:'#f7f9fc', tip:'Pedidos ya pagados por el cliente, a la espera de la factura del ERP. Cuentan desde ya: el dinero entró.' },
+  { k:'facturado', t:'Facturado', al:'right', banda:'#f3f6fa', tip:'Pedidos que ya llegaron facturados en el archivo del ERP. Se toma el valor de la factura, no el del carrito.' },
+  { k:'devoluciones', t:'Devoluciones', al:'right', banda:'#eff3f8', tip:'Facturas M del archivo del ERP: devoluciones recibidas en tienda física. Restan del total.' },
+  { k:'tienda_fisica', t:'Tienda física', al:'right', banda:'#eaeff6', tip:'Facturas X del archivo del ERP: compras hechas en el punto físico, sin pasar por un carrito web.' },
+  { k:'total_venta', t:'Total venta', al:'right', siempre:true, banda:'#e3e9f2', tip:null },
+  { k:'cumplimiento', t:'Cumplimiento', al:'center', siempre:true, tip:'Total venta dividido por la Meta del día.' },
+  { k:'bono', t:'Bono diario', al:'center', tip:'Se gana cuando el Total venta del día llega al 100 % de la meta. Verde: ganado con lo ya facturado. Amarillo: se gana contando pedidos pagados que aún no se facturan.' },
+  { k:'nro_pedidos', t:'Nro pedidos', al:'right', tip:'Cantidad de pedidos contados en Pedidos web y Facturado. Las facturas de tienda física no entran aquí: no tienen pedido asociado.' },
+  { k:'vpt', t:'VPT', al:'right', tip:'Venta por transacción: el valor de esos pedidos dividido por el número de pedidos. No incluye tienda física ni devoluciones.' },
+  { k:'upt', t:'UPT', al:'right', tip:'Unidades por transacción: las unidades vendidas en esos pedidos divididas por el número de pedidos.' },
+];
+const OCULTABLES = COLS.filter(c => !c.siempre);
+const TIP_BONO_PROVISIONAL = 'Aún no se ha facturado. Este bono cuenta pedidos pagados que el ERP todavía no factura. Si la factura llega por menos y el día baja del 100 %, el bono se retira.';
+
+const alin = c => c.al === 'left' ? 'text-left' : c.al === 'center' ? 'text-center' : 'text-right';
+function estilo(c) {
+  const e = [];
+  if (c.banda) e.push(`background:${c.banda}`);
+  if (c.fija === 'fecha') e.push('left:0;width:96px;min-width:96px');
+  if (c.fija === 'meta') e.push('left:96px;width:136px;min-width:136px');
+  return e.length ? ` style="${e.join(';')}"` : '';
+}
+const clasesFija = c => c.fija ? ` sticky${c.fija === 'meta' ? ' shadow-[inset_-1px_0_0_#e2e8f0]' : ''}` : '';
+
+// Semáforo de la fila (badgeClase de GW-148, sin cambios): ≥ 95 verde · ≥ 80 ámbar · < 80 rojo.
+const badgeFila = p => p >= 95 ? 'bg-emerald-600' : p >= 80 ? 'bg-amber-500' : 'bg-red-500';
+const par = (p, claseCant) => !p || !p[0] ? '—' : `${pesos(p[0])}<span class="ml-1 text-[11px]${claseCant}">(${p[1]})</span>`;
+
+function celdaFila(c, d, hoy) {
+  const total = totalDia(d), cump = cumpDia(d);
+  switch (c.k) {
+    case 'fecha': return `<button type="button" class="rounded-sm text-left font-medium text-slate-800 hover:underline">${d.f}${hoy ? '<span class="font-normal text-slate-500"> · hoy</span>' : ''}</button>`;
+    case 'meta': return `<span class="text-slate-600">${d.meta === null ? '—' : pesos(d.meta)}</span>`;
+    case 'pendientes': return `<span class="text-slate-400">${par(d.pend, '')}</span>`;
+    case 'archivado': return `<span class="text-slate-400">${par(d.arc, '')}</span>`;
+    case 'pedidos_web': return `<span class="text-slate-800">${par(d.web, ' text-slate-400')}</span>`;
+    case 'facturado': return `<span class="text-slate-800">${par(d.fac, ' text-slate-400')}</span>`;
+    case 'devoluciones': return `<span class="${d.dev ? 'text-red-600' : 'text-slate-400'}">${conSigno(d.dev)}</span>`;
+    case 'tienda_fisica': return `<span class="${d.tie ? 'text-emerald-700' : 'text-slate-400'}">${conSigno(d.tie)}</span>`;
+    case 'total_venta': return `<span class="font-bold text-slate-900">${pesos(total)}</span>`;
+    case 'cumplimiento': return cump === null
+      ? '<span class="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-400">Sin meta</span>'
+      : `<span class="inline-block min-w-[46px] rounded px-1.5 py-0.5 text-xs font-bold text-white ${badgeFila(cump)}">${Math.round(cump)}%</span>`;
+    case 'bono':
+      if (d.bono === 'no') return '<span class="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-400">No</span>';
+      if (d.bono === 'firme') return `<span class="inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">Sí · ${pesos(BONO_DIA)}</span>`;
+      return `<span class="tip tip-fin inline-block" data-tip="${TIP_BONO_PROVISIONAL}"><span class="inline-flex cursor-help items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">${ICO.clock}Sí · ${pesos(BONO_DIA)}</span></span>`;
+    case 'nro_pedidos': return `<span class="text-slate-800">${d.nped ?? '—'}</span>`;
+    case 'vpt': return `<span class="text-slate-800">${d.vpt === null ? '—' : pesos(d.vpt)}</span>`;
+    case 'upt': return `<span class="text-slate-800">${d.upt === null ? '—' : dec2(d.upt)}</span>`;
+  }
+}
+
+// ═══ Fila Total · estilo copiado del <tfoot> de IndicadoresDiariosCanal.vue ═══
+// tr: border-t-2 border-gray-200 bg-gray-50 font-bold · dato: font-semibold text-slate-800 · raya: text-slate-400
+const RAYA = '<span class="text-slate-400">—</span>';
+const TIP_TOTAL_CELDA = {
+  cumplimiento: 'Total venta del período dividido por la Meta del período.',
+  nro_pedidos: 'Pedidos del período en Pedidos web y Facturado.',
+  vpt: 'Valor de todos los pedidos del período dividido por el número de pedidos del período. No es el promedio de los días.',
+  upt: 'Unidades de todos los pedidos del período divididas por el número de pedidos del período. No es el promedio de los días.',
+};
+function celdaTotal(c, t) {
+  const dato = 'font-semibold text-slate-800';
+  const parT = (p, gris) => !p ? RAYA : `<span class="font-semibold ${gris ? 'text-slate-400' : 'text-slate-800'}">${pesos(p[0])}<span class="ml-1 text-[11px]${gris ? '' : ' text-slate-400'}">(${p[1]})</span></span>`;
+  switch (c.k) {
+    case 'fecha': return `<span class="${dato}">Total</span>`;
+    case 'meta': return t.meta === null ? RAYA : `<span class="font-semibold text-slate-700">${pesos(t.meta)}</span>`;
+    case 'pendientes': return parT(t.pend, true);
+    case 'archivado': return parT(t.arc, true);
+    case 'pedidos_web': return parT(t.web, false);
+    case 'facturado': return parT(t.fac, false);
+    case 'devoluciones': return t.dev ? `<span class="font-semibold text-red-600">${conSigno(t.dev)}</span>` : RAYA;
+    case 'tienda_fisica': return t.tie ? `<span class="font-semibold text-emerald-700">${conSigno(t.tie)}</span>` : RAYA;
+    case 'total_venta': return `<span class="font-bold text-slate-900">${pesos(t.total)}</span>`;
+    case 'cumplimiento': return t.cump === null ? RAYA : `<span class="cursor-help font-bold text-slate-900" title="${TIP_TOTAL_CELDA.cumplimiento}">${t.cump} %</span>`;
+    case 'bono': return !t.bono ? RAYA
+      : `<span class="cursor-help ${dato}" title="${t.bono.firmes} en firme y ${t.bono.prov} pendientes de factura.">${pesos(t.bono.monto)}<span class="ml-1 text-[11px] text-slate-400">(${t.bono.dias})</span></span>`;
+    case 'nro_pedidos': return t.nped === null ? RAYA : `<span class="cursor-help ${dato}" title="${TIP_TOTAL_CELDA.nro_pedidos}">${t.nped}</span>`;
+    case 'vpt': return t.vpt === null ? RAYA : `<span class="cursor-help ${dato}" title="${TIP_TOTAL_CELDA.vpt}">${pesos(t.vpt)}</span>`;
+    case 'upt': return t.upt === null ? RAYA : `<span class="cursor-help ${dato}" title="${TIP_TOTAL_CELDA.upt}">${dec2(t.upt)}</span>`;
+  }
+}
+
+// ═══ Selector «Columnas» (DropdownMenu de shadcn) ═══
+function selectorColumnas(ocultas, abierto) {
+  const n = OCULTABLES.filter(c => ocultas.has(c.k)).length;
+  return `<div class="relative">
+    <button type="button" data-columnas class="flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1 text-[12px] font-medium text-slate-600 hover:bg-slate-50">
+      Columnas${n ? `<span class="rounded bg-slate-800 px-1.5 text-[10px] font-semibold text-white tabular-nums">${OCULTABLES.length - n}/${OCULTABLES.length}</span>` : ''}${ICO.chev}
+    </button>
+    ${abierto ? `<div class="absolute right-0 z-50 mt-1 w-60 overflow-hidden rounded-md border bg-white p-1 text-slate-900 shadow-md">
+      ${OCULTABLES.map(c => `<div role="menuitemcheckbox" data-col="${c.k}" class="relative flex cursor-default select-none items-center rounded-sm py-1.5 pr-2 pl-8 text-[12px] outline-none hover:bg-slate-100">
+        <span class="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">${ocultas.has(c.k) ? '' : ICO.check}</span>${c.t}</div>`).join('')}
+      <div class="-mx-1 my-1 h-px bg-slate-100"></div>
+      <div role="menuitem" data-col-reset class="relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-[12px] text-slate-500 hover:bg-slate-100">Mostrarlas todas</div>
+    </div>` : ''}
+  </div>`;
+}
+
+// ═══ TablaDetalleDiario.vue, con la fila Total nueva ═══
+function tablaDetalleDiario({ dias, total, perspectiva, estado, ocultas, abierto, hoy }) {
+  const vis = COLS.filter(c => c.siempre || !ocultas.has(c.k));
+  const ancla = i => i === 0 ? ' tip-ini' : (i >= vis.length - 3 ? ' tip-fin' : '');
+  let cuerpo;
+  if (estado === 'cargando') {
+    cuerpo = `<div class="space-y-3 p-5" aria-label="Cargando detalle diario">${[1,2,3].map(() => '<div class="skeleton h-12 rounded-xl"></div>').join('')}</div>`;
+  } else if (estado === 'vacio') {
+    cuerpo = '<div class="p-8 text-center text-sm text-slate-500">No hay días para mostrar en este período.</div>';
+  } else {
+    const th = vis.map((c, i) => {
+      const tip = c.k === 'total_venta' ? TIP_TOTAL[perspectiva] : c.tip;
+      return `<th scope="col" class="z-20 bg-white px-2.5 pt-3.5 pb-2.5 text-[12px] leading-tight whitespace-nowrap ${alin(c)}${clasesFija(c)}${c.k === 'total_venta' ? ' text-slate-900' : ''}" ${estilo(c)}><span class="tip${ancla(i)} cursor-help border-b border-dotted border-slate-300 pb-px" data-tip="${tip}">${c.t}</span></th>`;
+    }).join('');
+    const filas = dias.map(d => {
+      const esHoy = d.hoy || d.f === hoy;
+      return `<tr class="group cursor-pointer border-b border-slate-50 tabular-nums last:border-0">${vis.map(c => {
+        const fondo = c.fija || !c.banda ? (esHoy ? ' bg-emerald-50' : ' bg-white group-hover:bg-slate-50') : '';
+        return `<td class="px-2.5 py-3 whitespace-nowrap ${alin(c)}${clasesFija(c)}${c.fija ? ' z-10' : ''}${fondo}"${estilo(c)}>${celdaFila(c, d, esHoy)}</td>`;
+      }).join('')}</tr>`;
+    }).join('');
+    const pie = `<tr class="border-t-2 border-gray-200 bg-gray-50 font-bold tabular-nums" data-fila-total>${vis.map(c =>
+      `<td class="px-2.5 py-2.5 whitespace-nowrap ${alin(c)}${clasesFija(c)}${c.fija ? ' z-10 bg-gray-50' : ''}" data-total-col="${c.k}"${estilo(c)}>${celdaTotal(c, total)}</td>`).join('')}</tr>`;
+    cuerpo = `<div class="overflow-x-auto">
+      <table class="w-full text-[13px]">
+        <caption class="sr-only">Detalle diario por día de confirmación del carrito</caption>
+        <thead class="border-b border-slate-100"><tr class="font-semibold text-slate-600">${th}</tr></thead>
+        <tbody>${filas}</tbody>
+        <tfoot>${pie}</tfoot>
+      </table></div>`;
+  }
+  const alerta = estado === 'error' ? '<div class="border-b border-red-200 bg-red-50 px-5 py-3 text-sm text-red-800" role="alert">No pudimos actualizar el detalle diario; se muestran los últimos datos disponibles.</div>' : '';
+  return `<section class="rounded-2xl border bg-white shadow-sm" aria-label="Detalle diario">
+    <header class="flex items-center justify-between gap-4 rounded-t-2xl border-b border-slate-100 px-5 py-2.5">
+      <h2 class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">Detalle diario</h2>
+      ${selectorColumnas(ocultas, abierto)}
+    </header>
+    ${alerta}${cuerpo}
+  </section>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Chrome de get-web (AppLayout + HeaderLayout)
+// ═══════════════════════════════════════════════════════════════════════════
+function sidebar(activo) {
+  const item = (t, on) => `<div class="rounded-md px-3 py-1.5 text-[13px] ${on ? 'bg-white/10 font-medium text-white' : 'text-gray-400'}">${t}</div>`;
+  return `<aside class="w-64 shrink-0 bg-[#0a0a0a] px-3 py-4">
+    <div class="mb-6 flex items-center gap-2 px-2"><span class="flex h-8 w-8 items-center justify-center rounded-md bg-white text-xs font-black text-black">G</span><span class="text-sm font-semibold text-white">GET</span></div>
+    <p class="px-3 pb-1 text-[11px] text-gray-500">Plataforma</p>
+    ${item('Dashboard')}
+    <div class="mt-1 px-3 py-1.5 text-[13px] text-gray-300">Venta Asistida</div>
+    <div class="ml-3 space-y-0.5 border-l border-white/10 pl-2">
+      ${item('Mis Ventas', activo === 'mis')}${item('Gestión de Ventas', activo === 'gestion')}${item('Entregas')}${item('Productos visitados')}${item('Liquidación de comisiones')}${item('Períodos')}
+    </div>
+  </aside>`;
+}
+function marco(activo, migas, contenido, extra = '') {
+  const ancho = document.getElementById('ancho').value;
+  const w = ancho === 'auto' ? 'width:100%;min-width:1100px' : `width:${ancho}px`;
+  return `<div class="relative flex overflow-hidden rounded-lg border border-gray-300 bg-white shadow" style="${w}">
+    ${sidebar(activo)}
+    <div class="min-w-0 flex-1 bg-gray-50">
+      <div class="flex h-14 items-center gap-2 border-b bg-white px-6 text-sm text-gray-700">${ICO.home}<span class="text-gray-400">›</span>Dashboard<span class="text-gray-400">›</span>${migas}</div>
+      ${contenido}
+    </div>
+    ${extra}
+  </div>`;
+}
+
+// ═══ Tablero y comisión del asesor: datos por pantalla, coherentes con la tabla ═══
+const TABLERO = {
+  sep: { meta:49880617, venta:47814054, pendiente:2165500, pedidos:96, unidades:206, porPagar:3, esperados:100, pedPct:96,
+         tc:21.36, tcDias:13, tcEsperados:14, tcMeta:23, trafico:412, pedidosTc:88 },
+  oct: { meta:4738210, venta:0, pendiente:0, pedidos:0, unidades:0, porPagar:0, esperados:9, pedPct:0,
+         tc:null, tcDias:0, tcEsperados:1, tcMeta:23, trafico:0, pedidosTc:0 },
+};
+const COMISION = {
+  sep: { cifra:286884, oficial:251708, parcial:'1 día sin repartir — su venta comisiona pero no cuenta para el % de cumplimiento',
+         escalon:{ cumplimiento:90, pct:0.006 }, lleva:95.86, siguiente:'Para el 100% te faltan $ 2.066.563',
+         umbrales:[ { p:80, cumplido:true, pct:0.005 }, { p:90, cumplido:true, pct:0.006 }, { p:100, cumplido:false, falta:2066563, pedidos:4, pct:0.007 } ],
+         vpt:'$ 546.888 · 109% de $ 500.000', vptAporte:0.001, tcv:'21,3% · 93% de 23,0%', tcvAporte:0 },
+  oct: { cifra:0, oficial:0, parcial:null, escalon:null, lleva:0, siguiente:'Para el 80% te faltan $ 3.790.568',
+         umbrales:[ { p:80, cumplido:false, falta:3790568, pedidos:null, pct:0.005 }, { p:90, cumplido:false, falta:4264389, pedidos:null, pct:0.006 }, { p:100, cumplido:false, falta:4738210, pedidos:null, pct:0.007 } ],
+         vpt:'Pendiente', vptAporte:0, tcv:'Pendiente', tcvAporte:0 },
+};
+const miles = n => n.toLocaleString('es-CO');
+const pct1 = v => v === null ? '—' : (Math.floor(v * 10) / 10).toLocaleString('es-CO', { minimumFractionDigits:1, maximumFractionDigits:1 }) + '%';
+const pctFr = f => (f * 100).toLocaleString('es-CO', { minimumFractionDigits:2, maximumFractionDigits:2 }) + '%';
+const HEX = { verde:'#059669', ambar:'#d97706', rojo:'#dc2626' };
+const semaforo = v => v >= 95 ? 'verde' : v >= 80 ? 'ambar' : 'rojo';
+function arco(ang) {
+  const rad = (180 - ang) * Math.PI / 180, x = 70 + 52 * Math.cos(rad), y = 64 - 52 * Math.sin(rad);
+  return `M 18 64 A 52 52 0 0 1 ${x.toFixed(1)} ${y.toFixed(1)}`;
+}
+const angulo = v => Math.min(Math.max(v, 0), 110) / 110 * 180;
+const ICO_CAL = '<svg class="h-3.5 w-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>';
+const ICO_REFRESH = '<svg class="h-3.5 w-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>';
+const ICO_ROTATE = '<svg class="h-3.5 w-3.5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>';
+const ICO_IZQ = '<svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>';
+const ICO_DER = '<svg class="h-4 w-4" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+
+// CabeceraPeriodo.vue + SelectorPeriodo.vue
+function cabeceraPeriodo(rango, etiquetaNav, hayAnterior, haySiguiente) {
+  const tiendas = ['stirpe', 'derek', 'u82', 'typer'];
+  const modos = ['Quincena', 'Mes', 'Día', 'Personalizado'];
+  const flecha = (ico, on, t) => `<button type="button" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-40" title="${t}" ${on ? '' : 'disabled'}>${ico}</button>`;
+  return `<div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+    <div class="flex items-center gap-2" role="radiogroup" aria-label="Tienda">
+      <span class="text-[11px] font-semibold tracking-wider text-slate-400 uppercase">Tienda</span>
+      <div class="inline-flex overflow-hidden rounded-lg border border-slate-200 bg-white text-sm font-medium">
+        ${tiendas.map((t, i) => `<button type="button" class="px-4 py-1.5 transition-colors ${i > 0 ? 'border-l border-slate-200' : ''} ${i === 0 ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-50'}">${t}</button>`).join('')}
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-[11px] tracking-wide text-gray-400 uppercase">Período</span>
+      <div class="inline-flex overflow-hidden rounded-lg border border-gray-200 text-sm font-medium">
+        ${modos.map((m, i) => `<button type="button" class="px-3 py-1.5 transition-colors ${i > 0 ? 'border-l border-gray-200' : ''} ${i === 0 ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}">${m}</button>`).join('')}
+      </div>
+      <div class="flex items-center gap-1">
+        ${flecha(ICO_IZQ, hayAnterior, 'Período anterior')}
+        <span class="min-w-[110px] text-center text-sm font-semibold text-gray-700 capitalize">${etiquetaNav}</span>
+        ${flecha(ICO_DER, haySiguiente, 'Período siguiente')}
+      </div>
+      <button type="button" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900" title="Actualizar el tablero (sin recargar la página)">${ICO_REFRESH}</button>
+    </div>
+    <span class="ml-auto inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700"><span class="text-slate-400">${ICO_CAL}</span><span>Indicadores del ${rango}</span></span>
+  </div>`;
+}
+
+// TableroAsesor.vue (perspectiva propia)
+function tableroAsesor(t) {
+  const pctRec = t.venta / t.meta * 100, pctConf = (t.venta + t.pendiente) / t.meta * 100;
+  const color = HEX[semaforo(Math.round(pctRec))];
+  const faltante = t.meta - t.venta;
+  const cubierta = t.pendiente > 0 && t.pendiente >= faltante;
+  const desglose = faltante <= 0 || t.pendiente <= 0 ? null
+    : cubierta ? '<p class="text-[10px] text-slate-500 tabular-nums">meta cubierta si se recauda lo confirmado</p>'
+    : `<p class="text-[10px] text-slate-500 tabular-nums">${pesos(faltante - t.pendiente)} por vender · <button type="button" class="cursor-pointer rounded-sm underline decoration-dotted underline-offset-[3px] hover:text-gray-900">+ ${pesos(t.pendiente)} por recaudar de lo ya vendido</button></p>`;
+  const lineaRecaudar = desglose === null && t.pendiente > 0
+    ? `<button type="button" title="Ver los carritos por recaudar" class="cursor-pointer rounded-sm text-[10px] text-slate-500 underline decoration-dotted underline-offset-[3px] hover:text-gray-900">+ ${pesos(t.pendiente)} confirmada por recaudar</button>` : '';
+  const tcOk = t.tc !== null && t.tc >= t.tcMeta;
+  const svg = (pct, fondoConf, colorArco, texto) => `<svg viewBox="0 0 140 74" class="mx-auto w-full max-w-[190px]" role="img">
+      <path d="${arco(180)}" fill="none" stroke="#f1f5f9" stroke-width="11" stroke-linecap="round"/>
+      ${fondoConf ? `<path d="${arco(angulo(fondoConf))}" fill="none" stroke="${colorArco}55" stroke-width="11" stroke-linecap="round"/>` : ''}
+      <path d="${arco(angulo(pct))}" fill="none" stroke="${colorArco}" stroke-width="11" stroke-linecap="round"/>
+      <text x="70" y="58" text-anchor="middle" style="font-size:21px;font-weight:800;fill:#0f172a;font-variant-numeric:tabular-nums">${texto}</text></svg>`;
+  return `<section class="space-y-4" aria-label="Indicadores de ventas del asesor"><div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <article class="rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="mb-1 text-[11px] font-bold tracking-wide text-slate-500 uppercase">% Cump. presupuesto neto</h2>
+      <div class="flex items-center gap-3">
+        <div class="w-[46%] shrink-0">
+          ${svg(pctRec, pctConf, color, Math.round(pctRec) + '%')}
+          <p class="text-center text-[11px] text-slate-600">(${Math.round(pctConf)}%) proyectado con confirmados</p>
+          <p class="mt-0.5 text-center text-[11px] text-slate-600">Meta ${pesos(t.meta)}</p>
+        </div>
+        <div class="min-w-0 flex-1 space-y-2">
+          <div class="rounded-md border border-l-4 border-slate-200 border-l-emerald-600 px-3 py-2">
+            <p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Venta recaudada</p>
+            <p class="text-xl leading-tight font-extrabold break-words tabular-nums">${pesos(t.venta)}</p>${lineaRecaudar}
+          </div>
+          <div class="rounded-md border border-l-4 border-slate-200 ${faltante > 0 ? 'border-l-red-500' : 'border-l-emerald-600'} px-3 py-2">
+            <p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">${faltante > 0 ? 'Por vender y recaudar' : 'Meta cumplida'}</p>
+            <p class="text-xl leading-tight font-extrabold break-words tabular-nums ${faltante > 0 ? 'text-red-600' : 'text-emerald-700'}">${faltante > 0 ? '' : '+'}${pesos(Math.abs(faltante))}</p>
+            ${faltante > 0 ? (desglose || '') : '<p class="text-[10px] text-emerald-700">por encima de la meta</p>'}
+          </div>
+        </div>
+      </div>
+    </article>
+    <article class="rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="mb-1 text-[11px] font-bold tracking-wide text-slate-500 uppercase">% Pedidos esperados</h2>
+      <div class="flex items-center gap-3">
+        <div class="w-[46%] shrink-0">
+          ${svg(t.pedPct, null, HEX[semaforo(t.pedPct)], pct1(t.pedPct))}
+          <p class="text-center text-[11px] text-slate-600">${miles(t.esperados)} esperados</p>
+        </div>
+        <div class="min-w-0 flex-1 space-y-2">
+          <div class="rounded-md border border-l-4 border-slate-200 border-l-emerald-600 px-3 py-2">
+            <p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Pedidos realizados</p>
+            <p class="text-xl font-extrabold tabular-nums">${miles(t.pedidos)}</p>
+            <p class="text-[10px] text-slate-400 tabular-nums">${miles(t.unidades)} ${t.unidades === 1 ? 'unidad' : 'unidades'}</p>
+            ${t.porPagar ? `<p class="text-[10px] text-slate-400 tabular-nums">+ ${t.porPagar} ${t.porPagar === 1 ? 'confirmado' : 'confirmados'} sin pagar</p>` : ''}
+          </div>
+          <div class="rounded-md border border-l-4 border-slate-200 border-l-slate-300 px-3 py-2">
+            <p class="text-[10px] font-semibold tracking-wide text-slate-500 uppercase">Pedidos por realizar</p>
+            <p class="text-xl font-extrabold text-slate-600 tabular-nums">${miles(Math.max(0, t.esperados - t.pedidos))}</p>
+          </div>
+        </div>
+      </div>
+    </article>
+    <article class="flex flex-col rounded-2xl border bg-white p-4 shadow-sm">
+      <h2 class="text-[11px] font-bold tracking-wide text-slate-500 uppercase">Tasa de conversión</h2>
+      <div class="mt-2 flex flex-1 flex-col items-center justify-center rounded-md py-3 ${tcOk ? 'bg-emerald-50' : 'bg-slate-50'}">
+        <p class="text-4xl font-extrabold tabular-nums ${tcOk ? 'text-emerald-700' : 'text-slate-700'}">${pct1(t.tc)}</p>
+        <p class="mt-1 px-3 text-center text-[11px] font-semibold text-slate-500">Sobre ${t.tcDias} de ${t.tcEsperados} días con archivo cargado</p>
+        <p class="mt-1 text-[11px] text-slate-600">Meta: ${pct1(t.tcMeta)}</p>
+      </div>
+      <div class="mt-2 space-y-1.5 border-t pt-2 text-sm">
+        <div class="flex justify-between"><span class="text-slate-500">Tráfico atendido</span><span class="font-semibold tabular-nums">${miles(t.trafico)}</span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Carritos de la comisión</span><span class="font-semibold tabular-nums">${miles(t.pedidosTc)}</span></div>
+        <p class="text-right text-[10px] text-slate-400">en los días con archivo: los mismos que se dividen</p>
+      </div>
+    </article>
+  </div></section>`;
+}
+
+// PanelComisionProyectada.vue (perspectiva propia)
+function panelComision(c) {
+  return `<section class="rounded-2xl border bg-white p-5 shadow-sm" aria-label="Comisión del período">
+    <div class="mb-4 flex items-center justify-between gap-2">
+      <h2 class="text-sm font-semibold text-gray-700">Comisión proyectada de la quincena</h2>
+      ${c.parcial ? `<span class="cursor-help rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-800" title="${c.parcial}">Proyección parcial</span>` : ''}
+    </div>
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div>
+        <p class="text-[11px] tracking-wide text-gray-400 uppercase">Comisión que llevarías</p>
+        <p class="mt-1 text-4xl leading-none font-bold text-emerald-700 tabular-nums">${pesos(c.cifra)}</p>
+        ${c.escalon ? `<p class="mt-2 text-xs text-gray-500 tabular-nums">Escalón actual: <span class="font-semibold text-gray-700">${c.escalon.cumplimiento}% de cumplimiento paga ${pctFr(c.escalon.pct)}</span> · llevas <span class="font-semibold text-gray-700">${Math.round(c.lleva)}%</span></p>` : ''}
+        ${c.siguiente ? `<p class="mt-1 text-xs text-gray-500 tabular-nums">${c.siguiente}</p>` : ''}
+      </div>
+      <div class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+        <div><p class="text-[11px] tracking-wide text-gray-400 uppercase">Comisión oficial</p><p class="text-[11px] text-gray-500">con los días que ya tienen facturas cargadas</p></div>
+        <span class="text-3xl font-bold text-slate-700 tabular-nums">${pesos(c.oficial)}</span>
+      </div>
+    </div>
+    <div class="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+      ${c.umbrales.map(u => `<div class="rounded-xl bg-gray-50 p-3 text-center">
+        <p class="text-[10px] font-semibold tracking-wide text-gray-400 uppercase">Meta ${u.p}&nbsp;%</p>
+        <p class="mt-1 text-sm font-bold ${u.cumplido ? 'text-emerald-700' : 'text-gray-800'}">${u.cumplido ? 'Cumplido' : pesos(u.falta)}</p>
+        <p class="mt-0.5 text-[11px] text-gray-500 tabular-nums">${u.cumplido ? 'umbral superado' : `${u.pedidos === null ? '' : `≈ ${u.pedidos} ${u.pedidos === 1 ? 'pedido' : 'pedidos'} según tu VPT · `}paga ${pctFr(u.pct)}`}</p>
+      </div>`).join('')}
+    </div>
+    <div class="mt-5 border-t border-gray-100 pt-4">
+      <p class="mb-2.5 text-[11px] font-semibold tracking-wide text-gray-400 uppercase">Comisión adicional</p>
+      <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <div class="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+          <div><p class="text-sm font-medium text-gray-600">VPT · venta por pedido</p><p class="text-[11px] text-gray-600 tabular-nums">${c.vpt}</p></div>
+          <span class="rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-500">+${pctFr(c.vptAporte)}</span>
+        </div>
+        <div class="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3">
+          <div><p class="text-sm font-medium text-emerald-900">TCV · tasa de conversión</p><p class="text-[11px] text-gray-600 tabular-nums">${c.tcv}</p></div>
+          <span class="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white">+${pctFr(c.tcvAporte)}</span>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+// Index.vue (pestaña Dashboard cumplimiento), HeaderLayout.vue y la cabecera de MensajeriaInterna.vue
+function paginaMisVentas({ dias, total, estado, ocultas, abierto, hoy, quincena }) {
+  const q = quincena === 'oct'
+    ? { rango:'1 – 15 oct 2026', nav:'Q1 · Oct 2026', ant:true, sig:false, hoyTxt:'jueves 1 oct', porEntregar:0 }
+    : { rango:'16 – 30 sep 2026', nav:'Q2 · Sep 2026', ant:true, sig:false, hoyTxt:'lunes 28 sep', porEntregar:1 };
+  return marco('mis', 'Venta Asistida', `
+    <section class="z-[2] border-b border-gray-200 bg-white px-4 py-4 md:px-8 md:py-6">
+      <header class="flex flex-col items-center justify-between gap-5 md:flex-row">
+        <div><h1 class="text-3xl font-bold text-gray-900">Mis Ventas</h1><p class="text-sm text-gray-600 md:text-base">Gestiona tus ventas asistidas</p></div>
+        <button class="inline-flex h-11 items-center gap-2 rounded-md bg-gray-900 px-5 text-base font-medium text-white">${ICO.plus}Nueva Venta</button>
+      </header>
+    </section>
+    <main class="space-y-5 px-4 py-5 md:px-6">
+      <nav class="flex gap-6 border-b border-slate-200 text-sm font-medium" aria-label="Secciones de Mis Ventas">
+        <button type="button" class="border-b-2 border-slate-900 px-1 pb-3 text-slate-900">Dashboard cumplimiento</button>
+        <button type="button" class="border-b-2 border-transparent px-1 pb-3 text-slate-500">Consultar ventas</button>
+      </nav>
+      ${cabeceraPeriodo(q.rango, q.nav, q.ant, q.sig)}
+      ${tableroAsesor(TABLERO[quincena])}
+      <div class="space-y-4">
+        ${panelComision(COMISION[quincena])}
+        ${tablaDetalleDiario({ dias, total, perspectiva:'propia', estado, ocultas, abierto, hoy })}
+      </div>
+      <div class="mb-4 overflow-hidden rounded-2xl border bg-white shadow-sm">
+        <div class="flex flex-wrap items-center gap-2 bg-gray-50 px-4 py-2.5">
+          <span class="text-gray-500">${ICO.truck}</span>
+          <h2 class="text-[13px] font-bold tracking-wide text-gray-500 uppercase">Mensajería interna · hoy ${q.hoyTxt}</h2>
+          <span class="ml-2 text-[11px] text-gray-500"><span class="font-semibold text-gray-700">${q.porEntregar}</span> por entregar</span>
+          <div class="ml-auto flex items-center gap-2">
+            <button type="button" class="inline-flex h-[26px] w-[26px] items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500" title="Actualizar entregas">${ICO_ROTATE}</button>
+            <button type="button" class="inline-flex h-[26px] items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-medium text-emerald-700">${ICO_CAL}Ver calendario de entregas</button>
+          </div>
+        </div>
+      </div>
+    </main>`);
+}
+
+function paginaModal({ dias, total, ocultas, abierto }) {
+  const fondo = `
+    <div class="flex items-center justify-between border-b bg-white px-6 py-4">
+      <div><h1 class="text-xl font-semibold text-gray-900">Gestión de Ventas</h1><p class="text-sm text-gray-500">Cumplimiento del canal de venta asistida</p></div>
+    </div>
+    <main class="space-y-4 px-6 py-5" style="height:980px">
+      <div class="h-10 w-96 rounded-lg bg-white"></div>
+      <div class="grid grid-cols-4 gap-4">${[1,2,3,4].map(() => '<div class="h-28 rounded-2xl bg-white"></div>').join('')}</div>
+      <div class="h-[560px] rounded-2xl bg-white"></div>
+    </main>`;
+  const modal = `
+  <div class="absolute inset-0 z-40 flex items-center justify-center bg-black/80 p-6">
+    <section role="dialog" aria-modal="true" class="relative flex w-full flex-col gap-4 overflow-hidden rounded-lg border bg-white p-6 shadow-lg" style="max-width:min(96%,1400px);max-height:880px">
+      <button class="absolute top-4 right-4 rounded-sm text-gray-400 opacity-70 hover:opacity-100" aria-label="Cerrar">${ICO.x}</button>
+      <div class="flex flex-wrap items-start gap-3 pr-6">
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-600 text-xs font-bold text-white">VN</span>
+        <div class="min-w-0">
+          <h2 class="text-left text-base font-bold capitalize">valentina núñez caballero</h2>
+          <p class="text-left text-xs text-gray-500">código 7284300 · 16 sep – 30 sep</p>
+        </div>
+      </div>
+      <div class="flex min-h-0 flex-1 flex-col">
+        <div class="inline-flex h-9 items-center self-start rounded-lg bg-gray-100 p-1 text-gray-500">
+          <button class="rounded-md px-3 py-1 text-sm font-medium">Dashboard</button>
+          <button class="rounded-md bg-white px-3 py-1 text-sm font-medium text-gray-900 shadow">Detalle diario</button>
+        </div>
+        <div class="mt-2 min-h-0 flex-1 overflow-auto" data-scroll-modal>
+          ${tablaDetalleDiario({ dias, total, perspectiva:'equipo', estado:'normal', ocultas, abierto, hoy:HOY })}
+          <p class="mt-2 text-[11px] text-gray-400">La <strong>banda gris</strong> marca las columnas que suman al <strong>Total venta</strong>. Clic en un día para ver sus carritos y las devoluciones y compras en tienda física con la cédula del cliente.</p>
+        </div>
+      </div>
+    </section>
+  </div>`;
+  return marco('gestion', 'Venta Asistida', fondo, modal);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PANTALLAS
+// ═══════════════════════════════════════════════════════════════════════════
+const PANTALLAS = [
+  { id:'mis', tab:'1 · Mis Ventas',
+    titulo:'Mis Ventas: la tabla del detalle diario suma el período en una fila Total',
+    ocultas:[], dias:DIAS_SEP, upt:UPT_PERIODO, quincena:'sep', hoy:HOY },
+  { id:'modal', tab:'2 · Modal del asesor',
+    titulo:'Gestión de Ventas: el modal del asesor muestra la misma fila Total',
+    ocultas:[], dias:DIAS_SEP, upt:UPT_PERIODO, modal:true },
+  { id:'cols', tab:'3 · Columnas ocultas',
+    titulo:'Columnas: al ocultar una columna también se oculta su total',
+    ocultas:['archivado','vpt'], abierto:true, dias:DIAS_SEP, upt:UPT_PERIODO, quincena:'sep', hoy:HOY },
+  { id:'sindesglose', tab:'4 · Día sin desglose',
+    titulo:'Un día sin desglose: el Total muestra «—» en lo que no se puede sumar',
+    ocultas:[], dias:DIAS_SIN_DESGLOSE, upt:UPT_PERIODO, quincena:'sep', hoy:HOY },
+  { id:'cero', tab:'5 · Sin ventas aún',
+    titulo:'Inicio de quincena: sin ventas todavía, el Total queda en $ 0',
+    ocultas:[], dias:DIAS_OCT, upt:null, quincena:'oct', hoy:null },
+];
+
+let actual = 'mis';
+const ocultasPorPantalla = Object.fromEntries(PANTALLAS.map(p => [p.id, new Set(p.ocultas)]));
+const abiertoPorPantalla = Object.fromEntries(PANTALLAS.map(p => [p.id, !!p.abierto]));
+
+function render() {
+  const p = PANTALLAS.find(x => x.id === actual);
+  document.getElementById('pestanas').innerHTML = PANTALLAS.map(x =>
+    `<button data-pantalla="${x.id}" class="rounded px-2 py-0.5 ${x.id === actual ? 'bg-indigo-700 font-semibold text-white' : 'border border-indigo-200 bg-white text-indigo-800'}">${x.tab}</button>`).join('');
+  document.getElementById('estado-wrap').style.display = actual === 'mis' ? '' : 'none';
+  document.getElementById('titulo').textContent = p.titulo;
+  const total = totalPeriodo(p.dias, p.upt);
+  const base = { dias:p.dias, total, ocultas:ocultasPorPantalla[p.id], abierto:abiertoPorPantalla[p.id], hoy:p.hoy, quincena:p.quincena };
+  document.getElementById('app').innerHTML = p.modal
+    ? paginaModal(base)
+    : paginaMisVentas({ ...base, estado: actual === 'mis' ? document.getElementById('estado').value : 'normal' });
+  // Tailwind CDN aplica las clases un instante después: se baja al Total cuando el modal ya tiene su alto.
+  setTimeout(() => { const sc = document.querySelector('[data-scroll-modal]'); if (sc) sc.scrollTop = sc.scrollHeight; }, 150);
+}
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-pantalla],[data-columnas],[data-col],[data-col-reset]');
+  if (!t) {
+    if (abiertoPorPantalla[actual] && !e.target.closest('[role=menuitemcheckbox]')) { abiertoPorPantalla[actual] = false; render(); }
+    return;
+  }
+  if (t.dataset.pantalla) { actual = t.dataset.pantalla; render(); return; }
+  if (t.dataset.columnas !== undefined) { abiertoPorPantalla[actual] = !abiertoPorPantalla[actual]; render(); return; }
+  const oc = ocultasPorPantalla[actual];
+  if (t.dataset.colReset !== undefined) { oc.clear(); abiertoPorPantalla[actual] = false; render(); return; }
+  if (t.dataset.col && t.getAttribute('role') === 'menuitemcheckbox') { oc.has(t.dataset.col) ? oc.delete(t.dataset.col) : oc.add(t.dataset.col); render(); }
+});
+['estado','ancho'].forEach(id => document.getElementById(id).addEventListener('change', render));
+
+// ?pantalla=cols&estado=error&ancho=1440 para revisar una pantalla concreta
+const qs = new URLSearchParams(location.search);
+if (qs.get('pantalla') && PANTALLAS.some(x => x.id === qs.get('pantalla'))) actual = qs.get('pantalla');
+['estado','ancho'].forEach(id => { if (qs.get(id)) document.getElementById(id).value = qs.get(id); });
+render();
+</script>
+</body>
+</html>
