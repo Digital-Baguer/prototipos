@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup GW-176 · Wizard de promociones: tope por pedido en «Lleva más, paga menos»</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet">
+<style>
+  body { font-family: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif; }
+  .lbl { font-size: .875rem; font-weight: 500; color: #262626; }
+  .inp { border:1px solid #d1d5db; border-radius:.375rem; padding:.375rem .75rem; font-size:.875rem; background:#fff; }
+  .sel { border:1px solid #d1d5db; border-radius:.375rem; background:#fff; display:inline-flex; align-items:center; justify-content:space-between; }
+  .nuevo { outline: 2px dashed #059669; outline-offset: 4px; border-radius: .5rem; position: relative; }
+  .nuevo::after { content:'CAMBIA'; position:absolute; top:-10px; right:-6px; background:#059669; color:#fff;
+                  font-size:9px; font-weight:700; padding:2px 6px; border-radius:9999px; letter-spacing:.04em; }
+  .oculto { display:none !important; }
+</style>
+</head>
+<body class="bg-gray-50 text-neutral-900 antialiased">
+
+<!-- ═══════ Barra del mockup ═══════ -->
+<div class="sticky top-0 z-50 border-b border-neutral-800 bg-neutral-900 px-6 py-2 text-white">
+  <div class="flex flex-wrap items-center justify-between gap-3 text-sm">
+    <div class="flex items-center gap-3">
+      <span class="font-bold">MOCKUP GW-176</span>
+      <span class="text-neutral-300">Paso 1 · Beneficio REGALO · mecánica «Lleva más, paga menos»</span>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <button onclick="ver('hoy')" id="bHoy" class="rounded-full px-3 py-1 font-medium">Cómo es hoy</button>
+      <button onclick="ver('pro')" id="bPro" class="rounded-full px-3 py-1 font-medium">Propuesta</button>
+      <span class="mx-1 h-4 w-px bg-neutral-600"></span>
+      <span class="text-xs text-neutral-400">Estado:</span>
+      <button onclick="estado('sin')" id="eSin" class="rounded px-2 py-1 text-xs font-medium">Sin tope</button>
+      <button onclick="estado('con')" id="eCon" class="rounded px-2 py-1 text-xs font-medium">Con tope 1</button>
+      <button onclick="estado('vieja')" id="eVieja" class="rounded px-2 py-1 text-xs font-medium">Promo guardada con «cualquiera»</button>
+      <button onclick="estado('error')" id="eError" class="rounded px-2 py-1 text-xs font-medium">Error al guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside class="flex w-14 shrink-0 flex-col items-center gap-5 bg-neutral-900 py-5">
+    <div class="h-8 w-8 rounded-lg bg-neutral-700"></div>
+    <div class="mt-2 h-5 w-5 rounded bg-neutral-700/60"></div>
+    <div class="h-5 w-5 rounded bg-neutral-700/60"></div>
+    <div class="h-5 w-5 rounded bg-emerald-500/90"></div>
+    <div class="h-5 w-5 rounded bg-neutral-700/60"></div>
+    <div class="h-5 w-5 rounded bg-neutral-700/60"></div>
+  </aside>
+
+  <div class="flex-1">
+    <header class="flex items-center justify-between border-b border-gray-200 bg-white px-8 py-3">
+      <div class="w-72 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-400">Filtrar menú…</div>
+      <div class="flex items-center gap-2 text-sm text-gray-600"><div class="h-7 w-7 rounded-full bg-neutral-300"></div> Francisco Lizcano</div>
+    </header>
+
+    <main class="mx-auto max-w-4xl space-y-6 px-8 py-6">
+      <div>
+        <p class="text-xs text-gray-500">Promociones › Editar</p>
+        <h1 class="text-xl font-semibold">3x2 en camisetas Stirpe</h1>
+      </div>
+
+      <!-- Pasos -->
+      <div class="flex gap-2 text-sm">
+        <span class="rounded-full bg-neutral-900 px-3 py-1 font-medium text-white">1 · Beneficio</span>
+        <span class="rounded-full bg-gray-200 px-3 py-1 text-gray-600">2 · Condiciones</span>
+        <span class="rounded-full bg-gray-200 px-3 py-1 text-gray-600">3 · Vigencia</span>
+        <span class="rounded-full bg-gray-200 px-3 py-1 text-gray-600">4 · Resumen</span>
+      </div>
+
+      <!-- Error al guardar -->
+      <div id="bannerError" class="oculto rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+        No se pudo guardar: «El tope de veces debe ser 1 o más». Revisa el campo marcado.
+      </div>
+
+      <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <p class="lbl">Tipo de beneficio</p>
+        <div class="mt-2 flex gap-2 text-sm">
+          <span class="rounded-lg border border-gray-200 px-3 py-1.5 text-gray-500">% descuento</span>
+          <span class="rounded-lg border border-gray-200 px-3 py-1.5 text-gray-500">$ descuento</span>
+          <span class="rounded-lg border border-gray-200 px-3 py-1.5 text-gray-500">Envío gratis</span>
+          <span class="rounded-lg border border-neutral-900 bg-neutral-900 px-3 py-1.5 font-medium text-white">Regalo</span>
+        </div>
+
+        <!-- Bloque REGALO (copia de WizardPromocion.vue:779-972) -->
+        <div class="mt-3 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div class="space-y-2">
+            <p class="text-sm font-medium text-neutral-800">Mecánica</p>
+            <div class="flex gap-3">
+              <label class="flex items-center gap-2"><input type="radio" name="mec" class="h-4 w-4"> <span class="text-sm text-gray-700">Por compra mínima <span class="text-xs text-gray-400">(monto o cantidad)</span></span></label>
+              <label class="flex items-center gap-2"><input type="radio" name="mec" class="h-4 w-4" checked> <span class="text-sm text-gray-700">Lleva más, paga menos <span class="text-xs text-gray-400">(2x1, 3x2…)</span></span></label>
+            </div>
+          </div>
+
+          <!-- Panel NXM -->
+          <div class="space-y-3">
+            <div class="flex flex-wrap items-end gap-3">
+              <div class="space-y-1">
+                <p class="text-xs text-gray-500">El cliente paga</p>
+                <input value="2" class="inp w-20 text-center text-lg font-semibold">
+              </div>
+              <div class="space-y-1">
+                <p class="text-xs text-gray-500">y lleva</p>
+                <input value="3" class="inp w-20 text-center text-lg font-semibold">
+              </div>
+              <span class="mb-1 rounded-full bg-neutral-900 px-3 py-1 text-sm font-semibold text-white">= 3x2</span>
+
+              <!-- Selector: hoy con «cualquiera»; propuesta sin él -->
+              <div class="mb-1 ml-2 text-xs text-gray-500" id="selWrap">
+                Sale
+                <span class="relative inline-block align-middle">
+                  <button onclick="toggleSel()" class="sel h-7 w-36 px-2 text-xs text-neutral-800"><span id="selVal">el más barato</span><span>▾</span></button>
+                  <div id="selMenu" class="oculto absolute left-0 top-8 z-10 w-36 rounded-md border border-gray-200 bg-white py-1 text-xs shadow-md">
+                    <div class="px-2 py-1.5 hover:bg-gray-50">el más barato</div>
+                    <div class="px-2 py-1.5 hover:bg-gray-50">el más caro</div>
+                    <div class="px-2 py-1.5 hover:bg-gray-50" id="optCualquiera">cualquiera</div>
+                  </div>
+                </span>
+                de cada grupo
+              </div>
+            </div>
+            <p class="text-xs text-emerald-800">Se escribe como se dice: «paga 1, lleva 2» = 2x1 · «paga 2, lleva 3» = 3x2.</p>
+
+            <!-- NUEVO: mismo control que UMBRAL (WizardPromocion.vue:870-911) -->
+            <div id="bloqueTope" class="nuevo space-y-1.5 p-1">
+              <p class="text-sm font-medium text-neutral-800">¿Cuántas veces por pedido?</p>
+              <div class="flex flex-wrap items-center gap-4 text-sm">
+                <label class="flex items-center gap-2"><input type="radio" name="tope" id="rSin" class="h-4 w-4 border-gray-300" onclick="estado('sin')"> <span>Sin tope (un 3x2 por cada 3 que lleve)</span></label>
+                <label class="flex items-center gap-2"><input type="radio" name="tope" id="rCon" class="h-4 w-4 border-gray-300" onclick="estado('con')"> <span>Tope de veces:</span></label>
+                <input id="inTope" value="1" class="inp w-24">
+              </div>
+              <p id="errTope" class="oculto text-xs text-rose-700">Debe ser 1 o más.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Frase viva (describirPromocion) -->
+        <div class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Así lo verá el cliente</p>
+          <p class="mt-1" id="frase"></p>
+        </div>
+
+        <!-- Nota del estado -->
+        <p id="nota" class="mt-3 text-xs text-gray-500"></p>
+      </div>
+
+      <!-- Ejemplo de carrito -->
+      <div class="rounded-xl border-2 border-dashed border-neutral-400 bg-neutral-100 p-5">
+        <p class="mb-2 inline-block rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Nota del mockup · no va en la pantalla</p>
+        <p class="lbl">Qué haría el motor con un carrito de 6 camisetas Stirpe</p>
+        <table class="mt-2 w-full text-sm">
+          <thead class="text-left text-xs text-gray-500"><tr><th class="py-1">Producto</th><th>Cant.</th><th class="text-right">Precio</th><th class="text-right">Regalo</th></tr></thead>
+          <tbody>
+            <tr class="border-t border-gray-100"><td class="py-1.5">Camiseta oversize negra</td><td>2</td><td class="text-right">$89.900</td><td class="text-right" id="r1">—</td></tr>
+            <tr class="border-t border-gray-100"><td class="py-1.5">Camiseta básica blanca</td><td>2</td><td class="text-right">$59.900</td><td class="text-right" id="r2"></td></tr>
+            <tr class="border-t border-gray-100"><td class="py-1.5">Camiseta estampada</td><td>2</td><td class="text-right">$69.900</td><td class="text-right" id="r3">—</td></tr>
+          </tbody>
+        </table>
+        <p class="mt-2 text-sm" id="resultado"></p>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+let vista = 'pro', est = 'sin';
+const $ = (id) => document.getElementById(id);
+function chip(el, on) { el.className = el.className.replace(/ ?(bg-white text-neutral-900|bg-neutral-700 text-white)/g, '') + (on ? ' bg-white text-neutral-900' : ' bg-neutral-700 text-white'); }
+function ver(v) { vista = v; pintar(); }
+function estado(e) { est = e; pintar(); }
+function toggleSel() { $('selMenu').classList.toggle('oculto'); }
+function pintar() {
+  chip($('bHoy'), vista === 'hoy'); chip($('bPro'), vista === 'pro');
+  ['sin','con','vieja','error'].forEach(k => chip($('e' + k.charAt(0).toUpperCase() + k.slice(1)), est === k));
+  const hoy = vista === 'hoy';
+  const conTope = est === 'con' || est === 'error';
+  $('bloqueTope').classList.toggle('oculto', hoy);
+  $('optCualquiera').classList.toggle('oculto', !hoy);
+  $('rSin').checked = !conTope; $('rCon').checked = conTope;
+  $('inTope').classList.toggle('oculto', !conTope);
+  $('inTope').value = est === 'error' ? '' : '1';
+  $('inTope').classList.toggle('border-rose-400', est === 'error' && !hoy);
+  $('errTope').classList.toggle('oculto', !(est === 'error' && !hoy));
+  $('bannerError').classList.toggle('oculto', !(est === 'error' && !hoy));
+  $('selVal').textContent = (est === 'vieja' && hoy) ? 'cualquiera' : 'el más barato';
+
+  // Frase viva
+  const sel = (est === 'vieja' && hoy) ? 'uno' : 'el más barato';
+  const topeTxt = conTope ? 'Tope de 1 vez por pedido.' : 'Sin límite por pedido.';
+  $('frase').textContent = `Por cada 3 camisetas que lleve el cliente, ${sel} sale gratis (3x2). ${topeTxt}`;
+
+  // Resultado del carrito (6 unidades → 2 ciclos; con tope 1 → 1)
+  let regalos = conTope && !hoy ? 1 : 2;
+  if (hoy) regalos = 2; // hoy NXM ignora limite_por_pedido
+  $('r2').innerHTML = `<span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">${regalos} gratis</span>`;
+  if (hoy && conTope) {
+    $('resultado').innerHTML = '<span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-800">Inconsistente</span> La frase dice «Tope de 1 vez», pero el motor regala 2 ($119.800): <code>limite_por_pedido</code> no se lee en NXM.';
+  } else {
+    $('resultado').innerHTML = `Descuento: <b>$${(regalos * 59900).toLocaleString('es-CO')}</b> · ${regalos} camiseta(s) básica(s) blanca(s) de $59.900 (la más barata).`;
+  }
+
+  const notas = {
+    hoy: {
+      sin: 'Hoy: sin control de tope en NXM; «cualquiera» está en el selector y regala en orden de llegada.',
+      con: 'Hoy: si el operador puso tope en «Por compra mínima» y cambió a NXM, el tope viaja oculto en el payload; la frase lo anuncia y el motor no lo aplica.',
+      vieja: 'Hoy: la promo guardada con CUALQUIERA muestra «cualquiera» y la frase dice «uno».',
+      error: 'Hoy: este estado no existe en NXM (no hay control de tope).',
+    },
+    pro: {
+      sin: 'Propuesta: el control «¿Cuántas veces por pedido?» de UMBRAL aparece también en NXM. NULL = sin tope.',
+      con: 'Propuesta: tope 1 → 6 camisetas dan 1 regalo, no 2 (B4). La frase y el motor dicen lo mismo.',
+      vieja: 'Propuesta: una promo guardada con CUALQUIERA se muestra como «el más barato» (D3: es lo que el motor hace). El dato no se reescribe: el motor ya lo trata como el más barato.',
+      error: 'Propuesta: el backend ya valida limite_por_pedido ≥ 1 (GuardarPromocionRequest.php:141); el error se pinta en el campo.',
+    },
+  };
+  $('nota').textContent = notas[vista][est];
+}
+pintar();
+</script>
+</body>
+</html>
