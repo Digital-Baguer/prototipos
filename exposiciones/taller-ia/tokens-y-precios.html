@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cómo se cobra la IA: tokens, precios y caché</title>
+<style>
+  :root {
+    --ink: #111;
+    --muted: #666;
+    --line: #e5e5e5;
+    --bg: #fff;
+    --soft: #f6f6f4;
+    --in-a: #a7d8c4;   /* entrada, tono A */
+    --in-b: #cfeadf;   /* entrada, tono B */
+    --out-a: #f2a7c3;  /* salida, tono A */
+    --out-b: #f8cddd;  /* salida, tono B */
+    --think: #c9c9c9;  /* razonamiento oculto */
+    --base: #4a4a4a;   /* carga inicial */
+    --conv: #9a9a9a;   /* conversación acumulada */
+    --cache: #6cc9a1;  /* leído de caché */
+    --write: #065f46;  /* escrito en caché */
+    --pink: #d63a7a;
+    --emerald: #0f8a5f;
+    --serif: Georgia, "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font-family: var(--serif); font-size: 19px; line-height: 1.55; }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 0 20px; }
+  header.hero { padding: 90px 0 40px; text-align: center; }
+  header.hero h1 { font-size: 44px; line-height: 1.12; margin: 0 0 18px; letter-spacing: -0.5px; }
+  header.hero p.dek { font-size: 21px; color: #333; margin: 0 auto; max-width: 600px; }
+  header.hero .by { font-family: var(--sans); font-size: 13px; color: var(--muted); margin-top: 22px; }
+  h2 { font-size: 30px; line-height: 1.2; margin: 70px 0 14px; }
+  h3 { font-family: var(--sans); font-size: 17px; margin: 30px 0 8px; }
+  p { margin: 0 0 18px; }
+  .kicker { font-family: var(--sans); font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--emerald); font-weight: 700; margin-top: 80px; }
+  .note { font-family: var(--sans); font-size: 13px; color: var(--muted); }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 0.85em; background: var(--soft); padding: 1px 5px; border-radius: 3px; }
+
+  /* ---------- Scrollytelling ---------- */
+  .story { position: relative; }
+  .stage {
+    position: sticky; top: 0; height: 100vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    pointer-events: none; z-index: 1;
+  }
+  .stage .inner { pointer-events: auto; width: min(760px, 94vw); }
+  .steps { position: relative; z-index: 2; margin-top: -100vh; }
+  .step { min-height: 95vh; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8vh; }
+  .step .card {
+    font-family: var(--sans); font-size: 17px; line-height: 1.5;
+    background: rgba(255,255,255,0.96); border: 1px solid var(--line);
+    box-shadow: 0 2px 14px rgba(0,0,0,0.06);
+    padding: 16px 20px; max-width: 460px; border-radius: 6px;
+  }
+  .step .card b { font-weight: 700; }
+  .step:last-child { min-height: 110vh; }
+
+  /* Escena A: tokens */
+  .counter { font-family: var(--sans); font-size: 13px; color: var(--muted); text-align: center; margin-bottom: 6px; }
+  .counter strong { color: var(--ink); font-size: 15px; }
+  .grid { display: grid; grid-template-columns: repeat(50, 9px); gap: 2px; justify-content: center; min-height: 22px; }
+  .grid i { width: 9px; height: 9px; display: block; border-radius: 1px; transition: background .25s; }
+  .grid i.q { background: var(--in-a); }
+  .grid i.a { background: var(--out-a); }
+  .grid i.t { background: var(--think); }
+  .sentence { font-family: var(--sans); font-size: 26px; line-height: 1.8; text-align: center; margin: 34px auto 18px; max-width: 700px; min-height: 100px; }
+  .sentence span.tk { padding: 2px 0; border-radius: 3px; transition: background .2s, opacity .2s; white-space: pre; }
+  .sentence span.tk.on.q:nth-child(odd) { background: var(--in-a); }
+  .sentence span.tk.on.q:nth-child(even) { background: var(--in-b); }
+  .sentence span.tk.on.a:nth-child(odd) { background: var(--out-a); }
+  .sentence span.tk.on.a:nth-child(even) { background: var(--out-b); }
+  .sentence span.tk.off { opacity: .15; }
+  .sentence .who { display: block; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .words { display: flex; gap: 26px; justify-content: center; flex-wrap: wrap; font-family: var(--sans); font-size: 22px; }
+  .words .w { text-align: center; }
+  .words .w small { display: block; font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .words .w span { padding: 2px 1px; border-radius: 3px; white-space: pre; }
+  .words .w span:nth-child(odd) { background: var(--in-a); }
+  .words .w span:nth-child(even) { background: var(--in-b); }
+  .pic { display: flex; align-items: center; justify-content: center; gap: 28px; font-family: var(--sans); }
+  .pic .img { width: 180px; height: 180px; display: grid; grid-template-columns: repeat(12, 1fr); gap: 0; border-radius: 4px; overflow: hidden; transition: gap .5s; }
+  .pic .img.split { gap: 3px; }
+  .pic .img i { display: block; }
+  .pic .lbl { font-size: 15px; max-width: 220px; }
+  .pic .lbl strong { font-size: 30px; display: block; color: var(--emerald); }
+  .thinking { font-family: var(--sans); font-size: 13px; color: #999; filter: blur(2.2px); max-width: 560px; margin: 0 auto 10px; text-align: left; line-height: 1.5; transition: opacity .3s; }
+  .legend { display: flex; gap: 16px; justify-content: center; font-family: var(--sans); font-size: 12px; color: var(--muted); margin-top: 12px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .costbox { font-family: var(--sans); display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 22px; text-align: center; }
+  .costbox div { background: var(--soft); border-radius: 6px; padding: 10px 6px; font-size: 13px; color: var(--muted); }
+  .costbox strong { display: block; font-size: 20px; color: var(--ink); }
+
+  /* Escena C: tres modelos de Claude */
+  .stage .inner.wide { width: min(1120px, 96vw); }
+  .query { text-align: center; font-family: var(--sans); margin-bottom: 14px; }
+  .query span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .query b { font-size: 19px; line-height: 1.3; display: block; max-width: 640px; margin: 0 auto; }
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--ink); }
+  .col { padding: 12px 16px 0; border-left: 1px solid var(--line); font-family: var(--sans); min-width: 0; }
+  .col:first-child { border-left: none; padding-left: 0; }
+  .col .mname { font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+  .col .panel { height: min(34vh, 320px); overflow: hidden; font-size: 13px; line-height: 1.45; color: #a8a8a8; }
+  .col .panel .think { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: #b8b8b8; filter: blur(1.5px); white-space: pre-wrap; word-break: break-word; }
+  .col .panel .ans { white-space: pre-wrap; word-break: break-word; }
+  .col .panel .ans .cur { color: var(--ink); }
+  .col .blabel { font-weight: 700; font-size: 13px; margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; min-height: 30px; }
+  .col .blabel.thinking { font-family: ui-monospace, Menlo, monospace; }
+  .col canvas.bars { width: 100%; display: block; }
+  .col .stats { font-size: 12px; color: var(--muted); margin: 6px 0 10px; min-height: 16px; }
+  .col .stats b { color: var(--emerald); }
+
+  /* Escena D: anatomía de una petición */
+  .anat { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; font-family: var(--sans); align-items: start; padding-bottom: 110px; }
+  .anat h4 { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+  .chat { font-size: 13px; min-height: 100px; }
+  .chat .bub { margin: 6px 0; padding: 8px 11px; border-radius: 8px; max-width: 92%; line-height: 1.4; overflow: hidden; }
+  .chat .u { background: var(--ink); color: #fff; margin-left: auto; }
+  .chat .a { background: var(--soft); }
+  .chat .tl { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; background: #fff; border: 1px solid var(--line); }
+  .chat .tr { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--muted); border-left: 3px solid #ccc; border-radius: 0; padding: 4px 10px; }
+  .chat .tk { float: right; color: var(--muted); font-size: 11px; margin-left: 8px; }
+  .chat .u .tk { color: #bbb; }
+  .env { border: 1px solid var(--ink); border-radius: 6px; padding: 8px; }
+  .env .sep { font-size: 11px; color: var(--muted); margin: 8px 0 3px; text-transform: uppercase; letter-spacing: .8px; }
+  .env .sep:first-child { margin-top: 0; }
+  .env .blk { display: flex; justify-content: space-between; align-items: center; padding: 0 8px; margin: 2px 0; font-size: 12px; border-radius: 3px; min-height: 16px; overflow: hidden; transition: background .3s; background: #e9e9e9; }
+  .env .blk.wr { background: var(--write); color: #fff; }
+  .env .blk.hit { background: var(--in-b); color: #1c4d3a; }
+  .env .blk.outblk { background: var(--out-a); }
+  .envstats { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+  .envstats b { color: var(--ink); }
+  .gauge { margin-top: 14px; font-size: 12px; color: var(--muted); }
+  .gauge .bar { height: 12px; background: #eee; border-radius: 6px; position: relative; overflow: hidden; margin-top: 4px; transition: height .3s; }
+  .gauge .fill { height: 100%; background: var(--ink); width: 0; transition: width .4s; min-width: 2px; }
+  .gauge .buf { position: absolute; right: 0; top: 0; height: 100%; width: 3.3%; background: repeating-linear-gradient(45deg, #bbb 0 2px, #fff 2px 4px); }
+  .gauge.big .bar { height: 28px; }
+  .gauge .lbls { display: flex; justify-content: space-between; margin-top: 3px; }
+  .env .blk.new { background: var(--in-a); }
+  .env .blk.rep { background: #e2e2e2; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.6) 0 4px, transparent 4px 8px); color: #555; }
+  ul.plain { font-family: var(--sans); font-size: 16px; padding-left: 20px; }
+  ul.plain li { margin-bottom: 8px; }
+  .formula { font-family: var(--sans); font-size: 15px; background: var(--soft); border-radius: 8px; padding: 14px 16px; margin: 6px 0 20px; line-height: 2.1; }
+  .formula span { padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+  .formula .f-eq { padding-left: 0; font-weight: 700; }
+  .formula .f-pre { background: #4a4a4a; color: #fff; }
+  .formula .f-hist { background: #e2e2e2; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.6) 0 4px, transparent 4px 8px); }
+  .formula .f-ans { background: var(--out-a); }
+  .formula .f-new { background: var(--in-a); }
+  table.turns { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 13px; margin: 14px 0 6px; }
+  table.turns th, table.turns td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: right; vertical-align: top; }
+  table.turns th:first-child, table.turns td:first-child { text-align: left; }
+  table.turns th { font-size: 11px; color: var(--muted); font-weight: 600; }
+  table.turns th small, table.turns td small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+  table.turns tfoot td { font-weight: 700; border-top: 2px solid var(--ink); }
+
+  /* Reglas de caché */
+  table.rules { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 14px; margin: 18px 0; }
+  table.rules td { border-bottom: 1px solid var(--line); padding: 10px 8px; vertical-align: top; }
+  table.rules td:first-child { width: 42%; font-weight: 600; }
+  table.rules td i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; vertical-align: -1px; }
+  .switch { font-family: var(--sans); background: var(--soft); border-radius: 8px; padding: 20px; margin: 22px 0; }
+  .switch label { font-size: 13px; display: block; }
+  .switch input[type=range] { width: 100%; margin: 8px 0 2px; }
+  .switch .opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+  .switch .opt { background: #fff; border-radius: 6px; padding: 12px; font-size: 13px; color: var(--muted); border: 1px solid var(--line); }
+  .switch .opt strong { display: block; color: var(--ink); font-size: 22px; margin: 4px 0; }
+  .switch .opt b { color: var(--ink); }
+  .switch .opt.keep { border-color: var(--emerald); }
+
+  /* Cuadrículas de tokens por modelo */
+  .models3 { font-family: var(--sans); margin: 26px 0 10px; }
+  .models3 .row { border-top: 1px solid var(--line); padding: 14px 0; }
+  .models3 .meta { font-size: 13px; margin-bottom: 8px; }
+  .models3 .meta b { font-size: 14px; }
+  .models3 .meta span { color: var(--emerald); font-weight: 700; }
+  .models3 canvas { width: 100%; display: block; }
+  .effbars { font-family: var(--sans); font-size: 13px; margin: 16px 0; }
+  .effbars .r { display: grid; grid-template-columns: 130px 1fr 210px; gap: 10px; align-items: center; margin: 7px 0; }
+  .effbars .r.first { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 10px; }
+  .effbars .lb b { display: block; }
+  .effbars .lb span { color: var(--muted); font-size: 12px; }
+  .effbars .track { display: flex; height: 16px; border-radius: 2px; overflow: hidden; background: #f3f3f3; }
+  .effbars .track div { height: 100%; transition: width .8s; width: 0; }
+  .effbars .v { text-align: right; color: var(--muted); font-size: 12px; }
+  .effbars .v b { color: var(--ink); font-size: 13px; }
+
+  /* Escena B: agente */
+  .calls { font-family: var(--sans); width: 100%; }
+  .calls .bar { display: flex; align-items: center; gap: 8px; margin: 5px 0; transition: opacity .35s; }
+  .calls .bar .n { width: 70px; font-size: 12px; color: var(--muted); text-align: right; flex: none; }
+  .calls .bar .track { flex: 1; height: 20px; display: flex; }
+  .calls .bar .seg { height: 100%; transition: width .45s, background .35s; }
+  .calls .bar .note2 { width: 90px; font-size: 11px; color: var(--muted); flex: none; }
+  .calls .bar.hide { opacity: 0; }
+  .seg.base { background: var(--base); }
+  .seg.conv { background: var(--conv); }
+  .seg.new { background: var(--in-a); }
+  .seg.out { background: var(--out-a); }
+  .seg.rep { background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.55) 0 4px, transparent 4px 8px); }
+  .seg.hit { background: var(--cache) !important; }
+  .seg.wr { background: var(--write) !important; }
+  .agent-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-bottom: 12px; font-family: var(--sans); flex-wrap: wrap; }
+  .agent-top .tot { font-size: 13px; color: var(--muted); }
+  .agent-top .tot strong { display: block; font-size: 24px; color: var(--ink); }
+  .agent-top .tot strong.cheap { color: var(--emerald); }
+  select { font-family: var(--sans); font-size: 14px; padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+
+  /* Tabla de precios */
+  table.prices { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 14px; margin: 18px 0; }
+  table.prices th, table.prices td { border-bottom: 1px solid var(--line); padding: 9px 8px; text-align: right; }
+  table.prices th:first-child, table.prices td:first-child { text-align: left; }
+  table.prices thead th { font-size: 12px; color: var(--muted); font-weight: 600; vertical-align: bottom; }
+  table.prices tr.group th { border-bottom: none; color: var(--ink); font-size: 12px; text-transform: uppercase; letter-spacing: .8px; padding-bottom: 0; }
+  table.prices td small { display: block; color: var(--muted); font-size: 11px; }
+  table.prices tr:hover td { background: var(--soft); }
+  dl.cols { font-family: var(--sans); font-size: 15px; }
+  dl.cols dt { font-weight: 700; margin-top: 12px; }
+  dl.cols dd { margin: 2px 0 0; color: #333; }
+
+  /* Calculadora */
+  .calc { font-family: var(--sans); background: var(--soft); border-radius: 8px; padding: 20px; margin: 22px 0; }
+  .calc .presets { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 16px; }
+  .calc button { font-family: var(--sans); font-size: 13px; border: 1px solid #bbb; background: #fff; padding: 6px 10px; border-radius: 16px; cursor: pointer; }
+  .calc button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .calc .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; }
+  .calc label { font-size: 13px; color: #333; display: block; }
+  .calc input { width: 100%; font-size: 15px; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; margin-top: 3px; font-family: var(--sans); }
+  .calc .result { margin-top: 18px; }
+  .calc .stack { display: flex; height: 26px; border-radius: 4px; overflow: hidden; background: #e8e8e8; }
+  .calc .stack div { height: 100%; transition: width .4s; }
+  .calc .lines { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+  .calc .lines strong { display: block; color: var(--ink); font-size: 15px; }
+  .calc .total { font-size: 30px; font-weight: 700; margin: 10px 0 0; }
+  .calc .total small { font-size: 14px; font-weight: 400; color: var(--muted); }
+
+  /* Caso real */
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-family: var(--sans); margin: 18px 0; }
+  .facts div { border-top: 3px solid var(--ink); padding-top: 8px; font-size: 13px; color: var(--muted); }
+  .facts strong { display: block; color: var(--ink); font-size: 22px; }
+  .hbars { font-family: var(--sans); font-size: 13px; margin: 16px 0; }
+  .hbars .r { display: grid; grid-template-columns: 110px 1fr 90px; gap: 10px; align-items: center; margin: 6px 0; }
+  .hbars .b { height: 18px; background: var(--emerald); border-radius: 2px; width: 0; transition: width 1s; }
+  .hbars .b.nc { background: #bbb; }
+  .hbars .v { text-align: right; font-weight: 700; }
+
+  /* Cierre: el ciclo del método */
+  .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-family: var(--sans); margin: 18px 0; counter-reset: ph; }
+  .flow .ph { position: relative; background: var(--soft); border-radius: 8px; padding: 14px 14px 12px; font-size: 13px; color: #333; border-top: 3px solid var(--ink); }
+  .flow .ph::before { counter-increment: ph; content: counter(ph); position: absolute; top: 10px; right: 12px; font-size: 11px; color: var(--muted); }
+  .flow .ph > code { display: inline-block; background: var(--ink); color: #fff; font-size: 12px; padding: 2px 7px; border-radius: 4px; }
+  .flow .ph b { display: block; font-size: 16px; margin: 8px 0 4px; }
+  .flow .ph span { display: block; line-height: 1.45; }
+  .flow .ph span code { background: #e4e4e0; }
+  .flow .ph i { display: block; font-style: normal; margin-top: 8px; font-size: 11px; color: var(--emerald); font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+  footer { font-family: var(--sans); font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); margin-top: 70px; padding: 20px 0 60px; }
+  footer a { color: var(--muted); }
+
+  @media (max-width: 640px) {
+    body { font-size: 17px; }
+    header.hero h1 { font-size: 32px; }
+    .grid { grid-template-columns: repeat(32, 8px); }
+    .grid i { width: 8px; height: 8px; }
+    .sentence { font-size: 19px; }
+    .calc .fields, .calc .lines, .facts, .costbox { grid-template-columns: 1fr 1fr; }
+    .cols, .anat, .switch .opts, .flow { grid-template-columns: 1fr; }
+    .col { border-left: none; padding-left: 0; }
+    .col .panel { height: 90px; }
+    .query b { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero wrap">
+  <h1>Cómo se cobra la IA: tokens, precios y caché</h1>
+  <p class="dek">Qué es un token, por qué un agente gasta tantos, cómo leer la tabla de precios de Claude y qué hace la caché para que el uso diario sea pagable.</p>
+  <div class="by">Material del taller de desarrollo asistido por IA · Octubre de 2026 · Haz scroll para avanzar</div>
+</header>
+
+<!-- ===================== ESCENA A: QUÉ ES UN TOKEN ===================== -->
+<section class="story" id="storyA">
+  <div class="stage">
+    <div class="inner">
+      <div class="counter">Tokens usados: <strong id="aCount">0</strong></div>
+      <div class="grid" id="aGrid"></div>
+      <div id="aBody"></div>
+    </div>
+  </div>
+  <div class="steps">
+    <div class="step"><div class="card">Cada vez que le escribes a un modelo de IA, tu mensaje se convierte en <b>tokens</b>. Un token es la unidad con la que el modelo lee, escribe y cobra.</div></div>
+    <div class="step"><div class="card">El modelo no lee letras ni palabras completas. Parte el texto en <b>pedazos</b>, y cada pedazo es un token. Cada cuadrito de arriba es un token de tu pregunta.</div></div>
+    <div class="step"><div class="card">Las palabras comunes suelen ser un solo token. Las largas o raras se parten en varios. En inglés, un token equivale a unos <b>4 caracteres</b>; en español suelen salir más tokens por la misma idea.</div></div>
+    <div class="step"><div class="card">Las imágenes también se cobran en tokens. El modelo parte la imagen en una cuadrícula y la convierte en tokens. Una captura de pantalla de 1.000 × 1.000 píxeles son cerca de <b>1.300 tokens</b>.</div></div>
+    <div class="step"><div class="card">La respuesta también se mide en tokens, incluido el código que el modelo escribe. Los tokens de salida, en rosado, <b>cuestan 5 veces más</b> que los de entrada.</div></div>
+    <div class="step"><div class="card">Antes de responder, los modelos nuevos <b>razonan</b>. Ese texto casi nunca lo ves, pero se genera y se cobra como salida. Muchas veces es la mayor parte de la cuenta.</div></div>
+    <div class="step"><div class="card">Una pregunta suelta cuesta fracciones de centavo. El problema aparece cuando se multiplica: miles de preguntas, respuestas más largas y, sobre todo, agentes que trabajan solos durante horas.</div></div>
+  </div>
+</section>
+
+<div class="wrap">
+  <p class="kicker">El mismo pedido, tres modelos de Claude</p>
+  <h2>A igual esfuerzo, los tres modelos gastan parecido; lo que pesa es el esfuerzo</h2>
+  <p>The New York Times le pidió a tres versiones de ChatGPT que planearan un viaje en carro eléctrico: 448, 771 y 6.463 tokens. Repetimos el experimento con tres modelos de Claude: la misma pregunta, sin herramientas ni internet y <b>el mismo nivel de esfuerzo</b>, <code>high</code>. Los tres gastaron entre 2.500 y 4.500 tokens, más de la mitad en razonamiento que el usuario no ve. La diferencia de costo viene del precio por token. Y cuando el esfuerzo sube al máximo, el consumo se multiplica por siete.</p>
+</div>
+
+<section class="story" id="storyC">
+  <div class="stage">
+    <div class="inner wide">
+      <div class="query"><span>La pregunta:</span><b id="cQ"></b></div>
+      <div class="cols" id="cCols"></div>
+    </div>
+  </div>
+  <div class="steps">
+    <div class="step"><div class="card">Le hicimos la misma pregunta a tres modelos de Claude el 4 de octubre de 2026, con el mismo nivel de esfuerzo, <code>high</code>. Cada columna muestra lo que escribe cada modelo. Abajo, <b>cada fila de la barra son 1.000 tokens</b>: gris lo que razona, negro lo que responde.</div></div>
+    <div class="step"><div class="card"><b>Sonnet 5</b> razona 1.440 tokens que no ves y responde con 1.090: <b>2.530 tokens en 31 segundos</b>. Opus y Fable todavía están razonando.</div></div>
+    <div class="step"><div class="card"><b>Opus 5.5</b> razonó 2.906 tokens y escribió 1.633 de respuesta: <b>4.539 tokens en 49 segundos</b>. Fue el que más tokens gastó de los tres.</div></div>
+    <div class="step"><div class="card"><b>Fable 5.1</b> razonó 2.465 tokens y respondió con 1.085: <b>3.550 tokens en 59 segundos</b>. Menos tokens que Opus, pero cada token de salida cuesta 2,5 veces más. La API no entrega el texto del razonamiento, pero lo cuenta y lo cobra como salida.</div></div>
+    <div class="step"><div class="card">A igual esfuerzo, los tres gastan parecido y en todos <b>más de la mitad es razonamiento oculto</b>. La misma pregunta costó <b>$0,03 con Sonnet, $0,09 con Opus y $0,18 con Fable</b>: la diferencia es el precio por token, no la cantidad.</div></div>
+    <div class="step"><div class="card">Hay otro dial que pesa tanto como el modelo: el <b>nivel de esfuerzo</b>, cuánto se le permite razonar. Con el esfuerzo al máximo, Fable gastó en la misma pregunta <b>26.678 tokens, 24.782 de razonamiento, 6 minutos y medio y $1,33</b>: siete veces más que en el nivel alto. Abajo está la serie completa.</div></div>
+  </div>
+</section>
+
+<div class="wrap">
+  <h3>Tokens de cada modelo</h3>
+  <div class="models3" id="models3"></div>
+  <div class="legend" style="justify-content:flex-start;margin-top:0"><span><i style="background:#b4b4b4"></i>Razonamiento oculto</span><span><i style="background:#7fc7a8"></i>Respuesta visible</span></div>
+  <p class="note">Cada cuadrito es un token. Experimento propio del 4 de octubre de 2026 con Claude Code 2.1.280, sin herramientas, los tres con <code>--effort high</code>. Costo calculado a precio de lista: unos 50 tokens de entrada más los tokens de salida de cada modelo. Dentro de Claude Code cada llamada cargó además unos 40.000 tokens de instrucciones del sistema; ese costo no está incluido aquí.</p>
+
+  <h3>El esfuerzo es un dial que tú controlas</h3>
+  <p>Claude Code tiene un nivel de esfuerzo (<code>/effort</code>: low, medium, high o xhigh) que fija cuánto razona el modelo antes de responder. Misma pregunta, mismo modelo; lo único que cambia es el esfuerzo:</p>
+  <div class="effbars" id="effbars"></div>
+  <div class="legend" style="justify-content:flex-start;margin-top:0"><span><i style="background:#b4b4b4"></i>Razonamiento oculto</span><span><i style="background:#7fc7a8"></i>Respuesta visible</span></div>
+  <p class="note">Las barras están a la misma escala. Una sola corrida por configuración: el modelo decide cuánto razona en cada intento, así que las cifras varían de corrida a corrida; la tendencia es lo que importa. El esfuerzo se fija por sesión con <code>/effort</code> o por modelo en <code>settings.json</code>; conviene saber cuál tienes puesto antes de comparar consumos.</p>
+  <p>El artículo del Times agrega dos ideas que importan para nosotros. La primera: el precio por token también cambia según el modelo; los más avanzados cuestan más de 10 veces por token que uno básico de la misma empresa. La segunda: hoy estamos en una etapa de precios subsidiados, donde las suscripciones cobran menos de lo que cuestan los tokens que consumen.</p>
+</div>
+<script id="datos" type="application/json">{"question": "Estamos planeando un viaje por carretera de 2.000 km de Bogotá a Santa Marta y de regreso en un BYD Dolphin eléctrico. ¿Cuáles son las paradas y el costo total?", "questionTokens": 50, "fecha": "2026-10-04", "models": [{"id": "sonnet", "name": "Claude Sonnet 5", "inp": 2, "outp": 10, "effort": "high", "answer": "Un viaje así implica planificar bien las paradas de carga, ya que la infraestructura de electrolineras en la ruta Bogotá-Santa Marta aún es limitada fuera de las ciudades principales. Aquí va una propuesta:\n\n## Ruta sugerida (vía Bucaramanga)\nBogotá → Tunja → Bucaramanga → Ocaña → Aguachica/Valledupar → Santa Marta (~980-1.000 km por tramo, ~1.960-2.000 km ida y vuelta)\n\n## Autonomía real del BYD Dolphin\n- Versión Premium (batería ~60 kWh): autonomía WLTP ~405 km, pero en carretera con aire acondicionado y las subidas de la Cordillera Oriental (especialmente Bogotá-Tunja y los páramos antes de Bucaramanga), espera algo más cercano a **280-320 km reales** por carga.\n- Consumo estimado en esas condiciones: ~14-16 kWh/100 km.\n\n## Paradas de carga sugeridas (cada tramo)\n1. **Tunja o Chiquinquirá** (~140-150 km desde Bogotá) — carga parcial de refuerzo si sales con batería llena.\n2. **Bucaramanga** (~380 km) — parada principal, hay cargadores públicos (hoteles, centros comerciales con Electromaps/EVPoint).\n3. **Ocaña o Aguachica** (~600-650 km) — zona crítica, verificar disponibilidad con la app **Electromaps** antes de salir, porque la oferta es escasa.\n4. **Valledupar** (~800 km) — otra parada necesaria antes del tramo final.\n5. **Santa Marta** — llegada, cargar ahí para el regreso (muchos hoteles ya ofrecen punto de carga).\n\nRepite el esquema similar al regreso.\n\n⚠️ **Importante**: en tramos como Ocaña-Valledupar la infraestructura pública es incierta. Te recomiendo revisar apps como **Electromaps** o el mapa de cargadores de Movilidad Eléctrica Colombia antes de confirmar el viaje, y llevar un cable/adaptador para cargar en tomas convencionales (220V) como respaldo en caso de necesidad, aunque eso implique cargas lentas (12-24h).\n\n## Costo estimado de energía\n- Consumo total ida y vuelta: 2.000 km × ~15 kWh/100km ≈ **300 kWh**\n- Si cargas mayormente en electrolineras públicas rápidas (~COP 1.000-1.400/kWh): **COP 300.000 - 420.000**\n- Si logras cargar parte en casa/hotel con tarifa residencial (~COP 700-900/kWh): **COP 210.000 - 270.000**\n\n**Total estimado: entre COP 250.000 y 400.000** solo en energía — una fracción de lo que costaría en gasolina (ese mismo recorrido en un vehículo a combustión rondaría COP 700.000-900.000 en combustible).\n\n¿Quieres que calcule también costos de peajes y alojamiento para armar un presupuesto completo del viaje?", "out": 2530, "think": 1440, "ans": 1090, "secs": 31.3, "cliCost": 0.0343}, {"id": "opus", "name": "Claude Opus 5.5", "inp": 4, "outp": 20, "effort": "high", "answer": "# Viaje Bogotá – Santa Marta – Bogotá en BYD Dolphin\n\nNo pude consultar en tiempo real los cargadores ni las tarifas. Las cifras de abajo son estimaciones. Antes de salir, revisa los cargadores en **Electromaps, PlugShare, Terpel Voltex, Enel X Way y Celsia**, porque la red de carga rápida en la Ruta del Sol cambia seguido.\n\n## Supuestos\n- **Ruta:** Ruta del Sol (Bogotá → Villeta/Guaduas → Honda → Puerto Boyacá → San Alberto → Aguachica → Bosconia → Ciénaga → Santa Marta). Son unos 950–1.000 km por trayecto.\n- **Consumo real en carretera:** unos 16–18 kWh/100 km con calor, aire acondicionado y 90–100 km/h. El regreso gasta más porque hay que subir 2.600 m hasta Bogotá.\n- **Autonomía práctica** (cargando del 10 al 80 % en carga rápida):\n  - Dolphin de 60 kWh: unos 250 km entre paradas (carga DC hasta ~88 kW).\n  - Dolphin de 44,9 kWh: unos 180–190 km entre paradas (~60 kW). Esta versión necesita una parada más por trayecto.\n\n## Paradas sugeridas (ida, con el Dolphin de 60 kWh y saliendo al 100 %)\n\n| # | Tramo | km aprox. | Parada |\n|---|---|---|---|\n| 1 | Bogotá → Honda / La Dorada / Puerto Boyacá | 170–220 | Carga rápida. Es bajada, así que llegas con buena batería. |\n| 2 | Puerto Boyacá → Barrancabermeja (desvío de ~25 km desde La Lizama) o San Alberto / Aguachica | 200–280 | **Dormir aquí.** Ideal un hotel con cargador o que te deje cargar en un enchufe. |\n| 3 | Aguachica → Bosconia / Fundación | ~200–250 | Carga rápida |\n| 4 | Fundación → Ciénaga → Santa Marta | ~100–130 | Llegada |\n\n**Tramo crítico:** entre Puerto Boyacá y Aguachica (unos 300 km) puede haber pocos cargadores rápidos. Confirma ese tramo antes de salir. Si no hay carga confirmada, el desvío a Barrancabermeja es tu mejor apuesta.\n\n**Regreso:** son las mismas paradas en sentido inverso. Además, **carga al 100 % en Honda o Guaduas antes de la subida a Bogotá**, porque ahí el consumo puede aumentar 30–50 %.\n\n**Tiempo:** son unas 16–20 h de manejo más 3–5 cargas de 30–45 min por trayecto. Recomiendo hacer cada trayecto en **2 días**.\n\n## Costo estimado (ida y vuelta)\n\n| Concepto | Estimado (COP) |\n|---|---|\n| Energía: ~2.000 km × 16–18 kWh/100 km + ~10 % de pérdidas ≈ 350–400 kWh | |\n| · Cargando en estaciones rápidas (~1.300–1.900 $/kWh) | **450.000 – 750.000** |\n| · Restando la carga completa al salir de casa (~900 $/kWh) | ahorra ~40.000–60.000 |\n| Peajes, categoría I (~15–20 por trayecto; los eléctricos no tienen descuento en peajes) | **500.000 – 700.000** |\n| **Total de energía + peajes** | **≈ 0,95 – 1,45 millones** |\n\nPara comparar: un carro a gasolina similar gastaría unos 1,2–1,6 millones solo en combustible, más los mismos peajes.\n\nNo incluí hospedaje (unas 2 noches en ruta más los días en Santa Marta), comida ni parqueaderos. Si me dices cuántos van, cuántos días se quedan y qué presupuesto de hotel tienen, lo sumo.\n\n## Consejos\n- Lleva el **cargador portátil (Modo 2)**. En un enchufe normal de hotel recupera unos 10–15 km por hora, así que durante la noche se carga bastante.\n- Ten siempre un **plan B por parada**. Los cargadores en ruta a veces están fuera de servicio u ocupados.\n- Con calor fuerte, carga hasta 80–90 % y no llegues por debajo del 15 %.\n\n¿Cuál versión del Dolphin tienen, la de 44,9 kWh o la de 60 kWh? Con eso ajusto las paradas exactas.", "out": 4539, "think": 2906, "ans": 1633, "secs": 48.8, "cliCost": 0.1218}, {"id": "fable", "name": "Claude Fable 5.1", "inp": 10, "outp": 50, "effort": "high", "answer": "Voy a estimar el plan con los datos del BYD Dolphin que se vende en Colombia y la Ruta del Sol, sin consultar herramientas.\n\n**Supuestos clave**\n\n- Dolphin de 44,9 kWh (el más vendido en Colombia). Autonomía real en carretera caliente y con aire acondicionado: unos 260 a 290 km, así que planeo saltos de 140 a 220 km. Si el suyo es el de 60,4 kWh, puede eliminar una parada por trayecto.\n- Ruta del Sol: Bogotá, Villeta, Guaduas, La Dorada, Puerto Boyacá, Cimitarra, San Alberto, Aguachica, Curumaní, Bosconia, Fundación, Ciénaga, Santa Marta. Son unos 960 km por trayecto.\n- Consumo promedio de 16 kWh/100 km. La ida baja 2.600 m y gasta menos; el regreso sube y gasta más.\n\n**Paradas sugeridas (ida; el regreso es simétrico)**\n\n| Tramo | Km | Parada |\n|---|---|---|\n| Bogotá → La Dorada | 190 | Carga rápida 30 a 40 min |\n| La Dorada → Cimitarra | 140 | Carga rápida corta |\n| Cimitarra → Aguachica | 220 | Noche en hotel, carga lenta |\n| Aguachica → Bosconia | 200 | Carga rápida 30 a 40 min |\n| Bosconia → Santa Marta | 190 | Llegada |\n\nDividir cada trayecto en dos días es casi obligatorio. Cada parada de carga rápida añade 30 a 45 minutos, y la carga nocturna en hotel sale mucho más barata.\n\n**Costo estimado del viaje completo (2.000 km)**\n\n| Concepto | COP |\n|---|---|\n| Energía: 345 kWh con pérdidas de carga, mezcla pública y hotel | 550.000 a 760.000 |\n| Peajes ida y vuelta, categoría I | 380.000 a 440.000 |\n| Total sin hospedaje ni comida | 930.000 a 1.200.000 |\n\nReferencias: cargador rápido público entre 1.900 y 2.500 COP/kWh, hotel o casa cerca de 1.000 COP/kWh. Un carro a gasolina gastaría unos 2,3 millones solo en combustible para la misma distancia.\n\n**Advertencias**\n\n- La red de cargadores en la Ruta del Sol es escasa y cambia rápido. Verifique cada parada en PlugShare o Electromaps la semana del viaje y confirme que el cargador esté operativo y tenga conector CCS2.\n- Lleve el cargador portátil de 220 V para la noche en el hotel. Pregunte al reservar si permiten enchufar.\n- No pase de un 15 a 20 % de batería entre paradas. Entre Cimitarra y Aguachica hay pocas alternativas si un cargador falla.\n- Si prefiere más seguridad de carga, puede desviarse por Bucaramanga. Añade unos 100 km pero tiene más estaciones.", "out": 3550, "think": 2465, "ans": 1085, "secs": 59.0, "cliCost": 0.2467}], "efforts": [{"id": "sonnet", "name": "Claude Sonnet 5", "effort": "high", "out": 2530, "think": 1440, "ans": 1090, "secs": 31.3, "inp": 2, "outp": 10}, {"id": "opus", "name": "Claude Opus 5.5", "effort": "medium", "out": 3563, "think": 1919, "ans": 1644, "secs": 41.6, "inp": 4, "outp": 20}, {"id": "opus", "name": "Claude Opus 5.5", "effort": "high", "out": 4539, "think": 2906, "ans": 1633, "secs": 48.8, "inp": 4, "outp": 20}, {"id": "fable", "name": "Claude Fable 5.1", "effort": "low", "out": 2936, "think": 1802, "ans": 1134, "secs": 49.6, "inp": 10, "outp": 50}, {"id": "fable", "name": "Claude Fable 5.1", "effort": "medium", "out": 2685, "think": 1178, "ans": 1507, "secs": 34.8, "inp": 10, "outp": 50}, {"id": "fable", "name": "Claude Fable 5.1", "effort": "high", "out": 3550, "think": 2465, "ans": 1085, "secs": 59.0, "inp": 10, "outp": 50}, {"id": "fable", "name": "Claude Fable 5.1", "effort": "xhigh", "out": 26678, "think": 24782, "ans": 1896, "secs": 394.7, "inp": 10, "outp": 50}]}</script>
+
+<!-- ===================== CÓMO FUNCIONA POR DENTRO: SIN ESTADO ===================== -->
+<div class="wrap">
+  <p class="kicker">Cómo funciona por dentro</p>
+  <h2>Los modelos no tienen memoria: cada mensaje viaja con todo lo anterior</h2>
+  <p>Un modelo de lenguaje no guarda estado. Termina de responder y olvida la conversación: no recuerda nada entre una petición y la siguiente, ni entre sesiones. La sensación de que «se acuerda» la construye la aplicación, Claude Code en nuestro caso, reenviándole todo cada vez.</p>
+  <ul class="plain">
+    <li><b>No hay memoria persistente.</b> Lo único que el modelo sabe de tu conversación es lo que va dentro de la petición.</li>
+    <li><b>Cada mensaje que envías incluye todo el historial acumulado</b>: tus mensajes anteriores, sus respuestas y los archivos que leyó.</li>
+    <li><b>El contexto crece con cada intercambio</b>, y el total de tokens procesados crece mucho más rápido que la conversación, porque lo viejo viaja una y otra vez.</li>
+  </ul>
+  <div class="formula"><span class="f-eq">Mensaje nuevo =</span> <span class="f-pre">instrucciones</span> + <span class="f-hist">historial completo</span> + <span class="f-ans">respuesta anterior</span> + <span class="f-new">nueva instrucción</span></div>
+  <p>Para verlo, un requerimiento pequeño de programación, turno por turno. A la izquierda, lo que ves en pantalla; a la derecha, lo que viaja al modelo en cada turno.</p>
+</div>
+
+<section class="story" id="storyD">
+  <div class="stage">
+    <div class="inner wide">
+      <div class="anat">
+        <div><h4>Lo que ves en la pantalla</h4><div class="chat" id="dChat"></div></div>
+        <div>
+          <h4 id="dEnvTitle">Lo que viaja al modelo</h4>
+          <div class="env" id="dEnv"></div>
+          <div class="legend" style="justify-content:flex-start;margin-top:8px"><span><i style="background:var(--in-a)"></i>Nuevo en este turno</span><span><i style="background:#e2e2e2;background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.6) 0 2px,transparent 2px 4px)"></i>Ya había viajado</span><span><i style="background:var(--out-a)"></i>Respuesta del modelo</span></div>
+          <div class="envstats" id="dStats"></div>
+          <div class="gauge" id="dGauge">
+            <div>Ventana de contexto: <b id="dUsed">0</b> de 1.000.000 tokens</div>
+            <div class="bar"><div class="fill" id="dFill"></div><div class="buf" title="Reserva para compactar"></div></div>
+            <div class="lbls"><span>0</span><span>reserva para compactar: 33.000</span><span>1 M</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="steps">
+    <div class="step"><div class="card">Antes de que escribas nada, cada petición ya lleva un <b>prefijo fijo</b>: las instrucciones del sistema y la descripción de las herramientas. Lo medimos con <code>/context</code> en un proyecto nuestro: <b>10.090 tokens</b>. Con memoria y <code>CLAUDE.md</code> puede pasar de 60.000.</div></div>
+    <div class="step"><div class="card"><b>Turno 1.</b> Escribes el pedido: 30 tokens. Lo que viaja es el prefijo más tu mensaje: 10.120 tokens. El modelo responde y pide leer un archivo.</div></div>
+    <div class="step"><div class="card"><b>Turno 2.</b> El modelo ya olvidó el turno 1. Para que siga, Claude Code le manda otra vez el prefijo, tu mensaje, su propia respuesta y el archivo que pidió: 2.000 tokens más. De los 12.240 que viajan, tú escribiste 30.</div></div>
+    <div class="step"><div class="card"><b>Turnos 3 y 4.</b> La regla no cambia: cada turno manda todo lo anterior más lo nuevo. Lo rayado ya había viajado; lo verde es nuevo. Un archivo grande o una salida larga no se pagan una vez: viajan en todos los turnos que siguen.</div></div>
+    <div class="step"><div class="card"><b>Turno 5.</b> Cinco turnos para un cambio pequeño: <b>63.500 tokens enviados</b> en total. La conversación mide 14.300, pero el modelo procesó más de cuatro veces eso. Y tú escribiste 30.</div></div>
+    <div class="step"><div class="card">Todo eso tiene que caber en la <b>ventana de contexto</b>: 1 millón de tokens en Opus 5.5 y Fable 5.1. Este pedido usó el 1,4%. Cuando una sesión se acerca al límite, Claude Code <b>compacta</b>: resume el historial y sigue con el resumen; el detalle se pierde. Por eso conviene cortar antes.</div></div>
+  </div>
+</section>
+
+<!-- ===================== A ESCALA REAL: UNA SESIÓN DE CLAUDE CODE ===================== -->
+<div class="wrap">
+  <h2>A escala real: una sesión de Claude Code</h2>
+  <p>El requerimiento anterior fueron cinco turnos y 14.000 tokens de conversación. Una sesión de trabajo real tiene cientos de llamadas y arranca más pesada: en un workspace con memoria y <code>CLAUDE.md</code>, la primera llamada ya lleva 69.000 tokens. Es la misma regla, a escala real.</p>
+</div>
+
+<section class="story" id="storyB">
+  <div class="stage">
+    <div class="inner">
+      <div class="agent-top">
+        <div class="tot">Tokens de entrada enviados<strong id="bTok">0</strong></div>
+        <div class="tot">Costo de estas llamadas<strong id="bCost">$0</strong></div>
+        <div><select id="bModel" aria-label="Modelo"></select></div>
+      </div>
+      <div class="calls" id="bCalls"></div>
+      <div class="legend" id="bLegend"></div>
+    </div>
+  </div>
+  <div class="steps">
+    <div class="step"><div class="card">Esta es la <b>primera llamada</b> de una sesión de Claude Code. Antes de que escribas algo, ya lleva cerca de <b>69.000 tokens</b>: instrucciones del sistema, la descripción de cada herramienta, el <code>CLAUDE.md</code> y la memoria. Es la barra gris oscura.</div></div>
+    <div class="step"><div class="card">Cada vez que el agente usa una herramienta, el resultado se suma a la conversación, y la siguiente llamada <b>vuelve a enviar todo</b>. Las barras crecen y el total de tokens de entrada se dispara.</div></div>
+    <div class="step"><div class="card">Lo rayado es lo que <b>ya se había enviado antes</b>. Casi todo lo que se paga en una sesión larga es eso: releer lo mismo. En una sesión real que medimos, el 99,5% de los tokens fue relectura.</div></div>
+    <div class="step"><div class="card">Aquí entra la <b>caché</b>. El servidor guarda la parte inicial ya procesada. Si la siguiente llamada empieza exactamente igual, esa parte se lee de la caché y cuesta <b>la décima parte</b>, o menos según el modelo. Mira cómo baja el costo.</div></div>
+    <div class="step"><div class="card">Guardar en la caché cuesta más la primera vez. Claude Code usa la caché de <b>1 hora</b>, que cuesta el doble de la entrada y se renueva con cada llamada. Si dejas la sesión quieta más de una hora y vuelves, la llamada 7 tiene que escribir todo otra vez.</div></div>
+    <div class="step"><div class="card">Lo mismo pasa si cambia <b>el inicio</b> de la conversación, por ejemplo al activar un MCP o cambiar de modelo a mitad de sesión. Todo lo que viene después se vuelve a escribir. Cambia el modelo arriba para comparar costos; más abajo está cuándo se cobra cada precio y las reglas exactas de la caché.</div></div>
+  </div>
+</section>
+
+<!-- ===================== PRECIOS ===================== -->
+<div class="wrap">
+  <p class="kicker">Cómo leer la tabla</p>
+  <h2>Los precios de Claude, columna por columna</h2>
+  <p>Los precios se publican en dólares por <b>millón de tokens</b> (MTok). Un millón de tokens son unas 750.000 palabras en inglés, varias novelas. Parece mucho, pero un agente lo consume en minutos porque relee el contexto en cada llamada.</p>
+
+  <table class="prices" id="priceTable">
+    <thead>
+      <tr class="group"><th></th><th colspan="2">Tokens base</th><th colspan="3">Caché</th></tr>
+      <tr><th>Modelo</th><th>Entrada</th><th>Salida</th><th>Escritura 5 min</th><th>Escritura 1 h</th><th>Lectura</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <p class="note">Dólares por millón de tokens. Fuente: página oficial de precios de Claude, consultada el 4 de octubre de 2026. Mythos 5.1 tiene el mismo precio que Fable 5.1 y solo está disponible por invitación.</p>
+
+  <dl class="cols">
+    <dt>Entrada</dt>
+    <dd>Lo que el modelo lee: tu mensaje, los archivos que abre, la salida de los comandos y toda la conversación anterior.</dd>
+    <dt>Salida</dt>
+    <dd>Lo que el modelo escribe: la respuesta, el código y el razonamiento oculto. Siempre cuesta 5 veces la entrada.</dd>
+    <dt>Escritura en caché, 5 minutos</dt>
+    <dd>Guardar el inicio de la conversación para reutilizarlo. Cuesta 1,25 veces la entrada y dura 5 minutos desde el último uso.</dd>
+    <dt>Escritura en caché, 1 hora</dt>
+    <dd>Lo mismo, pero dura una hora. Cuesta el doble de la entrada. <b>Es la que usa Claude Code</b>: cada llamada la renueva, así que mientras trabajes seguido no vence.</dd>
+    <dt>Lectura de caché</dt>
+    <dd>Reutilizar lo que ya está guardado. Cuesta la décima parte de la entrada; en Opus 5.5 la vigésima parte y en Fable 5.1 la cuadragésima. Es la columna que más pesa en un agente.</dd>
+  </dl>
+
+  <h3>Calcula una sesión</h3>
+  <div class="calc">
+    <div class="note">Elige un ejemplo o escribe tus propias cifras.</div>
+    <div class="presets" id="presets"></div>
+    <div class="fields">
+      <label>Modelo<select id="cModel" style="width:100%;margin-top:3px"></select></label>
+      <label>Tokens de entrada sin caché<input id="cIn" type="number" min="0"></label>
+      <label>Tokens escritos en caché (1 h, como Claude Code)<input id="cW" type="number" min="0"></label>
+      <label>Tokens leídos de caché<input id="cR" type="number" min="0"></label>
+      <label>Tokens de salida<input id="cOut" type="number" min="0"></label>
+    </div>
+    <div class="result">
+      <div class="total" id="cTotal">$0</div>
+      <div class="note" id="cNoCache"></div>
+      <div class="stack" id="cStack" style="margin-top:10px"></div>
+      <div class="lines" id="cLines"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== CACHÉ: CUÁNDO TE COBRAN QUÉ ===================== -->
+<div class="wrap">
+  <p class="kicker">Caché</p>
+  <h2>Cuándo te cobran cada precio de la caché</h2>
+  <p>Cada token que entra al modelo se cobra una vez por petición, a uno de tres precios. Cuál se aplica depende de una sola cosa: si ese pedazo de la petición es nuevo o ya viajó antes.</p>
+  <table class="rules">
+    <tr><td><i style="background:var(--write)"></i>Escritura en caché</td><td>La <b>primera vez</b> que un bloque viaja: tu mensaje, la respuesta anterior, el archivo que leyó. El servidor lo procesa y lo guarda. Cuesta <b>el doble</b> de la entrada normal, porque Claude Code usa la caché de 1 hora.</td></tr>
+    <tr><td><i style="background:var(--cache)"></i>Lectura de caché</td><td><b>Cada vez siguiente</b> que ese mismo bloque viaja, mientras la caché siga viva y el inicio de la petición no haya cambiado. Cuesta <b>la décima parte</b> de la entrada; en Opus 5.5 la vigésima y en Fable 5.1 la cuadragésima.</td></tr>
+    <tr><td><i style="background:var(--in-a)"></i>Entrada normal</td><td>Lo que no pasa por la caché. En Claude Code casi no ocurre, porque cachea todo. Es el precio de una llamada suelta a la API sin caché, y sirve para comparar.</td></tr>
+  </table>
+  <p>Así se reparte en el requerimiento del correo, turno por turno, con Opus 5.5:</p>
+  <table class="turns" id="turnsTable"></table>
+  <p class="note" id="turnsNote"></p>
+  <p>La cuenta de un bloque que viaja en varios turnos: la primera vez cuesta 2 entradas; cada vez siguiente, 0,1. En cinco turnos son 2,4 entradas en vez de 5; en veinte, 3,9 en vez de 20. <b>La caché se amortiza a partir del tercer turno</b>, y mientras más larga la sesión, más pesa la lectura. Por eso en un agente la columna que importa es la de lectura.</p>
+
+  <h3>Cuándo se aprovecha y cuándo se pierde</h3>
+  <p>La caché guarda el <b>inicio</b> de la petición ya procesado, en el servidor de Anthropic. La siguiente petición la aprovecha solo si empieza exactamente igual: mismo modelo, mismas instrucciones, mismas herramientas y mismo historial. Lo que cambie invalida todo lo que viene después de ese punto.</p>
+  <table class="rules">
+    <tr><td><i style="background:var(--cache)"></i>Mandas el siguiente mensaje antes de una hora, sin cambiar nada</td><td>Se lee todo de caché. Es el caso normal dentro de una sesión de trabajo.</td></tr>
+    <tr><td><i style="background:var(--pink)"></i>Pasa más de una hora sin actividad</td><td>La caché vence. La siguiente llamada escribe todo el contexto otra vez, al doble del precio de entrada.</td></tr>
+    <tr><td><i style="background:var(--pink)"></i>Cambias de modelo a mitad de sesión, por ejemplo de Opus a Fable</td><td>La caché es de cada modelo: Fable no puede leer lo que Opus escribió. La siguiente llamada escribe todo el contexto al precio de Fable. Por eso Claude Code avisa.</td></tr>
+    <tr><td><i style="background:var(--pink)"></i>Agregas o quitas un MCP, una herramienta o un plugin</td><td>Cambia el prefijo, que va al principio. Se pierde la caché completa, incluido el historial.</td></tr>
+    <tr><td><i style="background:#bbb"></i><code>/compact</code> o compactación automática</td><td>El historial se reemplaza por un resumen. Se pierde la caché del historial; el prefijo se conserva.</td></tr>
+    <tr><td><i style="background:var(--cache)"></i><code>/clear</code> o sesión nueva, con el mismo modelo y herramientas</td><td>El historial se descarta a propósito. El prefijo sigue en caché si no ha pasado una hora. Por eso cortar es barato: la sesión nueva reutiliza el prefijo y deja de arrastrar el historial viejo.</td></tr>
+  </table>
+
+  <h3>Cambiar de modelo a mitad de una sesión</h3>
+  <p>Es la duda típica: vas planeando con Opus 5.5 y quieres pasar a Fable 5.1 para una decisión difícil. Claude Code avisa que se pierde la caché. Esto es lo que significa en dinero, con lo que acumule la sesión:</p>
+  <div class="switch">
+    <label>Tokens de contexto acumulados en la sesión: <b id="swVal">150.000</b></label>
+    <input type="range" id="swCtx" min="10000" max="600000" step="10000" value="150000" aria-label="Tokens de contexto">
+    <div class="opts" id="swOpts"></div>
+    <p class="note" style="margin:12px 0 0" id="swNote"></p>
+  </div>
+  <p>La regla práctica: <b>cambiar de modelo cuesta una escritura completa del contexto</b>, una sola vez. Con el prefijo solo, al empezar una fase, son centavos. A mitad de un plan largo, son dólares. Si vas a cambiar, hazlo al cortar: sesión nueva, modelo nuevo. Es lo que el método ya hace con una fase por sesión.</p>
+</div>
+
+<!-- ===================== CASO REAL ===================== -->
+<div class="wrap">
+  <p class="kicker">Un caso medido</p>
+  <h2>Una sesión de diseño del método habría costado 146 dólares</h2>
+  <p>Medimos una sesión real de Claude Code con los registros de uso que guarda cada transcripción. Fue una sesión larga de diseño: revisar el harness, comparar métodos de trabajo y montar los dos workspaces nuevos. Corrió con Fable 5.1.</p>
+  <div class="facts">
+    <div><strong>245</strong>llamadas al modelo</div>
+    <div><strong>68.758</strong>tokens antes de la primera pregunta</div>
+    <div><strong>626.848</strong>tokens de contexto en el punto más alto</div>
+    <div><strong>75,6 M</strong>tokens procesados en total</div>
+    <div><strong>0,45%</strong>escritos por el modelo; el resto fue lectura</div>
+    <div><strong>5 veces</strong>más caro habría sido sin caché</div>
+  </div>
+  <p>Así cambia el costo de esa misma sesión según el modelo, a precio de API:</p>
+  <div class="hbars" id="hbars"></div>
+  <p class="note">Precio de lista de la API. Con el plan Max no se paga por token, pero el plan tiene límites de uso, y las sesiones así los agotan rápido.</p>
+</div>
+
+<!-- ===================== CIERRE: DE LOS TOKENS AL MÉTODO ===================== -->
+<div class="wrap">
+  <p class="kicker">De los tokens al método</p>
+  <h2>Con esto se armó un método de desarrollo</h2>
+  <p>Todo lo anterior lleva a una conclusión práctica: el modelo no recuerda, releer cuesta, y una conversación larga se vuelve cara y borrosa. La respuesta no es hablar menos con la IA, sino <b>dejar por escrito lo que importa</b> y arrancar cada fase desde ese escrito, no desde el historial.</p>
+
+  <h3>Desarrollo guiado por la spec</h3>
+  <p>Antes de escribir código se escribe y se aprueba una <b>especificación</b>: qué se pide, qué queda por fuera y cómo se sabe que quedó bien. El agente trabaja a partir de ese documento. La spec es la memoria que el modelo no tiene: cualquiera puede abrirla, en cualquier sesión, y seguir desde ahí. La idea no es nuestra. GitHub la llama <i>spec-driven development</i> y la publicó como Spec Kit; AWS construyó Kiro sobre lo mismo.</p>
+
+  <h3>Skills: instrucciones que el agente carga cuando las necesita</h3>
+  <p>Una skill es un archivo de texto con instrucciones para una tarea concreta: cómo entrevistar, cómo redactar la spec, cómo hacer pruebas primero, cómo revisar código. El agente la lee solo cuando toca, así que no pesa en cada petición. Usamos como motor las skills de <a href="https://www.aihero.dev/skills">Matt Pocock</a>: <code>grilling</code>, que pregunta hasta agotar las dudas antes de decidir; <code>to-spec</code>, que convierte la conversación en una spec; <code>tdd</code>, la prueba antes que el código; y <code>code-review</code>, revisión en dos ejes, estándares y spec.</p>
+
+  <h3>El ciclo</h3>
+  <p>Cada requerimiento se identifica con un <b>ID</b>, por ejemplo <code>REQ-042</code>. Todo empieza con <code>/iniciar REQ-042</code>: ese comando crea la carpeta <code>docs/requirements/REQ-042/</code> y deja ahí la spec. Los comandos siguientes reciben el mismo ID, <code>/planear REQ-042</code>, <code>/auditoria REQ-042</code>, y van sumando a esa carpeta el plan, la auditoría y lo demás. Así cualquier sesión, de cualquier persona, arranca abriendo esa carpeta.</p>
+  <p>Con la spec como centro y las skills como motor, el método son seis comandos. Cada uno es una fase, produce un documento en la carpeta del requerimiento y corre en una <b>sesión nueva</b>: arranca con el prefijo y los documentos de la fase, no con todo el historial anterior.</p>
+  <div class="flow">
+    <div class="ph"><code>/iniciar</code><b>Entender</b><span>Entrevista hasta agotar las dudas y deja la spec escrita. Si hay pantalla de por medio, <code>/mockup</code> la prototipa en HTML antes de decidir.</span><i>spec.md</i></div>
+    <div class="ph"><code>/planear</code><b>Planear</b><span>Convierte la spec en un plan de tareas, cada una con su contrato y sus pruebas.</span><i>plan.md</i></div>
+    <div class="ph"><code>/implementar</code><b>Construir</b><span>Ejecuta el plan aprobado, con la prueba antes que el código, y deja el resultado en una rama.</span><i>código y pruebas</i></div>
+    <div class="ph"><code>/auditoria</code><b>Auditar</b><span>En otra sesión, idealmente con otro modelo, revisa la entrega contra la spec y los estándares.</span><i>auditoria.md</i></div>
+    <div class="ph"><code>/post-auditoria</code><b>Corregir</b><span>Atiende los hallazgos de la auditoría uno por uno, con evidencia de cada corrección.</span><i>correcciones</i></div>
+    <div class="ph"><code>/re-auditoria</code><b>Cerrar</b><span>Verifica que lo corregido quedó bien y aprueba la entrega.</span><i>approved</i></div>
+  </div>
+  <p>Tres decisiones del método salen directo de lo que viste en esta página: <b>una fase por sesión</b>, para no arrastrar cientos de miles de tokens que ya no sirven; <b>un modelo según la fase</b>, el grande entiende y audita, uno mediano implementa lo ya decidido; y <b>medir</b>: <code>/context</code> muestra cuánto pesa la sesión antes de empezar, y <code>/usage</code> cuánto del límite del plan llevas gastado. El resto lo vemos en el taller, con un requerimiento real de punta a punta.</p>
+</div>
+
+<footer class="wrap">
+  Fuentes: Aaron Krolik y Jacqueline Gu, «The Building Blocks Hidden in A.I.: How Tokens Work», The New York Times, 9 de septiembre de 2026 (experimento de los tres modelos de ChatGPT) ·
+  <a href="https://platform.claude.com/docs/en/about-claude/pricing">Precios de Claude, documentación oficial</a> ·
+  Sesión medida, experimento de los tres modelos y <code>/context</code> de api-chatbot: registros de uso de Claude Code 2.1.280, 4 de octubre de 2026. La interacción de la anatomía es simulada; el prefijo es el real.<br>
+  El texto de razonamiento no es el real: la API lo entrega cifrado. Se muestra texto borroso del mismo tamaño en tokens. Los tres modelos corrieron con <code>--effort high</code>; la serie de esfuerzo usa <code>--effort</code> explícito, salvo la corrida xhigh de Fable y la medium de Opus, que tomaron el esfuerzo configurado en <code>settings.json</code>.<br>
+  Los cortes de tokens de la primera parte son ilustrativos; los reales dependen del tokenizador de cada modelo.
+</footer>
+
+<script>
+(() => {
+  const fmt = n => Math.round(n).toLocaleString('es-CO');
+  const usd = n => '$' + n.toLocaleString('es-CO', n < 0.01 ? { minimumFractionDigits: 4, maximumFractionDigits: 4 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const MODELS = {
+    fable:  { name: 'Claude Fable 5.1',  inp: 10, out: 50, w5: 12.5, w1: 20, hit: 0.25, note: 'Razonamiento exigente y trabajo largo con agentes' },
+    opus:   { name: 'Claude Opus 5.5',   inp: 4,  out: 20, w5: 5,    w1: 8,  hit: 0.20, note: 'Programación y trabajo largo con agentes' },
+    sonnet: { name: 'Claude Sonnet 5.5', inp: 2,  out: 10, w5: 2.5,  w1: 4,  hit: 0.20, note: 'Equilibrio entre velocidad e inteligencia' },
+    haiku:  { name: 'Claude Haiku 4.5',  inp: 1,  out: 5,  w5: 1.25, w1: 2,  hit: 0.10, note: 'El más rápido' },
+  };
+  const M_KEYS = Object.keys(MODELS);
+
+  /* ---------- Motor de scrollytelling ---------- */
+  function scrolly(section, render) {
+    const steps = [...section.querySelectorAll('.step')];
+    let last = '';
+    function tick() {
+      const mid = window.innerHeight * 0.6;
+      let idx = -1, prog = 0;
+      steps.forEach((s, i) => {
+        const r = s.getBoundingClientRect();
+        if (r.top <= mid) { idx = i; prog = Math.min(1, Math.max(0, (mid - r.top) / r.height)); }
+      });
+      idx = Math.max(0, idx);
+      const key = idx + ':' + prog.toFixed(2);
+      if (key !== last) { last = key; render(idx, prog); }
+    }
+    window.addEventListener('scroll', () => requestAnimationFrame(tick), { passive: true });
+    window.addEventListener('resize', tick);
+    tick();
+    return tick;
+  }
+
+  /* ---------- Escena A ---------- */
+  const Q = ['¿', 'Cu', 'ántas', ' par', 'adas', ' neces', 'ito', ' para', ' un', ' viaje', ' de', ' 1', '.', '500', ' km', ' en', ' un', ' carro', ' eléct', 'rico', '?'];
+  const A = ['Con', ' una', ' autonom', 'ía', ' de', ' 400', ' km', ',', ' neces', 'itas', ' unas', ' 4', ' par', 'adas', ' para', ' carg', 'ar', '.'];
+  const THINK = 420;
+  const WORDS = [
+    { parts: ['modelo'], n: '1 token' },
+    { parts: ['desar', 'rol', 'lo'], n: '3 tokens' },
+    { parts: ['Hy', 'und', 'ai'], n: '3 tokens' },
+    { parts: ['autent', 'icación'], n: '2 tokens' },
+  ];
+  const aGrid = document.getElementById('aGrid');
+  const aBody = document.getElementById('aBody');
+  const aCount = document.getElementById('aCount');
+  const MAXSQ = Q.length + A.length + THINK;
+  for (let i = 0; i < MAXSQ; i++) aGrid.appendChild(document.createElement('i'));
+  const squares = [...aGrid.children];
+
+  function tokSpans(arr, cls, on) {
+    return arr.map((t, i) => `<span class="tk ${cls} ${i < on ? 'on' : 'off'}">${t.replace(/</g, '&lt;')}</span>`).join('');
+  }
+  function paintGrid(q, a, t) {
+    squares.forEach((s, i) => {
+      s.className = i < q ? 'q' : i < q + a ? 'a' : i < q + a + t ? 't' : '';
+      s.style.background = s.className ? '' : 'transparent';
+    });
+    aCount.textContent = fmt(q + a + t);
+  }
+  const pixelColors = Array.from({ length: 144 }, (_, i) => {
+    const x = i % 12, y = Math.floor(i / 12);
+    const sky = y < 6, road = y > 8;
+    const l = sky ? 78 + y * 2 : road ? 35 + (x % 3) * 4 : 48 + ((x + y) % 4) * 5;
+    const h = sky ? 200 : road ? 0 : 150;
+    const s = road ? 0 : sky ? 55 : 35;
+    return `hsl(${h} ${s}% ${l}%)`;
+  });
+
+  let lastAStep = -1;
+  scrolly(document.getElementById('storyA'), (step, p) => {
+    let q = 0, a = 0, t = 0, html = '';
+    if (step === 0) {
+      html = `<div class="sentence"><span class="who">Tu pregunta</span>${Q.join('')}</div>`;
+    } else if (step === 1) {
+      q = Math.max(1, Math.ceil(Math.min(1, p * 1.6) * Q.length));
+      html = `<div class="sentence"><span class="who">Tu pregunta</span>${tokSpans(Q, 'q', q)}</div>`;
+    } else if (step === 2) {
+      q = Q.length;
+      html = `<div class="sentence" style="min-height:0;margin-bottom:8px"><span class="who">Cómo se parten algunas palabras</span></div><div class="words">` +
+        WORDS.map(w => `<div class="w">${w.parts.map(x => `<span>${x}</span>`).join('')}<small>${w.n}</small></div>`).join('') + `</div>`;
+    } else if (step === 3) {
+      q = Q.length;
+      html = `<div class="sentence" style="min-height:0;margin-bottom:12px"><span class="who">Una imagen</span></div><div class="pic">
+        <div class="img ${p > 0.25 ? 'split' : ''}">${pixelColors.map(c => `<i style="background:${c}"></i>`).join('')}</div>
+        <div class="lbl"><strong>≈ 1.300</strong>tokens por una captura de 1.000 × 1.000 píxeles. Por eso pegar pantallazos en la conversación pesa.</div></div>`;
+    } else if (step === 4) {
+      q = Q.length;
+      a = Math.max(1, Math.ceil(Math.min(1, p * 1.6) * A.length));
+      html = `<div class="sentence"><span class="who">La respuesta</span>${tokSpans(A, 'a', a)}</div>`;
+    } else if (step === 5) {
+      q = Q.length; a = A.length;
+      t = Math.ceil(Math.min(1, p * 1.5) * THINK);
+      html = `<div class="sentence" style="min-height:0;margin-bottom:6px"><span class="who">Razonamiento que no ves</span></div>
+        <div class="thinking">Necesito estimar la autonomía real del carro, que depende de la velocidad y del clima. Si la autonomía es de 400 km, en 1.500 km harían falta al menos tres recargas, pero no conviene llegar al 0%. Supongo cargar cuando quede un 20%, lo que da unos 320 km útiles por tramo. Divido 1.500 entre 320 y da 4,7. Reviso si la ruta tiene estaciones de carga rápida cada 300 km...</div>
+        <div class="legend"><span><i style="background:var(--in-a)"></i>Pregunta</span><span><i style="background:var(--out-a)"></i>Respuesta</span><span><i style="background:var(--think)"></i>Razonamiento oculto</span></div>`;
+    } else {
+      q = Q.length; a = A.length; t = THINK;
+      const cost = m => (q * m.inp + (a + t) * m.out) / 1e6;
+      html = `<div class="legend" style="margin-top:22px"><span><i style="background:var(--in-a)"></i>Pregunta: ${q}</span><span><i style="background:var(--out-a)"></i>Respuesta: ${a}</span><span><i style="background:var(--think)"></i>Razonamiento: ${t}</span></div>
+        <div class="costbox">
+          <div>Esta pregunta con Haiku 4.5<strong>${usd(cost(MODELS.haiku))}</strong></div>
+          <div>Con Fable 5.1<strong>${usd(cost(MODELS.fable))}</strong></div>
+          <div>Mil preguntas así con Fable 5.1<strong>${usd(cost(MODELS.fable) * 1000)}</strong></div>
+        </div>`;
+    }
+    if (step !== lastAStep || step === 1 || step === 3 || step === 4 || step === 5) aBody.innerHTML = html;
+    lastAStep = step;
+    paintGrid(q, a, t);
+  });
+
+  /* ---------- Escena C: tres modelos de Claude, misma pregunta ---------- */
+  const DATA = JSON.parse(document.getElementById('datos').textContent);
+  const QTOK = DATA.questionTokens;
+  document.getElementById('cQ').textContent = DATA.question;
+  // El razonamiento real viene cifrado desde la API; se representa con texto borroso del mismo tamaño.
+  const PHRASES = [
+    'Necesito estimar la autonomía real del Dolphin en carretera', 'si la batería es de 44,9 kWh y el consumo sube a 16 kWh por 100 km',
+    'la Ruta del Sol tiene cargadores en Aguachica y Puerto Berrío, pero no sé si están operativos', 'reviso los peajes entre Bogotá y Honda',
+    'conviene cargar al 20% y no llegar a cero', 'divido 950 km entre 280 km útiles y da 3,4 paradas por trayecto',
+    'el precio del kWh en cargador público ronda los 1.200 pesos', 'debo aclarar que no tengo acceso a internet para confirmar',
+    'la subida de Honda a Bogotá consume más por la pendiente', 'sumo una noche de hotel en Aguachica y otra en Santa Marta',
+    'quizá sea mejor proponer dos días por trayecto', 'vuelvo a calcular el costo total de energía', 'comparo con el gasto en gasolina de un carro similar',
+  ];
+  function pseudo(nChars, seed) { let s = '', i = seed; while (s.length < nChars) { s += PHRASES[i % PHRASES.length] + (i % 4 === 3 ? '.\n\n' : ', '); i += 7; } return s.slice(0, nChars); }
+  const cCols = document.getElementById('cCols');
+  DATA.models.forEach(m => {
+    m.thinkText = pseudo(Math.round(m.think * 3.4), m.name.length);
+    const el = document.createElement('div');
+    el.className = 'col';
+    el.innerHTML = `<div class="mname">${m.name}</div><div class="panel"><div class="think"></div><div class="ans"><span class="old"></span><span class="cur"></span></div></div><div class="blabel"></div><canvas class="bars"></canvas><div class="stats"></div>`;
+    cCols.appendChild(el);
+    Object.assign(m, { panel: el.querySelector('.panel'), thinkEl: el.querySelector('.think'), old: el.querySelector('.old'), cur: el.querySelector('.cur'), label: el.querySelector('.blabel'), cv: el.querySelector('canvas'), stats: el.querySelector('.stats') });
+  });
+  // Etapas en unidades de paso: [inicio, fin]. Los tres avanzan por etapas, no en tiempo real.
+  const SCHED = { sonnet: { think: [1, 1.5], ans: [1.5, 2] }, opus: { think: [1, 2.2], ans: [2.2, 3] }, fable: { think: [1, 3.3], ans: [3.3, 4] } };
+  const clamp01 = v => Math.min(1, Math.max(0, v));
+  const fr = (t, [a, b]) => b <= a ? (t >= a ? 1 : 0) : clamp01((t - a) / (b - a));
+  const ROW = 1000;
+  function drawBars(m, thinkN, ansN) {
+    const cv = m.cv, dpr = window.devicePixelRatio || 1;
+    const W = cv.clientWidth || 300, rows = Math.max(1, Math.ceil(m.out / ROW)), rh = 6, gap = 3, H = rows * (rh + gap);
+    cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + 'px';
+    const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+    ctx.fillStyle = '#ececec';
+    for (let r = 0; r < rows; r++) ctx.fillRect(0, r * (rh + gap), Math.min(ROW, m.out - r * ROW) / ROW * W, rh);
+    const seg = (from, n, color) => {
+      ctx.fillStyle = color;
+      let pos = from, left = n;
+      while (left > 0) {
+        const r = Math.floor(pos / ROW), inRow = pos - r * ROW, take = Math.min(left, ROW - inRow);
+        ctx.fillRect(inRow / ROW * W, r * (rh + gap), take / ROW * W, rh);
+        pos += take; left -= take;
+      }
+    };
+    seg(0, thinkN, '#9a9a9a');
+    seg(m.think, ansN, '#111');
+  }
+  const fmtSecs = s => s >= 60 ? Math.floor(s / 60) + ' min ' + Math.round(s % 60) + ' s' : Math.round(s) + ' s';
+  const costOf = (m, tok) => (QTOK * m.inp + tok * m.outp) / 1e6;
+  function renderC(t) {
+    DATA.models.forEach(m => {
+      const sc = SCHED[m.id], tf = fr(t, sc.think), af = fr(t, sc.ans);
+      const thinkN = Math.round(m.think * tf), ansN = Math.round(m.ans * af);
+      m.thinkEl.textContent = m.thinkText.slice(0, Math.round(m.thinkText.length * tf));
+      const shown = m.answer.slice(0, Math.round(m.answer.length * af));
+      const cut = Math.max(0, shown.length - 260);
+      m.old.textContent = shown.slice(0, cut);
+      m.cur.textContent = shown.slice(cut);
+      m.panel.scrollTop = m.panel.scrollHeight;
+      const started = t >= 1, done = af >= 1;
+      m.label.textContent = !started ? '' : (af > 0 ? 'Texto de respuesta' : 'Texto de razonamiento (oculto)');
+      m.label.classList.toggle('thinking', started && af === 0);
+      drawBars(m, thinkN, ansN);
+      const tok = thinkN + ansN;
+      m.stats.innerHTML = !started ? '' : `Tokens: <b>${fmt(tok)}</b> · Costo: <b>${usd(costOf(m, tok))}</b>` + (done ? ` · ${fmtSecs(m.secs)}` : (af > 0 ? ' · escribiendo…' : ' · razonando…'));
+    });
+  }
+  scrolly(document.getElementById('storyC'), (step, p) => renderC(step + p));
+
+  /* ---------- Cuadrículas de tokens por modelo ---------- */
+  const m3 = document.getElementById('models3');
+  DATA.models.forEach(m => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `<div class="meta"><b>${m.name}</b> · Tokens: <span>${fmt(m.out)}</span> · Costo: <span>${usd(costOf(m, m.out))}</span> · ${fmtSecs(m.secs)}</div><canvas></canvas>`;
+    m3.appendChild(row);
+    m.gcv = row.querySelector('canvas');
+  });
+  function drawGrids(frac) {
+    DATA.models.forEach(m => {
+      const cv = m.gcv, dpr = window.devicePixelRatio || 1;
+      const W = cv.clientWidth || 640, sz = 3, gap = 1, cols = Math.floor(W / (sz + gap));
+      const rows = Math.ceil(m.out / cols);
+      cv.width = W * dpr; cv.height = rows * (sz + gap) * dpr; cv.style.height = rows * (sz + gap) + 'px';
+      const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+      const show = Math.floor(m.out * frac);
+      for (let i = 0; i < show; i++) {
+        ctx.fillStyle = i < m.think ? '#b4b4b4' : '#7fc7a8';
+        ctx.fillRect((i % cols) * (sz + gap), Math.floor(i / cols) * (sz + gap), sz, sz);
+      }
+    });
+  }
+  drawGrids(0);
+  let gridsDone = false;
+  new IntersectionObserver(es => {
+    if (es[0].isIntersecting && !gridsDone) {
+      gridsDone = true;
+      const t0 = performance.now();
+      const anim = now => { const f = Math.min(1, (now - t0) / 2200); drawGrids(f); if (f < 1) requestAnimationFrame(anim); };
+      requestAnimationFrame(anim);
+    }
+  }, { threshold: 0.15 }).observe(m3);
+  window.addEventListener('resize', () => gridsDone && drawGrids(1));
+
+  /* ---------- Esfuerzo: misma pregunta, mismo modelo, distinto nivel ---------- */
+  const EFF = DATA.efforts || [];
+  const eb = document.getElementById('effbars');
+  if (EFF.length) {
+    const maxOut = Math.max(...EFF.map(e => e.out));
+    let lastId = '';
+    eb.innerHTML = EFF.map(e => {
+      const first = e.id !== lastId; lastId = e.id;
+      const cost = (QTOK * e.inp + e.out * e.outp) / 1e6;
+      return `<div class="r ${first ? 'first' : ''}"><div class="lb"><b>${first ? e.name.replace('Claude ', '') : ''}</b><span>esfuerzo ${e.effort}</span></div>
+        <div class="track"><div style="background:#b4b4b4" data-w="${e.think / maxOut * 100}"></div><div style="background:#7fc7a8" data-w="${e.ans / maxOut * 100}"></div></div>
+        <div class="v"><b>${fmt(e.out)}</b> tokens · ${fmtSecs(e.secs)} · ${usd(cost)}</div></div>`;
+    }).join('');
+    new IntersectionObserver(es => {
+      if (es[0].isIntersecting) eb.querySelectorAll('.track div').forEach(d => d.style.width = d.dataset.w + '%');
+    }, { threshold: 0.3 }).observe(eb);
+  } else {
+    eb.remove();
+  }
+
+  /* ---------- Escena B: agente ---------- */
+  const BASE = 68758;
+  const ADD = [900, 6200, 3100, 14800, 2600, 9400, 4100, 1800, 12300, 5200]; // mensaje o resultado de herramienta que entra en cada llamada
+  const OUT = 1400; // salida promedio por llamada en la sesión medida
+  const calls = [];
+  let prev = 0;
+  ADD.forEach((add, i) => {
+    const conv = i === 0 ? 0 : prev + OUT - BASE; // conversación acumulada sin la carga base
+    const ctx = BASE + conv + add;
+    calls.push({ conv, add, ctx });
+    prev = ctx;
+  });
+  const MAXCTX = calls[calls.length - 1].ctx + OUT;
+  const bCalls = document.getElementById('bCalls');
+  const bSel = document.getElementById('bModel');
+  M_KEYS.forEach(k => bSel.add(new Option(MODELS[k].name, k)));
+  bSel.value = 'opus';
+  calls.forEach((c, i) => {
+    const el = document.createElement('div');
+    el.className = 'bar hide';
+    el.innerHTML = `<div class="n">Llamada ${i + 1}</div><div class="track">
+      <div class="seg base"></div><div class="seg conv"></div><div class="seg new"></div><div class="seg out"></div></div><div class="note2"></div>`;
+    bCalls.appendChild(el);
+    c.el = el;
+    c.seg = [...el.querySelectorAll('.seg')];
+    c.note = el.querySelector('.note2');
+  });
+  const legendB = (cache) => `<span><i style="background:var(--base)"></i>Carga inicial</span><span><i style="background:var(--conv)"></i>Conversación anterior</span><span><i style="background:var(--in-a)"></i>Lo nuevo de esta llamada</span><span><i style="background:var(--out-a)"></i>Salida</span>` +
+    (cache ? `<span><i style="background:var(--write)"></i>Escrito en caché</span><span><i style="background:var(--cache)"></i>Leído de caché</span>` : '');
+
+  let bState = { step: 0, p: 0 };
+  function renderB() {
+    const { step, p } = bState;
+    const m = MODELS[bSel.value];
+    const visible = step === 0 ? 1 : step === 1 ? Math.max(1, Math.ceil(Math.min(1, p * 1.5) * calls.length)) : calls.length;
+    const striped = step >= 2;
+    const cache = step >= 3;
+    const expiredAt = step >= 4 ? 6 : -1; // índice 6 = llamada 7
+    let tok = 0, cost = 0;
+    calls.forEach((c, i) => {
+      const show = i < visible;
+      c.el.classList.toggle('hide', !show);
+      const pct = v => (v / MAXCTX * 100) + '%';
+      c.seg[0].style.width = pct(BASE);
+      c.seg[1].style.width = pct(c.conv);
+      c.seg[2].style.width = pct(c.add);
+      c.seg[3].style.width = pct(OUT);
+      const reused = i > 0 && i !== expiredAt; // el prefijo coincide con la llamada anterior
+      [0, 1].forEach(k => {
+        c.seg[k].classList.toggle('rep', striped && !cache && i > 0);
+        c.seg[k].classList.toggle('hit', cache && reused);
+        c.seg[k].classList.toggle('wr', cache && !reused);
+      });
+      c.seg[2].classList.toggle('wr', cache);
+      c.note.textContent = cache ? (reused ? 'lee de caché' : (i === expiredAt ? 'caché vencida' : 'escribe caché')) : '';
+      c.note.style.color = (cache && i === expiredAt) ? 'var(--pink)' : '';
+      if (!show) return;
+      tok += c.ctx;
+      cost += OUT * m.out;
+      if (!cache) cost += c.ctx * m.inp;
+      else if (reused) cost += (c.ctx - c.add) * m.hit + c.add * m.w1;
+      else cost += c.ctx * m.w1;
+    });
+    document.getElementById('bTok').textContent = fmt(tok);
+    const bc = document.getElementById('bCost');
+    bc.textContent = usd(cost / 1e6);
+    bc.classList.toggle('cheap', cache);
+    document.getElementById('bLegend').innerHTML = legendB(cache);
+  }
+  scrolly(document.getElementById('storyB'), (step, p) => { bState = { step, p }; renderB(); });
+  bSel.addEventListener('change', renderB);
+
+  /* ---------- Escena D: anatomía de una petición ---------- */
+  // Prefijo real de /context en api-chatbot (4 de octubre de 2026). La interacción es simulada.
+  const PREFIX = [['Instrucciones del sistema', 4100], ['Herramientas del sistema', 2700], ['Herramientas MCP', 628], ['Agentes', 262], ['Skills', 2400]];
+  const PREFIX_TOK = PREFIX.reduce((s, x) => s + x[1], 0);
+  const HIST = [
+    { k: 'u', txt: 'Haz que el correo sea obligatorio y valide su formato al crear un cliente.', tok: 30, lbl: 'Tu mensaje' },
+    { k: 'a', txt: 'Voy a ver cómo se crea un cliente hoy.', tool: 'Leer ClientesController', tok: 120, lbl: 'Respuesta 1: pide leer ClientesController' },
+    { k: 'r', txt: 'ClientesController · 160 líneas', tok: 2000, lbl: 'Archivo ClientesController' },
+    { k: 'a', txt: 'La validación está en ClienteValidator; lo reviso.', tool: 'Leer ClienteValidator', tok: 90, lbl: 'Respuesta 2: pide leer ClienteValidator' },
+    { k: 'r', txt: 'ClienteValidator · 80 líneas', tok: 1000, lbl: 'Archivo ClienteValidator' },
+    { k: 'a', txt: 'Agrego la regla: correo obligatorio y con formato válido.', tool: 'Editar ClienteValidator (+12 líneas)', tok: 300, lbl: 'Respuesta 3: edita ClienteValidator' },
+    { k: 'r', txt: 'ok', tok: 30, lbl: 'Resultado de la edición' },
+    { k: 'a', txt: 'Corro las pruebas.', tool: 'Correr pruebas', tok: 50, lbl: 'Respuesta 4: corre las pruebas' },
+    { k: 'r', txt: '24 pruebas, 24 ok', tok: 400, lbl: 'Resultado de las pruebas' },
+    { k: 'a', txt: 'Listo. Al crear un cliente sin correo o con un correo mal formado, la API responde 400 con «Correo inválido». Cambié ClienteValidator (+12 líneas) y agregué 2 pruebas.', tok: 200, lbl: 'Respuesta final' },
+  ];
+  const A_IDX = HIST.map((h, i) => h.k === 'a' ? i : -1).filter(i => i >= 0); // índice de la salida de cada llamada
+  const DM = MODELS.opus;
+  const dChat = document.getElementById('dChat'), dEnv = document.getElementById('dEnv'), dStats = document.getElementById('dStats');
+  const esc = s => s.replace(/</g, '&lt;');
+  const bubble = h => {
+    if (h.k === 'u') return `<div class="bub u">${esc(h.txt)}<span class="tk">${h.tok} tokens</span></div>`;
+    if (h.k === 'r') return `<div class="bub tr">${esc(h.txt)}<span class="tk">${fmt(h.tok)} tokens</span></div>`;
+    return `<div class="bub a">${esc(h.txt)}<span class="tk">${h.tok} tokens</span></div>` + (h.tool ? `<div class="bub tl">${esc(h.tool)}</div>` : '');
+  };
+  const blk = (lbl, tok, cls) => `<div class="blk ${cls}" style="height:${Math.max(16, tok * 0.02)}px"><span>${lbl}</span><span>${fmt(tok)}</span></div>`;
+  // Turno c: tokens que viajan por primera vez (w), los que ya habían viajado (r) y la salida (o)
+  function turnStats(c) {
+    const oi = A_IDX[c - 1], ins = HIST.slice(0, oi), nf = c <= 1 ? 0 : oi - 2;
+    const w = (c === 1 ? PREFIX_TOK : 0) + ins.slice(nf).reduce((s, h) => s + h.tok, 0);
+    const r = (c === 1 ? 0 : PREFIX_TOK) + ins.slice(0, nf).reduce((s, h) => s + h.tok, 0);
+    return { w, r, o: HIST[oi].tok, ins, oi, nf };
+  }
+  let dLastKey = '';
+  function renderD(step, p) {
+    let call = 0, showOut = false;
+    if (step === 1) { call = 1; showOut = p > 0.5; }
+    else if (step === 2) { call = 2; showOut = p > 0.5; }
+    else if (step === 3) { call = p < 0.5 ? 3 : 4; showOut = p < 0.5 ? p > 0.25 : p > 0.75; }
+    else if (step >= 4) { call = 5; showOut = step > 4 || p > 0.3; }
+    document.getElementById('dGauge').classList.toggle('big', step === 5);
+    const key = call + ':' + showOut;
+    if (key === dLastKey) return;
+    dLastKey = key;
+    const t = call ? turnStats(call) : null;
+    const inputs = t ? t.ins : [];
+    dChat.innerHTML = inputs.map(bubble).join('') + (showOut ? bubble(HIST[t.oi]) : '');
+    let html = `<div class="sep">Prefijo fijo · ${fmt(PREFIX_TOK)} tokens</div>` + PREFIX.map(([l, tk]) => blk(l, tk, call === 1 ? 'new' : call > 1 ? 'rep' : '')).join('');
+    if (call) html += `<div class="sep">Historial · ${fmt(inputs.reduce((s, h) => s + h.tok, 0))} tokens</div>` + inputs.map((h, i) => blk(h.lbl, h.tok, i >= t.nf || call === 1 ? 'new' : 'rep')).join('');
+    if (showOut) html += `<div class="sep">Respuesta de este turno</div>` + blk(HIST[t.oi].lbl, HIST[t.oi].tok, 'outblk');
+    dEnv.innerHTML = html;
+    let sent = 0;
+    for (let c = 1; c <= call; c++) { const s = turnStats(c); sent += s.w + s.r; }
+    const convo = PREFIX_TOK + inputs.reduce((s, h) => s + h.tok, 0) + (showOut ? HIST[t.oi].tok : 0);
+    dStats.innerHTML = !call ? 'Todavía no se ha enviado nada. El prefijo lo arma Claude Code al abrir la sesión.' :
+      `<b>Turno ${call}</b>: viajan <b>${fmt(t.w + t.r)}</b> tokens · ${fmt(t.r)} ya habían viajado · ${fmt(t.w)} nuevos.<br>Acumulado en ${call} turno${call > 1 ? 's' : ''}: <b>${fmt(sent)}</b> tokens enviados · la conversación mide ${fmt(convo)} · tú has escrito ${fmt(HIST[0].tok)}`;
+    document.getElementById('dUsed').textContent = fmt(convo);
+    document.getElementById('dFill').style.width = (convo / 1e6 * 100) + '%';
+  }
+  scrolly(document.getElementById('storyD'), renderD);
+
+  /* ---------- Tabla: qué se cobra en cada turno (Opus 5.5, caché de 1 hora) ---------- */
+  const tt = document.getElementById('turnsTable');
+  const T = { w: 0, r: 0, o: 0, cost: 0 };
+  const rowsT = A_IDX.map((_, i) => {
+    const s = turnStats(i + 1);
+    const cw = s.w * DM.w1 / 1e6, cr = s.r * DM.hit / 1e6, co = s.o * DM.out / 1e6;
+    T.w += s.w; T.r += s.r; T.o += s.o; T.cost += cw + cr + co;
+    return `<tr><td>Turno ${i + 1}</td><td>${fmt(s.w + s.r)}</td><td>${fmt(s.w)}<small>${usd(cw)}</small></td><td>${fmt(s.r)}<small>${usd(cr)}</small></td><td>${fmt(s.o)}<small>${usd(co)}</small></td><td><b>${usd(cw + cr + co)}</b></td></tr>`;
+  });
+  const noC = ((T.w + T.r) * DM.inp + T.o * DM.out) / 1e6;
+  tt.innerHTML = `<thead><tr><th></th><th>Viajan</th><th>Escritos en caché<small>$${DM.w1} por millón</small></th><th>Leídos de caché<small>$${DM.hit.toLocaleString('es-CO')} por millón</small></th><th>Salida<small>$${DM.out} por millón</small></th><th>Costo del turno</th></tr></thead><tbody>${rowsT.join('')}</tbody>` +
+    `<tfoot><tr><td>Total</td><td>${fmt(T.w + T.r)}</td><td>${fmt(T.w)}<small>${usd(T.w * DM.w1 / 1e6)}</small></td><td>${fmt(T.r)}<small>${usd(T.r * DM.hit / 1e6)}</small></td><td>${fmt(T.o)}<small>${usd(T.o * DM.out / 1e6)}</small></td><td><b>${usd(T.cost)}</b></td></tr></tfoot>`;
+  document.getElementById('turnsNote').textContent = `Precio de lista de Opus 5.5. Sin caché, los mismos ${fmt(T.w + T.r)} tokens de entrada a $${DM.inp} por millón habrían costado ${usd(noC)}: en esta sesión corta la caché ahorra la mitad; en una larga, cuatro quintas partes.`;
+
+  /* ---------- Cambio de modelo a mitad de sesión ---------- */
+  const swCtx = document.getElementById('swCtx'), swOpts = document.getElementById('swOpts');
+  function renderSwitch() {
+    const n = +swCtx.value;
+    document.getElementById('swVal').textContent = fmt(n);
+    const items = [{ m: MODELS.opus, keep: true }, { m: MODELS.fable }, { m: MODELS.sonnet }];
+    swOpts.innerHTML = items.map(({ m, keep }) => {
+      const short = m.name.replace('Claude ', '');
+      const first = keep ? n * m.hit : n * m.w1, after = n * m.hit;
+      return `<div class="opt ${keep ? 'keep' : ''}">${keep ? 'Seguir con' : 'Cambiar a'} <b>${short}</b><strong>${usd(first / 1e6)}</strong>` +
+        (keep ? `la siguiente llamada lee ${fmt(n)} tokens de caché` : `la siguiente llamada escribe los ${fmt(n)} tokens de nuevo; después, ${usd(after / 1e6)} por llamada`) + `</div>`;
+    }).join('');
+    document.getElementById('swNote').textContent = `Con solo el prefijo de ${fmt(PREFIX_TOK)} tokens, al empezar una fase, cambiar a Fable costaría ${usd(PREFIX_TOK * MODELS.fable.w1 / 1e6)}.`;
+  }
+  swCtx.addEventListener('input', renderSwitch);
+  renderSwitch();
+
+  /* ---------- Tabla de precios ---------- */
+  const tb = document.querySelector('#priceTable tbody');
+  M_KEYS.forEach(k => {
+    const m = MODELS[k];
+    const d = v => '$' + v.toLocaleString('es-CO', { minimumFractionDigits: v % 1 ? 2 : 0 });
+    tb.insertAdjacentHTML('beforeend', `<tr><td><b>${m.name}</b><small>${m.note}</small></td><td>${d(m.inp)}</td><td>${d(m.out)}</td><td>${d(m.w5)}</td><td>${d(m.w1)}</td><td>${d(m.hit)}</td></tr>`);
+  });
+
+  /* ---------- Calculadora ---------- */
+  const PRESETS = [
+    { label: 'Pregunta de chat', m: 'sonnet', i: 600, w: 0, r: 0, o: 900 },
+    { label: 'Tarea corta con agente', m: 'opus', i: 3000, w: 140000, r: 2400000, o: 35000 },
+    { label: 'Sesión medida (245 llamadas)', m: 'fable', i: 4936, w: 5588688, r: 69680491, o: 341585 },
+  ];
+  const cSel = document.getElementById('cModel');
+  M_KEYS.forEach(k => cSel.add(new Option(MODELS[k].name, k)));
+  const f = { i: document.getElementById('cIn'), w: document.getElementById('cW'), r: document.getElementById('cR'), o: document.getElementById('cOut') };
+  const pre = document.getElementById('presets');
+  PRESETS.forEach((p, idx) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = p.label;
+    b.onclick = () => { cSel.value = p.m; f.i.value = p.i; f.w.value = p.w; f.r.value = p.r; f.o.value = p.o; [...pre.children].forEach(x => x.classList.remove('on')); b.classList.add('on'); calc(); };
+    pre.appendChild(b);
+  });
+  function calc() {
+    const m = MODELS[cSel.value];
+    const v = k => Math.max(0, +f[k].value || 0);
+    const parts = [
+      { k: 'Entrada', c: v('i') * m.inp / 1e6, col: 'var(--in-a)' },
+      { k: 'Escritura en caché', c: v('w') * m.w1 / 1e6, col: 'var(--write)' },
+      { k: 'Lectura de caché', c: v('r') * m.hit / 1e6, col: 'var(--cache)' },
+      { k: 'Salida', c: v('o') * m.out / 1e6, col: 'var(--out-a)' },
+    ];
+    const tot = parts.reduce((s, x) => s + x.c, 0);
+    const noCache = (v('i') + v('w') + v('r')) * m.inp / 1e6 + v('o') * m.out / 1e6;
+    document.getElementById('cTotal').innerHTML = `${usd(tot)} <small>con ${m.name}</small>`;
+    document.getElementById('cNoCache').textContent = (v('w') + v('r')) > 0
+      ? `Sin caché costaría ${usd(noCache)}, ${(noCache / Math.max(tot, 1e-9)).toLocaleString('es-CO', { maximumFractionDigits: 1 })} veces más.` : 'Sin caché: una sola llamada no reutiliza nada.';
+    document.getElementById('cStack').innerHTML = parts.map(x => `<div title="${x.k}" style="width:${tot ? x.c / tot * 100 : 0}%;background:${x.col}"></div>`).join('');
+    document.getElementById('cLines').innerHTML = parts.map(x => `<div><i style="display:inline-block;width:9px;height:9px;background:${x.col};border-radius:2px;margin-right:4px"></i>${x.k}<strong>${usd(x.c)}</strong>${tot ? Math.round(x.c / tot * 100) + '%' : ''}</div>`).join('');
+  }
+  [cSel, ...Object.values(f)].forEach(e => e.addEventListener('input', calc));
+  pre.children[2].click();
+
+  /* ---------- Caso real por modelo ---------- */
+  const S = PRESETS[2];
+  const rows = M_KEYS.map(k => {
+    const m = MODELS[k];
+    return { name: m.name.replace('Claude ', ''), c: (S.i * m.inp + S.w * m.w1 + S.r * m.hit + S.o * m.out) / 1e6 };
+  });
+  const fab = MODELS.fable;
+  const nc = ((S.i + S.w + S.r) * fab.inp + S.o * fab.out) / 1e6;
+  rows.push({ name: 'Fable 5.1 sin caché', c: nc, nc: true });
+  const hb = document.getElementById('hbars');
+  hb.innerHTML = rows.map(r => `<div class="r"><div>${r.name}</div><div><div class="b ${r.nc ? 'nc' : ''}" data-w="${r.c / nc * 100}"></div></div><div class="v">${usd(r.c)}</div></div>`).join('');
+  new IntersectionObserver(es => {
+    if (es[0].isIntersecting) hb.querySelectorAll('.b').forEach(b => b.style.width = b.dataset.w + '%');
+  }, { threshold: 0.3 }).observe(hb);
+})();
+</script>
+</body>
+</html>
