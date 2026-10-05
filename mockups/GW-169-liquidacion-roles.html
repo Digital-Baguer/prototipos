@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<!--
+═══════════════════════════════════════════════════════════════════════════════════════════════
+GW-169 · Mockup v2 · Liquidación de comisiones: una sola tabla por comercio con asesores, roles y directora
+Fecha: 2026-10-01 · ancho real 1440 px · Tailwind CDN + JS vanilla · sin backend
+La v1 (bloque «Roles» aparte, rechazada) queda en docs/mockups/GW-169-liquidacion-roles-v1.html.
+
+DECISIONES QUE REFLEJA (docs/requirements/GW-169/brainstorming.md §4)
+  D17 Una sola tabla agrupada por comercio, como la hoja del Drive: STIRPE (asesores + SUPERVISORA + COORDINADOR),
+      DEREK (asesoras + COORDINADORA), DIRECTORA con una subfila por tienda y su total combinado. Filtro de tienda con
+      «Todas»; con una tienda se ve solo su parte (la directora con la subfila de esa tienda). El cierre sigue por tienda.
+  D18 Columnas de venta en el orden de la tabla Asesores de Gestión de Ventas; pedidos web en gris y sin sumar; paga la
+      venta neta (facturado − devoluciones + tienda física).
+  D19 Columnas de comisión de la hoja del Drive, en su orden, más Ped. y Días de bono. La fila abre su detalle (D14).
+  D4/D5/D6/D7/D8/D9/D10/D13/D15/D16 siguen: venta neta del sello de la partición, una cuenta por tienda, bono solo en
+      firme (provisional en gris, no suma), partición por sello, fila de la directora solo con `ver_comision_director`,
+      sin filas de rol antes de 16–30 sep, Excel en la misma hoja, foto del cierre con roles, escala al último día.
+  ADR-005 una cifra por celda (el escalón va en el `title`). ADR-006 sin ámbar en lo nuevo. ADR-011 % entero.
+
+TABLA ANCHA: 22 columnas. A 1440 px no cabe: scroll horizontal con «Comercio» y «Nombre» fijas a la izquierda y
+«Total comisión» fija a la derecha (sticky), igual que Nombre/Comisión total en la tabla Asesores de Gestión de Ventas.
+
+QUÉ SE CALCÓ DEL REAL (get-web origin/master 919fe, 2026-10-01)
+  - Página: comisiones/Liquidacion.vue (HeaderLayout, TabsComisiones, filtros, presets, Consultar, badge de base, 5 KPI que
+    quedan como hoy, chip «🔒 Período cerrado», botón «Exportar Excel» outline sm), components/BannerEstadoRango.vue.
+  - Tabla: gestionVentas/components/TablaAsesoresCumplimiento.vue + tablaAsesoresCumplimiento.celdas.ts (encabezado
+    text-[11px] uppercase text-gray-400, celdas px-3 py-2 text-[13px] tabular-nums, bandas #f7f9fc · #f3f6fa · #eff3f8 ·
+    #eaeff6 · #e3e9f2, avatar con iniciales y PALETA_AVATAR, «valor (n)», conSigno en devoluciones rojo y tienda física
+    esmeralda, sticky izq/der con sombra, pie border-t-2 bg-gray-50 font-bold, tips TIP_*).
+    Cambio: el badge de cumplimiento usa claseBadgeCumplimiento (≥100 esmeralda · 80–99 slate-900 · <80 rosa) de
+    indicadoresDiariosCanal.vista.ts en vez del semáforo con ámbar de Gestión (ADR-006).
+  - Chip de días del asesor: el de Liquidacion.vue (≥7 verde, 4–6 ámbar, resto gris), sin cambios.
+  - Cierre: Liquidacion.vue no tiene botón de cierre y el REQ no lo agrega; sigue en «Cierre de períodos» (CierrePeriodos.vue →
+    ModalDetalleQuincena.vue). En «Todas» solo se agrega una línea gris junto al chip del período.
+  - Modal día a día: components/ModalDetalleAsesor.vue (sm:max-w-5xl, franja de KPI). Chip de bono en firme de
+    tablaDetalleDiario.vista.ts `estadoBono`; el provisional en gris (el real es ámbar).
+  - Excel: app/Exports/Comisiones/LiquidacionExport.php (hoja «Liquidación», nombre liquidacion-{tienda}-{desde}-a-{hasta}.xlsx).
+
+DATOS (PROD 3308, solo lectura; sello get.liquidacion_va_calculo_dia recalculado a las 2026-10-01 15:02:35)
+  - El sello de 29 y 30 sep sigue cambiando el 1-oct a medida que llegan facturas: a las 14:12 Stirpe iba en 81,88 %,
+    a las 15:02 en 82,81 %. El mockup congela la foto de las 15:02.
+  - Asesores: suma real por asesor (meta, pedidos web, facturado, ped., devoluciones, tienda física, venta neta, conv.,
+    carritos, días con bono facturado). Cédula real: get.contacts.document_number (todos la tienen).
+    Comisión: regla de calcularFilaAsesor con la escala vigente al 30-sep (cifra reproducida; puede diferir por redondeo).
+  - Roles: partición real (equipo con sello en la tienda, día a día) — en las dos tiendas coincide con todos los
+    asesores de la tienda, y su venta neta es la misma suma de la columna de asesores (verificado por query).
+    VPT = Σ facturado ÷ Σ ped. (fórmula de calcularFilaAsesor) y TCV = Σ carritos ÷ Σ conversaciones × 100, frente a la
+    meta del mes de la tienda (presupuesto_va_mes): CALCULADOS, no ilustrativos.
+  - 1–15 sep: la foto real del cierre (comision_va_periodo id 2). Tienda física = venta neta − venta_para_vpt −
+    devoluciones (derivada de la foto).
+
+QUÉ QUEDÓ FUERA
+  - Sidebar del AppLayout; vista a 390 px; ModalDetalleQuincena con roles; reapertura; selector «Columnas» de Gestión.
+  - Detalle día a día de coordinador y directora (mismo modal que el de la supervisora, columna Bono en «—»).
+  - Tarjeta del rol en Gestión de Ventas (D20: no cambia).
+  - Fuera del mockup: el modal de cierre debe sumar roles (D15). ModalDetalleQuincena.vue muestra la tabla y el
+    «TOTAL · N asesor(es)» con totales.total_pagar que se van a congelar; hoy solo de asesores.
+═══════════════════════════════════════════════════════════════════════════════════════════════
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-169 v2 · Liquidación de comisiones: una tabla por comercio con roles</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  html, body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+  .cifra { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .marcar-on .cambio { outline: 2px dashed #6366f1; outline-offset: -2px; }
+  .skeleton { background: linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+  @keyframes sk { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+  @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+  /* Tooltip CSS solo fuera de contenedores con scroll (KPI); en la tabla, title nativo. */
+  .tip { position: relative; }
+  .tip::after { content: attr(data-tip); position: absolute; top: 100%; left: 0; margin-top: 6px; width: 240px; padding: 6px 12px;
+    background: hsl(0 0% 9%); color: hsl(0 0% 98%); font-size: 11px; line-height: 1.375; font-weight: 400; text-transform: none;
+    letter-spacing: normal; text-align: left; white-space: normal; border-radius: 6px; display: none; pointer-events: none; z-index: 40; }
+  .tip:hover::after { display: block; }
+  /* Tabla de liquidación (calco de TablaAsesoresCumplimiento.vue) */
+  table.liq { border-collapse: separate; border-spacing: 0; }
+  table.liq th, table.liq td { padding: .5rem .75rem; white-space: nowrap; }
+  table.liq tbody td { border-bottom: 1px solid #f9fafb; }
+  table.liq .c-comercio { position: sticky; left: 0; z-index: 10; width: 128px; min-width: 128px; max-width: 128px; }
+  table.liq .c-nombre { position: sticky; left: 128px; z-index: 10; box-shadow: 2px 0 0 0 #e5e7eb; }
+  table.liq .c-total { position: sticky; right: 0; z-index: 10; box-shadow: -2px 0 0 0 #e5e7eb; }
+  table.liq .fila-rol td { background-color: #f3f4f6; }
+  table.liq .fila-rol td.c-total { background-color: #ecfdf5; }
+  table.liq td.borde-grupo { border-top: 2px solid #e5e7eb; }
+  /* Excel */
+  table.xls { border-collapse: collapse; font-family: Calibri, Carlito, ui-sans-serif, system-ui, sans-serif; font-size: 12px; }
+  table.xls td, table.xls th { border: 1px solid #d4d4d8; padding: 2px 6px; white-space: nowrap; height: 22px; }
+  table.xls th.col { background: #f4f4f5; color: #52525b; font-weight: 400; text-align: center; }
+  table.xls td.fila { background: #f4f4f5; color: #52525b; text-align: center; width: 34px; }
+  table.xls td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.xls tr.rol td:not(.fila) { background: #e5e7eb; }
+</style>
+</head>
+<body class="overflow-x-hidden bg-gray-100 text-gray-900 antialiased">
+
+<!-- ══ Barra de control del mockup (no es parte de la UI) ══ -->
+<div class="sticky top-0 z-50 border-b border-indigo-200 bg-indigo-50/95 px-4 py-2 backdrop-blur">
+  <div class="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+    <span class="font-bold text-indigo-900">GW-169 · mockup v2</span>
+    <div class="flex flex-wrap gap-1" id="pestanas">
+      <button data-p="todas"   class="pestana rounded-md border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-white">1 · Todas · 16–30 sep</button>
+      <button data-p="stirpe"  class="pestana rounded-md border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-white">2 · Solo Stirpe</button>
+      <button data-p="modal"   class="pestana rounded-md border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-white">3 · Día a día de la supervisora</button>
+      <button data-p="sindir"  class="pestana rounded-md border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-white">4 · Sin permiso de director</button>
+      <button data-p="cerrado" class="pestana rounded-md border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-white">5 · Stirpe 16–30 sep cerrado</button>
+      <button data-p="q1"      class="pestana rounded-md border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-white">6 · 1–15 sep (antes de roles)</button>
+      <button data-p="excel"   class="pestana rounded-md border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-white">7 · Excel</button>
+      <button data-p="estados" class="pestana rounded-md border border-indigo-200 px-2.5 py-1 text-indigo-700 hover:bg-white">8 · Carga, error y vacío</button>
+    </div>
+    <label id="estado-wrap" class="hidden items-center gap-1.5">
+      <span class="text-indigo-800">Filas de rol:</span>
+      <select id="estado" class="rounded border border-indigo-300 bg-white px-1.5 py-0.5">
+        <option value="carga">Cargando (skeleton)</option>
+        <option value="error">Error · Reintentar</option>
+        <option value="vacio">Vacío · sin roles con escala</option>
+      </select>
+    </label>
+    <label class="flex items-center gap-1.5">
+      <input id="marcar" type="checkbox" class="rounded border-indigo-300" checked>
+      <span class="text-indigo-800">Marcar lo nuevo</span>
+    </label>
+    <span class="text-indigo-700 lg:ml-auto">PROD 3308 · sello 1-oct 15:02 · 1440 px</span>
+  </div>
+</div>
+
+<div class="mx-auto max-w-[1440px] px-4 pt-4">
+  <p id="titulo-pantalla" class="text-[13px] font-semibold text-indigo-900"></p>
+</div>
+<div id="pagina" class="marcar-on mx-auto max-w-[1440px] px-4 py-3"></div>
+
+<!-- ══ Nota al pie: qué difiere de la UI actual ══ -->
+<div class="mx-auto max-w-[1440px] px-4 pb-10">
+  <div class="rounded-xl border border-indigo-200 bg-white p-5 text-[12px] leading-relaxed text-gray-700">
+    <p class="mb-2 text-sm font-semibold text-gray-900">Qué cambia frente a la pantalla de hoy (get-web origin/master, 2026-10-01)</p>
+    <table class="w-full text-left text-[11.5px]">
+      <thead><tr class="border-b text-gray-500"><th class="py-1 pr-3">Parte</th><th class="py-1 pr-3">Hoy</th><th class="py-1">Con GW-169</th></tr></thead>
+      <tbody class="divide-y">
+        <tr><td class="py-1.5 pr-3 font-medium">Filtro de tienda</td><td class="py-1.5 pr-3">Una tienda</td><td class="py-1.5">Gana «Todas» (por defecto). Las tarjetas KPI quedan como hoy, sumando los asesores de lo filtrado.</td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Tabla</td><td class="py-1.5 pr-3">«Liquidación por asesor»: shadcn Table, 17 columnas, una tienda</td><td class="py-1.5">«Liquidación por comercio»: la tabla de Asesores de Gestión de Ventas (estilo, bandas, avatar) con las columnas de comisión de la hoja del Drive; grupos STIRPE, DEREK y DIRECTORA con celda «Comercio» combinada; filas de rol en gris; total por comercio y TOTAL GENERAL. Sticky: Comercio, Nombre y Total comisión.</td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Venta</td><td class="py-1.5 pr-3">Venta neta · Devoluciones · Pedidos web</td><td class="py-1.5">Meta · Pedidos web (gris, no suma) · Facturado · Devoluciones · Tienda física · Venta neta (banda resaltada, la que paga) · Cumplimiento.</td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Comisión</td><td class="py-1.5 pr-3">Cumpl. · Ped. · VPT · %VPT · TCV · %TCV · % Total · Comisión venta · Días · Bono · TOTAL</td><td class="py-1.5">Cédula · % comisión · Comisión venta · TCV % · % comisión · Ped. · VPT · % comisión · Total % comisión · Total comisión venta · Días · Bono diario · Total comisión. En roles el % dice «fijo» y VPT/TCV pagan «+$ 30.000».</td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Detalle</td><td class="py-1.5 pr-3">Columna con ojo</td><td class="py-1.5">El ojo pasa junto al nombre (sin columna propia); en la fila de rol abre el día a día.</td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Cierre</td><td class="py-1.5 pr-3">En «Cierre de períodos», por tienda</td><td class="py-1.5">Sin cambio. En «Todas», una línea gris junto al chip del período: «El cierre es por tienda (Cierre de períodos)». El modal de cierre debe sumar roles (D15), fuera del mockup.</td></tr>
+        <tr><td class="py-1.5 pr-3 font-medium">Excel</td><td class="py-1.5 pr-3">19 columnas + TOTAL, con Base IVA por fila</td><td class="py-1.5">La misma tabla agrupada por comercio, con celdas combinadas; la base IVA pasa al título de la hoja.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Datos reales · PROD 3308 · sello 2026-09-16 → 2026-09-30 recalculado el 2026-10-01 15:02:35
+// ─────────────────────────────────────────────────────────────────────────────
+const TIP_PEDIDOS_WEB_KPI = 'Pedidos ya pagados por el cliente, a la espera de la factura del ERP. Cuentan desde ya: el dinero entró.';
+const TIP_BONO_PROVISIONAL = 'Aún no se ha facturado. Este bono cuenta pedidos pagados que el ERP todavía no factura. Si la factura llega por menos y el día baja del 100 %, el bono se retira.';
+
+// pw/pwN = pedidos web (pagados sin factura) · fact/ped = facturado y pedidos facturados · dev ≤ 0 · tf = tienda física · vn = venta neta
+const ASESORES = {
+  0: [
+    { nombre: 'Andres Felipe Jimenez Quintero',  cod: '7133900', ced: '1005297933', dias: 15, meta: 59463911, pw: 3112797, pwN: 3, fact: 68589214, ped: 119, dev: -5314680, tf: 0,       vn: 63274534, conv: 501, carr: 122, diasBono: 8 },
+    { nombre: 'Jhon Alexander Rodriguez Patiño', cod: '7374400', ced: '1098771422', dias: 15, meta: 60786497, pw: 2393222, pwN: 5, fact: 58558546, ped: 118, dev: -6361354, tf: 315801,  vn: 52512993, conv: 645, carr: 123, diasBono: 5 },
+    { nombre: 'Juan Camilo Vergel Acosta',       cod: '8932900', ced: '1005321395', dias: 15, meta: 57648459, pw: 4110025, pwN: 5, fact: 54175826, ped: 107, dev: -4247139, tf: 157901,  vn: 50086588, conv: 530, carr: 112, diasBono: 4 },
+    { nombre: 'Fabian  Andres Prada Rueda',      cod: '8969900', ced: '1005199629', dias: 15, meta: 63968923, pw: 5750946, pwN: 6, fact: 53135260, ped: 121, dev: -3468047, tf: 197901,  vn: 49865114, conv: 600, carr: 127, diasBono: 4 },
+    { nombre: 'Valentina Nuñez Caballero',       cod: '7284300', ced: '1005541170', dias: 15, meta: 57795351, pw: 1120850, pwN: 3, fact: 50324141, ped: 108, dev: -3334214, tf: 769901,  vn: 47759828, conv: 552, carr: 111, diasBono: 4 },
+    { nombre: 'Silvia Alejandra Camacho',        cod: '5432100', ced: '1102387241', dias: 13, meta: 55935244, pw: 3028870, pwN: 7, fact: 49072846, ped: 109, dev: -2265037, tf: 269900,  vn: 47077709, conv: 499, carr: 116, diasBono: 3 },
+    { nombre: 'BRAYAN JAVIER ARDILA FLOREZ',     cod: '7784400', ced: '1005329275', dias: 15, meta: 59007182, pw: 3279895, pwN: 3, fact: 48792579, ped: 103, dev: -3439048, tf: 911800,  vn: 46265331, conv: 534, carr: 106, diasBono: 3 },
+    { nombre: 'Paula Andrea Oliveros Ardila',    cod: '8907100', ced: '1238138328', dias: 14, meta: 54876312, pw: 2457820, pwN: 4, fact: 46435417, ped: 101, dev: -4456598, tf: 607851,  vn: 42586670, conv: 480, carr: 105, diasBono: 6 },
+    { nombre: 'Manuel Humberto Parra Tapias',    cod: '8443600', ced: '1095906769', dias: 15, meta: 49571109, pw: 679950,  pwN: 1, fact: 43330193, ped: 104, dev: -4489729, tf: 1089951, vn: 39930415, conv: 488, carr: 105, diasBono: 5 },
+    { nombre: 'Nicol Dayana Pinzon Peña',        cod: '8960200', ced: '1005108884', dias: 14, meta: 58695820, pw: 2910644, pwN: 6, fact: 43859013, ped: 94,  dev: -5076295, tf: 290950,  vn: 39073668, conv: 541, carr: 99,  diasBono: 2 },
+  ],
+  1: [
+    { nombre: 'Ingrid Tatiana Contreras Zúñiga', cod: '7133700', ced: '1095957608', dias: 14, meta: 19467837, pw: 3211472, pwN: 7, fact: 19627228, ped: 64, dev: -2772032, tf: 1169023, vn: 18024219, conv: 366, carr: 71, diasBono: 6 },
+    { nombre: 'Sheyla Mariyuri Jimenez Pinto',   cod: '6913200', ced: '1005105894', dias: 15, meta: 18214046, pw: 2163458, pwN: 4, fact: 16538635, ped: 51, dev: -1384868, tf: 929303,  vn: 16083070, conv: 322, carr: 55, diasBono: 4 },
+    { nombre: 'Ana Maria Serna Vargas',          cod: '2160700', ced: '1098686967', dias: 15, meta: 16593099, pw: 2273454, pwN: 6, fact: 12263611, ped: 48, dev: -1797759, tf: 1067143, vn: 11532995, conv: 336, carr: 54, diasBono: 2 },
+    { nombre: 'Paola Andrea Soto Guarin',        cod: '6997300', ced: '1005154229', dias: 11, meta: 9425526,  pw: 530800,  pwN: 1, fact: 10259045, ped: 26, dev: -1204159, tf: 535908,  vn: 9590794,  conv: 153, carr: 27, diasBono: 3 },
+  ],
+};
+
+// Foto real del cierre 1–15 sep Stirpe (comision_va_periodo id 2). fact = venta_para_vpt; tf derivada.
+const Q1_FILAS = [
+  { nombre: 'Andres Felipe Jimenez Quintero',  cod: '7133900', ced: '1005297933', meta: 53600612, vn: 45802340, dev: -3458219, fact: 49219609, ped: 111, cum: 85.45,  vpt: 443420, pV: 0.0076, pVpt: 0,      tcv: 27.78, pTcv: 0.0008, pTot: 0.0084, com: 384740, db: 5, dr: 14, bono: 100000, tot: 484740 },
+  { nombre: 'BRAYAN JAVIER ARDILA FLOREZ',     cod: '7784400', ced: '1005329275', meta: 54858127, vn: 51575359, dev: -5497113, fact: 53770371, ped: 114, cum: 94.02,  vpt: 471670, pV: 0.0091, pVpt: 0,      tcv: 28.79, pTcv: 0.0008, pTot: 0.0099, com: 510596, db: 5, dr: 13, bono: 100000, tot: 610596 },
+  { nombre: 'CARLOS YORGE CORDOBA MURALLAS',   cod: '8550600', ced: '1005289140', meta: 0,        vn: -302355,  dev: -302355,  fact: 0,        ped: 0,   cum: null,   vpt: null,   pV: 0,      pVpt: 0,      tcv: null,  pTcv: 0,      pTot: 0,      com: 0,      db: 0, dr: 1,  bono: 0,      tot: 0 },
+  { nombre: 'Fabian  Andres Prada Rueda',      cod: '8969900', ced: '1005199629', meta: 55015621, vn: 50881478, dev: -3386604, fact: 53618131, ped: 99,  cum: 92.49,  vpt: 541597, pV: 0.0087, pVpt: 0.0008, tcv: 23.11, pTcv: 0.0008, pTot: 0.0103, com: 524079, db: 2, dr: 14, bono: 40000,  tot: 564079 },
+  { nombre: 'Jhon Alexander Rodriguez Patiño', cod: '7374400', ced: '1098771422', meta: 58495808, vn: 57964393, dev: -1753505, fact: 59459998, ped: 113, cum: 99.09,  vpt: 526195, pV: 0.0106, pVpt: 0.0008, tcv: 23.65, pTcv: 0.0008, pTot: 0.0122, com: 707166, db: 6, dr: 13, bono: 120000, tot: 827166 },
+  { nombre: 'Juan Camilo Vergel Acosta',       cod: '8932900', ced: '1005321395', meta: 57367608, vn: 52319115, dev: -2976074, fact: 55295189, ped: 106, cum: 91.20,  vpt: 521653, pV: 0.0086, pVpt: 0.0008, tcv: 24.59, pTcv: 0.0008, pTot: 0.0102, com: 533655, db: 6, dr: 14, bono: 120000, tot: 653655 },
+  { nombre: 'Lady Stephanie Guevara Samaca',   cod: '5344600', ced: '1095950306', meta: null,     vn: 722650,   dev: 0,        fact: 722650,   ped: 1,   cum: null,   vpt: 722650, pV: 0,      pVpt: 0,      tcv: null,  pTcv: 0,      pTot: 0,      com: 0,      db: 0, dr: 1,  bono: 0,      tot: 0 },
+  { nombre: 'Manuel Humberto Parra Tapias',    cod: '8443600', ced: '1095906769', meta: 60494241, vn: 51751728, dev: -2480771, fact: 53806698, ped: 120, cum: 85.55,  vpt: 448389, pV: 0.0077, pVpt: 0,      tcv: 25.97, pTcv: 0.0008, pTot: 0.0085, com: 439890, db: 5, dr: 15, bono: 100000, tot: 539890 },
+  { nombre: 'Marlon Stiven Gelves Carrillo',   cod: '7678600', ced: '1005281250', meta: 0,        vn: -2973162, dev: -2973162, fact: 0,        ped: 0,   cum: null,   vpt: null,   pV: 0,      pVpt: 0,      tcv: null,  pTcv: 0,      pTot: 0,      com: 0,      db: 0, dr: 4,  bono: 0,      tot: 0 },
+  { nombre: 'Nicol Dayana Pinzon Peña',        cod: '8960200', ced: '1005108884', meta: 55088219, vn: 55167657, dev: -1327316, fact: 56494973, ped: 110, cum: 100.14, vpt: 513591, pV: 0.0109, pVpt: 0.0008, tcv: 25.64, pTcv: 0.0008, pTot: 0.0125, com: 689596, db: 5, dr: 13, bono: 100000, tot: 789596 },
+  { nombre: 'Paula Andrea Oliveros Ardila',    cod: '8907100', ced: '1238138328', meta: 55520161, vn: 45927042, dev: -4157057, fact: 49664248, ped: 111, cum: 82.72,  vpt: 447426, pV: 0.0072, pVpt: 0,      tcv: 26.56, pTcv: 0.0008, pTot: 0.0080, com: 367416, db: 3, dr: 15, bono: 60000,  tot: 427416 },
+  { nombre: 'Silvia Alejandra Camacho',        cod: '5432100', ced: '1102387241', meta: 61194328, vn: 55467954, dev: -1547505, fact: 57015459, ped: 123, cum: 90.64,  vpt: 463540, pV: 0.0086, pVpt: 0,      tcv: 25.05, pTcv: 0.0008, pTot: 0.0094, com: 521399, db: 6, dr: 15, bono: 120000, tot: 641399 },
+  { nombre: 'Valentina Nuñez Caballero',       cod: '7284300', ced: '1005541170', meta: 56943467, vn: 43545857, dev: -2970497, fact: 45916404, ped: 96,  cum: 76.47,  vpt: 478296, pV: 0,      pVpt: 0,      tcv: 21.97, pTcv: 0,      pTot: 0,      com: 0,      db: 4, dr: 13, bono: 80000,  tot: 80000 },
+];
+const Q1_TOTALES = { meta: 568578192, vn: 507850056, cum: 89.19, ped: 1104, com: 4678537, diasBono: 47, bono: 940000, total: 5618537 };
+
+// Escalas reales vigentes al 30-sep (comision_va_tabla).
+const ESCALA_ASESOR = {
+  0: { ventas: [0.0067,0.0069,0.0071,0.0072,0.0074,0.0076,0.0077,0.0079,0.0081,0.0082,0.0084,0.0086,0.0087,0.0089,0.0091,0.0092,0.0096,0.0099,0.0103,0.0106,0.0109], vpt: 0.0008, tcv: 0.0008, bonoDia: 20000 },
+  1: { ventas: [0.0101,0.0103,0.0104,0.0106,0.0108,0.0109,0.0111,0.0113,0.0114,0.0116,0.0118,0.0121,0.0124,0.0128,0.0131,0.0134,0.0138,0.0141,0.0145,0.0148,0.0168], vpt: 0.0016, tcv: 0.0016, bonoDia: 20000 },
+};
+const ESCALA_ROL = {
+  '0-coordinador': [170000,190000,210000,230000,250000,270000,290000,310000,330000,350000,370000,390000,410000,430000,450000,470000,490000,510000,530000,550000,570000],
+  '0-supervisor':  [150000,170000,190000,210000,230000,250000,270000,290000,310000,330000,360000,390000,420000,450000,480000,510000,540000,570000,600000,630000,700000],
+  '0-director':    [221000,237250,253500,269750,286000,302250,318500,334750,351000,367250,383500,399750,416000,432250,448500,464750,481000,497250,513500,529750,565500],
+  '1-coordinador': [170000,190000,210000,230000,250000,270000,290000,310000,330000,350000,370000,390000,410000,430000,450000,470000,490000,510000,530000,550000,570000],
+  '1-director':    [119000,127750,136500,145250,154000,162750,171500,180250,189000,197750,206500,215250,224000,232750,241500,250250,259000,267750,276500,285250,304500],
+};
+const FIJO_VPT_TCV = 30000;
+const META_MES = { 0: { vpt: 500000, tcv: 23 }, 1: { vpt: 281600, tcv: 23 } };
+const TIENDAS = { 0: 'Stirpe', 1: 'Derek' };
+
+// Titulares por tienda (orden de la hoja: supervisora, coordinador). Nombres tal como están en get.contacts.
+const TITULARES = {
+  0: [
+    { nombre: 'Lady Stephanie Guevara Samaca', ced: '1095950306', rol: 'supervisor', etiqueta: 'SUPERVISORA', bono: { tipo: 'dias', firme: 3, provisional: 1, monto: 25000 } },
+    { nombre: 'Fredy Alexander Puerto Ruiz',   ced: '1097612840', rol: 'coordinador', etiqueta: 'COORDINADOR', bono: { tipo: 'cero', tip: 'El bono de coordinador en Stirpe es de $ 0 desde el 1 de septiembre.' } },
+  ],
+  1: [
+    { nombre: 'Lizeth Paola Avila Angarita', ced: '1098777392', rol: 'coordinador', etiqueta: 'COORDINADORA', bono: { tipo: 'sin', tip: 'El rol de coordinador no tiene bono diario en Derek.' } },
+  ],
+};
+const DIRECTORA = { nombre: 'Erika Julieth Gómez', ced: '1095956144', rol: 'director', etiqueta: 'DIRECTORA', bono: { tipo: 'sin', tip: 'El rol de director no tiene bono diario.' } };
+
+// Día a día real de la partición de la supervisora en Stirpe (n = asesores con sello ese día). vn = venta neta.
+const DIARIO_SUPERVISORA = [
+  { f: '2026-09-16', n: 10, meta: 42414099, vn: 40460971, pw: 0 },
+  { f: '2026-09-17', n: 10, meta: 41267772, vn: 37047841, pw: 0 },
+  { f: '2026-09-18', n: 10, meta: 36682464, vn: 29071101, pw: 0 },
+  { f: '2026-09-19', n: 10, meta: 33243483, vn: 20596869, pw: 0 },
+  { f: '2026-09-20', n: 8,  meta: 18341232, vn: 12972523, pw: 0 },
+  { f: '2026-09-21', n: 10, meta: 46999407, vn: 44650871, pw: 0 },
+  { f: '2026-09-22', n: 10, meta: 46999407, vn: 35311069, pw: 0 },
+  { f: '2026-09-23', n: 10, meta: 44706753, vn: 38760156, pw: 0 },
+  { f: '2026-09-24', n: 10, meta: 41267772, vn: 47617870, pw: 0 },
+  { f: '2026-09-25', n: 10, meta: 40121445, vn: 39013976, pw: 0 },
+  { f: '2026-09-26', n: 10, meta: 33243483, vn: 33433855, pw: 0 },
+  { f: '2026-09-27', n: 8,  meta: 19487559, vn: 21977667, pw: 0 },
+  { f: '2026-09-28', n: 10, meta: 44706753, vn: 27046333, pw: 0 },
+  { f: '2026-09-29', n: 10, meta: 46999407, vn: 28923059, pw: 4764775 },
+  { f: '2026-09-30', n: 10, meta: 41267772, vn: 21548689, pw: 24080244 },
+];
+const BONO_SUPERVISORA_DIA = 25000;
+
+// ─── Helpers (espejo de formatoPesos, conSigno, pctCumplimiento, pct1, inicialesAvatar, colorAvatar) ───
+const pesos = n => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+const conSigno = v => !v ? '—' : `${v < 0 ? '−' : '+'}${pesos(Math.abs(v))}`;
+const pctEntero = n => (n === null || n === undefined || Number.isNaN(n)) ? '—' : Math.round(n) + '%';
+const pct1 = n => n === null ? '—' : n.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+const pct2 = fr => (fr * 100).toFixed(2).replace('.', ',') + '%';
+const miles = n => Math.round(n).toLocaleString('es-CO');
+const MESES_CORTOS = ['ene','feb','mar','abr','may','jun','jul','ago','sept','oct','nov','dic'];
+const fechaCorta = iso => { const [, m, d] = iso.split('-'); return `${d} ${MESES_CORTOS[Number(m) - 1]}`; };
+const DIAS_SEMANA = ['dom','lun','mar','mié','jue','vie','sáb'];
+const diaSemana = iso => DIAS_SEMANA[new Date(iso + 'T12:00:00').getDay()];
+const capital = s => s.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
+const iniciales = n => { const p = n.trim().split(/\s+/); return p.length === 1 ? p[0].slice(0, 2).toUpperCase() : (p[0][0] + p[p.length - 1][0]).toUpperCase(); };
+const PALETA_AVATAR = ['bg-violet-600','bg-blue-600','bg-pink-600','bg-emerald-600','bg-amber-500','bg-sky-600','bg-rose-500','bg-indigo-600','bg-teal-600','bg-fuchsia-600','bg-orange-500','bg-cyan-600'];
+const clasePct = p => { if (p === null) return 'text-gray-400'; const e = Math.round(p); return e >= 100 ? 'text-emerald-600 font-semibold' : e >= 70 ? 'text-gray-700' : 'text-amber-600'; };
+const claseBadge = p => { const e = Math.round(p); return e >= 100 ? 'bg-emerald-600' : e >= 80 ? 'bg-slate-900' : 'bg-rose-500'; };
+const badgeCumpl = p => p === null || p === undefined ? '<span class="text-gray-300">—</span>'
+  : `<span class="inline-block min-w-[46px] rounded px-1.5 py-0.5 text-center text-xs font-bold text-white ${claseBadge(p)}">${pctEntero(p)}</span>`;
+const sk = (h, extra = '') => `<div class="skeleton ${h} rounded-lg ${extra}"></div>`;
+const escalon = pct => { const e = Math.round(pct); return e < 80 ? null : Math.min(e, 100); };
+
+const ICO = {
+  fileSpreadsheet: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/></svg>',
+  upload: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>',
+  clipboardList: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>',
+  clock: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  clockSm: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  messageSquare: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  fileSmall: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>',
+  download: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
+  eye: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>',
+  info: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+  check: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  xMd: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  chevron: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-400"><path d="m6 9 6 6 6-6"/></svg>',
+};
+
+// ═══════════════════════════════ Cálculo de filas ═══════════════════════════════
+// Asesor: espejo de LiquidacionConsultaService::calcularFilaAsesor (VPT = facturado ÷ ped.; TCV = carritos ÷ conv × 100).
+function filaAsesor(a, tienda, idx) {
+  const E = ESCALA_ASESOR[tienda], M = META_MES[tienda];
+  const cumpl = a.meta ? a.vn / a.meta * 100 : null;
+  const esc = cumpl === null ? null : escalon(cumpl);
+  const pV = esc === null ? 0 : E.ventas[esc - 80];
+  const vpt = a.ped > 0 ? Math.round(a.fact / a.ped) : null;
+  const tcv = a.conv > 0 ? Math.round(a.carr / a.conv * 10000) / 100 : null;
+  const pVpt = pV > 0 && vpt !== null && Math.round(vpt / M.vpt * 100) >= 100 ? E.vpt : 0;
+  const pTcv = pV > 0 && tcv !== null && Math.round(tcv / M.tcv * 100) >= 100 ? E.tcv : 0;
+  const pTot = pV + pVpt + pTcv;
+  const totComV = Math.max(0, Math.round(a.vn * pTot));
+  const bono = a.diasBono * E.bonoDia;
+  return { tipo: 'asesor', idx, nombre: capital(a.nombre), ced: a.ced, meta: a.meta, pw: a.pw, pwN: a.pwN, fact: a.fact, ped: a.ped, dev: a.dev, tf: a.tf, vn: a.vn,
+           cumpl, pV, comV: Math.round(a.vn * pV), tcv, pTcv, vpt, pVpt, pTot, totComV, db: a.diasBono, dr: a.dias, prov: 0, bono, total: totComV + bono };
+}
+// Partición del rol = asesores del equipo con sello en la tienda (aquí: todos los de la tienda; verificado en PROD).
+function particion(tienda) {
+  const s = k => ASESORES[tienda].reduce((acc, a) => acc + a[k], 0);
+  return { n: ASESORES[tienda].length, meta: s('meta'), pw: s('pw'), pwN: s('pwN'), fact: s('fact'), ped: s('ped'), dev: s('dev'), tf: s('tf'), vn: s('vn'), conv: s('conv'), carr: s('carr') };
+}
+// Rol: monto fijo del escalón; VPT y TCV 30.000 en el escalón 100, solo si paga la venta (gate por partición).
+function filaRol(t, tienda) {
+  const P = particion(tienda), M = META_MES[tienda];
+  const cumpl = P.vn / P.meta * 100;
+  const esc = escalon(cumpl);
+  const comV = esc === null ? 0 : ESCALA_ROL[`${tienda}-${t.rol}`][esc - 80];
+  const vpt = Math.round(P.fact / P.ped);
+  const tcv = Math.round(P.carr / P.conv * 10000) / 100;
+  const cumplVpt = vpt / M.vpt * 100, cumplTcv = tcv / M.tcv * 100;
+  const montoVpt = comV > 0 && Math.round(cumplVpt) >= 100 ? FIJO_VPT_TCV : 0;
+  const montoTcv = comV > 0 && Math.round(cumplTcv) >= 100 ? FIJO_VPT_TCV : 0;
+  const db = t.bono.tipo === 'dias' ? t.bono.firme : 0;
+  const prov = t.bono.tipo === 'dias' ? t.bono.provisional : 0;
+  const bono = t.bono.tipo === 'dias' ? db * t.bono.monto : 0;
+  const totComV = comV + montoVpt + montoTcv;
+  return { tipo: 'rol', tienda, rol: t.rol, etiqueta: t.etiqueta, bonoCfg: t.bono, nombre: t.nombre, ced: t.ced, n: P.n, meta: P.meta, pw: P.pw, pwN: P.pwN, fact: P.fact, ped: P.ped, dev: P.dev, tf: P.tf, vn: P.vn,
+           cumpl, esc, comV, tcv, cumplTcv, montoTcv, vpt, cumplVpt, montoVpt, totComV, db, dr: 15, prov, bono, total: totComV + bono };
+}
+
+// ═══════════════════════════════ Escenarios ═══════════════════════════════
+const BASE_Q2 = {
+  desde: '2026-09-16', hasta: '2026-09-30', diasRango: 15,
+  sello: '01 oct 15:02 · hace 8 min',
+  ventas: { nombre: 'v_Ventas_QEC_WEB 2026-09-30', procesado: '30 sept 19:33', filas: 71 },
+  infobip: { nombre: 'Descarga automática', procesado: '30 sept 19:32', filas: 10 },
+};
+function escenario(p) {
+  switch (p) {
+    case 'todas':   return { ...BASE_Q2, filtro: 'Todas', tiendas: [0, 1], director: true, congelada: false };
+    case 'stirpe':  return { ...BASE_Q2, filtro: 'Stirpe', tiendas: [0], director: true, congelada: false };
+    case 'sindir':  return { ...BASE_Q2, filtro: 'Todas', tiendas: [0, 1], director: false, congelada: false };
+    case 'cerrado': return { ...BASE_Q2, filtro: 'Stirpe', tiendas: [0], director: true, congelada: true };
+    case 'estados': return { ...BASE_Q2, filtro: 'Stirpe', tiendas: [0], director: true, congelada: false };
+    case 'q1':      return { desde: '2026-09-01', hasta: '2026-09-15', diasRango: 15, filtro: 'Stirpe', tiendas: [0], director: false, congelada: true, q1: true,
+                             sello: '28 sept 09:19 · período cerrado', ventas: { nombre: 'v_Ventas_QEC_WEB 2026-09-15', procesado: '15 sept 19:10', filas: 68 }, infobip: { nombre: 'Descarga automática', procesado: '15 sept 19:08', filas: 10 } };
+  }
+}
+const TITULOS = {
+  todas:   '1 · Liquidación de todas las tiendas, 16–30 sep: asesores y roles en una sola tabla por comercio, como la hoja del Drive',
+  stirpe:  '2 · Solo Stirpe: sus asesores y roles, y la directora con la parte de Stirpe',
+  modal:   '3 · Detalle día a día de la supervisora en Stirpe: de qué días sale su bono',
+  sindir:  '4 · Usuario sin permiso para ver la comisión del director: sin la fila de la directora y sin su dinero en el total',
+  cerrado: '5 · Stirpe 16–30 sep ya cerrado: la tabla con roles se lee del cierre',
+  q1:      '6 · Quincena 1–15 sep, anterior a los roles: misma tabla, sin filas de rol ni aviso',
+  excel:   '7 · Excel: la misma tabla agrupada por comercio, con la directora en dos subfilas',
+  estados: '8 · Filas de rol cargando, con error o sin roles con escala en la tienda',
+};
+
+// ═══════════════════════════════ Chrome calcado ═══════════════════════════════
+function chrome() {
+  return `
+    <nav class="mb-3 text-xs text-gray-500">Dashboard <span class="mx-1">›</span> Venta Asistida <span class="mx-1">›</span> <span class="text-gray-800">Liquidación de comisiones</span></nav>
+    <section class="rounded-t-xl border border-b-0 border-gray-200 bg-white px-8 py-6">
+      <h1 class="text-2xl font-bold text-gray-900">Liquidación de comisiones</h1>
+      <p class="text-sm text-gray-600 md:text-base">Cálculo por asesor según ventas netas, VPT, TCV y bono diario · período libre</p>
+    </section>`;
+}
+function tabsComisiones() {
+  const tab = (ico, txt, on) => `<span class="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${on ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600'}">${ico} ${txt}</span>`;
+  return `<div class="flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-gray-200/70 p-1">${tab(ICO.fileSpreadsheet, 'Liquidación', true)}${tab(ICO.upload, 'Cargar archivos')}${tab(ICO.clipboardList, 'Bitácora de cargas')}</div>`;
+}
+function filtros(E) {
+  const btnOutline = 'inline-flex h-8 items-center rounded-md border border-gray-200 bg-white px-3 text-xs font-medium text-gray-900 shadow-xs';
+  const fecha = iso => iso.split('-').reverse().join('/');
+  const abierto = E.filtro === 'Todas';
+  const select = `
+    <div class="relative">
+      <div class="flex h-9 w-48 items-center justify-between rounded-md border border-gray-200 bg-white px-3 text-sm ${abierto ? 'cambio' : ''}"><span>${E.filtro}</span>${ICO.chevron}</div>
+      ${abierto ? `<div class="cambio absolute left-0 top-10 z-20 w-48 rounded-md border bg-white p-1 text-sm shadow-md">
+        <div class="flex items-center justify-between rounded-sm bg-gray-100 px-2 py-1.5">Todas ${ICO.check}</div>
+        <div class="rounded-sm px-2 py-1.5">Stirpe</div><div class="rounded-sm px-2 py-1.5">Derek</div></div>` : ''}
+    </div>`;
+  return `
+    <div class="flex flex-wrap items-center gap-3">
+      ${select}
+      <div class="flex items-center gap-2">
+        <span class="cifra rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">${fecha(E.desde)}</span>
+        <span class="text-sm text-gray-500">a</span>
+        <span class="cifra rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">${fecha(E.hasta)}</span>
+      </div>
+      <div class="flex gap-1.5"><span class="${btnOutline}">Q1 actual</span><span class="${btnOutline}">Q2 actual</span><span class="${btnOutline}">Mes anterior</span></div>
+      <span class="inline-flex h-9 items-center rounded-md bg-gray-900 px-4 text-sm font-medium text-white" title="Lee la información ya calculada · no recalcula">Consultar</span>
+      <div class="ml-auto flex items-center gap-2 text-xs"><span class="text-gray-500">Base:</span><span class="rounded px-2 py-0.5 font-semibold bg-indigo-100 text-indigo-700">CON IVA</span></div>
+    </div>`;
+}
+function bannerEstado(E) {
+  const chips = Array.from({ length: E.diasRango }, () => `<span class="inline-flex h-4 w-4 rounded-sm bg-emerald-500"></span>`).join('');
+  return `
+    <div class="overflow-hidden rounded-xl border bg-white">
+      <div class="flex items-center gap-4 bg-blue-50/60 p-4">
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700">${ICO.clock}</div>
+        <div class="grid flex-1 grid-cols-3 gap-4">
+          <div><p class="text-[10px] tracking-wider text-blue-700 uppercase">Última actualización</p><p class="mt-0.5 text-sm font-medium">${E.sello}</p></div>
+          <div><p class="flex items-center gap-1 text-[10px] tracking-wider text-gray-500 uppercase">${ICO.fileSmall} Último archivo Ventas</p>
+            <p class="mt-0.5 truncate text-xs font-medium">${E.ventas.nombre}</p><p class="text-[10px] text-gray-500">procesado ${E.ventas.procesado} · ${E.ventas.filas} filas</p></div>
+          <div><p class="flex items-center gap-1 text-[10px] tracking-wider text-gray-500 uppercase">${ICO.messageSquare} Último archivo Infobip</p>
+            <p class="mt-0.5 truncate text-xs font-medium">${E.infobip.nombre}</p><p class="text-[10px] text-gray-500">procesado ${E.infobip.procesado} · ${E.infobip.filas} filas</p></div>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 bg-white px-4 py-2.5">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-[11px] tracking-wide text-gray-500 uppercase">Completitud del rango:</span>
+          <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">${E.diasRango} / ${E.diasRango} días</span>
+          <span class="flex gap-0.5">${chips}</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+// KPI: como hoy, solo asesores de lo filtrado.
+function kpiCards(T) {
+  const pctProm = T.vn > 0 ? (T.com / T.vn * 100).toFixed(2) : '0';
+  const card = (label, cifra, sub, extra = {}) => `
+    <div class="${extra.box ?? 'rounded-xl border bg-white p-5'}">
+      <p class="text-[11px] tracking-wide uppercase ${extra.label ?? 'text-gray-500'}">${label}</p>
+      <p class="cifra mt-1 text-2xl font-bold ${extra.cifra ?? ''}">${cifra}</p>
+      <p class="mt-1 text-[11px] ${extra.sub ?? 'text-gray-500'}">${sub}</p>
+    </div>`;
+  const subPw = T.pwN > 0 ? `${T.pwN} pedidos · no suma al cumplimiento ni a la comisión` : 'Sin pedidos web pendientes de factura';
+  return `
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      ${card('Venta neta total', pesos(T.vn), `${T.asesores} asesor(es) · ${T.ped} pedidos`)}
+      <div class="rounded-xl border bg-white p-5">
+        <p class="flex items-center gap-1 text-[11px] tracking-wide text-gray-500 uppercase">Pedidos web <span class="tip cursor-help" data-tip="${TIP_PEDIDOS_WEB_KPI}">${ICO.info}</span></p>
+        <p class="cifra mt-1 text-2xl font-bold ${T.pwN > 0 ? 'text-gray-900' : 'text-gray-400'}">${pesos(T.pw)}</p>
+        <p class="mt-1 text-[11px] text-gray-500">${subPw}</p>
+      </div>
+      ${card('Cumplim. promedio', pctEntero(T.cum), `${T.cumplen} de ${T.asesores} cumplen ≥ 100%`, { cifra: clasePct(T.cum) })}
+      ${card('Comisión venta', pesos(T.com), `${pctProm}% promedio sobre venta`)}
+      ${card('Total a pagar', pesos(T.total), `comisión + ${pesos(T.bono)} bono`, { box: 'rounded-xl border border-emerald-500 bg-gradient-to-br from-emerald-50 to-white p-5', label: 'text-emerald-600', cifra: 'text-emerald-700', sub: 'text-emerald-600' })}
+    </div>`;
+}
+
+// ═══════════════════════════════ Tabla única por comercio ═══════════════════════════════
+const COLS = [
+  { k: 'comercio', t: 'Comercio', a: 'left', cls: 'c-comercio' },
+  { k: 'nombre', t: 'Nombre', a: 'left', cls: 'c-nombre' },
+  { k: 'ced', t: 'Cédula', a: 'left' },
+  { k: 'meta', t: 'Meta', a: 'right', tip: 'Presupuesto asignado en el período (suma de los días). En las filas de rol, la meta del equipo en la tienda.' },
+  { k: 'pw', t: 'Pedidos web', a: 'right', banda: '#f7f9fc', tip: 'Pedidos ya pagados por el cliente, a la espera de la factura del ERP. Se muestran para saber qué viene, pero no suman: la comisión se paga con la venta neta.' },
+  { k: 'fact', t: 'Facturado', a: 'right', banda: '#f3f6fa', tip: 'Pedidos que ya llegaron facturados en el archivo del ERP. Se toma el valor de la factura, no el del carrito.' },
+  { k: 'dev', t: 'Devoluciones', a: 'right', banda: '#eff3f8', tip: 'Facturas M del archivo del ERP: devoluciones recibidas en tienda física. Restan del total.' },
+  { k: 'tf', t: 'Tienda física', a: 'right', banda: '#eaeff6', tip: 'Facturas X del archivo del ERP: compras hechas en el punto físico, sin pasar por un carrito web.' },
+  { k: 'vn', t: 'Venta neta', a: 'right', banda: '#e3e9f2', tip: 'Facturado − Devoluciones + Tienda física. Es la venta sobre la que se mide el cumplimiento y se paga la comisión.' },
+  { k: 'cum', t: 'Cumplimiento', a: 'center', tip: 'Venta neta ÷ Meta, en entero: con ese entero se busca el escalón.' },
+  { k: 'pV', t: '% comisión', a: 'right', tip: 'Porcentaje de la escala de venta. En los roles la comisión es un monto fijo por escalón.' },
+  { k: 'comV', t: 'Comisión venta', a: 'right' },
+  { k: 'tcv', t: 'TCV %', a: 'right', tip: 'Carritos pagados ÷ conversaciones cerradas, frente a la meta del mes de la tienda.' },
+  { k: 'pTcv', t: '% comisión', a: 'right', tip: 'Adicional por TCV: solo si paga la comisión de venta.' },
+  { k: 'ped', t: 'Ped.', a: 'right', tip: 'Pedidos facturados del período: el denominador del VPT.' },
+  { k: 'vpt', t: 'VPT', a: 'right', tip: 'Venta por transacción: Facturado ÷ Ped., frente a la meta del mes de la tienda.' },
+  { k: 'pVpt', t: '% comisión', a: 'right', tip: 'Adicional por VPT: solo si paga la comisión de venta.' },
+  { k: 'pTot', t: 'Total % comisión', a: 'right' },
+  { k: 'totComV', t: 'Total comisión venta', a: 'right' },
+  { k: 'dias', t: 'Días', a: 'center', tip: 'Días con bono en firme sobre los días del período. Los provisionales esperan la factura del ERP y no suman.' },
+  { k: 'bono', t: 'Bono diario', a: 'right' },
+  { k: 'total', t: 'Total comisión', a: 'right', cls: 'c-total' },
+];
+const alin = a => a === 'left' ? 'text-left' : a === 'center' ? 'text-center' : 'text-right';
+const gris = '<span class="text-gray-300">—</span>';
+const diasCls = d => d >= 7 ? 'bg-green-100 text-green-700' : d >= 4 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500';
+
+function celdasVenta(f) {
+  return {
+    ced: `<span class="text-xs text-gray-500">${f.ced}</span>`,
+    meta: f.meta === null ? gris : `<span class="text-gray-800">${pesos(f.meta)}</span>`,
+    pw: f.pw ? `<span class="text-gray-400">${pesos(f.pw)}</span><span class="ml-1 text-[11px] text-gray-300">(${f.pwN})</span>` : gris,
+    fact: f.fact ? `<span class="text-gray-800">${pesos(f.fact)}</span><span class="ml-1 text-[11px] text-gray-400">(${f.ped})</span>` : gris,
+    dev: `<span class="${f.dev ? 'text-red-600' : 'text-gray-400'}">${conSigno(f.dev)}</span>`,
+    tf: `<span class="${f.tf ? 'text-emerald-700' : 'text-gray-400'}">${conSigno(f.tf)}</span>`,
+    vn: `<span class="font-bold ${f.vn < 0 ? 'text-red-600' : 'text-gray-900'}">${pesos(f.vn)}</span>`,
+    cum: badgeCumpl(f.cumpl),
+  };
+}
+function celdasComisionAsesor(f) {
+  const adicional = p => p > 0 ? `<span class="font-medium text-emerald-600">+${pct2(p)}</span>` : gris;
+  return {
+    pV: f.pV > 0 ? pct2(f.pV) : gris,
+    comV: f.comV > 0 ? pesos(f.comV) : `<span class="text-gray-400">${pesos(0)}</span>`,
+    tcv: f.tcv !== null ? `<span class="text-gray-700">${pct1(f.tcv)}</span>` : gris,
+    pTcv: adicional(f.pTcv),
+    ped: `<span class="text-gray-700">${f.ped}</span>`,
+    vpt: f.vpt !== null ? `<span class="text-gray-700">${pesos(f.vpt)}</span>` : gris,
+    pVpt: adicional(f.pVpt),
+    pTot: `<span class="font-semibold">${pct2(f.pTot)}</span>`,
+    totComV: pesos(f.totComV),
+    dias: `<span class="rounded-full px-2 py-0.5 text-[11px] ${diasCls(f.db)}">${f.db}/${f.dr}</span>`,
+    bono: f.bono > 0 ? pesos(f.bono) : gris,
+    total: `<span class="font-bold text-emerald-700">${pesos(f.total)}</span>`,
+  };
+}
+function celdasComisionRol(f, E) {
+  const fijo = m => m > 0 ? `<span class="font-medium text-emerald-600">+${pesos(m)}</span>` : gris;
+  let dias;
+  if (f.bonoCfg.tipo === 'dias') {
+    const tipProv = E.congelada ? 'Al cerrar, este día seguía sin factura del ERP: no se pagó.' : `Provisional: ${pesos(f.prov * f.bonoCfg.monto)} de ${f.prov} día pendiente de factura del ERP. ${TIP_BONO_PROVISIONAL}`;
+    dias = `<span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">${f.db}/${f.dr}</span>`
+      + (f.prov > 0 ? `<span class="ml-1 inline-flex cursor-help items-center gap-0.5 rounded-full bg-gray-200 px-1.5 py-0.5 text-[10px] text-gray-500" title="${tipProv}">${ICO.clockSm}+${f.prov} provisional</span>` : '');
+  } else {
+    dias = `<span class="cursor-help text-gray-300" title="${f.bonoCfg.tip}">—</span>`;
+  }
+  return {
+    pV: `<span class="text-gray-500">fijo</span>`,
+    comV: `<span title="${f.esc !== null ? `Escalón ${f.esc} de la escala de ${f.etiqueta.toLowerCase()} en ${TIENDAS[f.tienda]}` : 'Paga desde el 80 %'}" class="cursor-help ${f.comV > 0 ? '' : 'text-gray-400'}">${pesos(f.comV)}</span>`,
+    tcv: `<span class="cursor-help text-gray-700" title="${pctEntero(f.cumplTcv)} de la meta del mes (${META_MES[f.tienda].tcv} %). Paga ${pesos(FIJO_VPT_TCV)} desde el 100 %.">${pct1(f.tcv)}</span>`,
+    pTcv: fijo(f.montoTcv),
+    ped: `<span class="text-gray-700">${f.ped}</span>`,
+    vpt: `<span class="cursor-help text-gray-700" title="${pctEntero(f.cumplVpt)} de la meta del mes (${pesos(META_MES[f.tienda].vpt)}). Paga ${pesos(FIJO_VPT_TCV)} desde el 100 %.">${pesos(f.vpt)}</span>`,
+    pVpt: fijo(f.montoVpt),
+    pTot: `<span class="text-gray-500">fijo</span>`,
+    totComV: pesos(f.totComV),
+    dias,
+    bono: f.bono > 0 ? pesos(f.bono) : gris,
+    total: `<span class="font-bold text-emerald-700">${pesos(f.total)}</span>`,
+  };
+}
+
+const avatar = (nombre, idx) => `<span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${PALETA_AVATAR[idx % 12]}">${iniciales(nombre)}</span>`;
+const ojo = titulo => `<span class="ml-1 inline-flex shrink-0 text-gray-300 hover:text-gray-600" title="${titulo}">${ICO.eye}</span>`;
+
+// Construye un <tr>. `c` trae las celdas; `omitir` las columnas tapadas por un rowspan; `span` los rowspan.
+function tr(c, { omitir = [], span = {}, clase = '', bordeTop = false, fondo = 'bg-white' } = {}) {
+  return `<tr class="${clase}">${COLS.filter(col => !omitir.includes(col.k)).map(col => {
+    const sticky = col.cls ?? '';
+    const bg = col.k === 'total' ? 'bg-emerald-50' : (sticky ? fondo : '');
+    const style = col.banda && !clase.includes('fila-rol') ? ` style="background:${col.banda}"` : '';
+    const rs = span[col.k] ? ` rowspan="${span[col.k]}"` : '';
+    return `<td${rs} class="${alin(col.a)} ${sticky} ${bg} ${bordeTop ? 'borde-grupo' : ''} align-middle"${style}>${c[col.k] ?? ''}</td>`;
+  }).join('')}</tr>`;
+}
+
+function grupoTienda(E, tienda, opciones = {}) {
+  const filas = ASESORES[tienda].map((a, i) => filaAsesor(a, tienda, i));
+  const roles = E.q1 ? [] : TITULARES[tienda].map(t => filaRol(t, tienda));
+  let html = '';
+  filas.forEach((f, i) => {
+    const c = { ...celdasVenta(f), ...celdasComisionAsesor(f),
+      nombre: `<span class="inline-flex items-center gap-2">${avatar(f.nombre, i)}<span class="font-medium text-gray-800">${f.nombre}</span>${ojo('Ver detalle del asesor')}</span>` };
+    if (i === 0) c.comercio = `<span class="text-[12px] font-bold tracking-wide text-gray-700 uppercase">${TIENDAS[tienda]}</span>`;
+    html += tr(c, { omitir: i === 0 ? [] : ['comercio'], span: i === 0 ? { comercio: filas.length } : {}, bordeTop: i === 0 });
+  });
+  // Filas de rol (o su estado: carga, error, vacío)
+  if (opciones.estadoRoles) {
+    html += filaEstadoRoles(opciones.estadoRoles);
+  } else {
+    roles.forEach(r => {
+      const c = { ...celdasVenta(r), ...celdasComisionRol(r, E),
+        comercio: `<span class="text-[11px] font-bold tracking-wide text-gray-600">${r.etiqueta}</span>`,
+        nombre: `<span class="inline-flex items-center gap-2">${avatar(r.nombre, 7)}<span class="font-medium text-gray-800">${r.nombre}</span><span class="text-[11px] text-gray-400">${r.n} asesores</span>${r.rol === 'supervisor' ? ojo('Ver día a día del equipo') : ojo('Ver día a día del equipo')}</span>` };
+      html += tr(c, { clase: 'fila-rol cambio', fondo: 'bg-gray-100' });
+    });
+  }
+  return { html, filas, roles };
+}
+
+function filaEstadoRoles(estado) {
+  const ancho = COLS.length - 3;
+  const cuerpo = estado === 'carga'
+    ? `<div class="flex gap-2">${sk('h-6', 'w-1/3')}${sk('h-6', 'w-1/4')}${sk('h-6', 'w-1/5')}</div>`
+    : estado === 'error'
+      ? `<div class="flex items-center gap-3"><span class="text-sm text-gray-500">No se pudieron cargar los roles. La liquidación de los asesores no se afecta.</span><button type="button" class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100">Reintentar</button></div>`
+      : `<div class="rounded-md border border-dashed border-gray-200 bg-gray-50 px-4 py-2 text-center text-sm text-gray-500">Sin roles con escala en esta tienda</div>`;
+  return `<tr class="fila-rol cambio">
+    <td class="c-comercio bg-gray-100"><span class="text-[11px] font-bold tracking-wide text-gray-600">ROLES</span></td>
+    <td class="c-nombre bg-gray-100">${estado === 'carga' ? sk('h-6', 'w-40') : '<span class="text-gray-400">—</span>'}</td>
+    <td colspan="${ancho}" class="bg-gray-100">${cuerpo}</td>
+    <td class="c-total bg-emerald-50 text-right">${estado === 'carga' ? sk('h-5', 'w-20 ml-auto') : gris}</td></tr>`;
+}
+
+function filaTotal(etiqueta, sub, asesores, comisiones, { general = false, totalEstado = null } = {}) {
+  const s = (arr, k) => arr.reduce((a, f) => a + (f[k] ?? 0), 0);
+  const meta = s(asesores, 'meta'), vn = s(asesores, 'vn');
+  const c = {
+    comercio: `<span class="text-[11px] font-bold tracking-wide ${general ? 'text-gray-900' : 'text-gray-700'}">${etiqueta}</span>`,
+    nombre: `<span class="text-[12px] font-semibold text-gray-600">${sub}</span>`,
+    ced: '',
+    meta: pesos(meta),
+    pw: `<span class="text-gray-400">${pesos(s(asesores, 'pw'))}</span><span class="ml-1 text-[11px] font-normal text-gray-300">(${s(asesores, 'pwN')})</span>`,
+    fact: `${pesos(s(asesores, 'fact'))}<span class="ml-1 text-[11px] font-normal text-gray-400">(${s(asesores, 'ped')})</span>`,
+    dev: `<span class="text-red-600">${conSigno(s(asesores, 'dev'))}</span>`,
+    tf: `<span class="text-emerald-700">${conSigno(s(asesores, 'tf'))}</span>`,
+    vn: pesos(vn),
+    cum: badgeCumpl(meta ? vn / meta * 100 : null),
+    comV: pesos(s(comisiones, 'comV')),
+    ped: s(asesores, 'ped'),
+    totComV: pesos(s(comisiones, 'totComV')),
+    dias: s(comisiones, 'db'),
+    bono: pesos(s(comisiones, 'bono')),
+    total: totalEstado === 'carga' ? sk('h-5', 'w-24 ml-auto') : `<span class="font-bold text-emerald-700">${pesos(s(comisiones, 'total'))}</span>`,
+  };
+  return tr(c, { clase: `font-bold ${general ? 'text-[13px]' : ''}`, fondo: general ? 'bg-gray-100' : 'bg-gray-50', bordeTop: true }).replace('<tr class="', `<tr class="${general ? 'bg-gray-100' : 'bg-gray-50'} `);
+}
+
+function grupoDirectora(E) {
+  const subs = E.tiendas.map(t => filaRol({ ...DIRECTORA }, t));
+  const total = subs.reduce((a, f) => a + f.total, 0);
+  let html = '';
+  subs.forEach((r, i) => {
+    const c = { ...celdasVenta(r), ...celdasComisionRol(r, E),
+      nombre: `<span class="inline-flex items-center gap-2">${i === 0 ? avatar(r.nombre, 1) : '<span class="inline-block w-6 text-center text-gray-300">↳</span>'}<span class="font-medium ${i === 0 ? 'text-gray-800' : 'text-gray-500'}">${r.nombre}</span><span class="rounded bg-white px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-gray-600 uppercase ring-1 ring-gray-200">${TIENDAS[r.tienda]}</span><span class="text-[11px] text-gray-400">${r.n} asesores</span>${ojo('Ver día a día del equipo en ' + TIENDAS[r.tienda])}</span>` };
+    if (i === 0) {
+      c.comercio = `<span class="text-[11px] font-bold tracking-wide text-gray-600">${DIRECTORA.etiqueta}</span>`;
+      c.total = `<span class="font-bold text-emerald-700" title="${subs.map(x => TIENDAS[x.tienda] + ' ' + pesos(x.total)).join(' + ')}">${pesos(total)}</span>`;
+    }
+    html += tr(c, { clase: 'fila-rol cambio', fondo: 'bg-gray-100', omitir: i === 0 ? [] : ['comercio', 'ced', 'total'], span: i === 0 ? { comercio: subs.length, ced: subs.length, total: subs.length } : {}, bordeTop: i === 0 });
+  });
+  return { html, subs };
+}
+
+function cuerpoTabla(E, opciones = {}) {
+  let html = '', todosAsesores = [], todasComisiones = [];
+  const grupos = E.tiendas.map(t => grupoTienda(E, t, opciones));
+  grupos.forEach((g, i) => {
+    const t = E.tiendas[i];
+    html += g.html;
+    html += filaTotal(`TOTAL ${TIENDAS[t].toUpperCase()}`, `${g.filas.length} asesores${g.roles.length && !opciones.estadoRoles ? ` + ${g.roles.length} ${g.roles.length === 1 ? 'rol' : 'roles'}` : ''}`, g.filas, opciones.estadoRoles ? g.filas : [...g.filas, ...g.roles], { totalEstado: opciones.estadoRoles });
+    todosAsesores = todosAsesores.concat(g.filas);
+    todasComisiones = todasComisiones.concat(g.filas, opciones.estadoRoles ? [] : g.roles);
+  });
+  if (E.director && !E.q1 && !opciones.estadoRoles) {
+    const d = grupoDirectora(E);
+    html += d.html;
+    todasComisiones = todasComisiones.concat(d.subs);
+  }
+  html += filaTotal('TOTAL GENERAL', `${todosAsesores.length} asesores${E.q1 ? '' : ' y roles'}`, todosAsesores, todasComisiones, { general: true, totalEstado: opciones.estadoRoles });
+  return { html, todosAsesores, todasComisiones };
+}
+
+function tablaQ1(E) {
+  let html = '';
+  Q1_FILAS.forEach((q, i) => {
+    const f = { ...q, nombre: capital(q.nombre), cumpl: q.cum, pw: 0, pwN: 0, tf: q.vn - q.fact - q.dev, comV: Math.round(q.vn * q.pV), totComV: q.com, total: q.tot, prov: 0 };
+    const c = { ...celdasVenta(f), ...celdasComisionAsesor(f),
+      nombre: `<span class="inline-flex items-center gap-2">${avatar(f.nombre, i)}<span class="font-medium text-gray-800">${f.nombre}</span>${ojo('Ver detalle del asesor')}</span>` };
+    if (i === 0) c.comercio = `<span class="text-[12px] font-bold tracking-wide text-gray-700 uppercase">Stirpe</span>`;
+    html += tr(c, { omitir: i === 0 ? [] : ['comercio'], span: i === 0 ? { comercio: Q1_FILAS.length } : {}, bordeTop: i === 0 });
+  });
+  const T = Q1_TOTALES;
+  const fila = (etq, sub, general) => tr({
+    comercio: `<span class="text-[11px] font-bold tracking-wide text-gray-700">${etq}</span>`, nombre: `<span class="text-[12px] font-semibold text-gray-600">${sub}</span>`,
+    meta: pesos(T.meta), pw: `<span class="text-gray-400">${pesos(0)}</span>`, fact: pesos(Q1_FILAS.reduce((a, f) => a + f.fact, 0)),
+    dev: `<span class="text-red-600">${conSigno(Q1_FILAS.reduce((a, f) => a + f.dev, 0))}</span>`, tf: `<span class="text-emerald-700">${conSigno(Q1_FILAS.reduce((a, f) => a + f.vn - f.fact - f.dev, 0))}</span>`,
+    vn: pesos(T.vn), cum: badgeCumpl(T.cum), comV: pesos(Q1_FILAS.reduce((a, f) => a + Math.round(f.vn * f.pV), 0)), ped: T.ped, totComV: pesos(T.com), dias: T.diasBono, bono: pesos(T.bono),
+    total: `<span class="font-bold text-emerald-700">${pesos(T.total)}</span>` }, { clase: 'font-bold', fondo: general ? 'bg-gray-100' : 'bg-gray-50', bordeTop: true })
+    .replace('<tr class="', `<tr class="${general ? 'bg-gray-100' : 'bg-gray-50'} `);
+  html += fila('TOTAL STIRPE', '13 asesores', false) + fila('TOTAL GENERAL', '13 asesores', true);
+  return html;
+}
+
+function cabecera() {
+  return `<thead><tr class="border-b border-gray-100 text-[11px] tracking-wide text-gray-400 uppercase">${COLS.map(col => {
+    const sticky = col.cls ? `${col.cls} ${col.k === 'total' ? 'bg-emerald-50 text-emerald-700' : 'bg-white'}` : '';
+    const style = col.banda ? ` style="background:${col.banda}"` : '';
+    const txt = col.tip ? `<span class="cursor-help border-b border-dotted border-gray-300 pb-px" title="${col.tip}">${col.t}</span>` : col.t;
+    return `<th class="px-3 py-2 font-medium whitespace-nowrap ${alin(col.a)} ${sticky} ${col.k === 'vn' ? 'text-gray-900' : ''}"${style}>${txt}</th>`;
+  }).join('')}</tr></thead>`;
+}
+
+function tarjetaTabla(E, cuerpo, nAsesores, nRoles) {
+  const todas = E.filtro === 'Todas';
+  const chip = E.congelada ? `<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600" title="Este período está cerrado: se muestran las cifras congeladas al cierre, no se recalculan.">🔒 Período cerrado</span>` : '';
+  return `
+    <div class="overflow-hidden rounded-xl border bg-white">
+      <div class="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
+        <div>
+          <div class="flex items-center gap-2"><h3 class="text-sm font-semibold"><span class="${E.q1 ? '' : 'cambio'}">Liquidación por comercio</span></h3>${chip}${todas ? '<span class="cambio text-[11px] text-gray-400">El cierre es por tienda (Cierre de períodos)</span>' : ''}</div>
+          <p class="mt-0.5 text-[11px] text-gray-500">Período ${E.desde} a ${E.hasta} · ${nAsesores} asesor(es)${nRoles ? ` · ${nRoles} fila(s) de rol` : ''}${E.congelada && !E.q1 ? ' · roles guardados en el cierre' : ''}</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="inline-flex h-8 items-center gap-1 rounded-md border border-gray-200 bg-white px-3 text-xs font-medium shadow-xs">${ICO.download} Exportar Excel</span>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="liq w-full text-[13px] tabular-nums">${cabecera()}<tbody>${cuerpo}</tbody></table>
+      </div>
+      <div class="border-t border-gray-100 bg-gray-50 px-5 py-2 text-[11px] text-gray-500">
+        <span class="font-medium text-gray-600">Venta neta</span> = facturado − devoluciones + tienda física: es la que paga ·
+        <span class="font-medium text-gray-600">Pedidos web</span> = pagados a la espera de la factura del ERP: se ven en gris y no suman ·
+        ${E.q1 ? '' : `<span class="font-medium text-gray-600">Filas en gris</span> = roles: su venta es la de los asesores de su equipo en esa tienda y no se vuelve a sumar en los totales; cobran un monto fijo por escalón y ${pesos(FIJO_VPT_TCV)} por VPT o TCV en 100 % si paga la venta`}
+      </div>
+    </div>`;
+}
+
+function pantallaLiquidacion(E, opciones = {}) {
+  let cuerpo, asesoresKpi, nRoles = 0;
+  if (E.q1) {
+    cuerpo = tablaQ1(E);
+    const filas = Q1_FILAS;
+    asesoresKpi = { asesores: filas.length, vn: Q1_TOTALES.vn, ped: Q1_TOTALES.ped, pw: 0, pwN: 0, cum: Q1_TOTALES.cum, cumplen: filas.filter(f => f.cum !== null && Math.round(f.cum) >= 100).length, com: Q1_TOTALES.com, bono: Q1_TOTALES.bono, total: Q1_TOTALES.total };
+  } else {
+    const r = cuerpoTabla(E, opciones);
+    cuerpo = r.html;
+    const A = r.todosAsesores, s = k => A.reduce((a, f) => a + f[k], 0);
+    asesoresKpi = { asesores: A.length, vn: s('vn'), ped: s('ped'), pw: s('pw'), pwN: s('pwN'), cum: s('vn') / s('meta') * 100, cumplen: A.filter(f => Math.round(f.cumpl) >= 100).length, com: s('totComV'), bono: s('bono'), total: s('total') };
+    nRoles = r.todasComisiones.length - A.length;
+  }
+  return `
+    ${chrome()}
+    <div class="space-y-4 rounded-b-xl border border-t-0 border-gray-200 bg-gray-100 p-6">
+      ${tabsComisiones()}
+      ${filtros(E)}
+      ${bannerEstado(E)}
+      ${kpiCards(asesoresKpi)}
+      ${tarjetaTabla(E, cuerpo, asesoresKpi.asesores, nRoles)}
+    </div>`;
+}
+
+// ═══════════════════════════════ Modal · día a día del rol ═══════════════════════════════
+function modalSupervisora() {
+  const sup = filaRol(TITULARES[0][0], 0);
+  const dias = DIARIO_SUPERVISORA.map(d => {
+    const pct = d.vn / d.meta * 100, pctConf = (d.vn + d.pw) / d.meta * 100;
+    const estado = Math.round(pct) >= 100 ? 'firme' : Math.round(pctConf) >= 100 ? 'provisional' : 'no';
+    return { ...d, pct, pctConf, estado };
+  });
+  const chipBono = d => d.estado === 'firme'
+    ? `<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">${ICO.check}Sí · ${pesos(BONO_SUPERVISORA_DIA)}</span>`
+    : d.estado === 'provisional'
+      ? `<span class="cambio inline-flex cursor-help items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600" title="Con los pedidos web el equipo llega al ${pctEntero(d.pctConf)}. ${TIP_BONO_PROVISIONAL}">${ICO.clockSm}Provisional · ${pesos(BONO_SUPERVISORA_DIA)}</span>`
+      : `<span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-400">No</span>`;
+  const s = k => dias.reduce((a, d) => a + d[k], 0);
+  const firme = dias.filter(d => d.estado === 'firme').length, prov = dias.filter(d => d.estado === 'provisional').length;
+  const kpi = (l, v, cls = '') => `<div><p class="text-[10px] tracking-wide text-gray-500 uppercase">${l}</p><p class="cifra mt-0.5 text-sm font-bold ${cls}">${v}</p></div>`;
+  const fila = d => `
+    <tr class="border-b border-gray-50 ${d.estado === 'firme' ? 'bg-emerald-50/40' : ''}">
+      <td class="px-3 py-2 text-xs">${fechaCorta(d.f)} <span class="text-gray-400">${diaSemana(d.f)}</span></td>
+      <td class="px-3 py-2 text-right text-xs text-gray-600">${d.n}</td>
+      <td class="px-3 py-2 text-right text-gray-800">${pesos(d.meta)}</td>
+      <td class="px-3 py-2 text-right" style="background:#f7f9fc">${d.pw > 0 ? `<span class="text-gray-400">${pesos(d.pw)}</span>` : gris}</td>
+      <td class="px-3 py-2 text-right font-bold text-gray-900" style="background:#e3e9f2">${pesos(d.vn)}</td>
+      <td class="px-3 py-2 text-center">${badgeCumpl(d.pct)}</td>
+      <td class="px-3 py-2 text-right">${chipBono(d)}</td>
+    </tr>`;
+  return `
+    <div class="relative rounded-2xl bg-gray-900/40 p-4 sm:p-8">
+      <div class="mx-auto flex max-h-[88vh] max-w-5xl flex-col rounded-lg border bg-white p-6 shadow-lg">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-semibold leading-none">${sup.nombre}</h2>
+            <p class="mt-1.5 text-sm text-gray-500">Supervisora · equipo en Stirpe · detalle del período ${fechaCorta('2026-09-16')} – ${fechaCorta('2026-09-30')} · cédula ${sup.ced}</p>
+          </div>
+          <div class="flex items-center gap-3"><span class="rounded px-2 py-0.5 text-xs font-semibold bg-indigo-100 text-indigo-700">CON IVA</span><span class="text-gray-400">${ICO.xMd}</span></div>
+        </div>
+        <div class="mt-4 grid grid-cols-6 gap-3 rounded-lg bg-gray-50 px-4 py-3">
+          ${kpi('Meta equipo', pesos(sup.meta))}${kpi('Venta neta', pesos(sup.vn))}${kpi('Cumplimiento', pctEntero(sup.cumpl))}
+          ${kpi('Comisión venta', pesos(sup.totComV))}${kpi('Bono diario', pesos(sup.bono))}${kpi('Total comisión', pesos(sup.total), 'text-emerald-700')}
+        </div>
+        <div class="mt-3 flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-gray-600">
+          <span class="mt-0.5 shrink-0 text-gray-400">${ICO.info}</span>
+          <p class="text-[11px] leading-relaxed">La supervisora gana ${pesos(BONO_SUPERVISORA_DIA)} cada día en que la venta neta del equipo llega al 100 % de su meta. Si un día solo llega contando pedidos web, queda provisional y no se paga hasta que llegue la factura del ERP.</p>
+        </div>
+        <div class="mt-3 min-h-0 flex-1 overflow-auto rounded-lg border border-gray-100">
+          <table class="w-full text-[13px] tabular-nums">
+            <thead><tr class="border-b border-gray-100 text-[11px] tracking-wide text-gray-400 uppercase">
+              <th class="px-3 py-2 text-left font-medium">Fecha</th>
+              <th class="px-3 py-2 text-right font-medium"><span class="cursor-help border-b border-dotted border-gray-300 pb-px" title="Asesores del equipo con venta registrada en Stirpe ese día.">Asesores</span></th>
+              <th class="px-3 py-2 text-right font-medium">Meta</th>
+              <th class="px-3 py-2 text-right font-medium" style="background:#f7f9fc"><span class="cursor-help border-b border-dotted border-gray-300 pb-px" title="Pagados a la espera de la factura del ERP: no suman.">Pedidos web</span></th>
+              <th class="px-3 py-2 text-right font-medium text-gray-900" style="background:#e3e9f2">Venta neta</th>
+              <th class="px-3 py-2 text-center font-medium">Cumplimiento</th>
+              <th class="px-3 py-2 text-right font-medium">Bono diario</th>
+            </tr></thead>
+            <tbody>${dias.map(fila).join('')}</tbody>
+            <tfoot>
+              <tr class="border-t-2 border-gray-200 bg-gray-50 font-bold">
+                <td class="px-3 py-2.5 text-xs">Total · ${dias.length} días</td><td></td>
+                <td class="px-3 py-2.5 text-right">${pesos(s('meta'))}</td>
+                <td class="px-3 py-2.5 text-right text-gray-400" style="background:#f7f9fc">${pesos(s('pw'))}</td>
+                <td class="px-3 py-2.5 text-right" style="background:#e3e9f2">${pesos(s('vn'))}</td>
+                <td class="px-3 py-2.5 text-center">${badgeCumpl(sup.cumpl)}</td>
+                <td class="px-3 py-2.5 text-right text-xs"><span class="text-emerald-700">${firme} días · ${pesos(firme * BONO_SUPERVISORA_DIA)}</span>${prov ? `<span class="cambio ml-1 text-[11px] font-normal text-gray-400">+ ${prov} provisional</span>` : ''}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+    <p class="mt-3 text-[11px] text-gray-500">Datos reales del sello (1-oct 15:02). El 30-sep el equipo lleva ${pesos(21548689)} de venta neta y ${pesos(24080244)} en pedidos web: con ellos llega al ${pctEntero((21548689 + 24080244) / 41267772 * 100)}, por eso el bono queda provisional. El coordinador y la directora abren el mismo detalle; su columna Bono dice «—» porque su rol no tiene bono en esa tienda.</p>`;
+}
+
+// ═══════════════════════════════ Excel ═══════════════════════════════
+function excel() {
+  const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUV'.split('');
+  const ENC = ['Comercio','Nombre','Cédula','Meta','Pedidos web','Facturado','Devoluciones','Tienda física','Venta neta','Cumplimiento %','% comisión','Comisión venta','TCV %','% comisión','Ped.','VPT','% comisión','Total % comisión','Total comisión venta','Días con bono','Bono diario','Total comisión'];
+  let n = 0;
+  const fila = (celdas, cls = '') => { n++; return `<tr class="${cls}"><td class="fila">${n}</td>${celdas}</tr>`; };
+  const td = (v, num = false, extra = '', attrs = '') => `<td class="${num ? 'num' : ''} ${extra}"${attrs}>${v ?? ''}</td>`;
+  const dec = v => v === null ? '' : v.toFixed(2).replace('.', ',');
+  const celdas = (f, rol) => [
+    td(f.ced), td(miles(f.meta), true), td(miles(f.pw), true, 'text-gray-400'), td(miles(f.fact), true), td(miles(f.dev), true), td(miles(f.tf), true), td(miles(f.vn), true, 'font-semibold'),
+    td(dec(f.cumpl), true), td(rol ? 'fijo' : dec(f.pV * 100), true), td(miles(f.comV), true), td(dec(f.tcv), true), td(rol ? miles(f.montoTcv) : dec(f.pTcv * 100), true),
+    td(f.ped, true), td(miles(f.vpt), true), td(rol ? miles(f.montoVpt) : dec(f.pVpt * 100), true), td(rol ? 'fijo' : dec(f.pTot * 100), true), td(miles(f.totComV), true),
+    td(f.db + (f.prov ? ` (+${f.prov} prov.)` : ''), true), td(miles(f.bono), true)];
+  let html = fila(`<td colspan="22" class="font-bold">Liquidación de comisiones · 16 al 30 de septiembre de 2026 · Todas las tiendas · Base CON IVA</td>`);
+  html += fila(ENC.map(h => `<td class="font-bold bg-gray-100">${h}</td>`).join(''));
+  const sumar = (arr, k) => arr.reduce((a, f) => a + (f[k] ?? 0), 0);
+  let todosA = [], todasC = [];
+  [0, 1].forEach(t => {
+    const A = ASESORES[t].map((a, i) => filaAsesor(a, t, i));
+    const R = TITULARES[t].map(x => filaRol(x, t));
+    A.forEach((f, i) => { html += fila((i === 0 ? td(TIENDAS[t].toUpperCase(), false, 'font-bold align-middle', ` rowspan="${A.length}"`) : '') + td(f.nombre) + celdas(f, false).join('') + td(miles(f.total), true, 'font-semibold')); });
+    R.forEach(r => { html += fila(td(r.etiqueta, false, 'font-bold') + td(r.nombre) + celdas(r, true).join('') + td(miles(r.total), true, 'font-semibold'), 'rol cambio'); });
+    const C = [...A, ...R];
+    html += fila(td(`TOTAL ${TIENDAS[t].toUpperCase()}`, false, 'font-bold') + td('') + td('') + td(miles(sumar(A, 'meta')), true) + td(miles(sumar(A, 'pw')), true, 'text-gray-400') + td(miles(sumar(A, 'fact')), true)
+      + td(miles(sumar(A, 'dev')), true) + td(miles(sumar(A, 'tf')), true) + td(miles(sumar(A, 'vn')), true) + td(dec(sumar(A, 'vn') / sumar(A, 'meta') * 100), true) + td('') + td(miles(sumar(C, 'comV')), true)
+      + td('') + td('') + td(sumar(A, 'ped'), true) + td('') + td('') + td('') + td(miles(sumar(C, 'totComV')), true) + td(sumar(C, 'db'), true) + td(miles(sumar(C, 'bono')), true) + td(miles(sumar(C, 'total')), true, 'font-bold'), 'font-semibold');
+    todosA = todosA.concat(A); todasC = todasC.concat(C);
+  });
+  const D = [0, 1].map(t => filaRol({ ...DIRECTORA }, t));
+  D.forEach((r, i) => {
+    html += fila((i === 0 ? td('DIRECTORA', false, 'font-bold align-middle', ' rowspan="2"') : '') + td(`${r.nombre} · ${TIENDAS[r.tienda]}`) + celdas(r, true).join('')
+      + (i === 0 ? td(miles(D[0].total + D[1].total), true, 'font-bold align-middle', ' rowspan="2"') : ''), 'rol cambio');
+  });
+  todasC = todasC.concat(D);
+  html += fila(td('TOTAL GENERAL', false, 'font-bold') + td('') + td('') + td(miles(sumar(todosA, 'meta')), true) + td(miles(sumar(todosA, 'pw')), true, 'text-gray-400') + td(miles(sumar(todosA, 'fact')), true)
+    + td(miles(sumar(todosA, 'dev')), true) + td(miles(sumar(todosA, 'tf')), true) + td(miles(sumar(todosA, 'vn')), true) + td(dec(sumar(todosA, 'vn') / sumar(todosA, 'meta') * 100), true) + td('') + td(miles(sumar(todasC, 'comV')), true)
+    + td('') + td('') + td(sumar(todosA, 'ped'), true) + td('') + td('') + td('') + td(miles(sumar(todasC, 'totComV')), true) + td(sumar(todasC, 'db'), true) + td(miles(sumar(todasC, 'bono')), true) + td(miles(sumar(todasC, 'total')), true, 'font-bold bg-emerald-100'), 'cambio font-semibold');
+  return `
+    <div class="overflow-hidden rounded-xl border border-gray-300 bg-white shadow-sm">
+      <div class="flex items-center gap-3 border-b border-gray-200 bg-[#217346] px-4 py-2 text-white">
+        <span class="text-sm font-semibold">liquidacion-Todas-2026-09-16-a-2026-09-30.xlsx</span>
+        <span class="text-[11px] opacity-80">representación de la hoja</span>
+      </div>
+      <div class="max-h-[680px] overflow-auto">
+        <table class="xls">
+          <thead><tr><th class="col"></th>${LETRAS.map(c => `<th class="col">${c}</th>`).join('')}</tr></thead>
+          <tbody>${html}</tbody>
+        </table>
+      </div>
+      <div class="flex items-end gap-0.5 border-t border-gray-200 bg-gray-100 px-3 pt-1 text-xs">
+        <span class="rounded-t border border-b-0 border-gray-300 bg-white px-3 py-1 font-semibold text-[#217346]">Liquidación</span>
+      </div>
+    </div>
+    <p class="mt-3 text-[11px] text-gray-500">Mismo orden de columnas que la pantalla. Las celdas «Comercio» van combinadas por grupo; la directora ocupa dos filas con su «Total comisión» combinado. Las filas de rol van con relleno gris. La venta de los totales es la de los asesores (la de los roles no se vuelve a sumar). Sin <code>ver_comision_director</code> no salen las dos filas de la directora y el TOTAL GENERAL las excluye. Con una sola tienda, el archivo trae su grupo y la subfila de la directora de esa tienda.</p>`;
+}
+
+// ═══════════════════════════════ Render ═══════════════════════════════
+const ui = () => ({ p: document.querySelector('.pestana[data-on="1"]')?.dataset.p ?? 'todas', estado: document.getElementById('estado').value });
+function render() {
+  const u = ui();
+  document.getElementById('titulo-pantalla').textContent = TITULOS[u.p];
+  document.getElementById('estado-wrap').style.display = u.p === 'estados' ? 'flex' : 'none';
+  const pagina = document.getElementById('pagina');
+  pagina.classList.toggle('marcar-on', document.getElementById('marcar').checked);
+  if (u.p === 'modal') { pagina.innerHTML = modalSupervisora(); return; }
+  if (u.p === 'excel') { pagina.innerHTML = excel(); return; }
+  pagina.innerHTML = pantallaLiquidacion(escenario(u.p), u.p === 'estados' ? { estadoRoles: u.estado } : {});
+}
+document.querySelectorAll('.pestana').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.pestana').forEach(x => {
+    x.dataset.on = x === b ? '1' : '';
+    x.classList.toggle('bg-white', x === b);
+    x.classList.toggle('font-medium', x === b);
+    x.classList.toggle('text-indigo-900', x === b);
+    x.classList.toggle('border-indigo-300', x === b);
+  });
+  render();
+}));
+['estado', 'marcar'].forEach(id => document.getElementById(id).addEventListener('change', render));
+document.querySelector('.pestana[data-p="todas"]').click();
+</script>
+</body>
+</html>
