@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-182 · Gestión de Ventas — ordenar las tablas por cualquier columna</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Pila tipográfica real de get-web (Tailwind v4 compila .font-sans con el stack literal). */
+  html, body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
+  .skeleton { background: linear-gradient(90deg,#f3f4f6 25%,#e5e7eb 37%,#f3f4f6 63%); background-size: 400% 100%; animation: sk 1.4s ease infinite; }
+  @keyframes sk { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+
+  /* Tooltips de encabezado (TooltipContent de shadcn-vue): display:none, nunca opacity:0. */
+  .tip { position: relative; }
+  .tip::after {
+    content: attr(data-tip); position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+    margin-top: 8px; width: 240px; padding: 6px 10px; background: #fff; color: #0a0a0a;
+    border: 1px solid #e5e7eb; font-size: 11px; line-height: 1.4; font-weight: 400; text-transform: none; letter-spacing: normal;
+    text-align: left; white-space: normal; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,.08);
+    display: none; pointer-events: none; z-index: 40;
+  }
+  .tip:hover::after { display: block; }
+  .tip-ini::after { left: 0; transform: none; }
+  .tip-fin::after { left: auto; right: 0; transform: none; }
+
+  /* ── Lo nuevo: indicador de orden en el encabezado ── */
+  .btn-orden svg { transition: opacity .12s, color .12s; }
+  .btn-orden:hover [data-icono="neutro"] { color: #6b7280; }
+  /* Variante B: la doble flecha neutra solo aparece al pasar el mouse o con foco de teclado. */
+  .var-b [data-icono="neutro"] { opacity: 0; }
+  .var-b th:hover [data-icono="neutro"], .var-b th:focus-within [data-icono="neutro"] { opacity: 1; }
+
+  #menu-asesores[hidden], #menu-canal[hidden] { display: none; }
+</style>
+</head>
+<body class="bg-neutral-100 text-gray-900 antialiased">
+
+<!-- ══ Barra de control del mockup (no es parte de la UI) ══ -->
+<div class="sticky top-0 z-[60] flex flex-wrap items-center gap-x-4 gap-y-2 bg-slate-900 px-4 py-2 text-xs text-white">
+  <span class="font-bold tracking-wide">GW-182 · MOCKUP</span>
+  <div class="flex items-center gap-1">
+    <span class="mr-1 text-slate-400">Indicador neutro:</span>
+    <button data-variante="A" class="ctrl-var rounded px-2 py-0.5">A · doble flecha siempre visible</button>
+    <button data-variante="B" class="ctrl-var rounded px-2 py-0.5">B · solo al pasar el mouse</button>
+  </div>
+  <div class="flex items-center gap-1">
+    <span class="mr-1 text-slate-400">Consulta:</span>
+    <button data-ctrl="consulta-datos" class="rounded bg-slate-700 px-2 py-0.5 hover:bg-slate-600">Con resultados</button>
+    <button data-ctrl="consulta-vacia" class="rounded bg-slate-700 px-2 py-0.5 hover:bg-slate-600">Sin resultados</button>
+    <label class="ml-1 flex cursor-pointer items-center gap-1 text-slate-300"><input type="checkbox" id="ctrl-falla" class="h-3.5 w-3.5 accent-rose-500"> la próxima solicitud falla</label>
+  </div>
+  <div class="flex items-center gap-1">
+    <span class="mr-1 text-slate-400">Dashboard:</span>
+    <button data-ctrl="dash-datos" class="rounded bg-slate-700 px-2 py-0.5 hover:bg-slate-600">Con datos</button>
+    <button data-ctrl="dash-vacio" class="rounded bg-slate-700 px-2 py-0.5 hover:bg-slate-600">Sin días ni asesores</button>
+  </div>
+</div>
+
+<!-- ══ Nota del mockup (no es parte de la UI) ══ -->
+<div class="mx-auto w-[1440px] border-b border-slate-200 bg-slate-50 px-6 py-3 text-[12px] text-slate-700">
+  <p class="mb-1 text-[11px] font-bold tracking-wide text-slate-500 uppercase">Qué cambia: cada encabezado ordena las filas</p>
+  <ul class="list-disc space-y-0.5 pl-5">
+    <li><strong>Cada clic en un encabezado</strong> cambia el orden: primero de mayor a menor (o de Z a A), luego de menor a mayor (o de A a Z), y el tercero vuelve al orden original. Solo ordena una columna a la vez y su encabezado lleva la flecha negra.</li>
+    <li><strong>La fila Total queda abajo</strong> y las celdas vacías («—») van al final en los dos sentidos. Las celdas con dos datos se ordenan por el de arriba; Tienda / Asesor, por tienda y luego por asesor. Los badges se ordenan por su texto. Acción no se ordena.</li>
+    <li><strong>Consulta de ventas</strong> ordena el servidor antes de paginar: el orden va en la dirección (barra gris de arriba), se mantiene al pasar de página y al recargar, y al buscar con otro filtro se conserva y vuelve a la página 1. Ordenar también vuelve a la página 1.</li>
+    <li><strong>Asesores e Indicadores diarios del canal</strong> ordenan en el navegador y vuelven al orden original al recargar. Si se oculta la columna por la que se ordena, la tabla vuelve al orden original.</li>
+    <li class="text-slate-500">Propuestas a confirmar: Devoluciones se ordena por el monto devuelto; «Cumple» cuenta como 0 en Por cumplir e Ítems UPT; el color del avatar sigue al asesor al reordenar; en Indicadores, ocultar la columna ordenada también vuelve al orden original.</li>
+  </ul>
+</div>
+
+<div id="app" class="mx-auto flex min-h-screen w-[1440px] bg-neutral-100">
+
+  <!-- ══ SIDEBAR (GW-115, superficie oscura) ══ -->
+  <aside class="flex w-14 shrink-0 flex-col items-center gap-5 bg-neutral-900 py-4">
+    <svg class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <svg class="h-4 w-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+    <svg class="h-4 w-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <svg class="h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+    <svg class="h-4 w-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+    <svg class="mt-auto h-4 w-4 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+  </aside>
+
+  <div class="min-w-0 flex-1">
+
+    <!-- ══ Barra de dirección del navegador (simulada: muestra el query string) ══ -->
+    <div class="flex items-center gap-2 border-b border-slate-300 bg-slate-200 px-3 py-1.5">
+      <span class="text-slate-400">‹</span><span class="text-slate-400">›</span>
+      <button id="btn-recargar" type="button" title="Recargar la página" class="inline-flex h-6 w-6 items-center justify-center rounded text-slate-600 hover:bg-slate-300">
+        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+      </button>
+      <div id="barra-url" class="min-w-0 flex-1 truncate rounded-full bg-white px-3 py-1 font-mono text-[11px] text-slate-500"></div>
+    </div>
+
+    <!-- ══ TOPBAR + BREADCRUMB (AppLayout) ══ -->
+    <div class="flex items-center gap-4 border-b border-gray-200 bg-white px-6 py-2.5">
+      <div class="flex w-72 items-center gap-2 rounded-md bg-neutral-100 px-3 py-1.5 text-sm text-gray-400">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        Filtrar menú...
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        <div class="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-700 text-xs font-semibold text-white">FL</div>
+        <div class="text-xs leading-tight"><div class="font-semibold">Francisco L.</div><div class="text-gray-400">Admin</div></div>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 border-b border-gray-200 bg-white px-6 py-2 text-xs text-gray-500">
+      <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>›</span><span>Dashboard</span><span>›</span><span class="text-gray-700">Venta Asistida</span>
+    </div>
+
+    <!-- ══ HeaderLayout ══ -->
+    <section class="z-[2] border-b border-gray-200 bg-white px-4 py-4 md:px-8 md:py-6">
+      <header class="flex flex-col items-center justify-between gap-5 md:flex-row">
+        <div>
+          <div class="flex items-center gap-2"><h1 class="!mb-0 text-3xl font-bold">Gestión de Ventas</h1></div>
+          <p class="text-sm text-gray-600 md:text-base">Panel de control para supervisar ventas de todos los asesores</p>
+        </div>
+      </header>
+    </section>
+
+    <div class="space-y-0 px-4 py-4 md:px-6">
+      <!-- Pestañas principales (Index.vue) -->
+      <div class="mb-4 flex gap-5 border-b text-sm" id="pestanas">
+        <button data-pestana="dashboard" class="px-1 pb-2 transition-colors">Dashboard</button>
+        <button data-pestana="consulta" class="px-1 pb-2 transition-colors">Consulta de ventas</button>
+        <button data-pestana="historico" class="cursor-not-allowed px-1 pb-2 transition-colors" title="El Histórico no tiene tablas: este mockup no lo dibuja">Histórico</button>
+      </div>
+
+      <!-- ═══════════════════ DASHBOARD ═══════════════════ -->
+      <div id="vista-dashboard" class="space-y-4">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <!-- SelectorTiendaAmbito -->
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-[11px] tracking-wide text-gray-400 uppercase">Tienda</span>
+            <div class="inline-flex overflow-hidden rounded-lg border border-gray-200 text-sm font-medium">
+              <button type="button" class="bg-gray-900 px-4 py-1.5 text-white transition-colors">STIRPE</button>
+              <button type="button" class="border-l border-gray-200 bg-white px-4 py-1.5 text-gray-700 transition-colors hover:bg-gray-50">DEREK</button>
+              <button type="button" class="border-l border-gray-200 bg-white px-4 py-1.5 text-gray-700 transition-colors hover:bg-gray-50">Comparar tiendas</button>
+            </div>
+          </div>
+          <!-- SelectorPeriodo -->
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-[11px] tracking-wide text-gray-400 uppercase">Período</span>
+            <div class="inline-flex overflow-hidden rounded-lg border border-gray-200 text-sm font-medium">
+              <button type="button" class="bg-gray-900 px-3 py-1.5 text-white transition-colors">Quincena</button>
+              <button type="button" class="border-l border-gray-200 bg-white px-3 py-1.5 text-gray-700 transition-colors hover:bg-gray-50">Mes</button>
+              <button type="button" class="border-l border-gray-200 bg-white px-3 py-1.5 text-gray-700 transition-colors hover:bg-gray-50">Día</button>
+              <button type="button" class="border-l border-gray-200 bg-white px-3 py-1.5 text-gray-700 transition-colors hover:bg-gray-50">Personalizado</button>
+            </div>
+            <div class="flex items-center gap-1">
+              <button type="button" title="Período anterior" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+              <span class="min-w-[110px] text-center text-sm font-semibold text-gray-700 capitalize">Q1 · oct 2026</span>
+              <button type="button" title="Período siguiente" disabled class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-40"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+            </div>
+            <button type="button" title="Actualizar el tablero (sin recargar la página)" class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900"><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></button>
+          </div>
+        </div>
+
+        <p class="flujo inline-block rounded bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">Flujo · Ordenar los días del canal (ordena el navegador)</p>
+        <div id="bloque-canal"></div>
+
+        <p class="flujo inline-block rounded bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">Flujo · Ordenar la tabla de asesores (ordena el navegador; ocultar la columna ordenada quita el orden)</p>
+        <div id="bloque-asesores"></div>
+      </div>
+
+      <!-- ═══════════════════ CONSULTA DE VENTAS ═══════════════════ -->
+      <div id="vista-consulta" hidden>
+        <p class="flujo mb-3 inline-block rounded bg-slate-900 px-2 py-0.5 text-[11px] font-semibold text-white">Flujo · Ordenar la consulta de ventas (ordena el servidor antes de paginar; el orden viaja en la dirección)</p>
+        <div id="bloque-consulta"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="anuncio" class="sr-only" aria-live="polite"></div>
+
+<script>
+'use strict';
+// ════════════════════════════════════════════════════════════════════════════
+// 1. Lógica pura de orden (lo que el REQ agrega). Se prueba con node.
+// ════════════════════════════════════════════════════════════════════════════
+
+/** Ciclo de clic: desc → asc → original (null). Otra columna arranca en desc. */
+function siguienteOrden(actual, clave) {
+  if (!actual || actual.clave !== clave) return { clave: clave, dir: 'desc' };
+  if (actual.dir === 'desc') return { clave: clave, dir: 'asc' };
+  return null;
+}
+
+function esVacio(v) {
+  return v === null || v === undefined || v === '' || (Array.isArray(v) && (v.length === 0 || esVacio(v[0])));
+}
+
+function compararUno(a, b) {
+  const va = a === null || a === undefined ? '' : a;
+  const vb = b === null || b === undefined ? '' : b;
+  if (typeof va === 'number' && typeof vb === 'number') return va - vb;
+  return String(va).localeCompare(String(vb), 'es', { sensitivity: 'base', numeric: true });
+}
+
+/**
+ * Compara con dirección. Arreglos ([tienda, asesor]) se comparan elemento a elemento y un
+ * elemento vacío (asesor «—») queda al final dentro de su grupo, en los dos sentidos.
+ */
+function compararConDir(a, b, signo) {
+  const la = Array.isArray(a) ? a : [a], lb = Array.isArray(b) ? b : [b];
+  for (let i = 0; i < Math.max(la.length, lb.length); i++) {
+    const va = esVacio(la[i]), vb = esVacio(lb[i]);
+    if (va && vb) continue;
+    if (va) return 1;
+    if (vb) return -1;
+    const c = compararUno(la[i], lb[i]);
+    if (c !== 0) return signo * c;
+  }
+  return 0;
+}
+
+/**
+ * Ordena sin mutar. Vacías al final en los dos sentidos; empates por el orden original
+ * (estable). `orden` null → devuelve las filas tal como llegaron.
+ */
+function ordenarFilas(filas, orden, valorDe) {
+  if (!orden) return filas.slice();
+  const conIndice = filas.map(function (fila, i) { return { fila: fila, i: i, v: valorDe(fila, orden.clave) }; });
+  const llenas = conIndice.filter(function (x) { return !esVacio(x.v); });
+  const vacias = conIndice.filter(function (x) { return esVacio(x.v); });
+  const signo = orden.dir === 'desc' ? -1 : 1;
+  llenas.sort(function (x, y) { return compararConDir(x.v, y.v, signo) || x.i - y.i; });
+  return llenas.concat(vacias).map(function (x) { return x.fila; });
+}
+
+/** Si la columna ordenada deja de verse, la tabla vuelve al orden original. */
+function ordenTrasOcultar(orden, ocultas) {
+  return orden && ocultas.has(orden.clave) ? null : orden;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 2. Formatos (copiados de los helpers reales)
+// ════════════════════════════════════════════════════════════════════════════
+const fmtCOP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+function formatoPesos(v) { return v === null || v === undefined ? '—' : fmtCOP.format(v); }
+function conSigno(v) { if (!v) return '—'; return (v < 0 ? '−' : '+') + formatoPesos(Math.abs(v)); }
+function pctEntero(n) { return n === null || n === undefined || Number.isNaN(n) ? '—' : Math.round(n) + '%'; }
+function pct1(v) { return v !== null && v !== undefined ? v.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%' : '—'; }
+function pctUnDecimal(v) { return v === null || v === undefined ? '—' : v.toLocaleString('es-CO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %'; }
+function decimal2(n) { return n === null || n === undefined ? '—' : n.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function miles(n) { return n.toLocaleString('es-CO'); }
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+function fechaCorta(f) { if (!f) return '—'; const p = f.slice(0, 10).split('-').map(Number); return p[2] + ' de ' + MESES[p[1] - 1]; }
+function fechaDiaria(f) { const p = f.slice(0, 10).split('-').map(Number); return p[2] + ' ' + MESES[p[1] - 1]; }
+function semaforo(pct) { return pct >= 95 ? 'verde' : pct >= 80 ? 'ambar' : 'rojo'; }
+const BADGE_CLASE = { verde: 'bg-emerald-600', ambar: 'bg-amber-500', rojo: 'bg-red-500' };
+const FONDO_TCV = { verde: 'bg-emerald-100 text-emerald-900', ambar: 'bg-amber-100 text-amber-900', rojo: 'bg-red-100 text-red-900' };
+const TEXTO_SEMAFORO = { verde: 'text-emerald-900', ambar: 'text-amber-900', rojo: 'text-red-900' };
+function badgeClase(p) { return p === null || p === undefined ? null : BADGE_CLASE[semaforo(p)]; }
+function fondoTcv(v, m) { return v === null || v === undefined || !m ? '' : FONDO_TCV[semaforo((v / m) * 100)]; }
+function textoSemaforo(v, m) { return v === null || v === undefined || !m ? null : TEXTO_SEMAFORO[semaforo((v / m) * 100)]; }
+
+const HOY = '2026-10-08';
+const METAS_MES = { upt: 1.8, vpt: 245000, tcv: 22 };
+
+// ════════════════════════════════════════════════════════════════════════════
+// 3. Datos de ejemplo
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── Asesores (STIRPE · Q1 oct 2026, corte hoy 8 oct) ──
+const ASESORES_BASE = [
+  ['V101', 'Laura Valentina Gómez Ríos', 'Laura Gómez', 18500000, [3240500, 9], [12870300, 31], -389900, 1104550, [75000, 3, 0], 71, 182, 44],
+  ['V102', 'Juan Camilo Restrepo Marín', 'Juan Restrepo', 16000000, [1980000, 6], [9450800, 24], 0, 289900, [25000, 1, 0], 47, 160, 30],
+  ['V103', 'María Fernanda Ospina Cárdenas', 'María Ospina', 18500000, [4120700, 11], [14560200, 36], -1104550, 0, [100000, 3, 1], 90, 175, 47],
+  ['V104', 'Andrés Felipe Quintero López', 'Andrés Quintero', 14000000, [890000, 3], [5210400, 15], -129900, 0, [0, 0, 0], 29, 140, 18],
+  ['V105', 'Daniela Alejandra Torres Henao', 'Daniela Torres', 16000000, [2760300, 8], [13020000, 30], 0, 2340000, [75000, 2, 1], 66, 150, 38],
+  ['V106', 'Santiago Arango Vélez', 'Santiago Arango', 14000000, null, [7880100, 19], -459800, 579800, [25000, 1, 0], 36, 98, 19],
+  ['V107', 'Valentina Zapata Muñoz', 'Valentina Zapata', 16000000, [3415600, 10], [10230500, 27], 0, 0, [50000, 2, 0], 63, 0, 0],
+  ['V108', 'Kevin Alexis Mosquera Palacios', 'Kevin Mosquera', 12000000, [1250000, 4], [4300200, 13], -219900, 0, [0, 0, 0], 24, 120, 17],
+  ['V109', 'Natalia Castaño Giraldo', 'Natalia Castaño', null, [640000, 2], [1890500, 6], 0, 0, [0, 0, 0], 13, 45, 8],
+  ['V110', 'Brayan Esteban Rojas Duque', 'Brayan Rojas', 12000000, null, null, 0, 0, [0, 0, 0], 0, 0, 0],
+];
+
+function construirAsesor(r, idx) {
+  const pw = r[4] ? { valor: r[4][0], cantidad: r[4][1] } : null;
+  const fa = r[5] ? { valor: r[5][0], cantidad: r[5][1] } : null;
+  const meta = r[3], dev = r[6], tf = r[7];
+  const web = (pw ? pw.valor : 0) + (fa ? fa.valor : 0);
+  const total = web + tf + dev;
+  const nro = (pw ? pw.cantidad : 0) + (fa ? fa.cantidad : 0);
+  const unidades = r[9], trafico = r[10], pagados = r[11];
+  const cumplimiento = meta ? (total / meta) * 100 : null;
+  const pc = function (u) { return meta ? Math.max(0, Math.round((meta * u) / 100 - total)) : null; };
+  const comision = Math.round(web * 0.015);
+  const pedTc = trafico > 0 ? Math.round((trafico * METAS_MES.tcv) / 100) : null;
+  return {
+    idx: idx, cod_vendedor: r[0], nombre: r[1], nombre_corto: r[2], meta: meta,
+    pedidos_web: pw, facturado: fa, devoluciones: dev || null, tienda_fisica: tf || null,
+    total_venta: total, cumplimiento: cumplimiento, pc80: pc(80), pc90: pc(90), pc100: pc(100),
+    bono: { monto: r[8][0], dias_firme: r[8][1], dias_provisional: r[8][2] },
+    nro_pedidos: nro, unidades: unidades,
+    vpt: nro ? web / nro : null, upt: nro ? unidades / nro : null, ppt: unidades ? web / unidades : null,
+    items_upt: nro ? Math.max(0, Math.ceil(METAS_MES.upt * nro - unidades)) : null,
+    tcv: trafico > 0 ? (pagados / trafico) * 100 : null, carritos_pagados_tc: pagados, trafico: trafico,
+    ped_tc: pedTc, ped_faltan: pedTc === null ? null : pedTc - nro,
+    comision: comision, comision_total: comision + r[8][0],
+  };
+}
+const ASESORES = ASESORES_BASE.map(construirAsesor);
+
+// ── Indicadores diarios del canal (STIRPE · 1–8 oct 2026) ──
+// [fecha, meta, pw[valor,cant], facturado[valor,cant], tf, dev, unidades, trafico|null, pagados, mejor[nombres,monto], bonoCoord, bonoSup]
+const CANAL_BASE = [
+  ['2026-10-01', 9150000, [1420300, 4], [8103500, 21], 289900, -129900, 46, 141, 31, [['Laura Gómez'], 2140300], ['firme', 30000], ['firme', 25000]],
+  ['2026-10-02', 9150000, [2010000, 6], [6250400, 17], 0, -459800, 40, 150, 28, [['María Ospina'], 1904200], ['no_cumple'], ['no_cumple']],
+  ['2026-10-03', 11400000, [3120500, 9], [9870200, 24], 1104550, 0, 63, 198, 46, [['Daniela Torres'], 3010000], ['firme', 30000], ['firme', 25000]],
+  ['2026-10-04', null, [640000, 2], [1230000, 4], 0, 0, 11, 38, 7, [['Santiago Arango'], 690000], ['sin_reparto'], ['sin_reparto']],
+  ['2026-10-05', 8700000, [980000, 3], [5110300, 14], 0, -1104550, 27, 132, 19, [['Juan Restrepo'], 1020500], ['no_cumple'], ['no_cumple']],
+  ['2026-10-06', 8700000, [1760400, 5], [7020800, 18], 579800, 0, 44, 120, 27, [['María Ospina', 'Daniela Torres'], 1850000], ['firme', 30000], ['firme', 25000]],
+  ['2026-10-07', 8700000, [2890000, 8], [6105000, 15], 0, -219900, 41, 128, 26, [['Valentina Zapata'], 1640000], ['provisional', 30000], ['provisional', 25000]],
+  ['2026-10-08', 8700000, [1150000, 3], null, 0, 0, 6, null, 0, [['Kevin Mosquera'], 640000], ['no_cumple'], ['no_cumple']],
+];
+const ROLES = [{ clave: 'bono_coordinador', titulo: 'Bono coordinador' }, { clave: 'bono_supervisor', titulo: 'Bono supervisor' }];
+
+function construirDia(r) {
+  const pw = r[2], fa = r[3];
+  const web = (pw ? pw[0] : 0) + (fa ? fa[0] : 0);
+  const nro = (pw ? pw[1] : 0) + (fa ? fa[1] : 0);
+  const total = web + r[4] + r[5];
+  const bono = function (b) { return b[0] === 'firme' || b[0] === 'provisional' ? { estado: b[0], monto: b[1] } : { estado: 'ninguno', motivo: b[0] }; };
+  return {
+    fecha: r[0], hoy: r[0] === HOY, meta: r[1], sin_reparto: r[1] === null,
+    pedidos_web: pw ? pw[0] : 0, pedidos_web_cantidad: pw ? pw[1] : 0, facturado: fa ? fa[0] : 0,
+    tienda_fisica: r[4], devoluciones: r[5], total_venta: total,
+    cumplimiento: r[1] ? (total / r[1]) * 100 : null,
+    mejor: r[9] ? { nombres: r[9][0], monto: r[9][1] } : null,
+    nro_pedidos: nro, unidades: r[6], web: web,
+    vpt: nro ? web / nro : null, upt: nro ? r[6] / nro : null,
+    trafico: r[7], pagados: r[8], tcv: r[7] ? (r[8] / r[7]) * 100 : null, con_archivo: r[7] !== null,
+    bono_coordinador: bono(r[10]), bono_supervisor: bono(r[11]),
+  };
+}
+const DIAS = CANAL_BASE.map(construirDia);
+
+// ── Consulta de ventas: carritos del 16 sep al 8 oct 2026 (STIRPE y DEREK) ──
+let semilla = 182;
+function azar() { semilla = (semilla * 16807) % 2147483647; return (semilla - 1) / 2147483646; }
+function elegir(lista) { return lista[Math.floor(azar() * lista.length)]; }
+const TIENDAS = [{ id: 1, nombre: 'STIRPE' }, { id: 2, nombre: 'DEREK' }];
+const ASESORES_TIENDA = {
+  1: ['Laura Gómez', 'Juan Restrepo', 'María Ospina', 'Andrés Quintero', 'Daniela Torres', 'Santiago Arango', 'Valentina Zapata', 'Kevin Mosquera', 'Natalia Castaño'],
+  2: ['Camila Bedoya', 'Sebastián Ríos', 'Juliana Patiño', 'Mateo Cardona'],
+};
+const NOMBRES = ['Carolina', 'Diana Marcela', 'Luisa Fernanda', 'Paula Andrea', 'Ana María', 'Sandra Milena', 'Jorge Iván', 'Carlos Andrés', 'Luis Eduardo', 'Gloria Inés', 'Mónica', 'Alejandro', 'Yuliana', 'Óscar Mauricio', 'Beatriz Elena', 'Esteban', 'Lina María', 'Hernán Darío', 'Claudia Patricia', 'Sofía'];
+const APELLIDOS = ['García', 'Rodríguez', 'Martínez', 'López', 'Hernández', 'Gutiérrez', 'Jaramillo', 'Correa', 'Salazar', 'Ramírez', 'Cárdenas', 'Valencia', 'Agudelo', 'Montoya', 'Echeverri', 'Londoño', 'Betancur', 'Arbeláez', 'Rincón', 'Pineda'];
+const ENVIOS = ['servientrega', 'servientrega', 'coordinadora', 'mensajeria', 'mensajeria', null];
+
+function construirCarritos() {
+  const lista = [];
+  let id = 48120, pedido = 221340, factura = 51230;
+  const inicio = new Date(2026, 8, 16), fin = new Date(2026, 9, 8);
+  for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
+    const f = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const n = 11 + Math.floor(azar() * 6);
+    for (let k = 0; k < n; k++) {
+      id += 1 + Math.floor(azar() * 3);
+      const tienda = azar() < 0.7 ? 1 : 2;
+      const r = azar();
+      const pago = r < 0.6 ? 'pagado' : r < 0.9 ? 'pendiente' : 'cancelado';
+      const conPedido = pago === 'pagado';
+      const facturado = conPedido && (f < '2026-10-07' ? azar() < 0.85 : azar() < 0.3);
+      const nombre = elegir(NOMBRES) + ' ' + elegir(APELLIDOS) + ' ' + elegir(APELLIDOS);
+      const rl = azar();
+      lista.push({
+        carrito_id: id, token: 'tk' + id, tienda_id: tienda,
+        cliente_nombre_completo: azar() < 0.02 ? '' : nombre,
+        cliente_documento: azar() < 0.04 ? null : String(Math.floor(10000000 + azar() * 1190000000)),
+        asesor_nombre: azar() < 0.05 ? null : elegir(ASESORES_TIENDA[tienda]),
+        carrito_total: Math.round((89900 + azar() * 1760000) / 100) * 100,
+        fecha_create: f,
+        metodo_envio: elegir(ENVIOS),
+        estado_pago: pago,
+        estado_logistica: !conPedido ? null : facturado ? (rl < 0.55 ? 'entregado' : rl < 0.85 ? 'en_ruta' : 'pendiente') : 'pendiente',
+        pedido_id: conPedido ? (pedido += 1 + Math.floor(azar() * 4)) : null,
+        pedido_fecha: conPedido ? f : null,
+        pedido_factura_nro: facturado ? 'FE ' + (factura += 1 + Math.floor(azar() * 5)) : null,
+        pedido_facturado_fecha: facturado ? f : null,
+        tipo_factura: facturado ? (azar() < 0.8 ? 'G311' : null) : null,
+      });
+    }
+  }
+  return lista.reverse(); // orden original del servidor: carrito_id desc
+}
+const CARRITOS = construirCarritos();
+
+// ════════════════════════════════════════════════════════════════════════════
+// 4. Valores de orden por columna (dato de arriba de la celda)
+// ════════════════════════════════════════════════════════════════════════════
+const BADGE_PAGO = { pendiente: { label: 'Pendiente', clases: 'bg-amber-100 text-amber-700' }, pagado: { label: 'Pagado', clases: 'bg-emerald-100 text-emerald-700' }, cancelado: { label: 'Cancelado', clases: 'bg-gray-100 text-gray-600' } };
+const BADGE_LOG = { pendiente: { label: 'Pendiente', clases: 'bg-gray-100 text-gray-600' }, en_ruta: { label: 'En ruta', clases: 'bg-violet-100 text-violet-700' }, entregado: { label: 'Entregado', clases: 'bg-emerald-100 text-emerald-700' } };
+const MENSAJERIA = { servientrega: 'Servientrega', coordinadora: 'Coordinadora', mensajeria: 'Mensajería interna' };
+function nombreTienda(id) { const t = TIENDAS.find(function (x) { return x.id === id; }); return t ? t.nombre : '—'; }
+
+function valorConsulta(c, clave) {
+  switch (clave) {
+    case 'carrito': return c.carrito_id;
+    case 'tienda': return [nombreTienda(c.tienda_id), c.asesor_nombre];
+    case 'cliente': return c.cliente_nombre_completo || null;
+    case 'pedido': return c.pedido_id;
+    case 'factura': return c.pedido_factura_nro;
+    case 'pago': return BADGE_PAGO[c.estado_pago].label;
+    case 'logistica': return c.estado_logistica ? BADGE_LOG[c.estado_logistica].label : null;
+    case 'mensajeria': return c.metodo_envio ? MENSAJERIA[c.metodo_envio] || c.metodo_envio : null;
+    case 'total_pedido': return c.carrito_total;
+  }
+  return null;
+}
+
+function valorAsesor(a, clave) {
+  switch (clave) {
+    case 'nombre': return a.nombre_corto;
+    case 'pedidos_web': case 'facturado': return a[clave] && a[clave].valor ? a[clave].valor : null;
+    case 'devoluciones': return a.devoluciones ? Math.abs(a.devoluciones) : null; // por monto devuelto (a confirmar)
+    case 'bono': return a.bono.dias_firme + a.bono.dias_provisional > 0 ? a.bono.monto : null;
+    case 'comision': case 'comision_total': return a[clave] || null;
+    case 'pc80': case 'pc90': case 'pc100': return a.cumplimiento === null ? null : Math.round(a.cumplimiento) >= Number(clave.slice(2)) ? 0 : a[clave];
+    default: return a[clave] === undefined ? null : a[clave];
+  }
+}
+
+function valorDia(d, clave) {
+  if (clave.indexOf('bono_') === 0) return d[clave].estado === 'ninguno' ? null : d[clave].monto;
+  switch (clave) {
+    case 'fecha': return d.fecha;
+    case 'pedidos_web': case 'facturado': case 'tienda_fisica': case 'nro_pedidos': return d[clave] || null;
+    case 'devoluciones': return d.devoluciones ? Math.abs(d.devoluciones) : null;
+    case 'mejor': return d.mejor ? d.mejor.nombres[0] : null;
+    default: return d[clave] === undefined ? null : d[clave];
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 5. Servidor simulado de Consulta: filtra, ordena y pagina de a 50
+// ════════════════════════════════════════════════════════════════════════════
+const POR_PAGINA = 50;
+function servidorConsulta(q) {
+  let filas = CARRITOS.filter(function (c) {
+    if (c.fecha_create < q.fechaDesde || c.fecha_create > q.fechaHasta) return false;
+    if (q.tienda !== 'todas' && String(c.tienda_id) !== String(q.tienda)) return false;
+    if (q.asesor !== 'todos' && c.asesor_nombre !== q.asesor) return false;
+    if (q.estado_pago !== 'todos' && c.estado_pago !== q.estado_pago) return false;
+    if (q.logistica === 'hoy') return false;
+    if (q.logistica !== 'todos' && c.estado_logistica !== q.logistica) return false;
+    if (q.facturacion === 'facturada' && !c.pedido_factura_nro) return false;
+    if (q.facturacion === 'sin_facturar' && (!c.pedido_id || c.pedido_factura_nro)) return false;
+    if (q.mensajeria !== 'todas' && c.metodo_envio !== q.mensajeria) return false;
+    const b = q.busqueda.trim().toLowerCase().replace(/^#/, '');
+    if (b && !((c.cliente_nombre_completo || '').toLowerCase().includes(b) || String(c.carrito_id).includes(b) || (c.cliente_documento || '').includes(b))) return false;
+    return true;
+  });
+  filas = ordenarFilas(filas, q.orden ? { clave: q.orden, dir: q.dir } : null, valorConsulta);
+  const total = filas.length;
+  const last = Math.max(1, Math.ceil(total / POR_PAGINA));
+  const page = Math.min(Math.max(1, q.page || 1), last);
+  return { data: filas.slice((page - 1) * POR_PAGINA, page * POR_PAGINA), current_page: page, last_page: last, total: total };
+}
+
+// Exportar para la prueba con node.
+if (typeof module !== 'undefined') {
+  module.exports = { siguienteOrden: siguienteOrden, ordenarFilas: ordenarFilas, ordenTrasOcultar: ordenTrasOcultar, servidorConsulta: servidorConsulta, valorConsulta: valorConsulta, valorAsesor: valorAsesor, valorDia: valorDia, ASESORES: ASESORES, DIAS: DIAS, CARRITOS: CARRITOS };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 6. Interfaz
+// ════════════════════════════════════════════════════════════════════════════
+if (typeof document !== 'undefined') (function () {
+  const $ = function (s) { return document.querySelector(s); };
+
+  const ICONO = {
+    neutro: '<path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>',
+    desc: '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+    asc: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    chevron: '<path d="m6 9 6 6 6-6"/>',
+  };
+  function svg(nombre, clase, extra) { return '<svg ' + (extra || '') + ' class="' + clase + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONO[nombre] + '</svg>'; }
+  function alin(a) { return a === 'left' ? 'text-left' : a === 'center' ? 'text-center' : 'text-right'; }
+  function anunciar(t) { $('#anuncio').textContent = t; }
+  function textoOrden(titulo, orden) { return orden ? 'Ordenado por ' + titulo + ', ' + (orden.dir === 'desc' ? 'de mayor a menor' : 'de menor a mayor') : 'Orden original'; }
+
+  /**
+   * Lo nuevo: botón dentro del encabezado. `contenido` es el texto real del th (con su tooltip
+   * si lo tiene). Columnas alineadas a la derecha llevan la flecha a la izquierda del texto,
+   * para que el texto siga alineado con las cifras.
+   */
+  function thOrdenable(o) {
+    const activo = o.orden && o.orden.clave === o.clave ? o.orden.dir : null;
+    const ariaSort = o.ordenable === false ? '' : ' aria-sort="' + (activo === 'desc' ? 'descending' : activo === 'asc' ? 'ascending' : 'none') + '"';
+    if (o.ordenable === false) return '<th class="' + o.thClase + '"' + (o.estilo ? ' style="' + o.estilo + '"' : '') + '>' + o.contenido + '</th>';
+    const icono = activo
+      ? svg(activo, 'h-3 w-3 shrink-0 ' + (o.deshabilitado ? 'text-gray-400' : 'text-gray-900'), 'data-icono="activo"')
+      : o.deshabilitado ? '' : svg('neutro', 'h-3 w-3 shrink-0 text-gray-300', 'data-icono="neutro"');
+    const reversa = o.alineacion === 'right' ? ' flex-row-reverse' : '';
+    const colorTexto = activo && !o.deshabilitado ? ' text-gray-900' : '';
+    return '<th scope="col" class="' + o.thClase + '"' + ariaSort + (o.estilo ? ' style="' + o.estilo + '"' : '') + (o.title ? ' title="' + o.title + '"' : '') + '>' +
+      '<button type="button" class="btn-orden inline-flex items-center gap-1 rounded-sm uppercase tracking-wide focus-visible:ring-1 focus-visible:ring-gray-900 focus-visible:outline-none' + reversa + colorTexto +
+      (o.deshabilitado ? ' cursor-default' : ' hover:text-gray-700') + '"' + (o.deshabilitado ? ' aria-disabled="true"' : '') +
+      ' data-tabla="' + o.tabla + '" data-orden="' + o.clave + '" data-titulo="' + o.titulo + '">' + o.contenido + icono + '</button></th>';
+  }
+
+  // ─────────────────── Estado ───────────────────
+  const estado = {
+    pestana: 'dashboard',
+    variante: 'A',
+    dashVacio: false,
+    canal: { orden: null, ocultas: new Set(), plegado: false, menu: false },
+    asesores: { orden: null, ocultas: new Set(), menu: false },
+    consulta: {
+      atajo: 'quincena_actual',
+      filtros: { fechaDesde: '2026-10-01', fechaHasta: '2026-10-15', tienda: 'todas', asesor: 'todos', estado_pago: 'todos', logistica: 'todos', facturacion: 'todas', mensajeria: 'todas', busqueda: '' },
+      url: null, // query aplicada (lo que hay en la dirección); null = carga inicial sin parámetros
+      orden: null, page: 1, cargando: false, error: false, ultima: null, resultado: null,
+    },
+  };
+
+  // ═══════════════════ Indicadores diarios del canal ═══════════════════
+  const COLS_CANAL = [
+    { clave: 'fecha', titulo: 'Día', alineacion: 'left', siempre: true },
+    { clave: 'meta', titulo: 'Meta', alineacion: 'right' },
+    { clave: 'pedidos_web', titulo: 'Pedidos web', alineacion: 'right', fondo: '#f7f9fc' },
+    { clave: 'facturado', titulo: 'Facturado', alineacion: 'right', fondo: '#f3f6fa' },
+    { clave: 'tienda_fisica', titulo: 'Tienda física', alineacion: 'right', fondo: '#eaeff6' },
+    { clave: 'devoluciones', titulo: 'Devoluciones', alineacion: 'right', fondo: '#eff3f8' },
+    { clave: 'total_venta', titulo: 'Total venta', alineacion: 'right', fondo: '#e3e9f2' },
+    { clave: 'cumplimiento', titulo: 'Cumpl.', alineacion: 'center' },
+    { clave: 'mejor', titulo: 'Mejor vendedor', alineacion: 'left', tip: 'Asesor de la tienda con mayor Total venta del día (venta confirmada del sello). Empate exacto: los dos nombres. Sin venta positiva: «—».' },
+    { clave: 'nro_pedidos', titulo: 'Nro pedidos', alineacion: 'right' },
+    { clave: 'vpt', titulo: 'VPT', alineacion: 'right' },
+    { clave: 'upt', titulo: 'UPT', alineacion: 'right' },
+    { clave: 'tcv', titulo: 'TCV', alineacion: 'right' },
+  ].concat(ROLES.map(function (r) { return { clave: r.clave, titulo: r.titulo, alineacion: 'right', rol: true }; }));
+
+  const CLASE_BONO_FIRME = 'bg-emerald-50 font-semibold text-emerald-700';
+  const CLASE_BONO_PROV = 'border border-amber-200 bg-amber-50 font-semibold text-amber-700';
+  const TIP_BONO_PROV = 'Aún no se ha facturado. Este bono cuenta pedidos pagados que el ERP todavía no factura. Si la factura llega por menos y el día baja del 100 %, el bono se retira.';
+  function claseBadgeCumpl(p) { const e = Math.round(p); return e >= 100 ? 'bg-emerald-600' : e >= 80 ? 'bg-slate-900' : 'bg-rose-500'; }
+  function raya(hay, clase) { return hay ? clase : 'text-slate-400'; }
+
+  function celdaCanal(col, d) {
+    const fondos = { vpt: fondoTcv(d.vpt, METAS_MES.vpt), upt: fondoTcv(d.upt, METAS_MES.upt), tcv: fondoTcv(d.tcv, METAS_MES.tcv) };
+    if (col.rol) {
+      const b = d[col.clave];
+      if (b.estado === 'ninguno') {
+        const tip = b.motivo === 'sin_reparto' ? 'Día sin reparto de meta: no evalúa bono.' : 'No cumple las condiciones del bono ese día.';
+        return '<span class="cursor-help text-gray-300" title="' + tip + '">—</span>';
+      }
+      const firme = b.estado === 'firme';
+      return '<span class="inline-flex cursor-help items-center gap-1 rounded-full px-2 py-0.5 text-[11px] whitespace-nowrap ' + (firme ? CLASE_BONO_FIRME : CLASE_BONO_PROV) + '" title="' + (firme ? 'En firme: lo facturado alcanza la meta del día.' : 'Provisional · pendiente de factura del ERP. ' + TIP_BONO_PROV) + '">' + svg(firme ? 'check' : 'clock', 'h-3 w-3 shrink-0') + formatoPesos(b.monto) + '</span>';
+    }
+    switch (col.clave) {
+      case 'fecha': return '<span class="font-medium text-slate-800">' + fechaDiaria(d.fecha) + (d.hoy ? '<span class="font-normal text-gray-500"> · hoy</span>' : '') + '</span>';
+      case 'meta': return d.meta === null ? '<span class="cursor-help text-slate-400" title="Día sin reparto de meta: no evalúa bono">—</span>' : '<span class="text-slate-600">' + formatoPesos(d.meta) + '</span>';
+      case 'pedidos_web': return '<span class="' + raya(d.pedidos_web, 'text-slate-800') + '">' + (d.pedidos_web ? formatoPesos(d.pedidos_web) + ' (' + d.pedidos_web_cantidad + ')' : '—') + '</span>';
+      case 'facturado': return '<span class="' + raya(d.facturado, 'text-slate-800') + '">' + (d.facturado ? formatoPesos(d.facturado) : '—') + '</span>';
+      case 'tienda_fisica': return '<span class="' + raya(d.tienda_fisica, 'text-emerald-700') + '">' + (d.tienda_fisica ? '+' + formatoPesos(d.tienda_fisica) : '—') + '</span>';
+      case 'devoluciones': return '<span class="' + raya(d.devoluciones, 'text-rose-600') + '">' + (d.devoluciones ? '−' + formatoPesos(Math.abs(d.devoluciones)) : '—') + '</span>';
+      case 'total_venta': return '<span class="font-bold text-slate-900">' + formatoPesos(d.total_venta) + '</span>';
+      case 'cumplimiento': return d.cumplimiento === null
+        ? '<span class="inline-block rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-400">Sin meta</span>'
+        : '<span class="inline-block min-w-[46px] rounded px-1.5 py-0.5 text-xs font-bold text-white ' + claseBadgeCumpl(d.cumplimiento) + '">' + pctEntero(d.cumplimiento) + '</span>';
+      case 'mejor': return d.mejor ? '<span class="cursor-help text-xs font-medium text-gray-800" title="Venta del día' + (d.hoy ? ' hasta el corte' : '') + (d.mejor.nombres.length > 1 ? ' (empate)' : '') + ': ' + formatoPesos(d.mejor.monto) + '">' + d.mejor.nombres.join(' · ') + '</span>' : '<span class="text-slate-400">—</span>';
+      case 'nro_pedidos': return '<span class="' + raya(d.nro_pedidos, 'text-slate-800') + '">' + (d.nro_pedidos || '—') + '</span>';
+      case 'vpt': return '<span class="' + (fondos.vpt ? '' : raya(d.vpt !== null, 'text-slate-800')) + '">' + (d.vpt === null ? '—' : formatoPesos(d.vpt)) + '</span>';
+      case 'upt': return '<span class="' + (fondos.upt ? '' : raya(d.upt !== null, 'text-slate-800')) + '">' + decimal2(d.upt) + '</span>';
+      case 'tcv': return d.con_archivo
+        ? '<span class="' + (fondos.tcv ? '' : 'text-slate-800') + '">' + pctUnDecimal(d.tcv) + '</span>'
+        : '<span class="cursor-help text-slate-400" title="Sin archivo de tráfico ese día">—</span>';
+    }
+    return '';
+  }
+
+  function totalesCanal() {
+    const s = function (k) { return DIAS.reduce(function (a, d) { return a + (d[k] || 0); }, 0); };
+    const meta = DIAS.reduce(function (a, d) { return a + (d.meta || 0); }, 0);
+    const nro = s('nro_pedidos'), web = s('web'), unid = s('unidades');
+    const conArchivo = DIAS.filter(function (d) { return d.con_archivo; });
+    const traf = conArchivo.reduce(function (a, d) { return a + d.trafico; }, 0), pag = conArchivo.reduce(function (a, d) { return a + d.pagados; }, 0);
+    return { meta: meta, pedidos_web: s('pedidos_web'), facturado: s('facturado'), tienda_fisica: s('tienda_fisica'), devoluciones: s('devoluciones'), total_venta: s('total_venta'),
+      cumplimiento: meta ? (s('total_venta') / meta) * 100 : null, nro_pedidos: nro, vpt: nro ? web / nro : null, upt: nro ? unid / nro : null, tcv: traf ? (pag / traf) * 100 : null, dias_archivo: conArchivo.length };
+  }
+
+  function bonoRango(clave) {
+    const firmes = DIAS.filter(function (d) { return d[clave].estado === 'firme'; });
+    const prov = DIAS.filter(function (d) { return d[clave].estado === 'provisional'; });
+    const dias = function (n) { return n + ' ' + (n === 1 ? 'día' : 'días'); };
+    const montoF = firmes.reduce(function (a, d) { return a + d[clave].monto; }, 0), montoP = prov.reduce(function (a, d) { return a + d[clave].monto; }, 0);
+    return {
+      firme: firmes.length ? dias(firmes.length) + ' · ' + formatoPesos(montoF) : null,
+      provisional: prov.length ? (firmes.length ? '+ ' + prov.length + ' provisional' : dias(prov.length) + ' provisional · ' + formatoPesos(montoP)) : null,
+      tip: prov.length ? 'Provisional: ' + formatoPesos(montoP) + ' de ' + dias(prov.length) + ' ' + (prov.length === 1 ? 'pendiente' : 'pendientes') + ' de factura del ERP. ' + TIP_BONO_PROV : null,
+    };
+  }
+
+  function celdaTotalCanal(col, t) {
+    const dato = 'font-semibold text-slate-800';
+    if (col.rol) {
+      const b = bonoRango(col.clave);
+      let h = '<span class="inline-flex items-center justify-end gap-1">';
+      if (b.firme) h += '<span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap ' + CLASE_BONO_FIRME + '">' + svg('check', 'h-3 w-3 shrink-0') + b.firme + '</span>';
+      if (b.provisional) h += '<span class="inline-flex cursor-help items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap ' + CLASE_BONO_PROV + '" title="' + b.tip + '">' + svg('clock', 'h-3 w-3 shrink-0') + b.provisional + '</span>';
+      if (!b.firme && !b.provisional) h += '<span class="text-gray-300">—</span>';
+      return h + '</span>';
+    }
+    switch (col.clave) {
+      case 'fecha': return '<span class="' + dato + '">Total</span>';
+      case 'meta': return '<span class="font-semibold text-slate-700">' + formatoPesos(t.meta) + '</span>';
+      case 'pedidos_web': return '<span class="' + dato + '">' + formatoPesos(t.pedidos_web) + '</span>';
+      case 'facturado': return '<span class="' + dato + '">' + formatoPesos(t.facturado) + '</span>';
+      case 'tienda_fisica': return '<span class="font-semibold text-emerald-700">+' + formatoPesos(t.tienda_fisica) + '</span>';
+      case 'devoluciones': return '<span class="font-semibold text-rose-600">−' + formatoPesos(Math.abs(t.devoluciones)) + '</span>';
+      case 'total_venta': return '<span class="font-bold text-slate-900">' + formatoPesos(t.total_venta) + '</span>';
+      case 'cumplimiento': return '<span class="cursor-help font-bold text-slate-900" title="Cumplimiento del rango: Σ Total venta ÷ Σ Meta. Se muestra con un decimal; el escalón usa el entero (ADR-011).">' + pctUnDecimal(t.cumplimiento) + '</span>';
+      case 'mejor': return '';
+      case 'nro_pedidos': return '<span class="' + dato + '">' + t.nro_pedidos + '</span>';
+      case 'vpt': return '<span class="' + (fondoTcv(t.vpt, METAS_MES.vpt) ? '' : dato) + '">' + formatoPesos(t.vpt) + '</span>';
+      case 'upt': return '<span class="' + (fondoTcv(t.upt, METAS_MES.upt) ? '' : dato) + '">' + decimal2(t.upt) + '</span>';
+      case 'tcv': return '<span class="' + (fondoTcv(t.tcv, METAS_MES.tcv) ? '' : dato) + '" title="TCV del rango: solo suma los ' + t.dias_archivo + ' días con archivo de tráfico.">' + pctUnDecimal(t.tcv) + '</span>';
+    }
+    return '';
+  }
+
+  function menuColumnas(id, columnas, ocultas, fija) {
+    let h = '<div id="' + id + '" class="absolute top-full right-0 z-50 mt-1 w-60 rounded-md border border-gray-200 bg-white p-1 text-gray-900 shadow-md">';
+    if (fija) h += '<div class="flex items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-[12px] opacity-50 relative"><span class="absolute left-2">' + svg('check', 'h-4 w-4') + '</span>' + fija + '<span class="ml-auto text-[10px] text-gray-400">fija</span></div>';
+    columnas.forEach(function (c) {
+      const visible = !ocultas.has(c.clave);
+      h += '<button type="button" data-menu-col="' + c.clave + '" class="relative flex w-full items-center rounded-sm py-1.5 pr-2 pl-8 text-left text-[12px] hover:bg-gray-100"><span class="absolute left-2">' + (visible ? svg('check', 'h-4 w-4') : '') + '</span>' + c.titulo + '</button>';
+    });
+    h += '<div class="-mx-1 my-1 h-px bg-gray-100"></div><button type="button" data-menu-todas class="flex w-full rounded-sm px-2 py-1.5 text-left text-[12px] text-gray-500 hover:bg-gray-100">Mostrarlas todas</button></div>';
+    return h;
+  }
+
+  function botonColumnas(nombre, ocultables, ocultas) {
+    const visibles = ocultables.filter(function (c) { return !ocultas.has(c.clave); }).length;
+    const chip = visibles < ocultables.length ? '<span class="rounded bg-gray-800 px-1.5 text-[10px] font-semibold text-white tabular-nums">' + visibles + '/' + ocultables.length + '</span>' : '';
+    return '<button type="button" data-abrir-menu="' + nombre + '" class="flex items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1 text-[12px] font-medium text-gray-600 hover:bg-gray-50">Columnas ' + chip + svg('chevron', 'h-3.5 w-3.5 text-gray-400') + '</button>';
+  }
+
+  function renderCanal() {
+    const st = estado.canal;
+    const dias = estado.dashVacio ? [] : DIAS;
+    const visibles = COLS_CANAL.filter(function (c) { return c.siempre || !st.ocultas.has(c.clave); });
+    const ocultables = COLS_CANAL.filter(function (c) { return !c.siempre; });
+    const b = bonoRango('bono_supervisor');
+    const resumen = DIAS.length + ' días · Bono coordinador ' + bonoRango('bono_coordinador').firme + ' · Bono supervisor ' + b.firme;
+
+    let h = '<section class="overflow-hidden rounded-2xl border bg-white shadow-sm" aria-label="Indicadores diarios del canal">' +
+      '<div class="relative flex flex-wrap items-center gap-2 bg-gray-50 px-4 py-2.5 ' + (st.plegado ? '' : 'border-b') + '">' +
+      '<button type="button" data-plegar class="flex items-center gap-2 text-left" aria-expanded="' + !st.plegado + '">' + svg('chevron', 'h-4 w-4 shrink-0 text-gray-400 transition-transform' + (st.plegado ? ' -rotate-90' : '')) +
+      '<h2 class="text-[13px] font-bold tracking-wide text-gray-500 uppercase">Indicadores diarios del canal</h2></button>' +
+      (st.plegado && dias.length ? '<span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-500 tabular-nums">' + resumen + '</span>' : '') +
+      '<div class="relative ml-auto flex items-center">' + (!st.plegado && dias.length ? botonColumnas('canal', ocultables, st.ocultas) + (st.menu ? menuColumnas('menu-canal', ocultables, st.ocultas, 'Día') : '') : '') + '</div></div>';
+
+    if (!st.plegado) {
+      if (!dias.length) {
+        h += '<div class="px-4 py-8 text-center text-xs text-gray-400">No hay días en este período.</div>';
+      } else {
+        const t = totalesCanal();
+        h += '<div class="overflow-x-auto"><table class="w-full text-[13px] tabular-nums"><caption class="sr-only">Indicadores diarios del canal</caption><thead><tr class="border-b border-gray-100 text-[11px] tracking-wide text-gray-400 uppercase">';
+        visibles.forEach(function (c) {
+          h += thOrdenable({
+            tabla: 'canal', clave: c.clave, titulo: c.titulo, alineacion: c.alineacion, orden: st.orden,
+            thClase: 'px-3 py-2 font-medium whitespace-nowrap ' + alin(c.alineacion) + (c.clave === 'fecha' ? ' sticky left-0 z-10 shadow-[2px_0_0_0_#e5e7eb] bg-white' : '') + (c.clave === 'total_venta' ? ' text-gray-900' : '') + (c.tip ? ' cursor-help' : ''),
+            estilo: c.fondo ? 'background:' + c.fondo : '', title: c.tip, contenido: '<span>' + c.titulo + '</span>',
+          });
+        });
+        h += '</tr></thead><tbody>';
+        ordenarFilas(dias, st.orden, valorDia).forEach(function (d) {
+          const fondos = { vpt: fondoTcv(d.vpt, METAS_MES.vpt), upt: fondoTcv(d.upt, METAS_MES.upt), tcv: fondoTcv(d.tcv, METAS_MES.tcv) };
+          h += '<tr class="group border-b border-gray-50' + (d.hoy ? ' bg-emerald-50' : '') + '">';
+          visibles.forEach(function (c) {
+            h += '<td class="px-3 py-2 whitespace-nowrap ' + alin(c.alineacion) + (c.clave === 'fecha' ? ' sticky left-0 z-10 shadow-[2px_0_0_0_#e5e7eb] ' + (d.hoy ? 'bg-emerald-50' : 'bg-white') : '') + ' ' + (fondos[c.clave] || '') + '"' + (c.fondo ? ' style="background:' + c.fondo + '"' : '') + '>' + celdaCanal(c, d) + '</td>';
+          });
+          h += '</tr>';
+        });
+        h += '</tbody><tfoot><tr class="border-t-2 border-gray-200 bg-gray-50 font-bold">';
+        const fondosT = { vpt: fondoTcv(t.vpt, METAS_MES.vpt), upt: fondoTcv(t.upt, METAS_MES.upt), tcv: fondoTcv(t.tcv, METAS_MES.tcv) };
+        visibles.forEach(function (c) {
+          h += '<td class="px-3 py-2.5 whitespace-nowrap ' + alin(c.alineacion) + (c.clave === 'fecha' ? ' sticky left-0 z-10 shadow-[2px_0_0_0_#e5e7eb] bg-gray-50' : '') + ' ' + (fondosT[c.clave] || '') + '"' + (c.fondo ? ' style="background:' + c.fondo + '"' : '') + '>' + celdaTotalCanal(c, t) + '</td>';
+        });
+        h += '</tr></tfoot></table></div>';
+      }
+    }
+    $('#bloque-canal').innerHTML = h + '</section>';
+  }
+
+  // ═══════════════════ Asesores ═══════════════════
+  const TIPS = {
+    meta: 'Presupuesto asignado al asesor en el período (suma de los días).',
+    pedidos_web: 'Pedidos ya pagados por el cliente, a la espera de la factura del ERP. Cuentan desde ya: el dinero entró.',
+    facturado: 'Pedidos que ya llegaron facturados en el archivo del ERP. Se toma el valor de la factura, no el del carrito.',
+    devoluciones: 'Facturas M del archivo del ERP: devoluciones recibidas en tienda física. Restan del total.',
+    tienda_fisica: 'Facturas X del archivo del ERP: compras hechas en el punto físico, sin pasar por un carrito web.',
+    total_venta: 'Pedidos web + Facturado + Tienda física − Devoluciones. La misma cifra que ve el asesor en Mis Ventas y sobre la que se paga la comisión.',
+    cumplimiento: 'Total venta dividido por la Meta del período.',
+    pc: 'Lo que falta vender para llegar a ese porcentaje de la meta, sobre el Total venta.',
+    bono: 'Bonos diarios ganados en el período: verdes (facturado) más amarillos (provisionales, dependen de pedidos pagados sin factura).',
+    nro_pedidos: 'Pedidos contados en Pedidos web y Facturado. Las facturas de tienda física no tienen pedido.',
+    unidades: 'Unidades de los pedidos web pagados y facturados, sin la línea de flete. PPT = venta de pedidos web ÷ unidades',
+    vpt: 'Venta por transacción: (Pedidos web + Facturado) ÷ Nro pedidos. Sin tienda física ni devoluciones.',
+    items_upt: 'Unidades que faltan para llegar a la meta de UPT con los pedidos hechos.',
+    upt: 'Unidades por transacción: unidades ÷ Nro pedidos.',
+    ppt: 'Precio por unidad: (Pedidos web + Facturado) ÷ unidades. Sin meta.',
+    tcv: 'Tasa de conversión: carritos pagados ÷ tráfico atendido (conversaciones cerradas), solo los días con archivo cargado. La misma cifra del modal del asesor y de Mis Ventas.',
+    ped_tc: 'Pedidos que debería llevar para cumplir la meta de tasa de conversión: tráfico atendido × meta de TC.',
+    ped_faltan: 'Ped. para TC menos los pedidos hechos. «Cumple» si ya los superó.',
+    comision: 'Comisión proyectada: sobre lo facturado más lo pagado sin factura, con la escala vigente.',
+    comision_total: 'Comisión proyectada + Bono acumulado.',
+  };
+  const COLS_ASESORES = [
+    { clave: 'nombre', titulo: 'Nombre', alineacion: 'left', siempre: true, sticky: 'izq' },
+    { clave: 'meta', titulo: 'Meta', alineacion: 'right', siempre: true, tip: TIPS.meta },
+    { clave: 'pedidos_web', titulo: 'Pedidos web', alineacion: 'right', banda: '#f7f9fc', tip: TIPS.pedidos_web },
+    { clave: 'facturado', titulo: 'Facturado', alineacion: 'right', banda: '#f3f6fa', tip: TIPS.facturado },
+    { clave: 'devoluciones', titulo: 'Devoluciones', alineacion: 'right', banda: '#eff3f8', tip: TIPS.devoluciones },
+    { clave: 'tienda_fisica', titulo: 'Tienda física', alineacion: 'right', banda: '#eaeff6', tip: TIPS.tienda_fisica },
+    { clave: 'total_venta', titulo: 'Total venta', alineacion: 'right', banda: '#e3e9f2', siempre: true, tip: TIPS.total_venta },
+    { clave: 'cumplimiento', titulo: 'Cumplimiento', alineacion: 'center', siempre: true, tip: TIPS.cumplimiento },
+    { clave: 'pc80', titulo: 'Por cumplir 80%', alineacion: 'right', tip: TIPS.pc },
+    { clave: 'pc90', titulo: 'Por cumplir 90%', alineacion: 'right', tip: TIPS.pc },
+    { clave: 'pc100', titulo: 'Por cumplir 100%', alineacion: 'right', tip: TIPS.pc },
+    { clave: 'bono', titulo: 'Bono acumulado', alineacion: 'right', tip: TIPS.bono },
+    { clave: 'nro_pedidos', titulo: 'Nro pedidos', alineacion: 'right', tip: TIPS.nro_pedidos },
+    { clave: 'unidades', titulo: 'Unidades', alineacion: 'right', tip: TIPS.unidades },
+    { clave: 'vpt', titulo: 'VPT', alineacion: 'right', tip: TIPS.vpt },
+    { clave: 'items_upt', titulo: 'Ítems UPT', alineacion: 'right', tip: TIPS.items_upt },
+    { clave: 'upt', titulo: 'UPT', alineacion: 'right', tip: TIPS.upt },
+    { clave: 'ppt', titulo: 'PPT', alineacion: 'right', tip: TIPS.ppt },
+    { clave: 'tcv', titulo: 'TCV', alineacion: 'right', tip: TIPS.tcv },
+    { clave: 'ped_tc', titulo: 'Ped. para TC', alineacion: 'right', tip: TIPS.ped_tc },
+    { clave: 'ped_faltan', titulo: 'Ped. que faltan', alineacion: 'right', tip: TIPS.ped_faltan },
+    { clave: 'comision', titulo: 'Comisión proy.', alineacion: 'right', tip: TIPS.comision },
+    { clave: 'comision_total', titulo: 'Comisión total proy.', alineacion: 'right', siempre: true, sticky: 'der', tip: TIPS.comision_total },
+  ];
+  const PALETA_AVATAR = ['bg-violet-600', 'bg-blue-600', 'bg-pink-600', 'bg-emerald-600', 'bg-amber-500', 'bg-sky-600', 'bg-rose-500', 'bg-indigo-600', 'bg-teal-600', 'bg-fuchsia-600', 'bg-orange-500', 'bg-cyan-600'];
+  function iniciales(n) { const p = n.trim().split(/\s+/); return (p[0][0] + p[p.length - 1][0]).toUpperCase(); }
+  const CUMPLE = '<span class="inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">Cumple</span>';
+  const RAYA = '<span class="text-gray-300">—</span>';
+
+  function celdaAsesor(c, a) {
+    switch (c.clave) {
+      case 'nombre': return '<span class="inline-flex items-center gap-2"><span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ' + PALETA_AVATAR[a.idx % 12] + '">' + iniciales(a.nombre) + '</span><span class="font-medium text-gray-800" title="' + a.nombre + '">' + a.nombre_corto + '</span></span>';
+      case 'meta': return '<span class="text-gray-800">' + formatoPesos(a.meta) + '</span>';
+      case 'pedidos_web': case 'facturado': { const p = a[c.clave]; return p && p.valor ? '<span class="text-gray-800">' + formatoPesos(p.valor) + '</span><span class="ml-1 text-[11px] text-gray-400">(' + p.cantidad + ')</span>' : '<span class="text-gray-800">—</span>'; }
+      case 'devoluciones': return '<span class="' + (a.devoluciones ? 'text-red-600' : 'text-gray-400') + '">' + conSigno(a.devoluciones) + '</span>';
+      case 'tienda_fisica': return '<span class="' + (a.tienda_fisica ? 'text-emerald-700' : 'text-gray-400') + '">' + conSigno(a.tienda_fisica) + '</span>';
+      case 'total_venta': return '<span class="font-bold ' + (a.total_venta < 0 ? 'text-red-600' : 'text-gray-900') + '">' + formatoPesos(a.total_venta) + '</span>';
+      case 'cumplimiento': return badgeClase(a.cumplimiento) ? '<span class="inline-block min-w-[46px] rounded px-1.5 py-0.5 text-center text-xs font-bold text-white ' + badgeClase(a.cumplimiento) + '">' + pctEntero(a.cumplimiento) + '</span>' : RAYA;
+      case 'pc80': case 'pc90': case 'pc100': {
+        const u = Number(c.clave.slice(2));
+        if (a.cumplimiento === null) return RAYA;
+        if (Math.round(a.cumplimiento) >= u) return CUMPLE;
+        return '<span class="font-semibold ' + (u === 80 ? 'text-red-600' : u === 90 ? 'text-orange-500' : 'text-emerald-700') + '">' + formatoPesos(a[c.clave]) + '</span>';
+      }
+      case 'bono': {
+        const dias = a.bono.dias_firme + a.bono.dias_provisional;
+        if (!dias) return RAYA;
+        return '<span class="font-semibold text-gray-800">' + formatoPesos(a.bono.monto) + '</span> <span class="text-[11px] text-gray-400">(' + dias + ')</span>' +
+          (a.bono.dias_provisional ? '<span class="ml-1 inline-flex cursor-help items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700" title="Aún no se ha facturado: ' + a.bono.dias_provisional + ' de estos bonos cuentan pedidos pagados que el ERP todavía no factura. Si la factura llega por menos y el día baja del 100 %, el bono se retira.">' + svg('clock', 'h-3 w-3 shrink-0') + a.bono.dias_provisional + ' prov.</span>' : '');
+      }
+      case 'nro_pedidos': case 'unidades': return '<span class="font-semibold text-gray-800">' + miles(a[c.clave]) + '</span>';
+      case 'vpt': return '<span class="font-semibold ' + (textoSemaforo(a.vpt, METAS_MES.vpt) || 'text-gray-800') + '">' + formatoPesos(a.vpt) + '</span>';
+      case 'items_upt': return a.items_upt === null ? RAYA : a.items_upt === 0 ? CUMPLE : '<span class="font-semibold text-gray-800">' + miles(a.items_upt) + '</span>';
+      case 'upt': return '<span class="font-semibold ' + (textoSemaforo(a.upt, METAS_MES.upt) || 'text-gray-800') + '">' + decimal2(a.upt) + '</span>';
+      case 'ppt': return '<span class="font-semibold text-gray-800">' + formatoPesos(a.ppt) + '</span>';
+      case 'tcv': return '<span class="cursor-help font-semibold ' + (a.tcv === null ? 'text-gray-300' : fondoTcv(a.tcv, METAS_MES.tcv) ? '' : 'text-gray-800') + '" title="' + (a.tcv === null ? 'Sin tráfico atendido en los días con archivo del período' : 'Carritos pagados ' + a.carritos_pagados_tc + ' ÷ Tráfico atendido ' + miles(a.trafico)) + '">' + pct1(a.tcv) + '</span>';
+      case 'ped_tc': return '<span class="font-semibold text-gray-800">' + (a.ped_tc === null ? '—' : miles(a.ped_tc)) + '</span>';
+      case 'ped_faltan': return a.ped_faltan === null ? RAYA : a.ped_faltan <= 0 ? CUMPLE : '<span class="font-semibold text-gray-800">' + miles(a.ped_faltan) + '</span>';
+      case 'comision': return '<span class="' + (a.comision ? 'text-gray-500' : 'text-gray-300') + '">' + (a.comision ? formatoPesos(a.comision) : '—') + '</span>';
+      case 'comision_total': return '<span class="font-bold ' + (a.comision_total ? 'text-emerald-800' : 'text-gray-300') + '">' + (a.comision_total ? formatoPesos(a.comision_total) : '—') + '</span>';
+    }
+    return '';
+  }
+
+  function celdaTotalAsesor(c) {
+    const s = function (f) { return ASESORES.reduce(function (acc, a) { return acc + f(a); }, 0); };
+    const meta = s(function (a) { return a.meta || 0; }), venta = s(function (a) { return a.total_venta; });
+    switch (c.clave) {
+      case 'nombre': return '<span class="text-gray-800">Total</span>';
+      case 'meta': return '<span class="text-gray-800">' + formatoPesos(meta) + '</span>';
+      case 'pedidos_web': case 'facturado': return '<span class="text-gray-800">' + formatoPesos(s(function (a) { return a[c.clave] ? a[c.clave].valor : 0; })) + '</span>';
+      case 'devoluciones': return '<span class="text-red-600">' + conSigno(s(function (a) { return a.devoluciones || 0; })) + '</span>';
+      case 'tienda_fisica': return '<span class="text-emerald-700">' + conSigno(s(function (a) { return a.tienda_fisica || 0; })) + '</span>';
+      case 'total_venta': return '<span class="text-gray-900">' + formatoPesos(venta) + '</span>';
+      case 'cumplimiento': { const p = (venta / meta) * 100; return '<span class="inline-block min-w-[46px] rounded px-1.5 py-0.5 text-center text-xs font-bold text-white ' + badgeClase(p) + '">' + pctEntero(p) + '</span>'; }
+      case 'bono': { const prov = s(function (a) { return a.bono.dias_provisional; }); return '<span class="text-gray-800">' + formatoPesos(s(function (a) { return a.bono.monto; })) + '</span>' + (prov ? '<div class="text-[10px] font-normal text-amber-700">' + prov + ' provisionales</div>' : ''); }
+      case 'nro_pedidos': case 'unidades': return '<span class="text-gray-800">' + miles(s(function (a) { return a[c.clave]; })) + '</span>';
+      case 'tcv': { const pag = s(function (a) { return a.carritos_pagados_tc; }), tr = s(function (a) { return a.trafico; }); const v = (pag / tr) * 100; return '<span class="cursor-help ' + (fondoTcv(v, METAS_MES.tcv) ? '' : 'text-gray-800') + '" title="Carritos pagados ' + pag + ' ÷ Tráfico atendido ' + miles(tr) + '">' + pct1(v) + '</span>'; }
+      case 'comision': return '<span class="text-gray-800">' + formatoPesos(s(function (a) { return a.comision; })) + '</span>';
+      case 'comision_total': return '<span class="text-emerald-900">' + formatoPesos(s(function (a) { return a.comision_total; })) + '</span>';
+    }
+    return '';
+  }
+
+  function renderAsesores() {
+    const st = estado.asesores;
+    const filas = estado.dashVacio ? [] : ASESORES;
+    const visibles = COLS_ASESORES.filter(function (c) { return c.siempre || !st.ocultas.has(c.clave); });
+    const ocultables = COLS_ASESORES.filter(function (c) { return !c.siempre; });
+    const pagTot = ASESORES.reduce(function (a, x) { return a + x.carritos_pagados_tc; }, 0), trTot = ASESORES.reduce(function (a, x) { return a + x.trafico; }, 0);
+    const tcvEquipo = (pagTot / trTot) * 100;
+
+    let h = '<div class="space-y-2"><div class="overflow-hidden rounded-2xl border bg-white shadow-sm"><div class="flex flex-wrap items-center gap-2 border-b bg-gray-50 px-4 py-2.5">' +
+      '<h2 class="text-[13px] font-bold tracking-wide text-gray-500 uppercase">Asesores</h2><div class="relative ml-auto flex items-center gap-3">' +
+      (filas.length ? '<span class="text-[11px] text-gray-400">Meta del mes: UPT 1,80 · VPT ' + formatoPesos(METAS_MES.vpt) + ' · PPT sin meta · TCV 22,0%</span>' + botonColumnas('asesores', ocultables, st.ocultas) + (st.menu ? menuColumnas('menu-asesores', ocultables, st.ocultas, null) : '') : '') +
+      '</div></div>';
+
+    if (!filas.length) {
+      h += '<div class="px-4 py-8 text-center text-xs text-gray-400">No hay asesores en este período.</div>';
+    } else {
+      h += '<div class="overflow-x-auto"><table class="w-full text-[13px] tabular-nums"><thead><tr class="border-b border-gray-100 text-[11px] tracking-wide text-gray-400 uppercase">';
+      visibles.forEach(function (c, i) {
+        const sticky = c.sticky === 'izq' ? ' sticky left-0 z-10 bg-white shadow-[2px_0_0_0_#e5e7eb]' : c.sticky === 'der' ? ' sticky right-0 z-10 bg-emerald-50 text-emerald-700 shadow-[-2px_0_0_0_#e5e7eb]' : '';
+        const lado = i < 3 ? ' tip-ini' : i > visibles.length - 4 ? ' tip-fin' : '';
+        const contenido = c.tip ? '<span class="tip' + lado + '" data-tip="' + c.tip + '"><span class="cursor-help border-b border-dotted border-gray-300 pb-px">' + c.titulo + '</span></span>' : '<span>' + c.titulo + '</span>';
+        h += thOrdenable({
+          tabla: 'asesores', clave: c.clave, titulo: c.titulo, alineacion: c.alineacion, orden: st.orden,
+          thClase: 'px-3 py-2 font-medium whitespace-nowrap ' + alin(c.alineacion) + sticky + (c.clave === 'total_venta' ? ' text-gray-900' : ''),
+          estilo: c.banda ? 'background:' + c.banda : '', contenido: contenido,
+        });
+      });
+      h += '</tr></thead><tbody>';
+      ordenarFilas(filas, st.orden, valorAsesor).forEach(function (a) {
+        h += '<tr class="group cursor-pointer border-b border-gray-50 hover:bg-gray-50">';
+        visibles.forEach(function (c) {
+          const sticky = c.sticky === 'izq' ? ' sticky left-0 z-10 bg-white shadow-[2px_0_0_0_#e5e7eb] group-hover:bg-gray-50' : c.sticky === 'der' ? ' sticky right-0 z-10 bg-emerald-50 shadow-[-2px_0_0_0_#e5e7eb] group-hover:bg-emerald-100' : '';
+          h += '<td class="px-3 py-2 whitespace-nowrap ' + alin(c.alineacion) + sticky + (c.clave === 'tcv' ? ' ' + fondoTcv(a.tcv, METAS_MES.tcv) : '') + '"' + (c.banda ? ' style="background:' + c.banda + '"' : '') + '>' + celdaAsesor(c, a) + '</td>';
+        });
+        h += '</tr>';
+      });
+      h += '</tbody><tfoot><tr class="border-t-2 border-gray-200 bg-gray-50 font-bold">';
+      visibles.forEach(function (c) {
+        const sticky = c.sticky === 'izq' ? ' sticky left-0 z-10 bg-gray-50 shadow-[2px_0_0_0_#e5e7eb]' : c.sticky === 'der' ? ' sticky right-0 z-10 bg-emerald-100 shadow-[-2px_0_0_0_#e5e7eb]' : '';
+        h += '<td class="px-3 py-2.5 whitespace-nowrap ' + alin(c.alineacion) + sticky + (c.clave === 'tcv' ? ' ' + fondoTcv(tcvEquipo, METAS_MES.tcv) : '') + '"' + (c.banda ? ' style="background:' + c.banda + '"' : '') + '>' + celdaTotalAsesor(c) + '</td>';
+      });
+      h += '</tr></tfoot></table></div>' +
+        '<p class="border-t border-gray-100 px-4 py-2.5 text-[11px] text-gray-400">La <strong>banda gris</strong> marca las columnas que suman al <strong>Total venta</strong>: la misma cifra que el asesor ve en Mis Ventas y sobre la que se paga la comisión. Un <strong>bono provisional</strong> se ganó contando pedidos pagados que aún no se facturan. Clic en la fila para ver el detalle diario del asesor. <strong>Nombre</strong>, <strong>Meta</strong>, <strong>Total venta</strong>, <strong>Cumplimiento</strong> y <strong>Comisión total proy.</strong> no se pueden ocultar.</p>';
+    }
+    $('#bloque-asesores').innerHTML = h + '</div></div>';
+  }
+
+  // ═══════════════════ Consulta de ventas ═══════════════════
+  const COLS_CONSULTA = [
+    { clave: 'carrito', titulo: 'Carrito', alineacion: 'left', px: 'px-4' },
+    { clave: 'tienda', titulo: 'Tienda / Asesor', alineacion: 'left' },
+    { clave: 'cliente', titulo: 'Cliente', alineacion: 'left' },
+    { clave: 'pedido', titulo: 'Pedido', alineacion: 'left' },
+    { clave: 'factura', titulo: 'Factura', alineacion: 'left' },
+    { clave: 'pago', titulo: 'Pago', alineacion: 'left' },
+    { clave: 'logistica', titulo: 'Logística', alineacion: 'left' },
+    { clave: 'mensajeria', titulo: 'Mensajería', alineacion: 'left' },
+    { clave: 'total_pedido', titulo: 'Total pedido', alineacion: 'right' },
+    { clave: 'accion', titulo: 'Acción', alineacion: 'left', px: 'px-4', ordenable: false },
+  ];
+  const SEL = 'rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:ring-1 focus:ring-gray-900 focus:outline-none';
+
+  function opciones(nombre, lista) {
+    const v = estado.consulta.filtros[nombre];
+    return '<select data-filtro="' + nombre + '" class="' + SEL + '">' + lista.map(function (o) { return '<option value="' + o[0] + '"' + (String(o[0]) === String(v) ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>';
+  }
+
+  function filaCarrito(c) {
+    const pedido = c.pedido_id ? { l1: '#' + c.pedido_id, l2: fechaCorta(c.pedido_fecha) } : { l1: '—', l2: 'sin pedido' };
+    const fac = !c.pedido_id ? { l1: '—', l2: '', tipo: null } : !c.pedido_factura_nro ? { l1: '—', l2: 'sin facturar', tipo: null } : { l1: c.pedido_factura_nro, l2: fechaCorta(c.pedido_facturado_fecha), tipo: c.tipo_factura };
+    const doc = !c.cliente_documento ? '—' : /^\d+$/.test(c.cliente_documento) ? new Intl.NumberFormat('es-CO').format(Number(c.cliente_documento)) : c.cliente_documento;
+    const bp = BADGE_PAGO[c.estado_pago], bl = c.estado_logistica ? BADGE_LOG[c.estado_logistica] : null;
+    return '<tr class="transition-colors hover:bg-gray-50/60">' +
+      '<td class="px-4 py-2.5"><span class="text-xs font-medium text-blue-600">#' + c.carrito_id + '</span><div class="text-[11px] text-gray-400">' + fechaCorta(c.fecha_create) + '</div></td>' +
+      '<td class="px-3 py-2.5"><span class="text-xs text-gray-700">' + nombreTienda(c.tienda_id) + '</span><div class="text-[11px] text-gray-400 capitalize">' + (c.asesor_nombre || '—') + '</div></td>' +
+      '<td class="px-3 py-2.5"><span class="text-xs text-gray-700 capitalize">' + (c.cliente_nombre_completo || '—') + '</span><div class="text-[11px] text-gray-400">' + doc + '</div></td>' +
+      '<td class="px-3 py-2.5"><span class="text-xs ' + (c.pedido_id ? 'text-gray-700' : 'text-gray-400') + '">' + pedido.l1 + '</span><div class="text-[11px] text-gray-400">' + pedido.l2 + '</div></td>' +
+      '<td class="px-3 py-2.5"><span class="text-xs ' + (fac.l1 === '—' ? 'text-gray-400' : 'text-gray-700') + '">' + fac.l1 + '</span>' + (fac.l2 ? '<div class="flex items-center gap-1 text-[11px] text-gray-400"><span>' + fac.l2 + '</span>' + (fac.tipo ? '<span class="rounded bg-sky-100 px-1 py-0.5 text-[10px] font-medium text-sky-700">' + fac.tipo + '</span>' : '') + '</div>' : '') + '</td>' +
+      '<td class="px-3 py-2.5"><span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ' + bp.clases + '">' + bp.label + '</span></td>' +
+      '<td class="px-3 py-2.5">' + (bl ? '<span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ' + bl.clases + '">' + bl.label + '</span>' : '<span class="text-xs text-gray-400">—</span>') + '</td>' +
+      '<td class="px-3 py-2.5"><span class="text-xs text-gray-600">' + (c.metodo_envio ? MENSAJERIA[c.metodo_envio] : '—') + '</span></td>' +
+      '<td class="px-3 py-2.5 text-right"><span class="text-xs font-semibold text-gray-900">' + formatoPesos(c.carrito_total) + '</span></td>' +
+      '<td class="px-4 py-2.5 text-left"><button type="button" class="rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-50">Ver</button></td></tr>';
+  }
+
+  function renderConsulta() {
+    const st = estado.consulta, f = st.filtros, r = st.resultado;
+    const filas = r ? r.data : [];
+    const sinFilas = !st.cargando && !st.error && filas.length === 0;
+    const atajos = [['quincena_actual', 'Quincena actual'], ['quincena_anterior', 'Quincena anterior'], ['hoy', 'Hoy'], ['personalizado', 'Personalizado']];
+
+    let h = '<div class="space-y-3"><div class="space-y-3 rounded-2xl border bg-white p-4 shadow-sm"><div class="flex flex-wrap items-center gap-2"><span class="mr-1 text-xs font-medium text-gray-500">Período:</span>' +
+      atajos.map(function (a) { return '<button type="button" data-atajo="' + a[0] + '" class="rounded-md px-3 py-1 text-xs font-medium transition-colors ' + (st.atajo === a[0] ? 'bg-gray-900 text-white' : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50') + '">' + a[1] + '</button>'; }).join('') +
+      (st.atajo === 'personalizado' ? '<div class="ml-1 flex items-center gap-1"><input type="date" data-filtro="fechaDesde" value="' + f.fechaDesde + '" class="rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-700 focus:ring-1 focus:ring-gray-900 focus:outline-none"><span class="text-xs text-gray-400">→</span><input type="date" data-filtro="fechaHasta" value="' + f.fechaHasta + '" class="rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-700 focus:ring-1 focus:ring-gray-900 focus:outline-none"></div>' : '') +
+      '</div><div class="flex flex-wrap items-center gap-2">' +
+      opciones('tienda', [['todas', 'Todas las tiendas']].concat(TIENDAS.map(function (t) { return [t.id, t.nombre]; }))) +
+      opciones('asesor', [['todos', 'Todos los asesores']].concat(ASESORES_TIENDA[1].concat(ASESORES_TIENDA[2]).map(function (n) { return [n, n]; }))) +
+      opciones('estado_pago', [['todos', 'Pago: todos'], ['pendiente', 'Pendiente'], ['pagado', 'Pagado'], ['cancelado', 'Cancelado']]) +
+      opciones('logistica', [['todos', 'Logística: todos'], ['pendiente', 'Pendiente'], ['en_ruta', 'En ruta'], ['entregado', 'Entregado'], ['hoy', 'Agendadas para hoy']]) +
+      opciones('facturacion', [['todas', 'Facturación: todas'], ['facturada', 'Facturada'], ['sin_facturar', 'Sin facturar']]) +
+      opciones('mensajeria', [['todas', 'Mensajería: todas'], ['servientrega', 'Servientrega'], ['coordinadora', 'Coordinadora'], ['mensajeria', 'Mensajería interna']]) +
+      '<input type="text" data-filtro="busqueda" value="' + f.busqueda + '" placeholder="Buscar cliente, #carrito, documento…" class="min-w-[200px] flex-1 rounded-md border border-gray-200 px-3 py-1.5 text-xs text-gray-700 placeholder:text-gray-400 focus:ring-1 focus:ring-gray-900 focus:outline-none">' +
+      '<button type="button" data-buscar class="rounded-md bg-gray-900 px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-gray-800 disabled:opacity-50"' + (st.cargando ? ' disabled' : '') + '>Buscar</button></div></div>';
+
+    h += '<div class="overflow-hidden rounded-2xl border bg-white shadow-sm"><div class="overflow-x-auto"><table class="w-full"><thead><tr class="bg-gray-50 text-[11px] tracking-wide text-gray-400 uppercase">';
+    COLS_CONSULTA.forEach(function (c) {
+      h += thOrdenable({
+        tabla: 'consulta', clave: c.clave, titulo: c.titulo, alineacion: c.alineacion, orden: st.orden, ordenable: c.ordenable,
+        deshabilitado: st.cargando || sinFilas,
+        thClase: (c.px || 'px-3') + ' py-2.5 ' + alin(c.alineacion) + ' font-medium', contenido: c.ordenable === false ? c.titulo : '<span>' + c.titulo + '</span>',
+      });
+    });
+    h += '</tr></thead><tbody class="divide-y divide-gray-50">';
+    if (st.cargando) {
+      h += '<tr><td colspan="10" class="px-4 py-6"><div class="space-y-2">' + '<div class="skeleton h-8 w-full rounded-md"></div>'.repeat(6) + '</div></td></tr>';
+    } else if (st.error) {
+      h += '<tr><td colspan="10" class="px-4 py-6"><div class="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center"><p class="text-sm text-gray-500">No se pudieron cargar los datos.</p><button type="button" data-reintentar class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100">Reintentar</button></div></td></tr>';
+    } else if (!filas.length) {
+      h += '<tr><td colspan="10" class="px-4 py-10 text-center text-xs text-gray-400">No hay ventas para los filtros seleccionados.</td></tr>';
+    } else {
+      filas.forEach(function (c) { h += filaCarrito(c); });
+    }
+    h += '</tbody></table></div>';
+    if (r && r.last_page > 1) {
+      h += '<div class="flex items-center justify-between border-t border-gray-100 px-4 py-3"><span class="text-xs text-gray-500">Página ' + r.current_page + ' de ' + r.last_page + '<span class="ml-1"> (' + r.total + ' registros) </span></span><div class="flex gap-2">' +
+        '<button type="button" data-pagina="-1" class="rounded-md border border-gray-200 px-3 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40"' + (r.current_page <= 1 || st.cargando ? ' disabled' : '') + '>&larr; Anterior</button>' +
+        '<button type="button" data-pagina="1" class="rounded-md border border-gray-200 px-3 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40"' + (r.current_page >= r.last_page || st.cargando ? ' disabled' : '') + '>Siguiente &rarr;</button></div></div>';
+    }
+    $('#bloque-consulta').innerHTML = h + '</div></div>';
+  }
+
+  // ── Visitas simuladas (router.get de Inertia) ──
+  function parametros(q) {
+    const orden = ['fechaDesde', 'fechaHasta', 'tienda', 'asesor', 'estado_pago', 'logistica', 'facturacion', 'mensajeria', 'busqueda', 'atajo_periodo', 'pestana', 'orden', 'dir', 'page'];
+    return orden.filter(function (k) { return q[k] !== undefined && q[k] !== null && !(k === 'page' && q[k] === 1); }).map(function (k) { return [k, q[k]]; });
+  }
+
+  function renderUrl() {
+    const base = '<span class="text-slate-700">/venta-asistida/gestion-ventas</span>';
+    const q = estado.consulta.url;
+    if (!q) { $('#barra-url').innerHTML = base; return; }
+    $('#barra-url').innerHTML = base + '?' + parametros(q).map(function (p) {
+      const resaltar = p[0] === 'orden' || p[0] === 'dir' || p[0] === 'page';
+      const txt = p[0] + '=' + encodeURIComponent(p[1]).replace(/%20/g, '+');
+      return resaltar ? '<span class="rounded bg-slate-900 px-1 font-semibold text-white">' + txt + '</span>' : txt;
+    }).join('&amp;');
+    $('#barra-url').title = '/venta-asistida/gestion-ventas?' + parametros(q).map(function (p) { return p[0] + '=' + p[1]; }).join('&');
+  }
+
+  function visitar(q) {
+    const st = estado.consulta;
+    if (st.cargando) return;
+    st.ultima = q;
+    st.cargando = true; st.error = false;
+    st.orden = q.orden ? { clave: q.orden, dir: q.dir } : null; // la flecha cambia al instante
+    renderConsulta();
+    setTimeout(function () {
+      st.cargando = false;
+      if ($('#ctrl-falla').checked) {
+        $('#ctrl-falla').checked = false;
+        st.error = true;
+        anunciar('No se pudieron cargar los datos.');
+      } else {
+        st.resultado = servidorConsulta(q);
+        st.page = st.resultado.current_page;
+        st.url = Object.assign({}, q, { page: st.page });
+        renderUrl();
+        anunciar(textoOrden(q.orden ? COLS_CONSULTA.find(function (c) { return c.clave === q.orden; }).titulo : '', st.orden) + '. Página ' + st.page + ' de ' + st.resultado.last_page + '.');
+      }
+      renderConsulta();
+    }, 650);
+  }
+
+  function consulta(extra) {
+    const st = estado.consulta;
+    return Object.assign({}, st.filtros, { atajo_periodo: st.atajo, pestana: 'consulta', orden: st.orden ? st.orden.clave : null, dir: st.orden ? st.orden.dir : null, page: 1 }, extra || {});
+  }
+
+  // ─────────────────── Render general ───────────────────
+  function render() {
+    document.body.classList.toggle('var-b', estado.variante === 'B');
+    document.querySelectorAll('.ctrl-var').forEach(function (b) { b.className = 'ctrl-var rounded px-2 py-0.5 ' + (b.dataset.variante === estado.variante ? 'bg-emerald-600' : 'bg-slate-700 hover:bg-slate-600'); });
+    document.querySelectorAll('[data-pestana]').forEach(function (b) {
+      const act = b.dataset.pestana === estado.pestana;
+      b.className = 'px-1 pb-2 transition-colors border-b-2 ' + (act ? 'border-gray-900 font-semibold text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700') + (b.dataset.pestana === 'historico' ? ' cursor-not-allowed' : '');
+    });
+    $('#vista-dashboard').hidden = estado.pestana !== 'dashboard';
+    $('#vista-consulta').hidden = estado.pestana !== 'consulta';
+    renderCanal(); renderAsesores(); renderConsulta(); renderUrl();
+  }
+
+  // ─────────────────── Eventos ───────────────────
+  document.addEventListener('click', function (e) {
+    const t = e.target.closest('button, [data-menu-col], [data-menu-todas]');
+    // Cerrar menús de columnas al hacer clic fuera.
+    if (!e.target.closest('#menu-asesores, #menu-canal, [data-abrir-menu]') && (estado.asesores.menu || estado.canal.menu)) {
+      estado.asesores.menu = false; estado.canal.menu = false; renderCanal(); renderAsesores();
+    }
+    if (!t) return;
+
+    if (t.dataset.variante) { estado.variante = t.dataset.variante; render(); return; }
+    if (t.dataset.pestana) { if (t.dataset.pestana !== 'historico') { estado.pestana = t.dataset.pestana; render(); } return; }
+
+    // ── Lo nuevo: clic en un encabezado ──
+    if (t.dataset.orden) {
+      if (t.getAttribute('aria-disabled') === 'true') return;
+      const tabla = t.dataset.tabla, clave = t.dataset.orden;
+      if (tabla === 'consulta') {
+        const nuevo = siguienteOrden(estado.consulta.orden, clave);
+        visitar(consulta({ orden: nuevo ? nuevo.clave : null, dir: nuevo ? nuevo.dir : null, page: 1 }));
+      } else {
+        const st = estado[tabla];
+        st.orden = siguienteOrden(st.orden, clave);
+        tabla === 'canal' ? renderCanal() : renderAsesores();
+        anunciar(textoOrden(t.dataset.titulo, st.orden));
+        const foco = document.querySelector('[data-tabla="' + tabla + '"][data-orden="' + clave + '"]');
+        if (foco) foco.focus();
+      }
+      return;
+    }
+
+    if (t.dataset.abrirMenu) {
+      const st = estado[t.dataset.abrirMenu];
+      st.menu = !st.menu;
+      t.dataset.abrirMenu === 'canal' ? renderCanal() : renderAsesores();
+      return;
+    }
+    if (t.dataset.menuCol !== undefined || t.dataset.menuTodas !== undefined) {
+      const nombre = t.closest('#menu-asesores') ? 'asesores' : 'canal';
+      const st = estado[nombre];
+      const siguiente = new Set(st.ocultas);
+      if (t.dataset.menuTodas !== undefined) { siguiente.clear(); st.menu = false; }
+      else if (siguiente.has(t.dataset.menuCol)) siguiente.delete(t.dataset.menuCol);
+      else siguiente.add(t.dataset.menuCol);
+      st.ocultas = siguiente;
+      const antes = st.orden;
+      st.orden = ordenTrasOcultar(st.orden, siguiente);
+      if (antes && !st.orden) anunciar('Orden original');
+      nombre === 'canal' ? renderCanal() : renderAsesores();
+      return;
+    }
+    if (t.dataset.plegar !== undefined) { estado.canal.plegado = !estado.canal.plegado; estado.canal.menu = false; renderCanal(); return; }
+
+    // ── Consulta: filtros y paginación (como hoy) ──
+    if (t.dataset.atajo) {
+      const st = estado.consulta; st.atajo = t.dataset.atajo;
+      if (st.atajo === 'quincena_actual') { st.filtros.fechaDesde = '2026-10-01'; st.filtros.fechaHasta = '2026-10-15'; }
+      if (st.atajo === 'quincena_anterior') { st.filtros.fechaDesde = '2026-09-16'; st.filtros.fechaHasta = '2026-09-30'; }
+      if (st.atajo === 'hoy') { st.filtros.fechaDesde = HOY; st.filtros.fechaHasta = HOY; }
+      renderConsulta(); return;
+    }
+    if (t.dataset.buscar !== undefined) { visitar(consulta({ page: 1 })); return; }
+    if (t.dataset.pagina) {
+      const st = estado.consulta;
+      visitar(Object.assign({}, st.url || consulta(), consulta({ page: st.page + Number(t.dataset.pagina) })));
+      return;
+    }
+    if (t.dataset.reintentar !== undefined) { visitar(estado.consulta.ultima); return; }
+
+    // ── Controles del mockup ──
+    if (t.dataset.ctrl === 'consulta-vacia') { estado.pestana = 'consulta'; estado.consulta.filtros.busqueda = '#999999'; render(); visitar(consulta({ page: 1 })); return; }
+    if (t.dataset.ctrl === 'consulta-datos') { estado.pestana = 'consulta'; estado.consulta.filtros.busqueda = ''; render(); visitar(consulta({ page: 1 })); return; }
+    if (t.dataset.ctrl === 'dash-vacio') { estado.dashVacio = true; estado.pestana = 'dashboard'; render(); return; }
+    if (t.dataset.ctrl === 'dash-datos') { estado.dashVacio = false; estado.pestana = 'dashboard'; render(); return; }
+    if (t.id === 'btn-recargar') {
+      // Recargar: Asesores e Indicadores vuelven al orden original; Consulta relee la dirección.
+      estado.canal.orden = null; estado.asesores.orden = null;
+      renderCanal(); renderAsesores();
+      if (estado.consulta.url) {
+        const u = estado.consulta.url;
+        estado.consulta.filtros = { fechaDesde: u.fechaDesde, fechaHasta: u.fechaHasta, tienda: u.tienda, asesor: u.asesor, estado_pago: u.estado_pago, logistica: u.logistica, facturacion: u.facturacion, mensajeria: u.mensajeria, busqueda: u.busqueda };
+        estado.consulta.atajo = u.atajo_periodo;
+        visitar(Object.assign({}, u));
+      }
+      return;
+    }
+  });
+
+  document.addEventListener('change', function (e) {
+    const el = e.target;
+    if (el.dataset && el.dataset.filtro) { estado.consulta.filtros[el.dataset.filtro] = el.value; }
+  });
+  document.addEventListener('input', function (e) {
+    const el = e.target;
+    if (el.dataset && el.dataset.filtro === 'busqueda') estado.consulta.filtros.busqueda = el.value;
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.dataset && e.target.dataset.filtro === 'busqueda') visitar(consulta({ page: 1 }));
+  });
+
+  // Carga inicial: la página llega con la consulta en su orden original (carrito más reciente primero).
+  estado.consulta.resultado = servidorConsulta(Object.assign({}, estado.consulta.filtros, { page: 1 }));
+  render();
+})();
+</script>
+</body>
+</html>
