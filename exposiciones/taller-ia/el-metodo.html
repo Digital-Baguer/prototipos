@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El método, explicado</title>
+<style>
+  :root {
+    --ink: #111; --muted: #666; --line: #e5e5e5; --soft: #f6f6f4; --soft2: #ecece8;
+    --green: #a7d8c4; --green-d: #0f8a5f; --pink: #f2a7c3; --pink-d: #d63a7a; --gray: #cfcfcf; --blue: #4f7cc9;
+    --serif: Georgia, "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: #fff; color: var(--ink); font-family: var(--serif); font-size: 18px; line-height: 1.55; }
+  .layout { display: grid; grid-template-columns: 230px 1fr; gap: 40px; max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+  nav.side { position: sticky; top: 0; align-self: start; height: 100vh; overflow: auto; padding: 40px 0; font-family: var(--sans); font-size: 13.5px; border-right: 1px solid var(--line); }
+  nav.side a { display: block; color: var(--muted); text-decoration: none; padding: 5px 12px 5px 0; }
+  nav.side a:hover, nav.side a.on { color: var(--ink); font-weight: 600; }
+  nav.side .grp { margin-top: 14px; font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: #999; }
+  main { max-width: 820px; padding-bottom: 100px; }
+  header.hero { padding: 70px 0 30px; }
+  header.hero h1 { font-size: 46px; line-height: 1.1; margin: 0 0 14px; letter-spacing: -.5px; }
+  header.hero p { font-size: 21px; color: #333; margin: 0; }
+  header.hero .by { font-family: var(--sans); font-size: 13px; color: var(--muted); margin-top: 18px; }
+  section { padding-top: 70px; }
+  .kicker { font-family: var(--sans); font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--green-d); font-weight: 700; margin: 0 0 6px; }
+  h2 { font-size: 32px; line-height: 1.2; margin: 0 0 14px; }
+  h3 { font-family: var(--sans); font-size: 18px; margin: 30px 0 8px; }
+  h4 { font-family: var(--sans); font-size: 15px; margin: 18px 0 6px; }
+  p { margin: 0 0 14px; }
+  ul, ol { padding-left: 22px; margin: 0 0 14px; }
+  li { margin-bottom: 6px; }
+  code { font-family: var(--mono); font-size: .86em; background: var(--soft); padding: 1px 5px; border-radius: 3px; }
+  .note { font-family: var(--sans); font-size: 13px; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 14px; margin: 12px 0 18px; }
+  th, td { border-bottom: 1px solid var(--line); padding: 9px 8px; text-align: left; vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; }
+  td b { font-weight: 700; }
+  .prin { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-family: var(--sans); font-size: 14px; margin: 14px 0 20px; }
+  .prin div { background: var(--soft); border-radius: 8px; padding: 12px 14px; }
+  .prin b { display: block; margin-bottom: 3px; }
+  figure { margin: 22px 0; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { font-family: var(--sans); font-size: 13px; color: var(--muted); margin-top: 8px; text-align: center; }
+
+  /* fases */
+  .phase { border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; margin: 18px 0; }
+  .phase .head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .phase .head b { font-size: 24px; }
+  .phase .head code { background: var(--ink); color: #fff; font-size: 13px; padding: 3px 8px; border-radius: 4px; }
+  .phase .head .role { font-family: var(--sans); font-size: 13px; color: var(--muted); }
+  .phase .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; font-family: var(--sans); font-size: 14px; margin: 10px 0 12px; }
+  .phase .meta div { padding: 6px 0; border-top: 1px solid var(--line); }
+  .phase .meta span { display: block; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+  .phase ul { font-family: var(--sans); font-size: 15px; }
+  details { font-family: var(--sans); font-size: 14.5px; background: var(--soft); border-radius: 8px; padding: 10px 14px; margin-top: 10px; }
+  details summary { cursor: pointer; font-weight: 600; color: var(--green-d); }
+  details[open] summary { margin-bottom: 8px; }
+  details ul, details ol { margin: 6px 0; }
+  .gate { color: var(--green-d); font-weight: 600; }
+
+  /* panel de auditoría */
+  .panel { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-family: var(--sans); margin: 14px 0; }
+  .rev { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; font-size: 14px; }
+  .rev .r { font-family: var(--mono); font-size: 12px; color: var(--green-d); }
+  .rev b { display: block; font-size: 17px; margin: 2px 0 4px; }
+  .rev .when { display: inline-block; font-size: 12px; background: var(--soft); border-radius: 10px; padding: 2px 9px; color: var(--muted); margin-bottom: 8px; }
+  .rev .when.always { color: var(--green-d); }
+  .rev .q { font-family: var(--serif); font-size: 15.5px; margin: 0; color: #222; }
+  .rev.prop { border-style: dashed; border-color: var(--pink-d); }
+  .rev.prop .r { color: var(--pink-d); }
+  .sev td:first-child { font-family: var(--mono); font-weight: 700; width: 60px; }
+
+  .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-family: var(--sans); font-size: 13px; margin: 14px 0; }
+  .flow div { background: var(--soft); border-radius: 8px; padding: 10px 12px; }
+  .flow code { background: #fff; }
+  .flow b { display: block; font-size: 14px; }
+
+  .rules li { margin-bottom: 10px; }
+  .rules li b { display: block; }
+  footer { font-family: var(--sans); font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); margin-top: 60px; padding-top: 18px; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } nav.side { display: none; } .prin, .phase .meta, .panel, .flow { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="side">
+  <a href="#porque">Por qué un método</a>
+  <a href="#taller">Paso 0 · El taller</a>
+  <a href="#ciclo">El ciclo en una vista</a>
+  <div class="grp">Las fases</div>
+  <a href="#iniciar">1 · Entender</a>
+  <a href="#planear">2 · Planear</a>
+  <a href="#implementar">3 · Construir</a>
+  <a href="#auditoria">4 · Inspeccionar</a>
+  <a href="#post">5 · Corregir</a>
+  <a href="#re">6 · Cerrar</a>
+  <div class="grp">Cómo se trabaja</div>
+  <a href="#quien">Quién trabaja en cada fase</a>
+  <a href="#ejecutor">El ejecutor delegado</a>
+  <a href="#panel">El panel de inspección</a>
+  <a href="#despues">Después del ciclo</a>
+  <a href="#reglas">Reglas de la casa</a>
+  <a href="#glosario">Glosario</a>
+</nav>
+
+<main>
+<header class="hero">
+  <h1>El método, explicado</h1>
+  <p>Cómo trabajamos con un agente de IA: el taller que debe existir antes, el ciclo de seis fases, quién hace qué en cada una y cómo se revisa lo entregado.</p>
+  <div class="by">Material del taller de desarrollo asistido por IA · Versión 4.0 del método · Octubre de 2026</div>
+</header>
+
+<!-- ===== POR QUÉ ===== -->
+<section id="porque">
+  <p class="kicker">Punto de partida</p>
+  <h2>Por qué un método y no solo una herramienta</h2>
+  <p>Un modelo de lenguaje no guarda estado: cada petición le llega con toda la conversación otra vez, y cuando esa conversación crece, rinde peor y cuesta más. Si cada persona del equipo lo usa a su manera, en pocas semanas hay código que nadie sabe por qué quedó así, ni qué se pidió, ni cómo probarlo.</p>
+  <p>El método resuelve eso con una idea simple: <b>lo que importa queda por escrito, en un sitio fijo, y cada fase arranca desde ese escrito</b>. Lo demás son reglas para que cada escrito quede bien y para que alguien distinto de quien construyó lo revise.</p>
+  <div class="prin">
+    <div><b>Simple primero</b>El cambio más pequeño que resuelve el problema.</div>
+    <div><b>Causa raíz</b>Sin parches temporales. Estándar de desarrollador senior.</div>
+    <div><b>Evidencia antes de afirmar</b>Nada se declara hecho o verificado sin haberlo comprobado en la sesión.</div>
+    <div><b>Una fase por sesión</b>Cada fase cierra con <code>corte.md</code> y la siguiente arranca en sesión nueva.</div>
+    <div><b>El orquestador delega la lectura</b>Explorar código, diffs y consultas amplias lo hace un subagente que devuelve la conclusión en pocas líneas.</div>
+    <div><b>Tú apruebas en cada puerta</b>La spec, el plan y qué hallazgos se corrigen los decide el arquitecto.</div>
+  </div>
+</section>
+
+<!-- ===== TALLER ===== -->
+<section id="taller">
+  <p class="kicker">Paso 0</p>
+  <h2>El taller: lo que debe existir antes del primer pedido</h2>
+  <p>El agente no adivina el negocio: lo lee del workspace. Esto se monta <b>una vez por proyecto</b> y no es parte de ninguna fase del ciclo; las fases lo asumen.</p>
+  <table>
+    <tr><th>Pieza</th><th>Qué es</th><th>Quién la lee</th><th>Cómo se crea</th></tr>
+    <tr><td><b>Los repos</b></td><td>Clonados en la raíz del workspace, uno al lado del otro. Cada pedido trabaja en un worktree aparte, <code>worktrees/{ID}/{repo}</code>.</td><td><code>/implementar</code> crea el worktree desde la rama base que dice el plan.</td><td><code>git clone</code>, una vez.</td></tr>
+    <tr><td><b>La memoria del ecosistema</b></td><td><code>AGENTS.md</code> del workspace: qué repos hay y cómo se conectan, principios, cómo consultar la base de datos, reglas de producción.</td><td>Todas las sesiones, al arrancar. Viaja en el prefijo de cada petición.</td><td>A mano, con ayuda del agente. Se mantiene corto; lo de un solo repo no va aquí.</td></tr>
+    <tr><td><b>El mapa de cada repo</b></td><td><code>{repo}/AGENTS.md</code>: arquitectura, convenciones, cómo se corren las pruebas y las trampas conocidas.</td><td><code>/planear</code>, <code>/implementar</code> y <code>/auditoria</code>. Regla: no se toca un repo sin su mapa.</td><td><code>/doc-contexto {repo}</code>. El agente explora y escribe; lo que no verificó queda marcado POR CONFIRMAR.</td></tr>
+    <tr><td><b>Los mapas por módulo y el glosario</b></td><td><code>docs/contexto/{MÓDULO}.md</code>: qué hace un módulo, tablas, dependencias. <code>docs/contexto/CONTEXT.md</code>: glosario del negocio y decisiones de arquitectura (ADRs).</td><td>Los subagentes de <code>/iniciar</code>, antes de entrevistar. Si el módulo es opaco y no tiene mapa, primero <code>/doc-contexto</code>.</td><td><code>/doc-contexto {repo} {módulo}</code>. El glosario crece en cada <code>/iniciar</code> que define un término nuevo.</td></tr>
+    <tr><td><b>La llave de la base de datos</b></td><td>Acceso de <b>solo lectura</b> con un cliente por terminal, credenciales en un archivo del home del usuario, nunca en el repo ni en un documento.</td><td>Cualquier fase que toque datos. Antes de afirmar una tabla o columna, se consulta la definición real.</td><td>Usuario de solo lectura en la base; el <code>AGENTS.md</code> del workspace dice cómo conectarse. Con SQL Server: <code>sqlcmd</code>, login con <code>db_datareader</code> y <code>VIEW DEFINITION</code> para leer los procedimientos; sin <code>EXECUTE</code> en producción.</td></tr>
+    <tr><td><b>El kit</b></td><td>Los comandos del ciclo, los contratos de cada fase (<code>docs/metodologia/flujos/</code>), las plantillas y las skills.</td><td>El agente lee el contrato de la fase al invocar el comando.</td><td>Se copia del repositorio del método. Una sola copia por workspace.</td></tr>
+  </table>
+  <p class="note">Si el equipo trabaja con procedimientos almacenados, conviene además exportarlos a archivos versionados (por ejemplo <code>docs/contexto/sps/</code>) para que el agente los lea sin conectarse y quede historial; la base viva se usa para verificar.</p>
+</section>
+
+<!-- ===== CICLO ===== -->
+<section id="ciclo">
+  <p class="kicker">El ciclo</p>
+  <h2>Un pedido, un ID, una carpeta, seis fases</h2>
+  <p>Cada pedido se identifica con un ID, por ejemplo <code>REQ-042</code>. <code>/iniciar REQ-042</code> crea su carpeta, <code>docs/requirements/REQ-042/</code>, y cada fase deja ahí su documento. Entre fase y fase viaja una nota corta, <code>corte.md</code>: qué se cerró, qué quedó aprobado, cuál es el siguiente comando.</p>
+  <figure>
+    <svg viewBox="0 0 1000 300" role="img" aria-label="Flujo del ciclo: iniciar, planear, implementar, auditoría, post-auditoría y re-auditoría en bucle, qa y handoff">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#111"/></marker></defs>
+      <g font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="13">
+        <g><rect x="20" y="60" width="130" height="70" rx="10" fill="#f6f6f4" stroke="#111" stroke-width="2"/><text x="85" y="88" text-anchor="middle" font-weight="700" font-size="15">Entender</text><text x="85" y="108" text-anchor="middle" fill="#666" font-family="Menlo,monospace" font-size="12">/iniciar</text><text x="85" y="150" text-anchor="middle" fill="#0f8a5f" font-size="12">spec.md</text><text x="85" y="166" text-anchor="middle" fill="#666" font-size="11">+ /mockup si hay UI</text></g>
+        <g><rect x="190" y="60" width="130" height="70" rx="10" fill="#f6f6f4" stroke="#111" stroke-width="2"/><text x="255" y="88" text-anchor="middle" font-weight="700" font-size="15">Planear</text><text x="255" y="108" text-anchor="middle" fill="#666" font-family="Menlo,monospace" font-size="12">/planear</text><text x="255" y="150" text-anchor="middle" fill="#0f8a5f" font-size="12">plan.md · ficha.md</text></g>
+        <g><rect x="360" y="60" width="130" height="70" rx="10" fill="#f6f6f4" stroke="#111" stroke-width="2"/><text x="425" y="88" text-anchor="middle" font-weight="700" font-size="15">Construir</text><text x="425" y="108" text-anchor="middle" fill="#666" font-family="Menlo,monospace" font-size="12">/implementar</text><text x="425" y="150" text-anchor="middle" fill="#0f8a5f" font-size="12">feature/REQ-042</text></g>
+        <g><rect x="530" y="60" width="130" height="70" rx="10" fill="#f6f6f4" stroke="#111" stroke-width="2"/><text x="595" y="88" text-anchor="middle" font-weight="700" font-size="15">Inspeccionar</text><text x="595" y="108" text-anchor="middle" fill="#666" font-family="Menlo,monospace" font-size="12">/auditoria</text><text x="595" y="150" text-anchor="middle" fill="#0f8a5f" font-size="12">auditoria.md</text></g>
+        <g><rect x="700" y="60" width="130" height="70" rx="10" fill="#f6f6f4" stroke="#111" stroke-width="2"/><text x="765" y="88" text-anchor="middle" font-weight="700" font-size="15">Corregir</text><text x="765" y="108" text-anchor="middle" fill="#666" font-family="Menlo,monospace" font-size="12">/post-auditoria</text></g>
+        <g><rect x="870" y="60" width="110" height="70" rx="10" fill="#f6f6f4" stroke="#111" stroke-width="2"/><text x="925" y="88" text-anchor="middle" font-weight="700" font-size="15">Cerrar</text><text x="925" y="108" text-anchor="middle" fill="#666" font-family="Menlo,monospace" font-size="12">/re-auditoria</text><text x="925" y="150" text-anchor="middle" fill="#0f8a5f" font-size="12">APPROVED</text></g>
+        <g stroke="#111" stroke-width="2" fill="none" marker-end="url(#ar)"><path d="M150 95 L188 95"/><path d="M320 95 L358 95"/><path d="M490 95 L528 95"/><path d="M660 95 L698 95"/><path d="M830 95 L868 95"/></g>
+        <path d="M925 130 L925 200 L765 200 L765 132" stroke="#d63a7a" stroke-width="2" fill="none" marker-end="url(#ar)" stroke-dasharray="5 4"/>
+        <text x="845" y="218" text-anchor="middle" fill="#d63a7a" font-size="12">si queda P0 o P1: otra vuelta</text>
+        <g stroke="#0f8a5f" stroke-width="2" fill="none" marker-end="url(#ar)"><path d="M980 95 L995 95"/></g>
+        <text x="500" y="262" text-anchor="middle" fill="#666" font-size="13">Después, fuera del ciclo: /qa (el documento para el developer) → /handoff-jira (la tarjeta corta) → PR y despliegue del equipo</text>
+        <text x="500" y="285" text-anchor="middle" fill="#0f8a5f" font-size="12">entre cada fase: corte.md y sesión nueva</text>
+      </g>
+    </svg>
+  </figure>
+</section>
+
+<!-- ===== FASES ===== -->
+<section id="fases">
+  <p class="kicker">Las fases</p>
+  <h2>Qué hace cada fase, qué deja y quién aprueba</h2>
+  <p>El ejemplo que acompaña cada fase es el mismo: <i>«Haz que el correo sea obligatorio y valide su formato al crear un cliente»</i>.</p>
+
+  <div class="phase" id="iniciar">
+    <div class="head"><code>/iniciar REQ-042</code><b>Entender</b><span class="role">rol: orquestador · no escribe código</span></div>
+    <div class="meta">
+      <div><span>Entrada</span>El ID y la idea, en una frase o en un archivo de <code>docs/ideas/</code>.</div>
+      <div><span>Salida</span><code>brainstorming.md</code>, <code>spec.md</code>, mockup si hay pantalla, <code>corte.md</code>.</div>
+      <div><span>Quién aprueba</span><span class="gate" style="display:inline">Tú apruebas la spec.</span> Nada sigue sin ese sí.</div>
+      <div><span>Siguiente</span><code>/planear REQ-042</code> en sesión nueva.</div>
+    </div>
+    <ul>
+      <li>Crea la carpeta del pedido y anota la idea tal cual la dijiste.</li>
+      <li>Primera ronda, siempre las mismas tres preguntas: de qué rama nace (linaje), si es un cambio acotado o arquitectónico, y si es un pedido nuevo o un «hijo» que modifica algo ya entregado.</li>
+      <li>Un subagente verifica el terreno: código real de la zona, definición real de las tablas, cifras de producción si hacen falta. Nada se afirma sin esa evidencia.</li>
+      <li>Entrevista: toda la frontera de dudas de una vez, cada pregunta con una recomendación y, si es técnica, un caso con cifras. Acotado: una o dos rondas. Arquitectónico: hasta vaciar la frontera.</li>
+      <li>Si hay pantalla, el mockup en HTML se aprueba <b>antes</b> de redactar la spec.</li>
+      <li>La spec se sintetiza al final, en una pasada, sin volver a preguntar: qué se pide, qué queda por fuera, cómo se sabe que quedó bien, decisiones numeradas.</li>
+    </ul>
+    <details><summary>Detalle del contrato</summary>
+      <ul>
+        <li>Si a la segunda ronda se ve que son dos o más pedidos independientes, se para y se propone la partición; el roadmap se arma en otra sesión con <code>/roadmap</code>.</li>
+        <li>El orquestador no lee specs de otros pedidos ni código: delega. El único archivo vivo durante la entrevista es <code>brainstorming.md</code>.</li>
+        <li>Si un término choca con el glosario, se señala; si nace un término o una decisión que condiciona a otros pedidos, se escribe en <code>CONTEXT.md</code>.</li>
+        <li>Antes de proponer una rama base, el subagente comprueba con git qué ramas ya están desplegadas: el <code>master</code> local suele ir atrás.</li>
+        <li>Self-review antes de presentar: placeholders, contradicciones con las decisiones, alcance que creció, título en la forma «Dónde: qué se ajusta y para qué».</li>
+        <li>En el ejemplo: el agente pregunta qué pasa con los clientes viejos sin correo (recomienda no tocarlos) y qué mensaje de error se muestra; tú respondes; queda la spec con decisiones D1–D4.</li>
+      </ul>
+    </details>
+  </div>
+
+  <div class="phase" id="planear">
+    <div class="head"><code>/planear REQ-042</code><b>Planear</b><span class="role">rol: orquestador de plan · no modifica la spec</span></div>
+    <div class="meta">
+      <div><span>Entrada</span>La spec aprobada; el mockup si hay pantalla; el <code>AGENTS.md</code> de cada repo tocado.</div>
+      <div><span>Salida</span><code>plan.md</code>, <code>ficha.md</code> (la tarjeta de Jira con sus subtareas), <code>corte.md</code>.</div>
+      <div><span>Quién aprueba</span><span class="gate" style="display:inline">Tú apruebas la lista de tareas:</span> puedes reordenar, unir o partir.</div>
+      <div><span>Siguiente</span><code>/implementar REQ-042</code> en sesión nueva.</div>
+    </div>
+    <ul>
+      <li>Cada tarea es una rebanada vertical: atraviesa las capas que necesita (tabla, API, pantalla, prueba) y se puede demostrar sola. Cabe en una sesión.</li>
+      <li>Cada tarea declara de qué otras depende, qué archivos toca, qué contrato respeta, dónde va su prueba y cómo se verifica.</li>
+      <li>Trazabilidad obligatoria: cada resultado esperado de la spec, con las tareas que lo cumplen. Cero huecos, cero extras.</li>
+      <li>El plan copia el linaje (rama base por repo) para que <code>/implementar</code> no vuelva a preguntarlo.</li>
+    </ul>
+    <details><summary>Detalle del contrato</summary>
+      <ul>
+        <li>Permitido en una tarea: archivos, firmas, DDL, reglas, criterio de verificación. Prohibido: métodos, componentes o consultas finales, y estimaciones de tiempo.</li>
+        <li>Si un refactor facilita el resto, es la tarea 1.</li>
+        <li>Si algo no cuadra entre spec y tareas, se pregunta antes de guardar.</li>
+        <li>En el ejemplo: T1 la regla de validación con su prueba; T2 el mensaje de error de la API, bloqueada por T1; T3 el aviso en la pantalla de clientes, bloqueada por T2.</li>
+      </ul>
+    </details>
+  </div>
+
+  <div class="phase" id="implementar">
+    <div class="head"><code>/implementar REQ-042</code><b>Construir</b><span class="role">rol: ejecutor, o orquestador con <code>--ejecutor</code></span></div>
+    <div class="meta">
+      <div><span>Entrada</span>El plan aprobado. Además: <code>corte.md</code>, la spec, el mockup, el <code>AGENTS.md</code> de cada repo. Nada más.</div>
+      <div><span>Salida</span>Código en la rama <code>feature/REQ-042</code>, subido; <code>plan.md</code> con cada tarea marcada <code>[x]</code> y su evidencia; <code>corte.md</code>.</div>
+      <div><span>Quién aprueba</span>Nadie todavía. Quien aprueba es el inspector de la fase siguiente.</div>
+      <div><span>Siguiente</span><code>/auditoria REQ-042</code> en sesión nueva, o <code>/implementar REQ-042 T{n}</code> si el plan es largo.</div>
+    </div>
+    <ul>
+      <li>Crea el worktree del pedido desde la rama base que dice el plan, sin preguntar: lo anuncia.</li>
+      <li>Tarea por tarea, respetando las dependencias: primero la prueba (falla), luego el código (pasa), luego se limpia.</li>
+      <li>Una tarea está hecha cuando compila, pasa el lint, el SQL está verificado en base real, la verificación del plan se ejecutó y, si hay pantalla, hay captura junto al mockup a 1440 y 390 px.</li>
+      <li>Antes de marcar, dos revisores en paralelo: uno contra las reglas del repo, otro contra la spec y la tarea. Lo grave se corrige antes de marcar.</li>
+      <li>Un commit por tarea. Al cerrar: suite completa, diff contra el alcance del plan, push sin <code>--force</code> y sin mezclar a la rama destino.</li>
+    </ul>
+    <details><summary>Detalle del contrato</summary>
+      <ul>
+        <li>Nada fuera del plan. Si el plan no fija un detalle, se resuelve con la spec, el mockup y el <code>AGENTS.md</code>, y se anota en la tarea. Se pregunta solo si dos lecturas del plan dan código materialmente distinto.</li>
+        <li>No se marca <code>[x]</code> una tarea de SQL sin base real, ni ninguna sin su verificación ejecutada en la sesión.</li>
+        <li>Si el pedido nace de otro sin desplegar («tren»), se hace <code>git pull</code> de la base antes del primer commit y antes de cerrar; si la base cambió, se reporta.</li>
+        <li>Si el repo no tiene harness de pruebas, se dice y se verifica por el criterio del plan.</li>
+        <li>Con <code>--ejecutor {modelo}</code>, la sesión supervisa y subagentes de ese modelo escriben: ver <a href="#ejecutor">el ejecutor delegado</a>.</li>
+      </ul>
+    </details>
+  </div>
+
+  <div class="phase" id="auditoria">
+    <div class="head"><code>/auditoria REQ-042</code><b>Inspeccionar</b><span class="role">rol: auditor · no modifica código</span></div>
+    <div class="meta">
+      <div><span>Entrada</span>La rama del pedido, la spec, el plan y el mockup si hay pantalla.</div>
+      <div><span>Salida</span><code>auditoria.md</code>: panel usado, hallazgos con severidad y evidencia, qué no se pudo verificar, veredicto; <code>corte.md</code>.</div>
+      <div><span>Quién aprueba</span>El veredicto lo da el inspector: <b>APPROVED</b> o <b>CHANGES_REQUESTED</b>. Tú marcas qué mejoras (P2) se corrigen.</div>
+      <div><span>Siguiente</span><code>/post-auditoria REQ-042</code> si hay que corregir; <code>/qa REQ-042</code> si está aprobado.</div>
+    </div>
+    <ul>
+      <li>Personalidad escéptica: «funciona en mi máquina» no es evidencia. Lo que no se pudo verificar se escribe tal cual: NO VERIFICADO.</li>
+      <li>Al arrancar declara quién implementó y con qué modelo; si es el mismo modelo en la misma sesión, lo declara como sesgo. Preferible otro modelo cuando hay dinero, SQL de producción, concurrencia o varios repos.</li>
+      <li>Después de ver el diff, arma el panel de revisores: dos siempre, el resto según lo que toque el pedido. Ver <a href="#panel">el panel de inspección</a>.</li>
+      <li>El consolidador vuelve a ejecutar las pruebas y las consultas de cada revisor; no acepta el «pasó» de un subagente.</li>
+    </ul>
+    <details><summary>Detalle del contrato</summary>
+      <ul>
+        <li>Cada hallazgo P1 o superior responde en su propio bullet: qué fila, request o prueba real lo dispara; si el universo operativo de este pedido se cruza con el hallazgo; frecuencia, mitigación existente y recuperabilidad. Si falta lo primero o lo segundo, no puede ser P1.</li>
+        <li>GAP DE SPEC: el hallazgo pide algo que no está en la spec; es nota para el arquitecto, no defecto. PREEXISTENTE: el árbol sin los commits del pedido ya lo tenía. Ninguno, solo, bloquea; salvo que el cambio introduzca una regresión observable.</li>
+        <li>Encabezado del documento: auditor, fecha, quién implementó y en qué HEAD, panel usado, contra qué se contrastó, y si la fidelidad de interfaz se verificó o pasa a QA.</li>
+        <li>En el ejemplo: otro modelo encuentra un P1 (un correo con mayúsculas válido se rechazaba) y dos P2 (una tilde y una prueba duplicada). Tú marcas la tilde.</li>
+      </ul>
+    </details>
+  </div>
+
+  <div class="phase" id="post">
+    <div class="head"><code>/post-auditoria REQ-042</code><b>Corregir</b><span class="role">rol: ejecutor · no reabre el diseño ni cambia el alcance</span></div>
+    <div class="meta">
+      <div><span>Entrada</span><code>auditoria.md</code> con CHANGES_REQUESTED.</div>
+      <div><span>Salida</span>Commits en la misma rama, uno por hallazgo; en <code>auditoria.md</code> el mapa hallazgo → cambio → archivo → evidencia; <code>corte.md</code>.</div>
+      <div><span>Quién aprueba</span>Nadie todavía. Vuelve el inspector.</div>
+      <div><span>Siguiente</span><code>/re-auditoria REQ-042</code> en sesión nueva.</div>
+    </div>
+    <ul>
+      <li>Se corrigen todos los P0 y P1, y los P2 que tú marcaste. P3 solo si el arreglo es de una línea.</li>
+      <li>Una prueba por hallazgo. La mejor es la de mutación: se revierte el arreglo y la prueba debe fallar; se restaura y debe pasar.</li>
+      <li>Si un P2 o P3 no aplica, se justifica con evidencia; no se «resuelve» por defecto.</li>
+    </ul>
+    <details><summary>Detalle del contrato</summary>
+      <ul>
+        <li>Se agrega en <code>plan.md</code> una sección «Correcciones de auditoría».</li>
+        <li>Solo en los repos del pedido, en el worktree existente.</li>
+        <li>Cuando algo falla, la receta <code>diagnosing-bugs</code>: reproducir, reducir al caso mínimo, plantear la causa, corregir la causa y no el síntoma.</li>
+      </ul>
+    </details>
+  </div>
+
+  <div class="phase" id="re">
+    <div class="head"><code>/re-auditoria REQ-042</code><b>Cerrar</b><span class="role">rol: auditor · mandato estrecho</span></div>
+    <div class="meta">
+      <div><span>Entrada</span>Las correcciones aplicadas.</div>
+      <div><span>Salida</span>Sección «Re-auditoría N» en <code>auditoria.md</code> con el veredicto; <code>corte.md</code>.</div>
+      <div><span>Quién aprueba</span>El inspector firma <b>APPROVED</b> cuando no queda P0 ni P1 abierto.</div>
+      <div><span>Siguiente</span><code>/qa REQ-042</code> si APPROVED; <code>/post-auditoria REQ-042</code> si no.</div>
+    </div>
+    <ul>
+      <li>Verifica solo los hallazgos que la corrección debía cerrar, y las regresiones que las correcciones pudieron introducir. Nunca vuelve a auditar el pedido entero.</li>
+      <li>Hallazgo por hallazgo: resuelto, no resuelto o NO VERIFICADO, con evidencia (prueba reejecutada, lectura de código, consulta real).</li>
+      <li>Sin tope de rondas, pero cada ronda la pides tú. Si un mismo P0/P1 sigue abierto después de dos rondas, lo dice en la primera línea, con la causa aparente y una salida: corregir de nuevo, reformular el hallazgo, cambiar el modelo que implementa, o reabrir la spec.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== QUIÉN TRABAJA ===== -->
+<section id="quien">
+  <p class="kicker">Cómo se trabaja</p>
+  <h2>Quién trabaja en cada fase</h2>
+  <p>Tu sesión es el orquestador. En casi todas las fases delega la lectura y el trabajo pesado a subagentes con su propio contexto, y recibe de vuelta una conclusión corta. Las skills son recetas escritas que el agente carga solo en la fase que las usa.</p>
+  <table>
+    <tr><th>Fase</th><th>Tu sesión hace</th><th>Subagentes</th><th>Skills</th></tr>
+    <tr><td>Entender</td><td>La entrevista contigo y la síntesis de la spec.</td><td>Uno verifica el terreno (código, tablas, cifras); otro comprueba qué ramas están desplegadas; otros leen los mapas largos.</td><td><code>grilling</code>, <code>domain-modeling</code>, <code>to-spec</code></td></tr>
+    <tr><td>Planear</td><td>Escribe el plan y la ficha.</td><td>Lectores de mapas de contexto largos.</td><td><code>to-tickets</code></td></tr>
+    <tr><td>Construir</td><td>Construye directamente, por defecto. Con <code>--ejecutor</code>, supervisa y verifica.</td><td>Dos revisores por tarea (reglas del repo; fidelidad a la spec). Con <code>--ejecutor</code>, un constructor por tarea.</td><td><code>tdd</code>, <code>code-review</code></td></tr>
+    <tr><td>Inspeccionar</td><td>Consolida: arma el panel, reejecuta pruebas y consultas, emite el veredicto.</td><td>El panel R1–R7 en paralelo, cada uno con su mesa. Si el harness no tiene subagentes, cubre los focos en serie y lo declara.</td><td><code>code-review</code> para R1 y R2</td></tr>
+    <tr><td>Corregir</td><td>Corrige hallazgo por hallazgo con su prueba.</td><td>Según el tamaño, constructor por hallazgo.</td><td><code>tdd</code>, <code>diagnosing-bugs</code></td></tr>
+    <tr><td>Cerrar</td><td>Verifica la lista abierta y firma.</td><td>Los mismos focos que quedaron abiertos.</td><td><code>code-review</code></td></tr>
+  </table>
+</section>
+
+<!-- ===== EJECUTOR ===== -->
+<section id="ejecutor">
+  <p class="kicker">Construir con <code>--ejecutor</code></p>
+  <h2>El ejecutor delegado: el orquestador no escribe código</h2>
+  <p><code>/implementar REQ-042 --ejecutor sonnet</code>. Tu sesión, con el modelo grande, piensa y verifica; un constructor con un modelo mediano escribe. El modelo grande cuesta más por token y razona mejor; el mediano escribe bien lo que ya está decidido. Y tu contexto recibe una hoja por tarea, no mil archivos.</p>
+  <figure>
+    <svg viewBox="0 0 1000 300" role="img" aria-label="El orquestador entrega un sobre al constructor y recibe una hoja">
+      <g font-family="-apple-system,Helvetica,Arial,sans-serif">
+        <rect x="20" y="40" width="300" height="220" rx="14" fill="#f6f6f4" stroke="#0f8a5f" stroke-width="2.5"/>
+        <text x="170" y="75" text-anchor="middle" font-size="16" font-weight="700" fill="#0f8a5f">ORQUESTADOR</text>
+        <text x="170" y="96" text-anchor="middle" font-size="12" fill="#666">tu sesión · modelo grande</text>
+        <text x="170" y="140" text-anchor="middle" font-size="13">lee el plan · prepara el sobre</text>
+        <text x="170" y="162" text-anchor="middle" font-size="13">revisa con dos lupas · corre la suite</text>
+        <text x="170" y="184" text-anchor="middle" font-size="13">hace el commit · marca [x]</text>
+        <text x="170" y="232" text-anchor="middle" font-size="12" fill="#0f8a5f">su contexto sigue liviano</text>
+        <rect x="680" y="40" width="300" height="220" rx="14" fill="#f6f6f4" stroke="#4f7cc9" stroke-width="2.5"/>
+        <text x="830" y="75" text-anchor="middle" font-size="16" font-weight="700" fill="#4f7cc9">CONSTRUCTOR</text>
+        <text x="830" y="96" text-anchor="middle" font-size="12" fill="#666">subagente · modelo mediano</text>
+        <text x="830" y="140" text-anchor="middle" font-size="13">solo toca el worktree</text>
+        <text x="830" y="162" text-anchor="middle" font-size="13">sin commits · sin tocar el plan</text>
+        <text x="830" y="184" text-anchor="middle" font-size="13">no hereda la conversación</text>
+        <text x="830" y="232" text-anchor="middle" font-size="12" fill="#4f7cc9">su reguero se queda aquí</text>
+        <path d="M330 110 L660 110" stroke="#0f8a5f" stroke-width="3" marker-end="url(#ar2)"/>
+        <path d="M670 200 L340 200" stroke="#111" stroke-width="3" marker-end="url(#ar2)"/>
+        <text x="500" y="98" text-anchor="middle" font-size="13" font-weight="700" fill="#0f8a5f">el sobre: tarea literal, contratos, rutas del worktree, datos verificados</text>
+        <text x="500" y="222" text-anchor="middle" font-size="13" font-weight="700">la hoja: archivos tocados, salida de las pruebas, decisiones, desviaciones</text>
+        <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="context-stroke"/></marker></defs>
+        <text x="500" y="285" text-anchor="middle" font-size="12" fill="#666">bloques secuenciales: la tarea N se despacha después de verificar la N-1</text>
+      </g>
+    </svg>
+  </figure>
+  <ul class="rules">
+    <li><b>Un constructor a la vez por worktree.</b> Nunca dos subagentes sobre la misma copia del código. Solo se paralelizan streams de verdad independientes.</li>
+    <li><b>El sobre es autocontenido.</b> El constructor no hereda el chat: recibe la tarea literal, los contratos, las rutas y los datos ya verificados. Lo que el orquestador decidió va escrito; lo que no, no existe.</li>
+    <li><b>Lo delicado no se delega.</b> SQL, credenciales, commits, la suite completa y los arreglos de la propia revisión los ejecuta el orquestador.</li>
+    <li><b>Solo el orquestador marca <code>[x]</code>.</b> Con la evidencia en una línea. Si un constructor muere a mitad: <code>git status</code> y se relanza con el mismo sobre.</li>
+    <li><b>Reglas fijas al constructor:</b> solo el worktree, sin commits, no tocar <code>plan.md</code> ni docs, no tocar tareas ajenas, entregar archivos tocados, salida de pruebas, decisiones y desviaciones.</li>
+  </ul>
+</section>
+
+<!-- ===== PANEL ===== -->
+<section id="panel">
+  <p class="kicker">La inspección</p>
+  <h2>El panel de inspección: qué pregunta cada revisor</h2>
+  <p>Después de ver el diff, el consolidador declara el panel en el encabezado de <code>auditoria.md</code>. No siempre son todos. Cada revisor intenta responder una pregunta:</p>
+  <div class="panel">
+    <div class="rev"><div class="r">R1</div><b>Funcional</b><span class="when always">siempre</span><p class="q">¿Se construyó lo que piden la spec, el plan y los criterios de aceptación, ni más ni menos?</p></div>
+    <div class="rev"><div class="r">R2</div><b>Bugs</b><span class="when always">siempre</span><p class="q">¿Dónde se rompe? Lógica, casos borde, seguridad básica, regresiones.</p></div>
+    <div class="rev"><div class="r">R3</div><b>Calidad</b><span class="when">si el diff es grande, toca un módulo compartido o hay riesgo de convenciones</span><p class="q">¿Respeta las convenciones del repo y no duplica lo que ya existía?</p></div>
+    <div class="rev"><div class="r">R4</div><b>Defensivo</b><span class="when">si hay dinero, concurrencia, escrituras de estado o autenticación</span><p class="q">¿Qué pasa si falla a mitad: se pierde plata, se duplica, queda un estado roto? Solo reporta con fila o ruta real.</p></div>
+    <div class="rev"><div class="r">R5</div><b>Base de datos</b><span class="when">si el diff toca SQL, consultas o migraciones</span><p class="q">¿Las consultas y migraciones corren contra la base real y devuelven lo que dicen? Una consulta que no corre es P0.</p></div>
+    <div class="rev"><div class="r">R6</div><b>Fidelidad de interfaz</b><span class="when">siempre que haya mockup aprobado</span><p class="q">¿La pantalla real, a 1440 y 390 px, se ve como el mockup: layout, controles, estados, textos y cifras? Con captura de los dos lados.</p></div>
+    <div class="rev"><div class="r">R7</div><b>Seguridad</b><span class="when">si el diff toca entrada de usuario, autenticación o autorización, SQL dinámico, o secretos y configuración</span><p class="q">¿Alguien puede inyectar, leer lo que no debe o entrar sin permiso? Inyección, XSS, acceso a datos de otro usuario, permisos que faltan, secretos en el código, dependencias vulnerables. Puede correr con la skill <code>security-review</code> sobre el diff; el consolidador re-ejecuta cada hallazgo. Revisa el diff del pedido, no el sistema entero.</p></div>
+  </div>
+
+  <h3>Cómo califica lo que encuentra</h3>
+  <table class="sev">
+    <tr><th>Sev.</th><th>Significado</th><th>Efecto en el veredicto</th></tr>
+    <tr><td>P0</td><td>Bloqueante: funcionalidad rota o requisito crítico incumplido.</td><td>CHANGES_REQUESTED obligatorio.</td></tr>
+    <tr><td>P1</td><td>Alto: comportamiento incorrecto o riesgo de producción con probabilidad material. Debe señalar la fila, request o prueba que lo dispara.</td><td>CHANGES_REQUESTED obligatorio.</td></tr>
+    <tr><td>P2</td><td>Medio: calidad, rendimiento, mantenibilidad, o bug con mitigación.</td><td>Se listan. El consolidador recomienda máximo 3; tú marcas cuáles entran. Sin marca, no bloquean.</td></tr>
+    <tr><td>P3</td><td>Bajo: estilo, documentación, sugerencias.</td><td>Anexo. Sin vuelta.</td></tr>
+  </table>
+  <p>APPROVED solo si no queda P0 ni P1 abierto. Los P2 no marcados y los P3 van a residuales. Y dos etiquetas que no son defectos: <b>GAP DE SPEC</b> (pide algo que no está en la spec) y <b>PREEXISTENTE</b> (ya estaba antes del pedido).</p>
+</section>
+
+<!-- ===== DESPUÉS ===== -->
+<section id="despues">
+  <p class="kicker">Después del ciclo</p>
+  <h2>Entregar, retomar y los atajos</h2>
+  <div class="flow">
+    <div><b><code>/qa REQ-042</code></b>El documento para el developer que valida y despliega: qué se hizo, qué rama, qué SQL y en qué orden, cómo saber que funcionó, qué probar en pantalla y qué parece error pero no lo es. Un solo archivo aunque toque varios repos.</div>
+    <div><b><code>/handoff-jira REQ-042</code></b>La versión corta del QA, máximo cien líneas, en formato Jira. Muestra título, etiquetas y asignado en una sola pausa y publica solo si confirmas.</div>
+    <div><b><code>/fix REQ-042</code></b>Un ajuste pequeño sobre algo ya entregado: máximo tres archivos, sin lógica nueva, dentro de lo que la spec ya pedía. No abre auditoría; lo validas tú.</div>
+    <div><b><code>/retomar REQ-042</code></b>Lee <code>corte.md</code> y dice en qué fase va el pedido y cuál es el siguiente comando. No es una fase.</div>
+    <div><b><code>/roadmap PREFIJO</code></b>Cuando una idea son varios pedidos: el plan de trabajo del proyecto, con el orden y el linaje de cada uno.</div>
+    <div><b><code>/doc-contexto repo módulo</code></b>El onboarding del dominio: el mapa de un repo, un módulo o una integración. Es parte del taller, no del ciclo.</div>
+  </div>
+</section>
+
+<!-- ===== REGLAS ===== -->
+<section id="reglas">
+  <p class="kicker">Convenciones</p>
+  <h2>Reglas de la casa</h2>
+  <ol class="rules">
+    <li><b>Una fase por sesión.</b> Cada fase termina escribiendo <code>corte.md</code> y recomendando sesión nueva. El agente no arranca la fase siguiente por iniciativa propia; si pides seguir en la misma sesión, lo hace y lo deja escrito. Motivo medido: el 88 % del costo del método era contexto acumulado releído en sesiones que encadenaban fases.</li>
+    <li><b>Presupuesto de 150 mil tokens por sesión, y señales que avisan.</b> Más de cuatro rondas de entrevista, una salida de partición o que tú digas que el contexto va alto: el agente escribe el corte con lo decidido y pregunta si sigue aquí o en sesión nueva. Nunca cierra una entrevista a medias por su cuenta.</li>
+    <li><b>El orquestador no lee, delega.</b> Exploración de código, diffs, antecedentes y mapas largos los lee un subagente y devuelve la conclusión en diez líneas o menos.</li>
+    <li><b>Producción se mira, no se toca.</b> La base de producción es de solo lectura salvo instrucción explícita. El agente escribe <code>migracion.sql</code>; no lo ejecuta en producción. Antes de afirmar una tabla o columna, consulta su definición real.</li>
+    <li><b>Sin <code>--force</code>, sin <code>reset --hard</code>, sin mezclar a la rama destino.</b> El pedido vive en su rama hasta que el equipo lo integra.</li>
+    <li><b>Ni más ni menos que lo acordado.</b> Lo que no está en la spec no se construye. Si es buena idea, es otro pedido con su propio ID, o un hijo del actual si modifica algo ya entregado.</li>
+    <li><b>Evidencia antes de afirmar.</b> Nada se declara hecho, verificado o existente sin haberlo comprobado en la sesión. Lo que no se pudo comprobar se escribe como NO VERIFICADO.</li>
+    <li><b>Títulos en la forma «Dónde: qué se ajusta y para qué».</b> Una línea con palabras simples, para que alguien sin contexto entienda el problema y la solución.</li>
+  </ol>
+</section>
+
+<!-- ===== GLOSARIO ===== -->
+<section id="glosario">
+  <p class="kicker">Glosario</p>
+  <h2>Las palabras, en una línea</h2>
+  <table>
+    <tr><td><b>Agente</b></td><td>El modelo de IA trabajando dentro de Claude Code: lee archivos, corre comandos, escribe código. No recuerda nada entre sesiones.</td></tr>
+    <tr><td><b>Arquitecto</b></td><td>Quien pide, decide y aprueba en cada puerta.</td></tr>
+    <tr><td><b>Orquestador</b></td><td>La sesión principal: reparte misiones a subagentes y consolida; no hace el trabajo pesado.</td></tr>
+    <tr><td><b>Subagente</b></td><td>Un agente aparte con su propio contexto y una sola misión. Devuelve una conclusión corta.</td></tr>
+    <tr><td><b>Skill</b></td><td>Un archivo de instrucciones para una tarea concreta, que el agente carga solo cuando le toca.</td></tr>
+    <tr><td><b>Spec</b></td><td>Qué se pide, qué queda por fuera, cómo se sabe que quedó bien, con decisiones numeradas.</td></tr>
+    <tr><td><b>Mockup</b></td><td>La pantalla en HTML, aprobada antes de la spec cuando hay interfaz. Es el contrato visual.</td></tr>
+    <tr><td><b>Plan / Task</b></td><td>La lista de tareas en orden; cada tarea es una rebanada vertical demostrable que cabe en una sesión.</td></tr>
+    <tr><td><b>Worktree</b></td><td>Una copia de trabajo del repo para el pedido, en <code>worktrees/{ID}/{repo}</code>, sobre la rama <code>feature/{ID}</code>.</td></tr>
+    <tr><td><b>Linaje / tren</b></td><td>De qué rama nace el pedido. Si nace de otro pedido sin desplegar, van en «tren» y se integran en orden.</td></tr>
+    <tr><td><b>REQ hijo</b></td><td>Un pedido que modifica un resultado ya entregado: <code>REQ-042-1</code>, con spec corta.</td></tr>
+    <tr><td><b>Auditoría</b></td><td>La inspección: comparar lo construido contra spec y plan, con pruebas propias, por alguien que no construyó.</td></tr>
+    <tr><td><b>P0, P1, P2, P3</b></td><td>La severidad de un hallazgo: bloqueante, alto, medio, bajo.</td></tr>
+    <tr><td><b>corte.md</b></td><td>La nota de cierre de cada fase: qué se cerró, qué quedó aprobado, el siguiente comando, qué no reabrir.</td></tr>
+    <tr><td><b>Sesión</b></td><td>Una conversación con el agente de principio a fin. Una fase por sesión.</td></tr>
+  </table>
+</section>
+
+<footer>
+  Basado en los contratos de fase del método (docs/metodologia/flujos) y sus convenciones, versión 4.0, octubre de 2026. El ejemplo del correo del cliente es ilustrativo. Las skills citadas son de Matt Pocock (aihero.dev/skills); el ciclo y sus reglas son propios.
+</footer>
+</main>
+</div>
+<script>
+  // Resalta en la navegación la sección visible
+  const links = [...document.querySelectorAll('nav.side a')];
+  const targets = links.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  const io = new IntersectionObserver(es => {
+    es.forEach(e => { if (e.isIntersecting) { links.forEach(l => l.classList.toggle('on', l.getAttribute('href') === '#' + e.target.id)); } });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  targets.forEach(t => io.observe(t));
+</script>
+</body>
+</html>

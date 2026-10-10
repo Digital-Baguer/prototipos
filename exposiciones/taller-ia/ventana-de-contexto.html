@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La ventana de contexto · la mesa</title>
+<style>
+  :root {
+    --bg: #0f141a; --panel: #161c24; --panel2: #1c2430; --line: #2a3340;
+    --text: #eef2f6; --muted: #98a3b1; --green: #6ccf9b; --green-d: #1f6b4a; --orange: #f08c5a; --pink: #f27aa6; --blue: #8fb8ff; --grey: #8a94a3;
+    --sans: "Avenir Next", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 22px; line-height: 1.5; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 28px; }
+  section { padding: 110px 0 30px; }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); border: 2px solid var(--line); border-radius: 30px; padding: 6px 14px; margin-bottom: 18px; }
+  .tag.g { color: var(--green); border-color: var(--green-d); }
+  .tag.o { color: var(--orange); border-color: #7a4428; }
+  .tag.p { color: var(--pink); border-color: #7a3a52; }
+  h1 { font-size: 104px; line-height: .95; margin: 0 0 30px; font-weight: 800; letter-spacing: -3px; }
+  h1 em { color: var(--green); font-style: normal; }
+  h2 { font-size: 56px; line-height: 1.06; margin: 0 0 20px; font-weight: 800; letter-spacing: -1.5px; max-width: 900px; }
+  p { margin: 0 0 14px; max-width: 760px; font-size: 23px; color: #d6dde5; }
+  b { color: #fff; }
+  code { font-family: var(--mono); font-size: .85em; background: var(--panel2); padding: 2px 8px; border-radius: 6px; color: var(--green); }
+  figure { margin: 44px 0 10px; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { text-align: center; color: var(--muted); font-size: 18px; margin-top: 16px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; margin: 40px 0; }
+  .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 40px 0 0; }
+  .card { background: var(--panel); border: 3px solid var(--line); border-radius: 26px; padding: 30px; }
+  .card.g { border-color: var(--green); } .card.o { border-color: var(--orange); } .card.p { border-color: var(--pink); }
+  .card h3 { margin: 0 0 14px; font-size: 26px; }
+  .card.g h3 { color: var(--green); } .card.o h3 { color: var(--orange); } .card.p h3 { color: var(--pink); }
+  .card svg { width: 100%; height: auto; display: block; margin: 6px 0 14px; }
+  .card p { font-size: 19px; color: var(--muted); margin: 0; }
+  .key { background: var(--panel); border: 3px solid var(--green); border-radius: 26px; padding: 28px 34px; margin: 40px 0 0; }
+  .key h3 { color: var(--green); margin: 0 0 10px; font-size: 24px; }
+  .key p { margin: 0; font-size: 21px; }
+  .big { font-size: 84px; font-weight: 800; line-height: 1; color: var(--orange); margin: 4px 0 10px; }
+  .big.g { color: var(--green); }
+
+  /* simulador */
+  .sim { background: var(--panel); border: 3px solid var(--line); border-radius: 28px; padding: 30px 32px 26px; margin: 40px 0 0; }
+  .sim h3 { margin: 0 0 6px; font-size: 28px; }
+  .sim .sub { color: var(--muted); font-size: 18px; margin: 0 0 20px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 26px; }
+  .btns button { font: inherit; font-size: 18px; font-weight: 700; padding: 12px 18px; border-radius: 14px; border: 3px solid var(--line); background: var(--panel2); color: var(--text); cursor: pointer; }
+  .btns button:hover { border-color: var(--text); }
+  .btns button.run { border-color: var(--orange); color: var(--orange); }
+  .btns button.new { border-color: var(--green); color: var(--green); }
+  .btns button small { display: block; font-weight: 400; font-size: 13px; color: var(--muted); }
+  .lbl { font-family: var(--mono); font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin: 18px 0 8px; }
+  .comp { display: flex; height: 44px; border-radius: 12px; overflow: hidden; background: var(--panel2); }
+  .comp div { height: 100%; min-width: 0; transition: width .25s; }
+  .fill { position: relative; height: 54px; border-radius: 14px; background: var(--panel2); border: 3px solid #e9eef5; overflow: visible; }
+  .fill .bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--grey); border-radius: 10px 0 0 10px; transition: width .25s; }
+  .fill .mk { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 3px dashed var(--green); }
+  .fill .mk.p { border-left-color: var(--pink); }
+  .fill .mk span { position: absolute; top: 58px; left: -60px; width: 120px; text-align: center; font-size: 13px; font-family: var(--mono); color: var(--green); white-space: nowrap; }
+  .fill .mk.p span { color: var(--pink); left: -150px; width: 150px; text-align: right; }
+  .fill .legs { position: absolute; bottom: 4px; left: 4px; right: 4px; height: 6px; background: var(--line); border-radius: 3px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px 22px; margin: 44px 0 0; font-size: 16px; color: var(--muted); }
+  .legend i { display: inline-block; width: 16px; height: 16px; border-radius: 4px; vertical-align: -2px; margin-right: 6px; }
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 26px 0 0; }
+  .stats div { background: var(--panel2); border-radius: 16px; padding: 14px 16px; }
+  .stats b { display: block; font-size: 30px; line-height: 1.1; }
+  .stats span { font-size: 14px; color: var(--muted); }
+  .msg { margin-top: 18px; min-height: 30px; font-size: 19px; color: #d6dde5; }
+  .msg.alert { color: var(--pink); font-weight: 700; }
+
+  /* /context */
+  .ctx { background: var(--panel); border: 3px solid var(--line); border-radius: 26px; padding: 28px 32px; margin: 40px 0 0; font-family: var(--mono); }
+  .ctx .row { display: grid; grid-template-columns: 260px 1fr 110px; gap: 16px; align-items: center; font-size: 16px; margin: 10px 0; }
+  .ctx .row .t { height: 18px; background: var(--panel2); border-radius: 5px; overflow: hidden; }
+  .ctx .row .t i { display: block; height: 100%; }
+  .ctx .row .n { text-align: right; color: var(--muted); }
+  .ctx .head { font-size: 22px; font-weight: 800; margin-bottom: 14px; font-family: var(--sans); }
+  .ctx .head span { color: var(--green); }
+
+  .rules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin: 36px 0 0; }
+  .rules div { background: var(--panel2); border-radius: 18px; padding: 22px 24px; font-size: 20px; color: #d6dde5; }
+  .rules b { display: block; font-size: 24px; margin-bottom: 4px; }
+  footer { color: var(--muted); font-size: 15px; padding: 50px 0 90px; border-top: 1px solid var(--line); margin-top: 80px; }
+  @media (max-width: 760px) {
+    body { font-size: 18px; } p { font-size: 19px; }
+    h1 { font-size: 60px; } h2 { font-size: 38px; }
+    .two, .three, .rules { grid-template-columns: 1fr; } .stats { grid-template-columns: 1fr 1fr; }
+    .ctx .row { grid-template-columns: 1fr; gap: 6px; } .ctx .row .n { text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="desk" viewBox="0 0 120 70"><rect x="8" y="34" width="104" height="10" rx="5" fill="#e9eef5"/><rect x="22" y="44" width="8" height="24" fill="#e9eef5"/><rect x="90" y="44" width="8" height="24" fill="#e9eef5"/></symbol>
+    <symbol id="box" viewBox="0 0 30 22"><rect x="1.5" y="1.5" width="27" height="19" rx="4" fill="#161c24" stroke="#e9eef5" stroke-width="3"/></symbol>
+    <symbol id="sheet" viewBox="0 0 30 38"><rect x="1.5" y="1.5" width="27" height="35" rx="4" fill="#161c24" stroke="#e9eef5" stroke-width="3"/><rect x="8" y="11" width="14" height="3" rx="1.5" fill="#e9eef5"/><rect x="8" y="18" width="14" height="3" rx="1.5" fill="#e9eef5"/><rect x="8" y="25" width="9" height="3" rx="1.5" fill="#e9eef5"/></symbol>
+    <symbol id="sheetg" viewBox="0 0 30 38"><rect x="1.5" y="1.5" width="27" height="35" rx="4" fill="#13231c" stroke="#6ccf9b" stroke-width="3"/><rect x="8" y="11" width="14" height="3" rx="1.5" fill="#6ccf9b"/><rect x="8" y="18" width="14" height="3" rx="1.5" fill="#6ccf9b"/><rect x="8" y="25" width="9" height="3" rx="1.5" fill="#6ccf9b"/></symbol>
+    <symbol id="eye" viewBox="0 0 60 36"><path d="M3 18 Q30 -6 57 18 Q30 42 3 18 Z" fill="none" stroke="#eef2f6" stroke-width="3"/><circle cx="30" cy="18" r="9" fill="#eef2f6"/><circle cx="30" cy="18" r="4" fill="#0f141a"/></symbol>
+  </defs>
+</svg>
+
+<header class="wrap" style="padding:120px 28px 40px">
+  <span class="tag">Serie · arnés → plano → orquesta → ciclo → <b>mesa</b></span>
+  <h1>La ventana de contexto es una <em>mesa</em>.</h1>
+  <p>Todo lo que la IA puede ver en un momento dado tiene que estar sobre la mesa. La mesa tiene un tamaño fijo. Y nadie quita nada hasta que se llena.</p>
+</header>
+
+<!-- 1. TAMAÑO -->
+<section class="wrap">
+  <span class="tag o">La mesa · tiene tamaño</span>
+  <h2>Lo que la IA sabe ahora mismo cabe en una mesa. Lo que no está encima, no existe.</h2>
+  <p>Ni el archivo que no abrió, ni lo que hablaron ayer en otra sesión, ni la regla que quedó en un documento que nadie le puso delante.</p>
+  <figure>
+    <svg viewBox="0 0 1000 300" role="img" aria-label="Una mesa vista desde arriba con una regla que mide un millón de tokens">
+      <rect x="60" y="70" width="880" height="150" rx="18" fill="#1c2430" stroke="#e9eef5" stroke-width="5"/>
+      <rect x="60" y="222" width="880" height="14" rx="6" fill="#e9eef5"/>
+      <rect x="90" y="236" width="18" height="40" fill="#e9eef5"/><rect x="892" y="236" width="18" height="40" fill="#e9eef5"/>
+      <text x="500" y="155" text-anchor="middle" fill="#eef2f6" font-size="54" font-weight="800">1.000.000 de tokens</text>
+      <text x="500" y="195" text-anchor="middle" fill="#98a3b1" font-size="20">unas 2.000 páginas, de una sola vez</text>
+      <path d="M60 44 L940 44" stroke="#6ccf9b" stroke-width="4"/><path d="M60 34 L60 54" stroke="#6ccf9b" stroke-width="4"/><path d="M940 34 L940 54" stroke="#6ccf9b" stroke-width="4"/>
+      <text x="500" y="26" text-anchor="middle" fill="#6ccf9b" font-size="17" font-family="ui-monospace, Menlo, monospace">el ancho de la mesa de Fable 5.1</text>
+    </svg>
+  </figure>
+  <div class="two">
+    <div class="card"><h3>Un token</h3><p>Un pedazo de palabra: unas cuatro letras. «desarrollo» son dos o tres tokens. Es la unidad en que se mide la mesa y en que se cobra.</p></div>
+    <div class="card"><h3>Un papel</h3><p>Cada cosa que llega a la mesa: tu mensaje, la respuesta, un archivo leído, la salida de un comando. Cada papel pesa sus tokens.</p></div>
+  </div>
+</section>
+
+<!-- 2. ANTES DE SENTARSE -->
+<section class="wrap">
+  <span class="tag o">Antes de sentarte</span>
+  <h2>Cuando llegas, la mesa ya tiene cosas puestas.</h2>
+  <p>Las instrucciones del sistema, la lista de herramientas, tu <code>AGENTS.md</code> con su memoria y las skills. Están en cada mensaje, lo uses o no.</p>
+  <figure>
+    <svg viewBox="0 0 1000 340" role="img" aria-label="Una mesa con cuatro cajas puestas antes de empezar y un cajón debajo">
+      <rect x="150" y="170" width="700" height="20" rx="10" fill="#e9eef5"/>
+      <rect x="200" y="190" width="16" height="70" fill="#e9eef5"/><rect x="784" y="190" width="16" height="70" fill="#e9eef5"/>
+      <g>
+        <use href="#box" x="250" y="112" width="120" height="58"/><text x="310" y="218" text-anchor="middle" fill="#eef2f6" font-size="17" font-weight="800">instrucciones</text><text x="310" y="242" text-anchor="middle" fill="#98a3b1" font-size="16" font-family="ui-monospace, Menlo, monospace">5.700</text>
+        <use href="#box" x="390" y="118" width="104" height="52"/><text x="442" y="218" text-anchor="middle" fill="#eef2f6" font-size="17" font-weight="800">herramientas</text><text x="442" y="242" text-anchor="middle" fill="#98a3b1" font-size="16" font-family="ui-monospace, Menlo, monospace">4.800</text>
+        <use href="#box" x="514" y="132" width="66" height="38"/><text x="547" y="218" text-anchor="middle" fill="#eef2f6" font-size="17" font-weight="800">memoria</text><text x="547" y="242" text-anchor="middle" fill="#98a3b1" font-size="16" font-family="ui-monospace, Menlo, monospace">1.800</text>
+        <use href="#box" x="600" y="130" width="68" height="40"/><text x="634" y="218" text-anchor="middle" fill="#eef2f6" font-size="17" font-weight="800">skills</text><text x="634" y="242" text-anchor="middle" fill="#98a3b1" font-size="16" font-family="ui-monospace, Menlo, monospace">1.900</text>
+      </g>
+      <rect x="700" y="60" width="160" height="74" rx="12" fill="#161c24" stroke="#f08c5a" stroke-width="3"/>
+      <text x="780" y="91" text-anchor="middle" fill="#f08c5a" font-size="30" font-weight="800">14.000</text>
+      <text x="780" y="117" text-anchor="middle" fill="#f08c5a" font-size="14" font-family="ui-monospace, Menlo, monospace">puestos antes de empezar</text>
+      <rect x="150" y="284" width="700" height="44" rx="10" fill="#161c24" stroke="#98a3b1" stroke-width="3" stroke-dasharray="8 6"/>
+      <text x="500" y="313" text-anchor="middle" fill="#98a3b1" font-size="17">el cajón: 44.000 en herramientas diferidas, que no viajan hasta que se usan</text>
+    </svg>
+    <figcaption>Cifras de <code>/context</code> de una sesión real de este workspace. Varían con cada MCP y skill que instales.</figcaption>
+  </figure>
+  <div class="key"><h3>Por eso se limpia el arnés</h3><p>Quitar los MCP y las skills que no usas no es manía: es vaciar la mesa antes de sentarte. Lo que dejes puesto viaja en cada uno de los cientos de mensajes de la sesión.</p></div>
+</section>
+
+<!-- 3. CADA TURNO -->
+<section class="wrap">
+  <span class="tag o">Cada turno · pone papeles</span>
+  <h2>Cada cosa que pasa deja un papel sobre la mesa. Nadie lo quita.</h2>
+  <p>Tu pregunta, la respuesta, el archivo que leyó para responder, la salida de las pruebas. Todo queda. Un turno pequeño pone 1.000 tokens; abrir un archivo pone 3.500.</p>
+  <figure>
+    <svg viewBox="0 0 1000 200" role="img" aria-label="Cuatro papeles de distinto tamaño: tu pregunta, su respuesta, un archivo leído y la salida de las pruebas">
+      <g transform="translate(70,30)"><rect width="60" height="60" rx="8" fill="#13223a" stroke="#8fb8ff" stroke-width="3"/><text x="30" y="110" text-anchor="middle" fill="#eef2f6" font-size="18" font-weight="800">tu pregunta</text><text x="30" y="136" text-anchor="middle" fill="#8fb8ff" font-size="18" font-family="ui-monospace, Menlo, monospace">100</text></g>
+      <g transform="translate(260,20)"><rect width="110" height="80" rx="8" fill="#13231c" stroke="#6ccf9b" stroke-width="3"/><text x="55" y="120" text-anchor="middle" fill="#eef2f6" font-size="18" font-weight="800">su respuesta</text><text x="55" y="146" text-anchor="middle" fill="#6ccf9b" font-size="18" font-family="ui-monospace, Menlo, monospace">900</text></g>
+      <g transform="translate(500,0)"><rect width="220" height="120" rx="8" fill="#2a1a12" stroke="#f08c5a" stroke-width="3"/><rect x="18" y="22" width="150" height="5" rx="2" fill="#f08c5a" opacity=".6"/><rect x="18" y="40" width="180" height="5" rx="2" fill="#f08c5a" opacity=".6"/><rect x="18" y="58" width="120" height="5" rx="2" fill="#f08c5a" opacity=".6"/><rect x="18" y="76" width="170" height="5" rx="2" fill="#f08c5a" opacity=".6"/><text x="110" y="150" text-anchor="middle" fill="#eef2f6" font-size="18" font-weight="800">un archivo leído</text><text x="110" y="176" text-anchor="middle" fill="#f08c5a" font-size="18" font-family="ui-monospace, Menlo, monospace">3.500</text></g>
+      <g transform="translate(780,10)"><rect width="180" height="105" rx="8" fill="#2a1420" stroke="#f27aa6" stroke-width="3"/><text x="90" y="145" text-anchor="middle" fill="#eef2f6" font-size="18" font-weight="800">salida de pruebas</text><text x="90" y="171" text-anchor="middle" fill="#f27aa6" font-size="18" font-family="ui-monospace, Menlo, monospace">2.500</text></g>
+    </svg>
+  </figure>
+
+  <div class="sim" id="sim">
+    <h3>Pon papeles tú</h3>
+    <p class="sub">Cada botón es un turno. Mira cómo se llena la mesa y cuánto tiene que releer la IA en cada uno.</p>
+    <div class="btns">
+      <button data-act="pregunta">Preguntar algo<small>+ 1.000</small></button>
+      <button data-act="archivo">Pedir que lea un archivo<small>+ 4.200</small></button>
+      <button data-act="pruebas">Correr las pruebas<small>+ 3.000</small></button>
+      <button data-act="agente">Explorar con un agente<small>+ 1.000 · el agente leyó 40.000 en su mesa</small></button>
+      <button data-act="run" class="run">Dejar correr 60 turnos<small>una sesión larga, en 5 segundos</small></button>
+      <button data-act="nueva" class="new">Nueva mesa con una hoja<small>corte.md · empieza limpia</small></button>
+    </div>
+    <div class="lbl">Qué hay sobre la mesa</div>
+    <div class="comp" id="comp"></div>
+    <div class="lbl">Cuánto se ha llenado</div>
+    <div class="fill">
+      <div class="bar" id="bar"></div>
+      <div class="mk" style="left:15%"><span>150.000 · aquí corta el método</span></div>
+      <div class="mk p" style="left:96.7%"><span>967.000 · barrido</span></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:#8a94a3"></i>puesto antes de empezar</span>
+      <span><i style="background:#8fb8ff"></i>tus mensajes</span>
+      <span><i style="background:#6ccf9b"></i>sus respuestas</span>
+      <span><i style="background:#f08c5a"></i>archivos leídos</span>
+      <span><i style="background:#f27aa6"></i>salidas de comandos</span>
+      <span><i style="background:#eef2f6"></i>hojas de agentes y de corte</span>
+      <span><i style="background:#c9a7ff"></i>resumen del barrido</span>
+    </div>
+    <div class="stats">
+      <div><b id="sOn">14.000</b><span>sobre la mesa</span></div>
+      <div><b id="sTurn">0</b><span>turnos</span></div>
+      <div><b id="sRead">0</b><span>releídos en total</span></div>
+      <div><b id="sTables">1</b><span>mesas usadas</span></div>
+      <div><b id="sSweep">0</b><span>barridos</span></div>
+    </div>
+    <div class="msg" id="msg">La mesa recién puesta: 14.000 tokens antes de tu primera palabra.</div>
+  </div>
+</section>
+
+<!-- 4. RELEE TODO -->
+<section class="wrap">
+  <span class="tag p">La IA no recuerda</span>
+  <h2>En cada turno vuelve a leer la mesa entera.</h2>
+  <p>No tiene memoria entre un mensaje y el siguiente. Para responderte relee todo lo que hay sobre la mesa, desde las instrucciones hasta el último papel. Cuantos más papeles, más relee.</p>
+  <figure>
+    <svg viewBox="0 0 1000 300" role="img" aria-label="Tres turnos: en cada uno la IA relee una mesa cada vez más llena">
+      <g transform="translate(40,40)">
+        <use href="#eye" width="60" height="36"/>
+        <use href="#desk" x="0" y="60" width="240" height="140"/>
+        <use href="#box" x="100" y="86" width="40" height="30"/>
+        <text x="120" y="250" text-anchor="middle" fill="#eef2f6" font-size="19" font-weight="800">turno 1</text>
+        <text x="120" y="276" text-anchor="middle" fill="#98a3b1" font-size="16" font-family="ui-monospace, Menlo, monospace">relee 14.000</text>
+      </g>
+      <g transform="translate(380,40)">
+        <use href="#eye" width="60" height="36"/>
+        <use href="#desk" x="0" y="60" width="240" height="140"/>
+        <use href="#box" x="40" y="92" width="36" height="26"/><use href="#box" x="78" y="84" width="44" height="32"/><use href="#box" x="124" y="90" width="36" height="28"/><use href="#box" x="162" y="86" width="40" height="30"/>
+        <text x="120" y="250" text-anchor="middle" fill="#eef2f6" font-size="19" font-weight="800">turno 10</text>
+        <text x="120" y="276" text-anchor="middle" fill="#98a3b1" font-size="16" font-family="ui-monospace, Menlo, monospace">relee 45.000</text>
+      </g>
+      <g transform="translate(720,40)">
+        <use href="#eye" width="60" height="36"/>
+        <use href="#desk" x="0" y="60" width="240" height="140"/>
+        <use href="#box" x="22" y="94" width="30" height="22"/><use href="#box" x="50" y="80" width="40" height="30"/><use href="#box" x="86" y="92" width="34" height="26"/><use href="#box" x="118" y="76" width="44" height="34"/><use href="#box" x="158" y="90" width="34" height="26"/><use href="#box" x="190" y="84" width="30" height="24"/><use href="#box" x="70" y="56" width="40" height="28"/><use href="#box" x="128" y="50" width="44" height="30"/>
+        <text x="120" y="250" text-anchor="middle" fill="#eef2f6" font-size="19" font-weight="800">turno 60</text>
+        <text x="120" y="276" text-anchor="middle" fill="#f08c5a" font-size="16" font-family="ui-monospace, Menlo, monospace">relee 180.000</text>
+      </g>
+    </svg>
+    <figcaption>La respuesta del turno 60 puede tener 900 tokens. Para escribirla, la IA leyó 180.000.</figcaption>
+  </figure>
+  <div class="two">
+    <div class="card o"><h3>La mesa llena cuesta más</h3><p>Se cobra lo leído, no solo lo escrito. La caché abarata releer lo que ya estaba, pero no lo borra: en una sesión larga, el 99 % de los tokens son relectura.</p></div>
+    <div class="card o"><h3>La mesa llena rinde peor</h3><p>Lo del principio queda tapado por lo del final. La IA confunde detalles, repite preguntas, olvida una decisión del turno 12. Trabaja fino hasta unos 150.000; después, cada vez menos.</p></div>
+  </div>
+</section>
+
+<!-- 5. BARRIDO -->
+<section class="wrap">
+  <span class="tag p">Cuando se llena · el barrido</span>
+  <h2>Si la mesa se llena, alguien la barre y deja un resumen.</h2>
+  <p>Claude Code reserva un rincón de 33.000 tokens. Al llegar al borde, <b>compacta</b>: resume la conversación en una hoja y bota los papeles. Se pierde el detalle: qué archivo era exacto, qué dijo la prueba, por qué decidiste aquello.</p>
+  <figure>
+    <svg viewBox="0 0 1000 340" role="img" aria-label="Antes del barrido, una mesa repleta; después, una sola hoja de resumen">
+      <g transform="translate(40,30)">
+        <use href="#desk" x="0" y="50" width="340" height="200"/>
+        <use href="#box" x="30" y="112" width="40" height="30"/><use href="#box" x="68" y="98" width="52" height="38"/><use href="#box" x="118" y="110" width="44" height="32"/><use href="#box" x="160" y="92" width="56" height="42"/><use href="#box" x="214" y="108" width="44" height="34"/><use href="#box" x="256" y="100" width="40" height="30"/><use href="#box" x="60" y="70" width="48" height="34"/><use href="#box" x="130" y="62" width="60" height="38"/><use href="#box" x="200" y="68" width="50" height="34"/><use href="#box" x="118" y="34" width="52" height="34"/>
+        <text x="170" y="284" text-anchor="middle" fill="#f27aa6" font-size="20" font-weight="800">967.000 · se llenó</text>
+      </g>
+      <path d="M420 150 L560 150" stroke="#f27aa6" stroke-width="7" stroke-linecap="round"/><path d="M545 128 L585 150 L545 172 Z" fill="#f27aa6"/>
+      <text x="500" y="120" text-anchor="middle" fill="#f27aa6" font-size="17" font-family="ui-monospace, Menlo, monospace">compactar</text>
+      <g transform="translate(620,30)">
+        <use href="#desk" x="0" y="50" width="340" height="200"/>
+        <use href="#sheet" x="150" y="78" width="40" height="52"/>
+        <text x="170" y="284" text-anchor="middle" fill="#c9a7ff" font-size="20" font-weight="800">una hoja de resumen</text>
+        <text x="170" y="308" text-anchor="middle" fill="#98a3b1" font-size="16">escrita por la IA, sin que tú la revises</text>
+      </g>
+    </svg>
+  </figure>
+  <div class="key"><h3>No esperes al barrido</h3><p>Barre tú, en el momento que eliges, con una hoja que tú controlas. Esa hoja es <code>corte.md</code>: qué se decidió, qué queda abierto, por dónde sigue. Y <code>/clear</code> deja la mesa vacía cuando el tema cambió del todo.</p></div>
+</section>
+
+<!-- 6. UNA MESA POR FASE -->
+<section class="wrap">
+  <span class="tag g">La regla · una mesa por fase</span>
+  <h2>Cada fase arranca en una mesa limpia, con una hoja encima.</h2>
+  <p>Entender, planear, construir, inspeccionar: cada una en su sesión. La hoja pasa de mesa en mesa; los papeles se quedan atrás.</p>
+  <figure>
+    <svg viewBox="0 0 1000 260" role="img" aria-label="Cuatro mesas en fila; una hoja pasa de cada una a la siguiente">
+      <g transform="translate(60,60)"><use href="#desk" width="160" height="94"/><use href="#box" x="56" y="16" width="36" height="26"/><text x="80" y="136" text-anchor="middle" fill="#eef2f6" font-size="20" font-weight="800">Entender</text></g>
+      <g transform="translate(300,60)"><use href="#desk" width="160" height="94"/><use href="#box" x="56" y="16" width="36" height="26"/><text x="80" y="136" text-anchor="middle" fill="#eef2f6" font-size="20" font-weight="800">Planear</text></g>
+      <g transform="translate(540,60)"><use href="#desk" width="160" height="94"/><use href="#box" x="56" y="16" width="36" height="26"/><text x="80" y="136" text-anchor="middle" fill="#eef2f6" font-size="20" font-weight="800">Construir</text></g>
+      <g transform="translate(780,60)"><use href="#desk" width="160" height="94"/><use href="#box" x="56" y="16" width="36" height="26"/><text x="80" y="136" text-anchor="middle" fill="#eef2f6" font-size="20" font-weight="800">Inspeccionar</text></g>
+      <g stroke="#6ccf9b" stroke-width="4" stroke-linecap="round"><path d="M226 102 L294 102"/><path d="M466 102 L534 102"/><path d="M706 102 L774 102"/></g>
+      <use href="#sheetg" x="246" y="54" width="28" height="36"/><use href="#sheetg" x="486" y="54" width="28" height="36"/><use href="#sheetg" x="726" y="54" width="28" height="36"/>
+      <text x="500" y="240" text-anchor="middle" fill="#6ccf9b" font-size="19" font-weight="800">la hoja es corte.md · cada mesa arranca con 14.000 más la hoja, no con 300.000</text>
+    </svg>
+  </figure>
+  <div class="two">
+    <div class="card g"><h3>Los agentes son otras mesas</h3>
+      <svg viewBox="0 0 300 150"><use href="#desk" x="20" y="40" width="120" height="70"/><use href="#box" x="40" y="50" width="26" height="20"/><use href="#box" x="64" y="44" width="30" height="22"/><use href="#box" x="92" y="52" width="26" height="20"/><path d="M150 75 L200 75" stroke="#6ccf9b" stroke-width="5" stroke-linecap="round"/><path d="M192 62 L214 75 L192 88 Z" fill="#6ccf9b"/><use href="#desk" x="200" y="40" width="90" height="52"/><use href="#sheetg" x="235" y="46" width="18" height="24"/></svg>
+      <p>El explorador lee 200 páginas en su mesa y te trae una hoja. Tu mesa sigue despejada. Por eso el método delega la lectura.</p></div>
+    <div class="card g"><h3>Cambiar de modelo es cambiar de mesa</h3>
+      <div class="big g">×1</div>
+      <p>La caché es de cada modelo. Si pasas de Opus a Fable a mitad de sesión, la mesa entera se relee una vez al precio nuevo. Barato al arrancar una fase; caro con 300.000 encima.</p></div>
+  </div>
+</section>
+
+<!-- 7. MIRA TU MESA -->
+<section class="wrap">
+  <span class="tag g">Mira tu mesa</span>
+  <h2><code>/context</code> te enseña la mesa antes de empezar.</h2>
+  <p>Córrelo al abrir la sesión y al cerrarla. Es la única forma de saber cuánto pesa lo que dejaste puesto y cuánto llevas acumulado.</p>
+  <div class="ctx">
+    <div class="head">Esta mesa, el 6 de octubre · <span>301.100 / 1.000.000 (30 %)</span></div>
+    <div class="row"><span>instrucciones del sistema</span><div class="t"><i style="width:1.9%;background:#8a94a3"></i></div><span class="n">5.700</span></div>
+    <div class="row"><span>herramientas</span><div class="t"><i style="width:1.6%;background:#8a94a3"></i></div><span class="n">4.800</span></div>
+    <div class="row"><span>memoria y AGENTS.md</span><div class="t"><i style="width:.6%;background:#8a94a3"></i></div><span class="n">1.800</span></div>
+    <div class="row"><span>skills</span><div class="t"><i style="width:.6%;background:#8a94a3"></i></div><span class="n">1.900</span></div>
+    <div class="row"><span>mensajes y papeles</span><div class="t"><i style="width:95.3%;background:#f08c5a"></i></div><span class="n">287.000</span></div>
+    <div class="row"><span>libre</span><div class="t"><i style="width:0"></i></div><span class="n">665.500</span></div>
+    <div class="row"><span>reserva para el barrido</span><div class="t"><i style="width:11%;background:#f27aa6"></i></div><span class="n">33.000</span></div>
+  </div>
+  <figcaption style="margin-top:14px">Casi todo es «mensajes y papeles»: lo que se fue acumulando en un día de trabajo. <code>/usage</code> dice, además, cuánto del plan llevas gastado.</figcaption>
+</section>
+
+<!-- 8. CIERRE -->
+<section class="wrap">
+  <span class="tag">Tres reglas</span>
+  <h2>Mira la mesa, no pongas de más, cambia de mesa al cambiar de fase.</h2>
+  <div class="rules">
+    <div><b>Mira la mesa</b><code>/context</code> al empezar y al cerrar. Si arranca pesada, algo sobra en el arnés.</div>
+    <div><b>No pongas de más</b>Un archivo entero cuando bastaba una función. Un MCP que no usas. Una salida de 2.000 líneas sin filtrar. Todo queda y todo se relee.</div>
+    <div><b>Cambia de mesa</b>Una fase por sesión y una hoja entre mesas. Los agentes leen en la suya. Barres tú, no el sistema.</div>
+  </div>
+</section>
+
+<footer class="wrap">
+  Cifras de <code>/context</code> de una sesión real del 2026-10-06 con Fable 5.1. Los pesos de los papeles del simulador son valores típicos redondeados: pregunta 100, respuesta 900, archivo 3.500, salida de pruebas 2.500, hoja de un agente 400. «Unas 2.000 páginas» supone 500 tokens por página. El barrido automático ocurre al agotar la ventana menos la reserva de 33.000.
+</footer>
+
+<script>
+(function(){
+  const FIXED = 14000, LIMIT = 1000000, SWEEP_AT = 967000;
+  const COLORS = { fixed:'#8a94a3', you:'#8fb8ff', ans:'#6ccf9b', file:'#f08c5a', out:'#f27aa6', sheet:'#eef2f6', sum:'#c9a7ff' };
+  let items = [], turns = 0, reread = 0, tables = 1, sweeps = 0, timer = null;
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.round(n).toLocaleString('es-CO');
+  const onTable = () => FIXED + items.reduce((a,i)=>a+i.t,0);
+
+  const ACTS = {
+    pregunta: { add:[['you',100],['ans',900]], msg:(r)=>`Una pregunta corta. Para responderla, la IA releyó ${fmt(r)} tokens.` },
+    archivo:  { add:[['you',60],['file',3500],['ans',600]], msg:(r)=>`Leyó un archivo: 3.500 tokens que se quedan en la mesa para siempre. Releyó ${fmt(r)}.` },
+    pruebas:  { add:[['you',40],['out',2500],['ans',500]], msg:(r)=>`La salida de las pruebas también se queda. Releyó ${fmt(r)}.` },
+    agente:   { add:[['you',80],['sheet',400],['ans',500]], msg:(r)=>`El agente leyó 40.000 en su propia mesa. A la tuya llegó una hoja de 400. Releyó ${fmt(r)}.` },
+  };
+
+  function turn(act){
+    const before = onTable();
+    reread += before; turns++;
+    ACTS[act].add.forEach(([k,t]) => items.push({k,t}));
+    let text = ACTS[act].msg(before), alert = false;
+    if (onTable() > SWEEP_AT) {
+      items = [{k:'sum', t:8000}]; sweeps++; alert = true;
+      text = `Se llenó la mesa. El sistema la barrió y dejó un resumen de 8.000 tokens. Lo que no quedó en el resumen, se perdió.`;
+    }
+    render(text, alert);
+  }
+  function newTable(){
+    items = [{k:'sheet', t:2000}]; tables++;
+    render(`Mesa nueva: 14.000 fijos más una hoja de corte de 2.000. Lo demás se quedó en la mesa anterior.`, false);
+  }
+  function run(){
+    if (timer) { clearInterval(timer); timer = null; return; }
+    let n = 0; const keys = ['pregunta','archivo','pruebas','pregunta','archivo','agente','pruebas','pregunta'];
+    timer = setInterval(() => { turn(keys[n % keys.length]); n++; if (n >= 60) { clearInterval(timer); timer = null; } }, 80);
+  }
+  function render(text, alert){
+    const total = onTable();
+    const comp = $('comp'); comp.innerHTML = '';
+    const segs = [{k:'fixed', t:FIXED}, ...items];
+    segs.forEach(s => { const d = document.createElement('div'); d.style.width = (s.t/total*100)+'%'; d.style.background = COLORS[s.k]; comp.appendChild(d); });
+    const pct = Math.min(100, total/LIMIT*100);
+    const bar = $('bar'); bar.style.width = pct+'%';
+    bar.style.background = total > 150000 ? (total > 600000 ? '#f27aa6' : '#f08c5a') : '#8a94a3';
+    $('sOn').textContent = fmt(total); $('sTurn').textContent = fmt(turns); $('sRead').textContent = fmt(reread);
+    $('sTables').textContent = fmt(tables); $('sSweep').textContent = fmt(sweeps);
+    const m = $('msg'); m.textContent = text; m.className = 'msg' + (alert ? ' alert' : '');
+  }
+  document.querySelectorAll('#sim .btns button').forEach(b => b.addEventListener('click', () => {
+    const a = b.dataset.act;
+    if (a === 'run') run(); else if (a === 'nueva') newTable(); else turn(a);
+  }));
+  render('La mesa recién puesta: 14.000 tokens antes de tu primera palabra.', false);
+})();
+</script>
+</body>
+</html>

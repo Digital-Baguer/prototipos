@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El ciclo, explicado fácil</title>
+<style>
+  :root {
+    --ink: #111; --muted: #666; --line: #e5e5e5; --soft: #f6f6f4;
+    --green: #a7d8c4; --green-d: #0f8a5f; --pink: #f2a7c3; --pink-d: #d63a7a; --gray: #d9d9d9;
+    --serif: Georgia, "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: var(--ink); font-family: var(--serif); font-size: 19px; line-height: 1.55; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+  header.hero { padding: 80px 0 30px; text-align: center; }
+  header.hero h1 { font-size: 44px; line-height: 1.1; margin: 0 0 16px; letter-spacing: -0.5px; }
+  header.hero p { font-size: 21px; color: #333; max-width: 600px; margin: 0 auto; }
+  header.hero .by { font-family: var(--sans); font-size: 13px; color: var(--muted); margin-top: 20px; }
+  .kicker { font-family: var(--sans); font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--green-d); font-weight: 700; margin-top: 70px; }
+  h2 { font-size: 30px; line-height: 1.2; margin: 8px 0 14px; }
+  h3 { font-family: var(--sans); font-size: 17px; margin: 28px 0 8px; }
+  p { margin: 0 0 16px; }
+  code { font-family: var(--mono); font-size: 0.85em; background: var(--soft); padding: 1px 5px; border-radius: 3px; }
+  .note { font-family: var(--sans); font-size: 13px; color: var(--muted); }
+  ul.plain { font-family: var(--sans); font-size: 16px; padding-left: 20px; }
+  ul.plain li { margin-bottom: 8px; }
+
+  /* Tres palabras */
+  .words { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-family: var(--sans); margin: 18px 0; }
+  .words div { background: var(--soft); border-radius: 8px; padding: 14px; font-size: 14px; color: #333; line-height: 1.45; }
+  .words b { display: block; font-size: 17px; margin-bottom: 6px; }
+  .words code { background: #e8e8e4; }
+
+  /* Camino de pasos */
+  .path { position: relative; margin: 26px 0; padding-left: 54px; font-family: var(--sans); }
+  .path::before { content: ''; position: absolute; left: 21px; top: 12px; bottom: 12px; width: 3px; background: var(--line); }
+  .stepc { position: relative; margin-bottom: 26px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px 14px; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
+  .stepc .num { position: absolute; left: -54px; top: 14px; width: 42px; height: 42px; border-radius: 50%; background: var(--ink); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 17px; }
+  .stepc .head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .stepc .head b { font-size: 22px; font-family: var(--serif); }
+  .stepc .head code { background: var(--ink); color: #fff; font-size: 13px; padding: 3px 8px; border-radius: 4px; }
+  .stepc .row { display: grid; grid-template-columns: 110px 1fr; gap: 10px; font-size: 14.5px; line-height: 1.5; padding: 8px 0; border-top: 1px solid var(--line); }
+  .stepc .row:first-of-type { border-top: none; }
+  .stepc .row .k { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); font-weight: 700; padding-top: 3px; }
+  .stepc .row.caja .v { font-family: var(--mono); font-size: 13px; color: #333; }
+  .stepc .row.gate .v { color: var(--green-d); font-weight: 600; }
+  .stepc .row.gate .v.none { color: var(--muted); font-weight: 400; }
+
+  /* Bucle de inspección */
+  .loop { font-family: var(--sans); background: var(--soft); border-radius: 10px; padding: 18px 20px; margin: 22px 0; }
+  .loop .diagram { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 14px; font-size: 14px; }
+  .loop .box { border: 2px solid var(--ink); border-radius: 8px; padding: 8px 12px; background: #fff; font-weight: 600; }
+  .loop .box.ok { border-color: var(--green-d); color: var(--green-d); }
+  .loop .box.bad { border-color: var(--pink-d); color: var(--pink-d); }
+  .loop .arr { color: var(--muted); font-size: 20px; }
+  .sev { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; font-family: var(--sans); font-size: 13px; margin: 14px 0; }
+  .sev div { border-radius: 6px; padding: 10px; background: #fff; border: 1px solid var(--line); }
+  .sev b { display: block; font-size: 15px; margin-bottom: 3px; }
+  .sev .p0 b { color: var(--pink-d); } .sev .p1 b { color: var(--pink-d); } .sev .p2 b { color: var(--ink); } .sev .p3 b { color: var(--muted); }
+
+  /* La caja interactiva */
+  .box-sim { font-family: var(--sans); border: 2px solid var(--ink); border-radius: 12px; padding: 18px 20px; margin: 22px 0; }
+  .box-sim .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .box-sim .top b { font-size: 18px; }
+  .box-sim .ctrl button { font-family: var(--sans); font-size: 14px; padding: 7px 14px; border-radius: 18px; border: 1px solid var(--ink); background: #fff; cursor: pointer; margin-left: 6px; }
+  .box-sim .ctrl button.primary { background: var(--ink); color: #fff; }
+  .box-sim .ctrl button:disabled { opacity: .35; cursor: default; }
+  .box-sim .phase { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .box-sim .phase code { background: var(--ink); color: #fff; }
+  .box-sim .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .box-sim h4 { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+  .files { font-family: var(--mono); font-size: 13px; line-height: 1.7; }
+  .files div { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 2px 8px; border-radius: 4px; margin: 2px 0; transition: background .3s; }
+  .files div.new { background: var(--green); }
+  .files div.dim { color: #aaa; }
+  .files div span { color: var(--muted); font-family: var(--sans); font-size: 12px; text-align: right; line-height: 1.3; }
+  .status { font-size: 14px; line-height: 1.55; }
+  .status .tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-bottom: 8px; }
+  .status .tag.ok { background: var(--green); color: #0b4d35; }
+  .status .tag.bad { background: var(--pink); color: #7a1f44; }
+  .status .tag.wip { background: var(--gray); }
+  .status .nota { margin-top: 10px; padding: 10px 12px; background: #fff8dc00; border-left: 3px solid var(--ink); background: var(--soft); font-size: 13px; }
+  .status .nota b { display: block; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+
+  /* Reglas */
+  ol.rules { font-family: var(--sans); font-size: 16px; padding-left: 22px; }
+  ol.rules li { margin-bottom: 12px; }
+  ol.rules li b { display: block; }
+
+  /* Skills */
+  .skills { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-family: var(--sans); margin: 14px 0; }
+  .skills div { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: 14px; line-height: 1.45; }
+  .skills code { display: inline-block; margin-bottom: 4px; background: var(--ink); color: #fff; font-size: 12px; padding: 2px 7px; border-radius: 4px; }
+
+  /* Glosario */
+  table.gloss { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 14px; margin: 14px 0; }
+  table.gloss td { border-bottom: 1px solid var(--line); padding: 9px 8px; vertical-align: top; }
+  table.gloss td:first-child { width: 32%; font-weight: 700; }
+
+  footer { font-family: var(--sans); font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); margin-top: 60px; padding: 20px 0 60px; }
+
+  @media (max-width: 640px) {
+    body { font-size: 17px; }
+    header.hero h1 { font-size: 32px; }
+    .words, .box-sim .grid2, .skills { grid-template-columns: 1fr; }
+    .sev { grid-template-columns: 1fr 1fr; }
+    .stepc .row { grid-template-columns: 1fr; gap: 2px; }
+    .path { padding-left: 44px; } .path::before { left: 16px; } .stepc .num { left: -44px; width: 34px; height: 34px; font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero wrap">
+  <h1>El ciclo, explicado fácil</h1>
+  <p>Cómo construimos software con un agente de IA sin que se nos vaya de las manos: seis pasos, siempre los mismos, con un ejemplo de la vida real al lado.</p>
+  <div class="by">Material del taller de desarrollo asistido por IA · Octubre de 2026</div>
+</header>
+
+<div class="wrap">
+  <p class="kicker">La idea en una frase</p>
+  <h2>Es como remodelar una cocina, pero con un ayudante que olvida todo cada vez que sale del cuarto</h2>
+  <p>El ayudante es el modelo de IA. Es rápido y sabe mucho, pero tiene una rareza: cada vez que termina una conversación, <b>olvida todo</b>. Si le pides que siga mañana, no sabe de qué hablas. La única forma de trabajar con alguien así es <b>dejar todo por escrito</b>, en un sitio fijo, y que cada vez que entre lea el papel y siga desde ahí.</p>
+  <p>El método es eso: un orden fijo de pasos, y en cada paso un papel que queda guardado. Nada más. Lo demás son detalles de cómo se hace cada papel bien.</p>
+
+  <h3>Tres palabras antes de empezar</h3>
+  <div class="words">
+    <div><b>El ID</b>Cada pedido tiene un número, como la orden en un restaurante: <code>REQ-042</code>. Todo lo que se hable, se escriba o se programe para ese pedido lleva ese número.</div>
+    <div><b>La caja</b>Cuando arranca un pedido se crea una carpeta con su número: <code>docs/requirements/REQ-042/</code>. Ahí van cayendo los papeles de cada paso. Quien quiera saber en qué va, abre la caja.</div>
+    <div><b>La nota de corte</b>Al terminar cada paso, el ayudante deja una nota corta en la caja: <code>corte.md</code>. Dice qué se cerró, qué quedó aprobado y cuál es el siguiente paso. El que sigue lee la nota, no toda la conversación.</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <p class="kicker">Los seis pasos</p>
+  <h2>El camino de un pedido, de la idea a la firma</h2>
+  <p>En cada paso, la misma pregunta: ¿qué pasa en la cocina? ¿qué pasa en el código? ¿qué papel queda en la caja? ¿quién tiene que decir «sí» para seguir? El ejemplo de código es siempre el mismo pedido: <i>«Haz que el correo sea obligatorio y valide su formato al crear un cliente»</i>.</p>
+
+  <div class="path">
+    <div class="stepc">
+      <div class="num">1</div>
+      <div class="head"><b>Entender</b><code>/iniciar REQ-042</code></div>
+      <div class="row"><div class="k">En la cocina</div><div class="v">Antes de tumbar una pared, el arquitecto se sienta contigo y pregunta todo: ¿para cuántas personas? ¿dónde va la nevera? ¿tocamos el baño? «No». Pregunta hasta que no queden dudas, y lo escribe. Si hay algo que se va a ver, lo dibuja primero.</div></div>
+      <div class="row"><div class="k">En el código</div><div class="v">Le dices al agente el pedido. Él pregunta lo que necesita, y con cada pregunta trae una recomendación: «¿Qué pasa con los clientes viejos que no tienen correo? Recomiendo no tocarlos». Tú respondes. Si hay pantalla, primero hace un <b>mockup</b> en HTML (<code>/mockup</code>) y lo apruebas. Al final escribe la <b>spec</b>: qué se pide, qué queda por fuera y cómo se sabe que quedó bien.</div></div>
+      <div class="row caja"><div class="k">Queda en la caja</div><div class="v">brainstorming.md (las preguntas y las decisiones) · spec.md · el mockup si hay pantalla · corte.md</div></div>
+      <div class="row gate"><div class="k">Quién dice sí</div><div class="v">Tú apruebas la spec. Nada sigue sin ese sí.</div></div>
+    </div>
+
+    <div class="stepc">
+      <div class="num">2</div>
+      <div class="head"><b>Planear</b><code>/planear REQ-042</code></div>
+      <div class="row"><div class="k">En la cocina</div><div class="v">El maestro de obra parte el trabajo en tareas que se pueden mostrar solas y en orden: primero la plomería, luego la electricidad, luego los muebles. Cada tarea dice cómo se sabe que quedó: «abres la llave y sale agua».</div></div>
+      <div class="row"><div class="k">En el código</div><div class="v">El agente convierte la spec en tareas: T1 la regla de validación con su prueba, T2 el mensaje de error en la API, T3 la pantalla. Cada tarea dice qué archivos toca, qué contrato respeta y qué prueba la demuestra. Y una tabla al final: cada cosa que pide la spec, y qué tarea la cumple. <b>Cero huecos, cero extras.</b></div></div>
+      <div class="row caja"><div class="k">Queda en la caja</div><div class="v">plan.md (las tareas en orden, con «bloqueada por») · ficha.md (la tarjeta para Jira) · corte.md</div></div>
+      <div class="row gate"><div class="k">Quién dice sí</div><div class="v">Tú apruebas la lista de tareas: puedes reordenar, unir o partir.</div></div>
+    </div>
+
+    <div class="stepc">
+      <div class="num">3</div>
+      <div class="head"><b>Construir</b><code>/implementar REQ-042</code></div>
+      <div class="row"><div class="k">En la cocina</div><div class="v">La cuadrilla construye tarea por tarea. No pasa a la siguiente sin probar la anterior: abre la llave, sale agua, marca la tarea como hecha. Nada que no esté en el plan: si se les ocurre cambiar el baño, no.</div></div>
+      <div class="row"><div class="k">En el código</div><div class="v">El agente crea la rama <code>feature/REQ-042</code> y hace las tareas en orden. En cada una: primero escribe la prueba (y falla), luego el código (y la prueba pasa), se revisa a sí mismo, marca <code>[x]</code> con la evidencia y hace commit. Si el plan no dice algo, lo resuelve con la spec; solo pregunta si dos lecturas del plan dan código distinto.</div></div>
+      <div class="row caja"><div class="k">Queda en la caja</div><div class="v">el código en la rama, subido · plan.md con las tareas marcadas [x] y su evidencia · corte.md</div></div>
+      <div class="row gate"><div class="k">Quién dice sí</div><div class="v none">Nadie todavía. El que aprueba es el inspector del paso siguiente.</div></div>
+    </div>
+
+    <div class="stepc">
+      <div class="num">4</div>
+      <div class="head"><b>Inspeccionar</b><code>/auditoria REQ-042</code></div>
+      <div class="row"><div class="k">En la cocina</div><div class="v">Llega un inspector <b>que no construyó nada</b>. Compara contra el dibujo y el plan: ¿la nevera quedó donde se dijo? ¿Hay fuga de gas? Cada cosa que encuentra la pone en una lista con su gravedad. «Funciona en mi casa» no le vale: lo prueba él.</div></div>
+      <div class="row"><div class="k">En el código</div><div class="v">Otra sesión, idealmente otro modelo, revisa la rama contra la spec y el plan con varios ojos: ¿hace lo pedido?, ¿tiene errores?, ¿las consultas a la base de datos corren?, ¿la pantalla se parece al mockup? Vuelve a correr las pruebas; no acepta el «pasaron» de nadie. Veredicto: <b>APPROVED</b> o <b>CHANGES_REQUESTED</b>, con la lista de hallazgos.</div></div>
+      <div class="row caja"><div class="k">Queda en la caja</div><div class="v">auditoria.md (veredicto, hallazgos con gravedad, qué no se pudo verificar) · corte.md</div></div>
+      <div class="row gate"><div class="k">Quién dice sí</div><div class="v">El veredicto lo da el inspector. Tú decides qué mejoras menores se corrigen y cuáles no.</div></div>
+    </div>
+
+    <div class="stepc">
+      <div class="num">5</div>
+      <div class="head"><b>Corregir</b><code>/post-auditoria REQ-042</code></div>
+      <div class="row"><div class="k">En la cocina</div><div class="v">La cuadrilla arregla lo de la lista: todo lo grave, y las mejoras que tú marcaste. Y deja prueba de cada arreglo: aquí estaba la fuga, aquí la foto con la fuga cerrada.</div></div>
+      <div class="row"><div class="k">En el código</div><div class="v">El agente corrige los hallazgos graves (P0 y P1) y los P2 que marcaste, con una prueba por hallazgo. La prueba buena es la del interruptor: quita el arreglo y la prueba falla; lo pone y pasa. Deja un mapa: hallazgo → cambio → archivo → evidencia. No reabre el diseño ni cambia el alcance.</div></div>
+      <div class="row caja"><div class="k">Queda en la caja</div><div class="v">commits en la misma rama · auditoria.md con el mapa de correcciones · corte.md</div></div>
+      <div class="row gate"><div class="k">Quién dice sí</div><div class="v none">Nadie todavía. Vuelve el inspector.</div></div>
+    </div>
+
+    <div class="stepc">
+      <div class="num">6</div>
+      <div class="head"><b>Cerrar</b><code>/re-auditoria REQ-042</code></div>
+      <div class="row"><div class="k">En la cocina</div><div class="v">El inspector vuelve, pero solo revisa la lista: ¿se cerró la fuga? ¿Al cerrarla no rompieron otra cosa? No vuelve a inspeccionar toda la cocina. Si no queda nada grave, firma.</div></div>
+      <div class="row"><div class="k">En el código</div><div class="v">Verifica solo lo que estaba abierto y lo que las correcciones pudieron romper. Si queda algo grave, otra vuelta de corregir; si no, <b>APPROVED</b>. No hay tope de vueltas, pero cada una la pides tú, y si un mismo hallazgo sigue abierto después de dos vueltas, lo dice y propone una salida.</div></div>
+      <div class="row caja"><div class="k">Queda en la caja</div><div class="v">auditoria.md con «Re-auditoría N» y el veredicto · corte.md</div></div>
+      <div class="row gate"><div class="k">Quién dice sí</div><div class="v">El inspector firma APPROVED. Con eso se puede entregar.</div></div>
+    </div>
+  </div>
+
+  <h3>¿Y si el inspector encuentra algo?</h3>
+  <div class="loop">
+    <div class="diagram">
+      <div class="box">Inspeccionar</div><span class="arr">→</span>
+      <div class="box bad">CHANGES_REQUESTED</div><span class="arr">→</span>
+      <div class="box">Corregir</div><span class="arr">→</span>
+      <div class="box">Cerrar</div><span class="arr">→</span>
+      <div class="box ok">APPROVED</div>
+    </div>
+    <p style="font-size:14px;margin:0 0 6px">Si al cerrar queda algo grave, se vuelve a «Corregir». Es un bucle corto: cada vuelta mira solo lo que quedó abierto. La gravedad de cada hallazgo es un semáforo de cuatro luces:</p>
+    <div class="sev">
+      <div class="p0"><b>P0</b>No sirve. Roto, una consulta que no corre, un criterio de aceptación incumplido. Siempre se corrige.</div>
+      <div class="p1"><b>P1</b>Grave. Un error de lógica, un caso borde, un riesgo de seguridad. Siempre se corrige.</div>
+      <div class="p2"><b>P2</b>Mejora. Se corrige si tú la marcas.</div>
+      <div class="p3"><b>P3</b>Detalle. Solo si el arreglo es de una línea.</div>
+    </div>
+    <p class="note" style="margin:0">Nunca se firma APPROVED con un P0 o un P1 abierto. Nunca.</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <p class="kicker">Para verlo</p>
+  <h2>La caja de REQ-042, paso a paso</h2>
+  <p>Pulsa «Siguiente» y mira cómo se va llenando la caja del pedido del correo. A la izquierda, los papeles; a la derecha, en qué va y qué dice la nota de corte.</p>
+  <div class="box-sim">
+    <div class="top"><b id="simTitle">docs/requirements/REQ-042/</b><div class="ctrl"><button id="simPrev">Anterior</button><button id="simNext" class="primary">Siguiente</button></div></div>
+    <div class="phase" id="simPhase"></div>
+    <div class="grid2">
+      <div><h4>Papeles en la caja</h4><div class="files" id="simFiles"></div></div>
+      <div><h4>En qué va</h4><div class="status" id="simStatus"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <p class="kicker">Después del ciclo</p>
+  <h2>Entregar, y los atajos</h2>
+  <ul class="plain">
+    <li><b><code>/qa REQ-042</code>, la nota para quien va a usar la cocina.</b> Un solo documento para el developer que valida y despliega: qué se hizo, qué rama bajar, qué SQL correr y en qué orden, cómo saber que funcionó, qué probar en pantalla y qué parece error pero no lo es.</li>
+    <li><b><code>/handoff-jira REQ-042</code>, la tarjeta corta.</b> La versión de cien líneas de esa nota, en formato Jira, para que quede en la tarjeta del pedido.</li>
+    <li><b><code>/fix REQ-042</code>, el retoque.</b> Para un ajuste pequeño sobre algo ya entregado: como máximo tres archivos, sin lógica nueva. No abre inspección; lo validas tú.</li>
+    <li><b><code>/retomar REQ-042</code>, «¿en qué íbamos?».</b> Lee la nota de corte y te dice en qué paso está el pedido y cuál es el siguiente comando. No es un paso del ciclo; es cómo se vuelve a él.</li>
+  </ul>
+</div>
+
+<div class="wrap">
+  <p class="kicker">Las reglas de la casa</p>
+  <h2>Seis reglas que no se negocian</h2>
+  <ol class="rules">
+    <li><b>Un paso por turno.</b> Cada paso se hace en una sesión nueva. El que entra lee la nota de corte y los papeles de la caja, no la conversación entera del turno anterior. Es más barato y el ayudante se confunde menos.</li>
+    <li><b>Tú dices «sí» en cada puerta.</b> La spec, la lista de tareas y qué mejoras se corrigen las apruebas tú. El agente propone; no decide por ti.</li>
+    <li><b>Nada se da por hecho sin prueba.</b> Una tarea se marca hecha con su evidencia. Lo que no se pudo probar se escribe tal cual: «NO VERIFICADO».</li>
+    <li><b>El inspector no es el constructor.</b> Quien revisa no es quien construyó; si puede ser otro modelo, mejor. Si es el mismo, lo declara como sesgo.</li>
+    <li><b>Producción se mira, no se toca.</b> La base de datos de producción es de solo lectura. El SQL se escribe en un archivo; no se ejecuta ahí. Sin <code>--force</code>, sin borrar historia.</li>
+    <li><b>Ni más ni menos que lo acordado.</b> Lo que no está en la spec no se construye, aunque parezca buena idea. Si es buena idea, es otro pedido con su propio número.</li>
+  </ol>
+</div>
+
+<div class="wrap">
+  <p class="kicker">Las recetas</p>
+  <h2>Skills: las recetas que el ayudante lee cuando le toca</h2>
+  <p>Una skill es un archivo de texto con instrucciones para una tarea concreta. El agente no las carga todas: lee la que necesita en el paso que está. Usamos como motor las de <a href="https://www.aihero.dev/skills">Matt Pocock</a>; el ciclo de arriba es nuestro.</p>
+  <div class="skills">
+    <div><code>grilling</code><br>La lista de preguntas del arquitecto. Pregunta toda la frontera de una vez, cada pregunta con recomendación, hasta que no queden dudas. Se usa en Entender.</div>
+    <div><code>to-spec</code><br>Convierte la conversación en la spec, en una sola pasada, sin volver a preguntar lo ya decidido. Se usa al final de Entender.</div>
+    <div><code>to-tickets</code><br>Parte la spec en tareas que se pueden mostrar solas, y cuestiona la partición antes de escribirla. Se usa en Planear.</div>
+    <div><code>tdd</code><br>Primero la prueba, que falla; luego el código, que la hace pasar; luego se limpia. Se usa en Construir y en Corregir.</div>
+    <div><code>code-review</code><br>Revisar con dos lupas a la vez: ¿respeta las reglas del repo? ¿hace lo que dice la spec? Se usa en Construir y en Inspeccionar.</div>
+    <div><code>diagnosing-bugs</code><br>Cuando algo falla: reproducir, reducir al caso mínimo, plantear la causa, corregir la causa y no el síntoma. Se usa en Corregir y en los retoques.</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <p class="kicker">Glosario</p>
+  <h2>Las palabras, en una línea cada una</h2>
+  <table class="gloss">
+    <tr><td>Agente</td><td>El modelo de IA trabajando dentro de Claude Code: lee archivos, corre comandos, escribe código. Olvida todo entre sesiones.</td></tr>
+    <tr><td>Arquitecto</td><td>La persona que pide, decide y aprueba en cada puerta. En el taller, tú.</td></tr>
+    <tr><td>Spec</td><td>El papel que dice qué se pide, qué queda por fuera y cómo se sabe que quedó bien. Es el dibujo acordado.</td></tr>
+    <tr><td>Mockup</td><td>El dibujo de la pantalla en HTML, aprobado antes de la spec cuando hay algo que se ve.</td></tr>
+    <tr><td>Plan</td><td>La lista de tareas en orden, cada una con sus archivos, su contrato y su prueba.</td></tr>
+    <tr><td>Task</td><td>Una tarea del plan que se puede mostrar sola y cabe en una sesión.</td></tr>
+    <tr><td>Rama feature/ID</td><td>Donde vive el código del pedido hasta que se aprueba. Nunca se mezcla sola con la rama principal.</td></tr>
+    <tr><td>Auditoría</td><td>La inspección: comparar lo construido contra la spec y el plan, con pruebas propias.</td></tr>
+    <tr><td>APPROVED / CHANGES_REQUESTED</td><td>Las dos firmas posibles del inspector: aprobado, o hay que corregir.</td></tr>
+    <tr><td>P0, P1, P2, P3</td><td>La gravedad de un hallazgo: no sirve, grave, mejora, detalle.</td></tr>
+    <tr><td>Nota de corte</td><td><code>corte.md</code>: qué se cerró, qué quedó aprobado, el siguiente comando. Se escribe al terminar cada paso.</td></tr>
+    <tr><td>Sesión</td><td>Una conversación con el agente, de principio a fin. Un paso por sesión.</td></tr>
+    <tr><td>Skill</td><td>Una receta escrita que el agente lee solo cuando le toca.</td></tr>
+  </table>
+</div>
+
+<footer class="wrap">
+  Basado en los contratos de fase del método (docs/metodologia/flujos), versión 4.0, octubre de 2026. El ejemplo del correo del cliente es ilustrativo. Las skills citadas son de Matt Pocock (aihero.dev/skills); el ciclo y sus reglas son propios.
+</footer>
+
+<script>
+(() => {
+  // La caja de REQ-042, paso a paso. Cada entrada: fase, archivos (con su estado), situación y nota de corte.
+  const STEPS = [
+    { phase: 'Antes de empezar', cmd: '', files: [], tag: ['wip', 'Sin empezar'],
+      status: 'Tienes una idea: «el correo del cliente debe ser obligatorio y válido». Le asignas el número REQ-042. La caja todavía no existe.',
+      nota: null },
+    { phase: 'Paso 1 · Entender', cmd: '/iniciar REQ-042',
+      files: [['brainstorming.md', 'preguntas y decisiones D1–D4'], ['spec.md', 'aprobada por ti'], ['corte.md', 'nota de corte']],
+      tag: ['ok', 'Spec aprobada'],
+      status: 'El agente creó la caja, hizo dos rondas de preguntas (¿qué pasa con los clientes viejos? ¿qué mensaje de error?) y escribió la spec. Tú la aprobaste. No hay pantalla nueva, así que no hubo mockup.',
+      nota: 'Spec aprobada, decisiones D1–D4, no reabrir. Siguiente: /planear REQ-042 en sesión nueva.' },
+    { phase: 'Paso 2 · Planear', cmd: '/planear REQ-042',
+      files: [['brainstorming.md', ''], ['spec.md', ''], ['plan.md', 'T1, T2, T3 con bloqueos'], ['ficha.md', 'tarjeta para Jira'], ['corte.md', 'nota de corte']],
+      tag: ['ok', 'Plan aprobado'],
+      status: 'Tres tareas: T1 la regla de validación con su prueba; T2 el mensaje de error de la API (bloqueada por T1); T3 el aviso en la pantalla de clientes (bloqueada por T2). Cada cosa de la spec está cubierta por una tarea. Tú aprobaste la lista.',
+      nota: 'Plan aprobado T1–T3, rama feature/REQ-042 desde main. Siguiente: /implementar REQ-042 en sesión nueva.' },
+    { phase: 'Paso 3 · Construir', cmd: '/implementar REQ-042',
+      files: [['brainstorming.md', ''], ['spec.md', ''], ['plan.md', '[x] T1 [x] T2 [x] T3 con evidencia'], ['ficha.md', ''], ['corte.md', 'nota de corte']],
+      tag: ['wip', 'Código en la rama, sin inspeccionar'],
+      status: 'El agente creó la rama feature/REQ-042 e hizo las tres tareas en orden, cada una con su prueba primero. 26 pruebas en verde. Tres commits, uno por tarea, subidos. Nada fuera del plan.',
+      nota: 'T1–T3 hechas, HEAD a1b2c3d, suite completa en verde. Siguiente: /auditoria REQ-042 en sesión nueva.' },
+    { phase: 'Paso 4 · Inspeccionar', cmd: '/auditoria REQ-042',
+      files: [['brainstorming.md', ''], ['spec.md', ''], ['plan.md', ''], ['ficha.md', ''], ['auditoria.md', 'CHANGES_REQUESTED · 1 P1 · 2 P2'], ['corte.md', 'nota de corte']],
+      tag: ['bad', 'CHANGES_REQUESTED'],
+      status: 'Otro modelo revisó la rama contra la spec y el plan y volvió a correr las pruebas. Encontró un P1: un correo con mayúsculas se rechazaba aunque fuera válido. Y dos P2: un mensaje sin tilde y una prueba duplicada. Tú marcaste el primer P2 para corregir.',
+      nota: 'Veredicto CHANGES_REQUESTED: P1 mayúsculas en el correo; P2 marcado: tilde del mensaje. Siguiente: /post-auditoria REQ-042 en sesión nueva.' },
+    { phase: 'Paso 5 · Corregir', cmd: '/post-auditoria REQ-042',
+      files: [['brainstorming.md', ''], ['spec.md', ''], ['plan.md', 'sección «Correcciones de auditoría»'], ['ficha.md', ''], ['auditoria.md', 'mapa hallazgo → cambio → evidencia'], ['corte.md', 'nota de corte']],
+      tag: ['wip', 'Corregido, sin verificar'],
+      status: 'El agente normalizó el correo a minúsculas antes de validar y agregó la prueba del interruptor: sin el arreglo falla, con el arreglo pasa. Corrigió la tilde. Un commit por hallazgo, subidos. El P2 que no marcaste quedó justificado y sin tocar.',
+      nota: 'P1 y P2 marcado corregidos con evidencia; P2 restante justificado. Siguiente: /re-auditoria REQ-042 en sesión nueva.' },
+    { phase: 'Paso 6 · Cerrar', cmd: '/re-auditoria REQ-042',
+      files: [['brainstorming.md', ''], ['spec.md', ''], ['plan.md', ''], ['ficha.md', ''], ['auditoria.md', 'Re-auditoría 1 · APPROVED'], ['corte.md', 'nota de corte']],
+      tag: ['ok', 'APPROVED'],
+      status: 'El inspector revisó solo los dos hallazgos abiertos y que las correcciones no rompieran nada más. Todo resuelto. Firma APPROVED en la primera vuelta.',
+      nota: 'Re-auditoría 1 final: APPROVED, sin residuales graves. Siguiente: /qa REQ-042 en sesión nueva.' },
+    { phase: 'Después · Entregar', cmd: '/qa REQ-042 y /handoff-jira REQ-042',
+      files: [['brainstorming.md', ''], ['spec.md', ''], ['plan.md', ''], ['ficha.md', ''], ['auditoria.md', ''], ['qa.md', 'la nota para el developer'], ['handoff-jira.md', 'la tarjeta corta'], ['corte.md', 'nota de corte']],
+      tag: ['ok', 'Listo para desplegar'],
+      status: 'El documento para el developer dice qué rama bajar, que no hay SQL, cómo saber que funcionó y qué probar. La tarjeta corta quedó publicada en Jira. El despliegue ya es trabajo del equipo, fuera del ciclo.',
+      nota: 'QA generado y tarjeta publicada. El ciclo de REQ-042 terminó.' },
+  ];
+  let i = 0, prevFiles = new Set();
+  const $ = id => document.getElementById(id);
+  function render() {
+    const s = STEPS[i];
+    $('simPhase').innerHTML = `<b>${s.phase}</b>` + (s.cmd ? ` · <code>${s.cmd}</code>` : '');
+    const names = new Set(s.files.map(f => f[0]));
+    $('simFiles').innerHTML = s.files.length
+      ? s.files.map(([n, d]) => `<div class="${!prevFiles.has(n) || d ? 'new' : 'dim'}">${n}<span>${d}</span></div>`).join('')
+      : '<div class="dim">(la caja todavía no existe)</div>';
+    $('simStatus').innerHTML = `<span class="tag ${s.tag[0]}">${s.tag[1]}</span><div>${s.status}</div>` +
+      (s.nota ? `<div class="nota"><b>corte.md dice</b>${s.nota}</div>` : '');
+    prevFiles = names;
+    $('simPrev').disabled = i === 0;
+    $('simNext').textContent = i === STEPS.length - 1 ? 'Volver al inicio' : 'Siguiente';
+  }
+  $('simNext').onclick = () => { if (i === STEPS.length - 1) { i = 0; prevFiles = new Set(); } else i++; render(); };
+  $('simPrev').onclick = () => { if (i > 0) { i--; prevFiles = new Set(STEPS[Math.max(0, i - 1)].files.map(f => f[0])); render(); } };
+  render();
+})();
+</script>
+</body>
+</html>
