@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-185 · Vulnerabilidades de stirpe-web y get-api explicadas en simple</title>
+<style>
+  :root {
+    --lila: #6c4bb4; --lila-suave: #f1ecfa;
+    --verde: #1e8e5a; --verde-suave: #e7f6ee;
+    --rojo: #c43d3d; --rojo-suave: #fdeeee;
+    --ambar: #b07d18; --ambar-suave: #fdf6e3;
+    --azul: #2563ab; --azul-suave: #e8f1fb;
+    --tinta: #2b2b35; --gris: #6b6b78; --borde: #e3e3ea; --fondo: #fafafc;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--tinta); background: var(--fondo); line-height: 1.6; padding: 32px 16px 64px;
+  }
+  .doc { max-width: 900px; margin: 0 auto; }
+  header.cab {
+    background: linear-gradient(135deg, #3a1d2a, #8a2f3a);
+    color: #fff; border-radius: 14px; padding: 26px 32px; margin-bottom: 26px;
+  }
+  header.cab .req { font-size: 13px; letter-spacing: 2px; opacity: .85; text-transform: uppercase; }
+  header.cab h1 { font-size: 25px; margin: 6px 0 8px; line-height: 1.3; }
+  header.cab p { font-size: 14px; opacity: .92; }
+  header.cab code { background: rgba(255,255,255,.16); color: #fff; }
+
+  nav.indice { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 14px 20px; margin-bottom: 8px; }
+  nav.indice a { color: var(--azul); text-decoration: none; font-size: 14px; }
+  nav.indice a:hover { text-decoration: underline; }
+  nav.indice ol { padding-left: 20px; columns: 2; column-gap: 28px; }
+  nav.indice li { margin: 3px 0; font-size: 14px; }
+
+  h2 { font-size: 21px; margin: 44px 0 6px; padding-bottom: 8px; border-bottom: 2px solid var(--borde); }
+  h3 { font-size: 16px; margin: 0 0 4px; line-height: 1.4; }
+  p, li { font-size: 15px; }
+  p { margin: 10px 0; }
+  ul { padding-left: 24px; margin: 8px 0; }
+  li { margin: 5px 0; }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px;
+    background: #efeff4; border-radius: 5px; padding: 1px 6px;
+  }
+  .sub { color: var(--gris); font-size: 14px; margin-bottom: 14px; }
+
+  .tarjeta { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 16px 20px; margin: 14px 0; }
+  .analogia  { border-left: 5px solid var(--azul);  background: var(--azul-suave); }
+  .problema  { border-left: 5px solid var(--rojo);  background: var(--rojo-suave); }
+  .solucion  { border-left: 5px solid var(--verde); background: var(--verde-suave); }
+  .ojo       { border-left: 5px solid var(--ambar); background: var(--ambar-suave); }
+  .tarjeta .titulo { font-size: 12px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; display: block; }
+  .analogia .titulo { color: var(--azul); }
+  .problema .titulo { color: var(--rojo); }
+  .solucion .titulo { color: var(--verde); }
+  .ojo .titulo      { color: var(--ambar); }
+
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; background: #fff; font-size: 14px; }
+  th, td { border: 1px solid var(--borde); padding: 9px 12px; text-align: left; vertical-align: top; }
+  th { background: #f3eef0; font-size: 13px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* Contadores */
+  .contadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 16px 0; }
+  .contador { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 14px 18px; }
+  .contador .cifra { font-size: 34px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .contador .que { font-size: 13px; color: var(--gris); }
+  .contador.p0 { border-top: 5px solid var(--rojo); }   .contador.p0 .cifra { color: var(--rojo); }
+  .contador.p1 { border-top: 5px solid var(--ambar); }  .contador.p1 .cifra { color: var(--ambar); }
+  .contador.p2 { border-top: 5px solid var(--gris); }   .contador.p2 .cifra { color: var(--gris); }
+
+  /* Mapa */
+  .mapa { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
+  .nodo { flex: 1 1 170px; background: #fff; border: 2px solid var(--borde); border-radius: 12px; padding: 12px 14px; }
+  .nodo .nombre { font-weight: 800; font-size: 15px; }
+  .nodo .rol { font-size: 12.5px; color: var(--gris); margin-bottom: 8px; }
+  .nodo .puntos { display: flex; flex-wrap: wrap; gap: 4px; }
+  .flecha { align-self: center; font-size: 22px; color: var(--gris); }
+  @media (max-width: 720px) { .flecha { display: none; } nav.indice ol { columns: 1; } }
+
+  /* Hallazgos */
+  .hallazgo { background: #fff; border: 1px solid var(--borde); border-radius: 12px; margin: 14px 0; overflow: hidden; }
+  .hallazgo.p0 { border-left: 6px solid var(--rojo); }
+  .hallazgo.p1 { border-left: 6px solid var(--ambar); }
+  .hallazgo .cuerpo { padding: 16px 20px; }
+  .hallazgo .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .chip { display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: .5px; border-radius: 999px; padding: 2px 10px; border: 1px solid var(--borde); background: #f5f5f8; color: var(--tinta); white-space: nowrap; }
+  .chip.p0 { background: var(--rojo); border-color: var(--rojo); color: #fff; }
+  .chip.p1 { background: var(--ambar); border-color: var(--ambar); color: #fff; }
+  .chip.verif { background: var(--verde-suave); border-color: var(--verde); color: var(--verde); }
+  .chip.req { background: var(--lila-suave); border-color: var(--lila); color: var(--lila); }
+  .chip.latente { background: var(--azul-suave); border-color: var(--azul); color: var(--azul); }
+  .filas { display: grid; grid-template-columns: 150px 1fr; gap: 6px 14px; margin-top: 10px; }
+  .filas dt { font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--gris); padding-top: 3px; }
+  .filas dd { font-size: 15px; }
+  .filas dd.mal { color: #8f2626; }
+  .filas dd.bien { color: #165f3e; }
+  @media (max-width: 620px) { .filas { grid-template-columns: 1fr; } .filas dt { padding-top: 6px; } }
+  .evidencia { font-size: 13px; color: var(--gris); margin-top: 8px; }
+
+  details { background: #fff; border: 1px solid var(--borde); border-radius: 12px; padding: 12px 18px; margin: 12px 0; }
+  details summary { cursor: pointer; font-weight: 700; font-size: 15px; }
+  details ul { margin-top: 10px; }
+  details li { font-size: 14px; }
+
+  .pie { margin-top: 44px; padding-top: 14px; border-top: 1px solid var(--borde); font-size: 12.5px; color: var(--gris); }
+  a:focus-visible, summary:focus-visible { outline: 3px solid var(--azul); outline-offset: 2px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="cab">
+  <span class="req">GW-185 · Auditoría de seguridad · 2026-10-09</span>
+  <h1>Las vulnerabilidades de stirpe-web y get-api, explicadas en simple</h1>
+  <p>Código revisado: get-api <code>main 43c95</code> y stirpe-web <code>main 32581</code>, los dos al día con <code>origin/main</code>. Sobre stirpe.co en producción solo se hicieron pruebas pasivas: leer las cabeceras de respuesta. No se atacó el sitio vivo. Por cada hallazgo: qué pasa, qué puede salir mal, cómo se corrige y en qué REQ queda.</p>
+</header>
+
+<nav class="indice" aria-label="Índice">
+  <ol>
+    <li><a href="#resumen">El resumen en un minuto</a></li>
+    <li><a href="#mapa">Dónde está cada problema</a></li>
+    <li><a href="#p0">P0 · get-api: corregir ya</a></li>
+    <li><a href="#p1-api">P1 · get-api: siguiente ciclo</a></li>
+    <li><a href="#p1-web">P1 · stirpe-web: siguiente ciclo</a></li>
+    <li><a href="#p2">P2 · endurecimiento</a></li>
+    <li><a href="#plan">Cómo se va a corregir</a></li>
+    <li><a href="#evidencia">Qué se verificó y cómo</a></li>
+  </ol>
+</nav>
+
+<!-- ================= RESUMEN ================= -->
+<section id="resumen">
+  <h2>1 · El resumen en un minuto</h2>
+
+  <div class="contadores">
+    <div class="contador p0"><div class="cifra">9</div><div class="que">P0 · se pueden explotar hoy, sin iniciar sesión. Todas en get-api</div></div>
+    <div class="contador p1"><div class="cifra">10</div><div class="que">P1 · necesitan alguna condición: 5 en get-api y 5 en stirpe-web</div></div>
+    <div class="contador p2"><div class="cifra">25</div><div class="que">P2 · endurecimiento: 13 en get-api y 12 en stirpe-web</div></div>
+  </div>
+
+  <table>
+    <thead><tr><th>Repo</th><th class="num">P0</th><th class="num">P1</th><th class="num">P2</th></tr></thead>
+    <tbody>
+      <tr><td>get-api</td><td class="num">9</td><td class="num">5</td><td class="num">13</td></tr>
+      <tr><td>stirpe-web</td><td class="num">0</td><td class="num">5</td><td class="num">12</td></tr>
+    </tbody>
+  </table>
+
+  <div class="tarjeta problema">
+    <span class="titulo">Lo más grave</span>
+    <p>Los problemas serios están en <strong>get-api</strong>, que es la API compartida por todas las tiendas. Por eso afectan a stirpe.co y también a Typer, U82, Derek y Factory. Hay dos rutas públicas que dejan leer la base de datos completa, dos formas de confirmar un pedido sin pagarlo y un código de acceso por correo que se adivina en minutos.</p>
+  </div>
+
+  <div class="tarjeta solucion">
+    <span class="titulo">Lo que está bien</span>
+    <p>En <strong>stirpe-web</strong> no hay P0. El navegador no le manda precios ni totales a la API: get-api los calcula desde el carrito. La configuración que llega al navegador no tiene secretos, y el repo solo versiona <code>.env.default</code>, con nombres de variables y sin valores.</p>
+  </div>
+
+  <div class="tarjeta ojo">
+    <span class="titulo">Cómo leer las prioridades</span>
+    <ul>
+      <li><strong>P0:</strong> se explota desde internet sin cuenta, o toca directamente dinero, pagos, datos personales o credenciales. Se corrige ya.</li>
+      <li><strong>P1:</strong> se explota con alguna condición: tener sesión, conocer un dato del cliente o que falte una protección general. Se corrige en el siguiente ciclo.</li>
+      <li><strong>P2:</strong> endurecimiento. Queda listado y no se corrige en esta tanda.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= MAPA ================= -->
+<section id="mapa">
+  <h2>2 · Dónde está cada problema</h2>
+  <p class="sub">El recorrido de una compra en stirpe.co, con los hallazgos P0 y P1 de cada pieza.</p>
+  <div class="mapa" role="list">
+    <div class="nodo" role="listitem">
+      <div class="nombre">Navegador del cliente</div>
+      <div class="rol">stirpe.co, scripts de marketing</div>
+      <div class="puntos"><span class="chip p1">WEB-03</span><span class="chip p1">WEB-04</span><span class="chip p1">WEB-05</span></div>
+    </div>
+    <div class="flecha" aria-hidden="true">→</div>
+    <div class="nodo" role="listitem">
+      <div class="nombre">stirpe-web (servidor Nuxt)</div>
+      <div class="rol">reenvía las peticiones a get-api</div>
+      <div class="puntos"><span class="chip p1">WEB-01</span><span class="chip p1">WEB-02</span></div>
+    </div>
+    <div class="flecha" aria-hidden="true">→</div>
+    <div class="nodo" role="listitem" style="border-color: var(--rojo);">
+      <div class="nombre">get-api</div>
+      <div class="rol">compartida por las 5 tiendas</div>
+      <div class="puntos"><span class="chip p0">API-01 a 09</span><span class="chip p1">API-10 a 14</span></div>
+    </div>
+    <div class="flecha" aria-hidden="true">→</div>
+    <div class="nodo" role="listitem">
+      <div class="nombre">baguer_pro · pasarelas · CRM</div>
+      <div class="rol">datos de clientes, pedidos y pagos</div>
+      <div class="puntos"><span class="chip">lo que queda expuesto</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= P0 ================= -->
+<section id="p0">
+  <h2>3 · P0 · get-api: corregir ya</h2>
+  <p class="sub">Todos se corrigen en el REQ A, por vía rápida (D7), salvo la parte de credenciales de API-04, que va en el REQ B.</p>
+
+  <article class="hallazgo p0" id="api-02">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p0">P0</span><span class="chip">API-02</span><span class="chip verif">Verificado en el código</span><span class="chip req">REQ A</span></div>
+      <h3>Página de respuesta del pago: la consulta a la base se arma pegando lo que llega en la URL</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>Cuando el cliente vuelve de la pasarela, get-api busca la transacción con una referencia que viene en la URL. Esa referencia se pega tal cual dentro de la consulta SQL, en vez de pasarla como un dato aparte.</dd>
+        <dt>Analogía</dt><dd>Es como un formulario en papel donde alguien escribe en la casilla «nombre»: «Juan, y además entrégale todo el archivo». Si el empleado lee la casilla como una orden, obedece.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Cualquier persona, sin cuenta, puede leer toda la base <code>baguer_pro</code>: clientes, documentos, direcciones, pedidos y tokens.</dd>
+        <dt>Corrección</dt><dd class="bien">Pasar la referencia como parámetro de la consulta, que es la forma normal de Laravel. Es un cambio de una línea.</dd>
+      </dl>
+      <p class="evidencia">Evidencia: <code>PaymentController.php:915</code> · ruta pública <code>GET /v1/{store}/cart/payment/response</code></p>
+    </div>
+  </article>
+
+  <article class="hallazgo p0" id="api-03">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p0">P0</span><span class="chip">API-03</span><span class="chip verif">Verificado en el código</span><span class="chip req">REQ A</span></div>
+      <h3>Páginas estáticas: el mismo problema con el nombre de la página</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>Para mostrar páginas como «Términos y condiciones», get-api toma de la URL el nombre corto de la página y lo pega en la consulta SQL.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">El mismo impacto que API-02: lectura de toda la base, desde una ruta pública.</dd>
+        <dt>Corrección</dt><dd class="bien">Comparar el nombre de la página como parámetro y no como texto pegado.</dd>
+      </dl>
+      <p class="evidencia">Evidencia: <code>LayoutController.php:1107</code> · ruta pública <code>GET /v1/{store}/static_pages/{slug}</code></p>
+    </div>
+  </article>
+
+  <article class="hallazgo p0" id="api-01">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p0">P0</span><span class="chip">API-01</span><span class="chip verif">Verificado en el código</span><span class="chip req">REQ A</span></div>
+      <h3>Pago con QUAC (v1): el aviso de «pago aprobado» se puede fabricar</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>QUAC le avisa a get-api que un pago fue aprobado. Para comprobar que el aviso es real, get-api revisa una «firma». Esa firma se calcula solo con la cédula del comprador y la referencia del pedido, y el comprador conoce los dos datos: la referencia le aparece en la URL al volver.</dd>
+        <dt>Analogía</dt><dd>Es como un sello de «PAGADO» que cualquiera puede fabricar porque la receta está impresa en el recibo.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Un comprador puede crear y confirmar su pedido sin que QUAC haya aprobado el crédito. Es mercancía despachada sin pago.</dd>
+        <dt>Corrección</dt><dd class="bien">No creerle al aviso: preguntarle a QUAC por el estado real del pago. get-api ya lo hace en otro punto del flujo. La alternativa es una firma con un secreto que solo conozcan QUAC y get-api.</dd>
+      </dl>
+      <p class="evidencia">Evidencia: <code>QuacController.php:170</code> (firma), <code>:150</code> (referencia en la URL de retorno), <code>:194-205</code> (confirma según lo que dice el aviso)</p>
+    </div>
+  </article>
+
+  <article class="hallazgo p0" id="api-04">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p0">P0</span><span class="chip">API-04</span><span class="chip verif">Archivo versionado: verificado</span><span class="chip req">REQ B · ADDI en REQ A</span></div>
+      <h3>Credenciales de producción de las pasarelas guardadas en el código</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>El archivo <code>config/properties.php</code> está versionado en git y tiene escritas las claves de producción de QUAC, Bancolombia, ADDI, Sistecredito, Facebook, reCAPTCHA, Google Analytics y otros servicios, para todas las tiendas.</dd>
+        <dt>Analogía</dt><dd>Es como dejar las llaves de la caja fuerte pegadas en el manual que se le entrega a cada persona nueva.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Cualquiera con acceso al repo, o a una copia filtrada, puede operar contra las pasarelas a nombre de Baguer. En particular, con la clave del aviso de ADDI se puede marcar un pedido como pagado, porque get-api confía en el estado que trae el aviso.</dd>
+        <dt>Corrección</dt><dd class="bien">Rotar todas las claves con cada proveedor y leerlas de variables de entorno (D5, ADR-019). El historial de git no se reescribe: las claves viejas quedan ahí, pero ya no sirven. En ADDI, además, preguntarle a la pasarela por el estado real del pago, como en API-01.</dd>
+      </dl>
+      <p class="evidencia">Por seguridad, este documento no muestra ninguna clave. La ubicación exacta de cada una está en <code>informe-seguridad.md</code>.</p>
+    </div>
+  </article>
+
+  <article class="hallazgo p0" id="api-05">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p0">P0</span><span class="chip">API-05</span><span class="chip req">REQ A</span></div>
+      <h3>Inicio de sesión y cambio de contraseña: el código del correo se adivina en minutos</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>El código que llega al correo son 4 cifras al azar seguidas de los segundos del reloj. El atacante sabe en qué segundo lo pidió, así que solo le faltan las 4 primeras cifras: unas 9.000 posibilidades. El código no vence, no hay límite de intentos y un intento fallido no lo anula.</dd>
+        <dt>Cifra</dt><dd>Con 9.000 posibilidades y 50 intentos por segundo, cualquier cuenta cae en unos 3 minutos.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Con solo el correo de un cliente, alguien le cambia la contraseña y se queda con su cuenta: datos personales, direcciones y pedidos.</dd>
+        <dt>Corrección</dt><dd class="bien">Un código de 6 cifras realmente al azar, que venza a los 10 minutos, con máximo 5 intentos y con límite de peticiones por correo y por IP.</dd>
+      </dl>
+      <p class="evidencia">Evidencia: <code>AuthController.php:84</code> y <code>:180</code> (generación), <code>:110</code> y <code>:195</code> (comparación)</p>
+    </div>
+  </article>
+
+  <article class="hallazgo p0" id="api-08">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p0">P0</span><span class="chip">API-08</span><span class="chip req">REQ A</span></div>
+      <h3>Pago de venta asistida (QEC): el número de tarjeta y el CVV quedan guardados en un log</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>La ruta de pago de QEC pasa por un registro que guarda completa toda petición que llega. Esa petición trae el número de la tarjeta y el código de seguridad.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Hay tarjetas completas y utilizables guardadas en la base. Quien lea esa tabla, por ejemplo usando API-02 o API-03, se las lleva. Además, guardar el CVV incumple la norma PCI de las marcas de tarjeta.</dd>
+        <dt>Corrección</dt><dd class="bien">Sacar esa ruta del registro o tachar los datos de tarjeta antes de guardar, y borrar los registros que ya existen.</dd>
+      </dl>
+      <p class="evidencia">Evidencia: <code>routes/api.php:62</code>, <code>RegisterLogRequest.php:21</code>, <code>QecCartService.php:258-259</code></p>
+    </div>
+  </article>
+
+  <article class="hallazgo p0" id="api-09">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p0">P0</span><span class="chip">API-09</span><span class="chip req">REQ A</span><span class="chip">ya reportado en GW-100</span></div>
+      <h3>Devoluciones: con el número de pedido y el correo se actúa sobre pedidos ajenos</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>Para pedir una devolución basta el número de pedido y el correo. El código de acceso que debía enviarse al correo está desactivado en el código. Tampoco se revisa que los productos que se devuelven sean de ese pedido.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Ver los datos de otro cliente y crear devoluciones a su nombre, o meter en una devolución propia productos de pedidos ajenos. Si nadie lo revisa en get-web, eso puede terminar en un bono o un saldo a favor.</dd>
+        <dt>Corrección</dt><dd class="bien">Exigir el código que llega al correo, validar que cada producto pertenece al pedido y limitar los intentos.</dd>
+      </dl>
+      <p class="evidencia">Evidencia: <code>CreateRequestRefundRequest.php:36</code>, <code>RefundsController.php:37, 89-91, 124-130</code></p>
+    </div>
+  </article>
+
+  <article class="hallazgo p0" id="api-06">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p0">P0</span><span class="chip">API-06</span><span class="chip req">REQ A</span><span class="chip">ya reportado en PD-1496</span></div>
+      <h3>Consulta de empleado por cédula: abierta y devuelve el registro de nómina</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>Una ruta pública recibe una cédula y devuelve lo que responde el CRM sobre ese empleado, sin pedir ninguna credencial.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Recorrer cédulas para sacar la lista de empleados y sus datos de nómina.</dd>
+        <dt>Corrección</dt><dd class="bien">Que solo la pueda llamar get-web, que responda solo «es empleado: sí/no» y que tenga límite de peticiones.</dd>
+      </dl>
+      <p class="evidencia">Evidencia: <code>routes/shop/v2/routes.php:139</code>, <code>QuacPlanController.php:139-160</code></p>
+    </div>
+  </article>
+
+  <article class="hallazgo p0" id="api-07">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p0">P0</span><span class="chip">API-07</span><span class="chip req">REQ A</span></div>
+      <h3>Planes de cartera QUAC: se consultan por número, sin control</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>Una ruta pública devuelve el plan de crédito QUAC a partir de su número, y los números son consecutivos.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Recorrer los números y extraer los planes de crédito de los clientes. Sin una respuesta real no se pudo confirmar qué campos trae; se espera titular, cuotas y saldos.</dd>
+        <dt>Corrección</dt><dd class="bien">Que solo la pueda llamar get-web, o validar que el plan es del carrito o pedido de quien pregunta.</dd>
+      </dl>
+      <p class="evidencia">Evidencia: <code>routes/shop/v2/routes.php:138</code>, <code>QuacCrmService.php:31-50</code></p>
+    </div>
+  </article>
+</section>
+
+<!-- ================= P1 API ================= -->
+<section id="p1-api">
+  <h2>4 · P1 · get-api: siguiente ciclo</h2>
+  <p class="sub">Se corrigen en el REQ C.</p>
+
+  <article class="hallazgo p1" id="api-10">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p1">P1</span><span class="chip">API-10</span><span class="chip req">REQ C</span></div>
+      <h3>get-api no sabe quién es el cliente real detrás del balanceador</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>Todas las peticiones llegan a get-api desde el balanceador o desde el servidor de stirpe-web, así que para get-api todos los clientes tienen la misma IP.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Los límites por IP no frenan a un atacante y bloquean a todos a la vez. Por ejemplo, el límite de 5 PQR por hora queda en 5 por hora para todo el país. Además, la IP que se guarda en pedidos y devoluciones se puede falsear.</dd>
+        <dt>Corrección</dt><dd class="bien">Configurar en get-api la lista de proxies de confianza y limitar por cliente o por recurso, no solo por IP.</dd>
+      </dl>
+    </div>
+  </article>
+
+  <article class="hallazgo p1" id="api-11">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p1">P1</span><span class="chip">API-11</span><span class="chip req">REQ C</span></div>
+      <h3>Sin límite de intentos en inicio de sesión, registro, cupones, bonos y clave QUAC</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>Solo tres rutas tienen límite de intentos. La clave dinámica QUAC se puede probar sin límite dentro de una misma compra.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Poner la cédula de otra persona en un carrito y probar claves hasta acertar, para comprar con su cupo. También adivinar códigos de cupón o de tarjeta regalo.</dd>
+        <dt>Corrección</dt><dd class="bien">Límites por cuenta, documento, carrito e IP, y un máximo de intentos por transacción QUAC.</dd>
+      </dl>
+    </div>
+  </article>
+
+  <article class="hallazgo p1" id="api-12">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p1">P1</span><span class="chip">API-12</span><span class="chip req">REQ C</span></div>
+      <h3>Planes QUAC: autorización con 4 cifras y carga de documentos desde cualquier bucket</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>El token que autoriza un plan es de 4 cifras y no tiene límite de intentos. La carga de documentos acepta archivos de cualquier bucket de Amazon S3, no solo del nuestro.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Autorizar el plan de otra persona probando 10.000 combinaciones, enviar SMS sin límite o subir un PDF falso al plan de un cliente en el CRM.</dd>
+        <dt>Corrección</dt><dd class="bien">Que solo la pueda llamar get-web, con límite de intentos y con una lista exacta de buckets permitidos.</dd>
+      </dl>
+    </div>
+  </article>
+
+  <article class="hallazgo p1" id="api-13">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p1">P1</span><span class="chip">API-13</span><span class="chip req">REQ C</span></div>
+      <h3>Una ruta pública envía un pedido al CRM sin revisar si está pagado</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>Con el token de un pedido, cualquiera puede forzar su envío al CRM como venta, aunque esté pendiente de pago.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Que el ERP registre como venta un pedido sin pagar. Que lo despache o no es una pregunta de negocio, todavía abierta (incógnita 2).</dd>
+        <dt>Corrección</dt><dd class="bien">Que solo la pueda llamar un proceso interno, o exigir que el pedido esté pagado antes de enviarlo.</dd>
+      </dl>
+    </div>
+  </article>
+
+  <article class="hallazgo p1" id="api-14">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p1">P1</span><span class="chip">API-14</span><span class="chip req">REQ C</span></div>
+      <h3>CORS abierto: cualquier sitio web puede llamar a la API desde el navegador</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>get-api no declara qué sitios pueden llamarla desde un navegador, así que rige el valor por defecto de Laravel: todos.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Una página ajena puede leer respuestas de la API desde el navegador de un cliente. El impacto es limitado porque la sesión va en un token y no en una cookie.</dd>
+        <dt>Corrección</dt><dd class="bien">Declarar la lista de dominios de las tiendas y de get-web.</dd>
+      </dl>
+    </div>
+  </article>
+</section>
+
+<!-- ================= P1 WEB ================= -->
+<section id="p1-web">
+  <h2>5 · P1 · stirpe-web: siguiente ciclo</h2>
+  <p class="sub">Se corrigen en el REQ D, solo en stirpe-web (D6). La réplica en las otras cuatro tiendas va en un REQ E.</p>
+
+  <article class="hallazgo p1" id="web-04">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p1">P1</span><span class="chip">WEB-04</span><span class="chip verif">Verificado en vivo</span><span class="chip req">REQ D</span></div>
+      <h3>stirpe.co no envía ninguna cabecera de seguridad</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>La respuesta de stirpe.co solo trae <code>x-powered-by: Nuxt</code>. No define qué scripts tiene permiso de ejecutar la página (CSP), no obliga a usar HTTPS (HSTS) y no impide que otro sitio la meta en un marco. Además carga GTM, Facebook, Criteo, Fitit, Webpushr y Doofinder desde servidores externos, sin verificar que el archivo no haya cambiado.</dd>
+        <dt>Analogía</dt><dd>Es una tienda sin lista de quién puede entrar a la bodega: cualquier proveedor que se cuele adentro tiene acceso a todo.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Si uno de esos scripts externos es comprometido, o alguien agrega un script malicioso desde la consola de GTM, ese código corre en todas las páginas, también en el checkout.</dd>
+        <dt>Corrección</dt><dd class="bien">Poner las cabeceras de seguridad desde el servidor de Nuxt, fijar las versiones de los scripts externos y no cargar GTM ni Criteo en el checkout.</dd>
+      </dl>
+    </div>
+  </article>
+
+  <article class="hallazgo p1" id="web-03">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p1">P1</span><span class="chip">WEB-03</span><span class="chip req">REQ D · toca get-api</span></div>
+      <h3>La sesión del cliente se guarda donde cualquier script la puede leer</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>El token de sesión se guarda en <code>localStorage</code> del navegador, que es legible por cualquier JavaScript de la página, incluidos los scripts de terceros de WEB-04.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Un script comprometido roba el token y se hace pasar por el cliente: perfil, direcciones y pedidos. El token dura 1 hora, pero se renueva solo.</dd>
+        <dt>Corrección</dt><dd class="bien">Guardar la sesión en una cookie que JavaScript no puede leer (HttpOnly) y que el servidor de Nuxt agregue el token al hablar con get-api. Cambia la forma en que el storefront habla con la API: es la pieza más grande del REQ D.</dd>
+      </dl>
+    </div>
+  </article>
+
+  <article class="hallazgo p1" id="web-05">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p1">P1</span><span class="chip">WEB-05</span><span class="chip req">REQ D</span></div>
+      <h3>El enlace de un pedido abre sus datos personales y ese enlace les llega a los rastreadores</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>Rutas como <code>/order/{token}</code> muestran nombre, documento, correo, celular y dirección a quien tenga el enlace. Google Analytics, Facebook, Criteo y Fitit reciben la URL completa de cada página que se visita.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Datos personales de clientes quedan accesibles para terceros de marketing, y pueden terminar indexados porque <code>robots.txt</code> no excluye esas rutas.</dd>
+        <dt>Corrección</dt><dd class="bien">No cargar rastreadores en rutas con token, no enviar la URL de origen al salir de esas páginas, marcarlas para no indexar y pedir un segundo dato para ver la información personal.</dd>
+      </dl>
+    </div>
+  </article>
+
+  <article class="hallazgo p1" id="web-02">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p1">P1</span><span class="chip">WEB-02</span><span class="chip req">REQ D · toca get-api</span></div>
+      <h3>La consulta de una PQR devuelve los datos del cliente sin ningún control</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>Con el número de radicado y la cédula se ve la PQR completa: nombre, correo, celular, mensaje y adjuntos. No hay captcha ni límite de intentos.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Probar radicados para una cédula conocida y sacar sus datos. Cada intento además le genera una consulta al CRM.</dd>
+        <dt>Corrección</dt><dd class="bien">Límite de intentos en get-api, reCAPTCHA en la página de consulta y correo y celular enmascarados en la respuesta.</dd>
+      </dl>
+    </div>
+  </article>
+
+  <article class="hallazgo p1" id="web-01">
+    <div class="cuerpo">
+      <div class="meta"><span class="chip p1">P1</span><span class="chip">WEB-01</span><span class="chip latente">Latente · PayU inactiva en PROD</span><span class="chip req">REQ D</span></div>
+      <h3>Formulario propio de tarjeta para PayU: hoy está apagado, pero el código sigue ahí</h3>
+      <dl class="filas">
+        <dt>Qué pasa</dt><dd>Cuando la pasarela de tarjeta es PayU, stirpe-web pinta su propio formulario y el número de tarjeta y el CVV pasan por el servidor de Nuxt y por get-api. Con MercadoPago, en cambio, los datos los captura un marco de la propia pasarela.</dd>
+        <dt>Estado real</dt><dd>Consultado en PROD el 2026-10-09: Stirpe (tienda 0) usa MercadoPago y PayU está inactiva en todas las tiendas desde el 2025-12-02. Hoy el formulario no aparece.</dd>
+        <dt>Qué puede salir mal</dt><dd class="mal">Si alguien reactiva PayU en la base, las tarjetas vuelven a capturarse en una página sin CSP (WEB-04), y stirpe-web y get-api entran en el alcance de la norma PCI.</dd>
+        <dt>Corrección</dt><dd class="bien">Quitar el formulario propio y usar los campos que ofrece PayU, como ya se hace con MercadoPago.</dd>
+      </dl>
+    </div>
+  </article>
+</section>
+
+<!-- ================= P2 ================= -->
+<section id="p2">
+  <h2>6 · P2 · endurecimiento</h2>
+  <p class="sub">Quedan listados y no se corrigen en esta tanda (D1).</p>
+  <details>
+    <summary>get-api · 13 puntos</summary>
+    <ul>
+      <li>Catálogo: una consulta arma SQL pegando sku y color, que vienen de la base. Debe usar parámetros.</li>
+      <li>Carrito QEC: una consulta arma SQL pegando el sku que llega en la petición. La ruta exige credenciales de máquina.</li>
+      <li>Carrito: una consulta arma SQL pegando el código de bono guardado. Es una inyección de segundo orden.</li>
+      <li>get-web se autentica con un secreto fijo que se compara en claro; pasar a Passport con <code>client_credentials</code> (ADR-002).</li>
+      <li>Las rutas de planes QUAC devuelven al cliente el mensaje interno del error del CRM.</li>
+      <li>La respuesta 404 devuelve el mensaje crudo de la excepción.</li>
+      <li><code>/graphql/v1</code> está activo, sin protección y con introspección. El esquema está vacío.</li>
+      <li>El checkout v1 recibe número de tarjeta y CVV en el servidor; migrar a tokenización en el cliente.</li>
+      <li>El aviso de Sistecredito siempre responde error por una variable sin definir. Es un bug funcional, no de seguridad.</li>
+      <li>Rutas de prueba de Efecty publicadas en producción.</li>
+      <li>La desuscripción de correos no pide autenticación: se puede desuscribir a cualquiera.</li>
+      <li>La validación del BIN de tarjeta no tiene límite y consume la cuota del proveedor.</li>
+      <li>Un archivo temporal del editor (<code>..env.swp</code>) en la raíz no está cubierto por <code>.gitignore</code>.</li>
+    </ul>
+  </details>
+  <details>
+    <summary>stirpe-web · 12 puntos</summary>
+    <ul>
+      <li>La consulta de PQR arma la ruta hacia get-api sin codificar los valores.</li>
+      <li>Los proxies de Nuxt reenvían a get-api todas las cabeceras del cliente.</li>
+      <li>La URL de get-api está en la configuración pública aunque solo la usa el servidor.</li>
+      <li>Unos 45 componentes pintan HTML que viene de la API o del CMS, con la regla del linter que lo vigila desactivada.</li>
+      <li>El cierre de sesión no limpia todo y la cookie del carrito dura un año y es legible por scripts.</li>
+      <li>Todo el tráfico que pasa por stirpe-web comparte la cuota por IP de get-api (ver API-10).</li>
+      <li>Cada URL nueva sin caché dispara una consulta de redirección a get-api.</li>
+      <li>Un <code>.htaccess</code> heredado de cPanel se publica como archivo.</li>
+      <li>La página de prueba de componentes (<code>Test.vue</code>) está publicada en producción.</li>
+      <li>El despliegue no es reproducible y la conexión SSH no verifica el servidor.</li>
+      <li>Dos archivos de dependencias (npm y pnpm) que no coinciden entre sí.</li>
+      <li>El enlace de compra compartida cierra la sesión y adopta el carrito del enlace.</li>
+    </ul>
+  </details>
+</section>
+
+<!-- ================= PLAN ================= -->
+<section id="plan">
+  <h2>7 · Cómo se va a corregir</h2>
+  <p class="sub">Partición aprobada el 2026-10-09 (D4). Todos los REQ nacen de <code>main</code>. Los ID definitivos se asignan en <code>/roadmap GW</code>.</p>
+  <table>
+    <thead><tr><th>Orden</th><th>REQ</th><th>Qué corrige</th><th>Ritmo</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td><strong>A</strong> · get-api</td><td>Inyecciones SQL, pagos falsificables (QUAC y ADDI), código del correo, rutas abiertas de nómina, planes y devoluciones, tarjetas en el log. API-01, 02, 03, 05, 06, 07, 08 y 09.</td><td>Vía rápida, spec corta (D7)</td></tr>
+      <tr><td class="num">2</td><td><strong>B</strong> · get-api + OPS</td><td>Sacar las credenciales del código y rotarlas con cada pasarela, para todas las tiendas. API-04.</td><td>Normal</td></tr>
+      <tr><td class="num">3</td><td><strong>C</strong> · get-api</td><td>Proxies de confianza, límites de intentos, rutas internas expuestas, CORS. API-10 a 14.</td><td>Normal</td></tr>
+      <tr><td class="num">4</td><td><strong>D</strong> · stirpe-web + get-api</td><td>Cabeceras de seguridad, sesión en cookie segura, rastreadores fuera de las rutas con datos, PQR, formulario PayU. WEB-01 a 05.</td><td>Normal</td></tr>
+      <tr><td class="num">5</td><td><strong>E</strong> · otros 4 storefronts</td><td>Replicar D en Typer, U82, Derek y Factory.</td><td>Normal</td></tr>
+    </tbody>
+  </table>
+  <div class="tarjeta ojo">
+    <span class="titulo">Mientras tanto</span>
+    <p>Hasta que salga el REQ A, las dos inyecciones SQL (API-02 y API-03) y el aviso falsificable de QUAC (API-01) siguen abiertos en producción.</p>
+  </div>
+</section>
+
+<!-- ================= EVIDENCIA ================= -->
+<section id="evidencia">
+  <h2>8 · Qué se verificó y cómo</h2>
+  <table>
+    <thead><tr><th>Qué</th><th>Cómo</th></tr></thead>
+    <tbody>
+      <tr><td>Código al día</td><td><code>git pull --ff-only</code> en los dos repos antes de revisar: get-api iba 13 commits atrás y stirpe-web 47.</td></tr>
+      <tr><td>API-01, API-02, API-03</td><td>Lectura directa de las líneas citadas.</td></tr>
+      <tr><td>API-04</td><td><code>git ls-files</code> confirma que <code>config/properties.php</code> está versionado.</td></tr>
+      <tr><td>WEB-04</td><td>Un solo <code>curl -sI https://stirpe.co/</code>: la respuesta no trae ninguna cabecera de seguridad.</td></tr>
+      <tr><td>WEB-01</td><td>Consulta de solo lectura en PROD (<code>gateway_payment_business</code>, método tarjeta): MercadoPago activo y PayU inactiva.</td></tr>
+      <tr><td>Lo demás</td><td>Revisión estática del código por subagentes, con archivo y línea. Lo que no se pudo confirmar está marcado como tal en <code>informe-seguridad.md</code>.</td></tr>
+      <tr><td>Pruebas activas</td><td>Ninguna contra producción (D3). Las pruebas que reproducen cada ataque se hacen en local o en el ambiente de pruebas durante <code>/implementar</code>.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<p class="pie">GW-185 · Fuente: <code>docs/requirements/GW-185/informe-seguridad.md</code> (detalle técnico con archivo y línea) y <code>brainstorming.md</code> (decisiones D1–D7). Este documento no contiene credenciales ni instrucciones de ataque.</p>
+
+</div>
+</body>
+</html>
