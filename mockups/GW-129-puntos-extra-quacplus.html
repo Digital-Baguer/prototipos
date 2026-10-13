@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal Quac · Puntos Extra en Quac+ — opciones de visualización</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Nunito+Sans:opsz,wght@6..12,300;6..12,400;6..12,600;6..12,700;6..12,900&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   Portal Quac (clientes.quac.co) · pestaña Quac+ · PUNTOS EXTRA
+   Hijo de GW-129. Dibujado sobre el render real de
+   clientesquac-client/src/components/DashBoard/QuacPlus/ConsolidadoBloque.vue
+   y sobre los tokens del contrato aprobado docs/mockups/GW-129-portal-quac.html.
+
+   Datos: respuesta real del CRM de pruebas (nit 1098777, campaña «PRUEBAS QA»)
+   más dos clientes construidos para cubrir bordes: varias campañas en un mes,
+   reversión, y un cliente sin puntos extra (debe verse igual que hoy).
+
+   DECISIÓN 2026-10-08 (Francisco): variante C — tabla intacta + bloque
+   «Tus Quacs extra por campañas». A y B quedan conmutables solo como
+   registro de lo descartado; lo que manda es C.
+   Lo común a las tres (desglose en la membresía, barra del camino) no se
+   discute: lo exige la especificación de negocio, §12.
+   ═══════════════════════════════════════════════════════════════════ */
+:root{
+  --quac:#7633FF; --quac-dark:#321185; --quac-light:#C5C5FF;
+  --lavender:#E9E8F1; --ink:#140F26; --muted:#A19EB5; --ink2:#5C5A70;
+  --surface:#F7F7FB; --line:rgba(20,15,38,.09); --line-soft:rgba(20,15,38,.06);
+  --dk:#160B38; --dk-ink:#F5F5F7; --dk-ink2:#A9A6C9; --dk-line:rgba(255,255,255,.08);
+  --purple-soft:#9D7BFF; --extra:#C5C5FF; --extra-bg:rgba(157,123,255,.16); --extra-line:rgba(157,123,255,.45);
+  --grad-brand:linear-gradient(120deg,#615FEC,#7D2FEB,#CB1CE7);
+  --ok:#22C55E; --danger:#FF6464;
+  --f-title:'Poppins',system-ui,sans-serif; --f-base:'Nunito Sans',system-ui,sans-serif;
+  --sh-card:0 12px 32px rgba(20,15,38,.12);
+}
+*{box-sizing:border-box; margin:0; padding:0}
+body{font-family:var(--f-base); background:#E8EAF0; color:var(--ink); -webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--f-title); font-weight:600}
+button,input,select{font:inherit; color:inherit}
+button{cursor:pointer; border:0; background:none}
+[hidden]{display:none !important}
+b{font-weight:700}
+
+/* ─── Barra de control del prototipo ─── */
+.ctl{background:#1B1633; color:#D8D6E6; font-size:12.5px; position:sticky; top:0; z-index:50}
+.ctl-in{max-width:1400px; margin:0 auto; padding:10px 20px; display:flex; flex-wrap:wrap; align-items:center; gap:8px 22px}
+.ctl b{font-family:var(--f-title); font-weight:600; color:#fff}
+.ctl label{display:flex; align-items:center; gap:6px; cursor:pointer}
+.ctl select{background:rgba(255,255,255,.12); border:0; border-radius:6px; padding:4px 8px; color:#fff}
+.ctl select option{color:#000}
+.ctl input[type=checkbox],.ctl input[type=radio]{accent-color:var(--quac); width:14px; height:14px}
+.ctl .grp{display:flex; align-items:center; gap:10px; padding:4px 10px; border-radius:8px; background:rgba(255,255,255,.06)}
+.ctl .grp > span{color:#8E8BA8; font-weight:700; letter-spacing:.06em; text-transform:uppercase; font-size:10.5px}
+.ctl .var{padding:3px 10px; border-radius:999px; font-weight:700; transition:background .15s}
+.ctl .var.on{background:var(--quac); color:#fff}
+.ctl .right{margin-left:auto; color:#8E8BA8}
+
+/* ─── Marco ─── */
+.wrap{max-width:1400px; margin:0 auto; padding:32px 20px; transition:max-width .3s}
+.wrap.movil{max-width:430px}
+.app{background:#fff; border-radius:24px; overflow:hidden; box-shadow:0 24px 60px rgba(20,15,38,.14)}
+
+/* Header tematizado */
+.hdr{color:#fff; padding:28px 40px 0; position:relative}
+.hdr-top{display:flex; align-items:center; justify-content:space-between}
+.brand{display:flex; align-items:center; gap:10px}
+.brand span{font-family:var(--f-title); font-weight:600; font-size:19px; letter-spacing:-.02em}
+.userbtn{display:flex; align-items:center; gap:10px; padding:6px 14px 6px 6px; border-radius:999px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.16)}
+.avatar{width:30px; height:30px; border-radius:999px; display:grid; place-items:center; font-family:var(--f-title); font-size:12px; font-weight:600; background:rgba(255,255,255,.25)}
+.userbtn b{font-size:13px}
+.hdr-id{display:flex; align-items:flex-end; justify-content:space-between; gap:32px; margin-top:38px}
+.saludo{font-family:var(--f-title); font-weight:300; font-size:38px; line-height:1.05; letter-spacing:-.03em}
+.saludo b{font-weight:800}
+.hdr-meta{display:flex; align-items:center; gap:10px; margin-top:12px}
+.tab{font-family:var(--f-title); font-size:13.5px; font-weight:600; padding:12px 18px; color:rgba(255,255,255,.72); border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap}
+.hdr-meta .desde{font-size:12px; opacity:.72}
+.nav{margin-top:28px; border-bottom:1px solid rgba(255,255,255,.18)}
+.nav-in{display:flex; gap:2px}
+.tab{font-family:var(--f-title); font-size:13.5px; font-weight:600; padding:12px 18px; color:rgba(255,255,255,.72); border-bottom:2px solid transparent; margin-bottom:-1px}
+.tab.on{color:#fff; border-bottom-color:#fff; font-weight:700}
+.movil .hdr{padding:22px 20px 0}
+.movil .saludo{font-size:30px}
+.movil .hdr-id{margin-top:24px}
+.movil .nav-in{overflow-x:auto}
+
+main{padding:0 40px 40px}
+.movil main{padding:0 20px 24px}
+.blk{padding:28px 0; border-bottom:1px solid var(--line)}
+.blk:last-child{border-bottom:0}
+.baseline{display:flex; align-items:flex-start; justify-content:space-between; gap:16px}
+.mb5{margin-bottom:20px}
+.sec-t{font-family:var(--f-title); font-size:17px; font-weight:600}
+.sec-d{font-size:13px; color:var(--muted); margin-top:4px}
+.link{font-size:12px; color:var(--quac); font-weight:600; text-decoration:none; white-space:nowrap}
+.fade{animation:fade .28s ease both}
+@keyframes fade{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none}}
+
+/* Membresía */
+.memb{border-radius:16px; padding:28px; box-shadow:var(--sh-card); color:#fff}
+.memb-top{display:flex; align-items:flex-start; justify-content:space-between; gap:16px}
+.memb .k{font-size:12px; text-transform:uppercase; letter-spacing:.12em; opacity:.7; font-weight:600}
+.memb .niv{font-family:var(--f-title); font-size:26px; font-weight:600; margin-top:4px}
+.memb .desde{font-size:12px; opacity:.7; margin-top:4px}
+.memb .tot{font-family:var(--f-title); font-size:38px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums}
+.memb .pills{margin-top:20px; display:flex; flex-wrap:wrap; gap:8px}
+.memb .pill{font-size:12px; padding:6px 12px; border-radius:999px; display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.18); font-variant-numeric:tabular-nums}
+.memb .pill b{font-weight:800}
+.memb .pill .sep{opacity:.5}
+.memb .pill.extra{background:rgba(255,255,255,.28)}
+.memb .star{width:12px; height:12px}
+.movil .memb{padding:22px}
+.movil .memb .tot{font-size:30px}
+
+/* Camino */
+.bar{height:6px; border-radius:999px; background:var(--lavender); overflow:hidden; display:flex}
+.bar > i{display:block; height:100%; transition:width .5s}
+.bar .ord{background:var(--quac); border-radius:999px 0 0 999px}
+.bar .ext{background:repeating-linear-gradient(135deg,var(--purple-soft) 0 4px,#C5C5FF 4px 8px); border-radius:0 999px 999px 0}
+.bar.solo .ord{border-radius:999px}
+.chk{position:relative; height:52px; margin-top:-11px}
+.chk .h{position:absolute; top:0; transform:translateX(-50%); text-align:center; white-space:nowrap}
+.chk .b{width:22px; height:22px; margin:0 auto; border-radius:999px; display:grid; place-items:center; font-size:10px; font-weight:700; background:#fff; border:2px solid var(--lavender); color:var(--muted)}
+.chk .h.on .b{background:var(--ink); border-color:var(--ink); color:#fff}
+.chk p{font-size:11px; font-weight:700; margin-top:5px; letter-spacing:.02em; color:var(--muted)}
+.chk .h.on p{color:var(--ink)}
+.chk small{display:block; font-size:10px; color:var(--muted); font-variant-numeric:tabular-nums}
+.leyenda{display:flex; gap:18px; margin-top:6px; font-size:12px; color:var(--ink2); flex-wrap:wrap}
+.leyenda .dot{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:-1px}
+.leyenda .dot.ord{background:var(--quac)}
+.leyenda .dot.ext{background:repeating-linear-gradient(135deg,var(--purple-soft) 0 3px,#C5C5FF 3px 6px)}
+.leyenda b{color:var(--ink); font-variant-numeric:tabular-nums}
+.movil .chk .h small{display:none}
+
+/* ─── Bloque oscuro ─── */
+.blk.dark{background:var(--dk); color:var(--dk-ink); border-bottom:0; position:relative; overflow:hidden; margin:0 -40px; padding:28px 40px; border-radius:0}
+.movil .blk.dark{margin:0 -20px; padding:24px 20px}
+.blk.dark::before{content:''; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(520px 300px at 88% -20%, rgba(203,28,231,.20), transparent 70%),
+             radial-gradient(460px 280px at 4% 108%, rgba(97,95,236,.18), transparent 70%)}
+.blk.dark::after{content:''; position:absolute; width:260px; height:260px; border-radius:999px; right:-90px; bottom:-120px; border:28px solid rgba(255,255,255,.035); pointer-events:none}
+.blk.dark > *{position:relative; z-index:1}
+.blk.dark .sec-t{font-weight:300; font-size:26px; letter-spacing:-.03em; color:var(--dk-ink)}
+.blk.dark .sec-t b{font-weight:800}
+.blk.dark .sec-d{color:var(--dk-ink2); font-size:13px}
+.blk.dark .sec-d b{color:var(--dk-ink)}
+.dark-tot{text-align:right; flex:none}
+.dark-tot .k{font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--purple-soft); font-weight:700}
+.dark-tot .v{font-family:var(--f-title); font-size:34px; font-weight:800; letter-spacing:-.02em; line-height:1.1; font-variant-numeric:tabular-nums}
+.dark-tot .sub{font-size:11px; color:var(--dk-ink2); margin-top:4px; font-variant-numeric:tabular-nums}
+.dark-tot .sub b{color:var(--extra)}
+.movil .blk.dark .sec-t{font-size:22px}
+.movil .dark-tot .v{font-size:28px}
+
+/* Tabla mensual */
+.meses-h,.mes{display:grid; grid-template-columns:1fr 92px 92px 104px; gap:16px; align-items:center}
+.cinco .meses-h,.cinco .mes{grid-template-columns:1fr 92px 92px 92px 104px}
+.meses-h{padding-bottom:11px; border-bottom:1px solid rgba(255,255,255,.14); font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--dk-ink2); font-weight:700}
+.meses-h .x{color:var(--extra)}
+.mes{padding:11px 0; border-bottom:1px solid rgba(255,255,255,.07); font-size:14px}
+.mes:last-child{border-bottom:0}
+.meses-h span:not(:first-child),.mes .n{text-align:right}
+.mes .m{font-weight:700; letter-spacing:-.01em}
+.mes .et{display:block; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding-top:2px}
+.mes .et.v{color:#FF6FB5} .mes .et.c{color:var(--purple-soft)} .mes .et.s{color:rgba(255,255,255,.32); font-weight:400; text-transform:none; letter-spacing:0}
+.mes .n{font-variant-numeric:tabular-nums; color:var(--dk-ink2)}
+.mes .n.z{color:rgba(255,255,255,.26)}
+.mes .n.t{font-weight:800; color:var(--dk-ink); font-size:15px}
+.mes .n.x{color:var(--extra); font-weight:700}
+.mes .n.x.neg{color:#FF6FB5}
+.mes.vence .m{color:#FF6FB5}
+
+/* Chips de campaña (A y B) */
+.camps{display:flex; flex-wrap:wrap; gap:4px; padding-top:5px}
+.camp{display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:700; padding:2px 8px 2px 6px; border-radius:999px; background:var(--extra-bg); color:var(--extra); border:1px solid var(--extra-line); letter-spacing:.01em; text-transform:none}
+.camp svg{width:9px; height:9px; flex:none}
+.camp b{font-weight:800; padding-left:4px; margin-left:2px; border-left:1px solid var(--extra-line); font-variant-numeric:tabular-nums}
+.camp.neg{background:rgba(255,111,181,.12); color:#FF6FB5; border-color:rgba(255,111,181,.4)}
+
+/* Variante B: total con chip y fila desplegable */
+.mes.b-row{cursor:pointer}
+.mes.b-row:hover{background:rgba(255,255,255,.025)}
+.mes .tcell{display:flex; flex-direction:column; align-items:flex-end; gap:2px}
+.mes .tcell .n.t{display:inline-flex; align-items:center; gap:6px}
+.mes .tcell .n.t .chev{width:12px; height:12px; color:var(--dk-ink2); transition:transform .2s}
+.mes.open .tcell .n.t .chev{transform:rotate(180deg)}
+.mes .tcell .camp{font-size:10px}
+.det{grid-column:1 / -1; padding:4px 0 8px 14px; border-left:2px solid var(--extra-line); margin:2px 0 4px 2px; font-size:13px; color:var(--dk-ink2); display:grid; gap:5px}
+.det > div{display:flex; justify-content:space-between; gap:12px; max-width:420px}
+.det .n{font-variant-numeric:tabular-nums; color:var(--dk-ink)}
+.det .x{color:var(--extra); display:inline-flex; align-items:center; gap:5px}
+.det .x svg{width:10px; height:10px}
+.det .neg{color:#FF6FB5}
+
+/* Variante C: bloque de campañas bajo la tabla */
+.extras{margin-top:28px; padding-top:22px; border-top:1px solid rgba(255,255,255,.14)}
+.extras .h{display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:12px}
+.extras h4{font-family:var(--f-title); font-size:15px; font-weight:600; color:var(--dk-ink); display:flex; align-items:center; gap:8px}
+.extras h4 svg{width:14px; height:14px; color:var(--extra)}
+.extras .tot{font-family:var(--f-title); font-weight:800; color:var(--extra); font-variant-numeric:tabular-nums; font-size:18px}
+.extras .lst{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.movil .extras .lst{grid-template-columns:1fr}
+.cx{padding:12px 14px; border-radius:12px; background:rgba(255,255,255,.05); border:1px solid var(--dk-line); display:flex; justify-content:space-between; align-items:center; gap:12px}
+.cx p{font-weight:700; font-size:13.5px; color:var(--dk-ink)}
+.cx span{display:block; font-size:11.5px; color:var(--dk-ink2); margin-top:2px}
+.cx .n{font-family:var(--f-title); font-weight:800; color:var(--extra); font-variant-numeric:tabular-nums; white-space:nowrap}
+.cx .n.neg{color:#FF6FB5}
+
+/* Estados */
+.estado{text-align:center; padding:36px 0}
+.estado .ico{width:52px; height:52px; border-radius:999px; display:grid; place-items:center; margin:0 auto 14px; background:rgba(255,100,100,.12); color:var(--danger)}
+.estado .ico svg{width:24px; height:24px}
+.estado h3{font-size:16px; font-family:var(--f-title)}
+.estado p{font-size:13px; color:var(--dk-ink2); margin:6px auto 0; max-width:340px}
+.btn{padding:10px 20px; border-radius:999px; background:var(--quac); color:#fff; font-size:14px; font-weight:600; margin-top:20px}
+.sk{background:linear-gradient(90deg,rgba(255,255,255,.06) 25%,rgba(255,255,255,.12) 37%,rgba(255,255,255,.06) 63%); background-size:400% 100%; animation:sk 1.3s ease infinite; border-radius:6px}
+.sk.light{background:linear-gradient(90deg,#e9e8f1 25%,#f3f2f8 37%,#e9e8f1 63%); background-size:400% 100%}
+@keyframes sk{0%{background-position:100% 50%} 100%{background-position:0 50%}}
+
+/* Móvil: la tabla colapsa como hoy (solo Mes + Total) */
+.movil .meses-h{display:none}
+.movil .mes,.movil .cinco .mes{grid-template-columns:1fr auto; gap:4px 12px}
+.movil .mes .n:not(.t){display:none}
+.movil .det{padding-left:10px}
+
+/* ─── Notas del mockup ─── */
+.notas{max-width:1400px; margin:0 auto; padding:0 20px 60px; display:grid; grid-template-columns:1.2fr 1fr; gap:20px}
+@media(max-width:900px){.notas{grid-template-columns:1fr}}
+.nota{background:#fff; border-radius:16px; padding:22px 24px; font-size:13.5px; line-height:1.55; color:var(--ink2)}
+.nota h3{font-size:14px; color:var(--ink); margin-bottom:10px; display:flex; align-items:center; gap:8px}
+.nota h3 .tag{font-size:10px; letter-spacing:.1em; padding:2px 8px; border-radius:999px; background:var(--lavender); color:var(--quac); font-weight:700}
+.nota h3 .tag.rec{background:rgba(34,197,94,.14); color:#15803D}
+.nota ul{padding-left:18px; display:grid; gap:5px}
+.nota code{font-family:ui-monospace,Menlo,monospace; font-size:12px; background:var(--surface); padding:1px 5px; border-radius:4px; color:var(--ink)}
+.nota table{width:100%; border-collapse:collapse; font-size:12.5px; margin-top:6px}
+.nota th,.nota td{text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top}
+.nota th{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted)}
+.nota .pro{color:#15803D} .nota .con{color:#C2312B}
+</style>
+</head>
+<body>
+
+<div class="ctl"><div class="ctl-in">
+  <b>Puntos Extra · Quac+</b>
+  <div class="grp"><span>Tabla</span>
+    <button class="var on" data-var="C">C · Bloque aparte (aprobada)</button>
+    <button class="var" data-var="A">A · descartada</button>
+    <button class="var" data-var="B">B · descartada</button>
+  </div>
+  <div class="grp"><span>Cliente</span>
+    <select id="selCliente">
+      <option value="api">Prueba del CRM · nit 1098777 (QUAC, 1 campaña)</option>
+      <option value="multi">Silver · varias campañas, reversión, vencimiento</option>
+      <option value="cero">Black · sin puntos extra (igual que hoy)</option>
+    </select>
+  </div>
+  <div class="grp"><span>Estado</span>
+    <select id="selEstado"><option value="ok">OK</option><option value="load">Cargando</option><option value="error">Error del extracto</option><option value="vacio">Sin Quacs</option></select>
+  </div>
+  <label><input type="checkbox" id="chkBarra" checked> Barra del camino segmentada</label>
+  <label><input type="checkbox" id="chkMovil"> Ancho móvil (390)</label>
+  <span class="right">Datos del CRM de pruebas · 2026-10-08</span>
+</div></div>
+
+<div class="wrap" id="wrap">
+<div class="app">
+  <div class="hdr" id="hdr">
+    <div class="hdr-top">
+      <div class="brand"><svg width="30" height="30" viewBox="0 0 30 30" fill="none"><circle cx="15" cy="15" r="13" stroke="#fff" stroke-width="2.6"/><path d="M19 19l5 5" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg><span>Portal Quac</span></div>
+      <div class="userbtn"><span class="avatar" id="avatar">FL</span><b id="userNombre">Francisco</b></div>
+    </div>
+    <div class="hdr-id">
+      <div>
+        <h1 class="saludo">Hola,<br><b id="saludoNombre">Francisco</b></h1>
+        <div class="hdr-meta"><span class="badge" id="badge">BLACK</span><span class="desde" id="hdrDesde">Miembro desde 18 de agosto de 2026</span></div>
+      </div>
+    </div>
+    <nav class="nav"><div class="nav-in"><span class="tab">Mis datos</span><span class="tab">Mi crédito</span><span class="tab">Movimientos</span><span class="tab on">Quac+</span></div></nav>
+  </div>
+
+  <main>
+    <!-- Membresía -->
+    <div class="blk"><div class="memb" id="memb">
+      <div class="memb-top">
+        <div>
+          <p class="k">Tu membresía</p>
+          <p class="niv" id="nivelNombre">QUAC BLACK</p>
+          <p class="desde" id="membDesde">Miembro desde 18 de agosto de 2026</p>
+        </div>
+        <div style="text-align:right">
+          <p class="tot" id="quacsTotal">27.723</p>
+          <p class="desde">Quacs vigentes</p>
+        </div>
+      </div>
+      <div class="pills" id="pills"></div>
+    </div></div>
+
+    <!-- Camino -->
+    <div class="blk">
+      <div class="baseline mb5">
+        <h3 class="sec-t" style="font-size:15px">Tu camino al siguiente nivel</h3>
+        <a class="link" href="#">Cómo funciona Status Quac →</a>
+      </div>
+      <div class="bar" id="barra"><i class="ord" style="width:0"></i><i class="ext" style="width:0"></i></div>
+      <div class="chk" id="checkpoints"></div>
+      <div class="leyenda" id="leyenda" hidden></div>
+    </div>
+
+    <!-- Mes a mes -->
+    <div class="blk dark" id="dark">
+      <div id="consLoad" hidden>
+        <div class="sk" style="height:34px; width:280px"></div>
+        <div class="sk" style="height:14px; width:360px; margin-top:10px"></div>
+        <div class="sk" style="height:220px; margin-top:28px"></div>
+      </div>
+      <div id="consError" class="estado" hidden>
+        <div class="ico"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.3 3.9L2 18a2 2 0 001.7 3h16.6a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></div>
+        <h3>No pudimos cargar tu consolidado mensual</h3>
+        <p>El resto de tu información sigue disponible.</p>
+        <button class="btn">Reintentar</button>
+      </div>
+      <div id="consOk">
+        <div class="baseline mb5">
+          <div>
+            <h3 class="sec-t">Tus Quacs <b>mes a mes</b></h3>
+            <p class="sec-d" id="consSub"></p>
+          </div>
+          <div class="dark-tot">
+            <div class="k">Vigentes hoy</div>
+            <div class="v" id="consTot"></div>
+            <div class="sub" id="consTotSub" hidden></div>
+          </div>
+        </div>
+        <div id="consVacio" hidden style="padding:36px 0; text-align:center"><p class="sec-d">Todavía no tienes Quacs acumulados.</p></div>
+        <div id="consTabla"></div>
+        <div id="consExtras" hidden></div>
+      </div>
+    </div>
+  </main>
+</div>
+</div>
+
+<div class="notas">
+  <div class="nota">
+    <h3>Qué cambia y qué no</h3>
+    <ul>
+      <li><b>Común</b> (lo pide la especificación §12: ordinarios, extra, saldo y campaña): la tarjeta de membresía desglosa <code>puntosOrdinarios</code> + <code>puntosExtra</code> en una pastilla junto a la de vencimiento; el subtítulo del bloque mensual dice cuántos del mes son extra; «Vigentes hoy» lleva debajo cuántos son extra; la barra del camino muestra el tramo extra rayado (interruptor arriba para compararla con la barra de hoy).</li>
+      <li><b>Cliente sin puntos extra</b> (tercer cliente del selector): no aparece pastilla, ni columna, ni chips, ni bloque. La pantalla queda idéntica a producción. Es el estado del 100&nbsp;% de los clientes hasta que se lance la primera campaña.</li>
+      <li><b>Lo que no se toca:</b> beneficios, pestañas, encabezado, estados de carga y error (los existentes del bloque siguen igual).</li>
+      <li><b>Móvil:</b> la tabla colapsa como hoy a Mes + Total. Las tarjetas de campaña se apilan en una columna.</li>
+    </ul>
+    <h3 style="margin-top:18px">Contrato de datos que implica (back de <code>api-clientes-quac</code>)</h3>
+    <table>
+      <tr><th>Hoy</th><th>Con puntos extra</th></tr>
+      <tr><td><code>origen</code> ∈ {VEN, ABN}; otro valor → <code>Log::warning</code> y fuera de columnas (regla 2, §7.5 de GW-129)</td><td><code>origen = EXT</code> (o <code>esPuntosExtra = true</code>) suma al <code>total</code> del mes sin columna propia. La regla 8 (suma de totales = <code>puntosActuales</code>) sigue siendo la invariante.</td></tr>
+      <tr><td><code>meses[] = {mes, etiqueta, compras, abonos, total, …}</code></td><td>Sin cambios en la fila. Lista nueva <code>campanas[] = {id, nombre, mes, etiqueta, puntos}</code>, una entrada por campaña y mes (agrupa los movimientos EXT por <code>idCampana</code> + mes), ordenada como la tabla. <code>sum(campanas[].puntos) = puntosExtra</code>.</td></tr>
+      <tr><td><code>camino.quacs</code></td><td>+ <code>camino.ordinarios</code>, <code>camino.extra</code> desde <code>puntosOrdinarios</code> / <code>puntosExtra</code> del CRM.</td></tr>
+    </table>
+    <p style="margin-top:10px"><b>No verificado contra el CRM:</b> cómo llega una reversión de puntos extra (§11 de la estrategia). El segundo cliente la dibuja como fila EXT con puntos negativos; si el CRM la entrega de otra forma, cambia el dato, no el diseño.</p>
+  </div>
+  <div class="nota">
+    <h3>Variantes <span class="tag rec">C aprobada · 2026-10-08</span></h3>
+    <table>
+      <tr><th style="width:52px"></th><th>Qué hace</th><th>A favor / en contra</th></tr>
+      <tr><td><b>C</b> <span class="tag rec">Aprobada</span></td><td>Tabla intacta (el extra ya va dentro del total). Debajo, «Tus Quacs extra por campañas»: una tarjeta por campaña y mes con sus puntos.</td><td><span class="pro">Cero cambio en la tabla; la campaña tiene su propio espacio con nombre y puntos.</span> <span class="con">La fila del mes ya no explica su total; el subtítulo y «Vigentes hoy» compensan diciendo cuántos son extra.</span></td></tr>
+      <tr><td><b>A</b> <span class="tag">Descartada</span></td><td>Quinta columna «Extra» y chips de campaña bajo el mes.</td><td><span class="con">Columna oculta en móvil; chips crecen a dos líneas con 3+ campañas.</span></td></tr>
+      <tr><td><b>B</b> <span class="tag">Descartada</span></td><td>Chip en la celda Total y fila desplegable.</td><td><span class="con">Hay que desplegar para ver la campaña.</span></td></tr>
+    </table>
+    <h3 style="margin-top:18px">Cubierto / fuera</h3>
+    <ul>
+      <li>Cubierto: cliente real del CRM (1 campaña), varias campañas en un mes, campaña sobre abono sin compra, reversión, mes que vence, meses sin movimiento, sin puntos extra, carga, error, vacío, móvil.</li>
+      <li>Fuera: pestaña Movimientos (si se quiere marcar el chip «+ N Quacs» de cada movimiento como extra, es otra decisión), notificación al cliente cuando gana extra, la app QUAC v2 (AQ-004 tiene su propio mockup).</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+/* ═══════ Catálogo real — quacapi.status_quac_niveles ═══════ */
+const NIVELES = {
+  quac:   { nombre:'QUAC',        badge:'QUAC',   umbral:0,     bg:'linear-gradient(120deg,#4197ED,#7D2FEB,#CB1CE7)', txt:'#FFFFFF', bBg:'rgba(255,255,255,.22)', bFg:'#FFFFFF' },
+  plus:   { nombre:'QUAC PLUS',   badge:'PLUS',   umbral:3000,  bg:'linear-gradient(120deg,#7D2EEA,#301281)', txt:'#FFFFFF', bBg:'#FFFFFF', bFg:'#7633FF' },
+  silver: { nombre:'QUAC SILVER', badge:'SILVER', umbral:7000,  bg:'linear-gradient(120deg,#F8F8FB,#C8CCD2,#8E9299)', txt:'#4D5159', bBg:'#2A2A30', bFg:'#FFFFFF' },
+  gold:   { nombre:'QUAC GOLD',   badge:'GOLD',   umbral:12000, bg:'linear-gradient(120deg,#FFF1C2,#ECC66A,#B08A2E)', txt:'#5E480D', bBg:'#5E480D', bFg:'#FFF1C2' },
+  black:  { nombre:'QUAC BLACK',  badge:'BLACK',  umbral:20000, bg:'linear-gradient(120deg,#2C2C2C,#0A0A0A)', txt:'#D8DCE0', bBg:'#FFFFFF', bFg:'#0A0A0A' },
+};
+const ORDEN = ['quac','plus','silver','gold','black'];
+
+/* ═══════ Clientes ═══════
+   Invariante de AQ-004 / GW-129 regla 8: la suma de los totales mensuales
+   es puntosActuales, y puntosActuales = puntosOrdinarios + puntosExtra. */
+const CLIENTES = {
+  /* Respuesta real del CRM de pruebas (2026-10-08). El extracto trae tres
+     movimientos del 1 de octubre: ABNP 60, G799 420 (VEN) y el mismo G799
+     como EXT 420 con campaña «PRUEBAS QA» (multiplicador x2). */
+  api: {
+    nombre:'Cliente', ini:'CP', nivel:'quac', desde:'23 de junio de 2026',
+    puntosActuales:978, puntosOrdinarios:558, puntosExtra:420, puntosAVencer:0, vence:null,
+    meses:[
+      { m:'Oct 2026', c:420, a:60,  curso:true, camps:[{id:1, n:'PRUEBAS QA', p:420}] },
+      { m:'Sep 2026', c:0,   a:48 },
+      { m:'Ago 2026', c:0,   a:30 },
+      { m:'Jul 2026', c:0,   a:0, vacio:true },
+      { m:'Jun 2026', c:0,   a:0, vacio:true },
+    ],
+  },
+  /* Construido: Silver con tres campañas distintas, una sobre abonos sin
+     compra, una reversión y puntos que vencen a fin de mes. */
+  multi: {
+    nombre:'Marcela', ini:'MR', nivel:'silver', desde:'14 de agosto de 2025',
+    puntosActuales:9400, puntosOrdinarios:8080, puntosExtra:1320, puntosAVencer:560, vence:'31 de octubre de 2026',
+    meses:[
+      { m:'Oct 2026', c:310,  a:120, curso:true, camps:[{id:7, n:'Octubre x2 en Derek', p:310},{id:5, n:'Pago puntual', p:200}] },
+      { m:'Sep 2026', c:0,    a:540, camps:[{id:5, n:'Pago puntual', p:200}] },
+      { m:'Ago 2026', c:1260, a:480, camps:[{id:3, n:'Reactiva tu cupo', p:500}] },
+      { m:'Jul 2026', c:0,    a:410, camps:[{id:5, n:'Pago puntual', p:200},{id:7, n:'Reversión · Octubre x2 en Derek', p:-90, rev:true}] },
+      { m:'Jun 2026', c:890,  a:230 },
+      { m:'May 2026', c:0,    a:0, vacio:true },
+      { m:'Abr 2026', c:1140, a:260 },
+      { m:'Mar 2026', c:0,    a:0, vacio:true },
+      { m:'Feb 2026', c:420,  a:190 },
+      { m:'Ene 2026', c:0,    a:300 },
+      { m:'Dic 2025', c:760,  a:210 },
+      { m:'Nov 2025', c:0,    a:0, vacio:true },
+      { m:'Oct 2025', c:180,  a:380, vence:true },
+    ],
+  },
+  /* Construido sobre la captura de producción del 2026-10-08: sin campañas.
+     Debe verse exactamente como hoy. */
+  cero: {
+    nombre:'Francisco', ini:'FL', nivel:'black', desde:'18 de agosto de 2026',
+    puntosActuales:27723, puntosOrdinarios:27723, puntosExtra:0, puntosAVencer:0, vence:null,
+    meses:[
+      { m:'Oct 2026', c:0,    a:235, curso:true },
+      { m:'Sep 2026', c:0,    a:4573 },
+      { m:'Ago 2026', c:2414, a:2541 },
+      { m:'Jul 2026', c:1406, a:2488 },
+      { m:'Jun 2026', c:1820, a:1390 },
+      { m:'May 2026', c:0,    a:0, vacio:true },
+      { m:'Abr 2026', c:2050, a:1210 },
+      { m:'Mar 2026', c:900,  a:1100 },
+      { m:'Feb 2026', c:0,    a:0, vacio:true },
+      { m:'Ene 2026', c:1410, a:1320 },
+      { m:'Dic 2025', c:1100, a:766 },
+      { m:'Nov 2025', c:0,    a:0, vacio:true },
+      { m:'Oct 2025', c:500,  a:500 },
+    ],
+  },
+};
+
+const STAR = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>';
+const CHEV = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>';
+const fmt = n => Number(n || 0).toLocaleString('es-CO');
+const signo = n => (n < 0 ? '−' : '+') + fmt(Math.abs(n));
+const extraDe = m => (m.camps || []).reduce((s, c) => s + c.p, 0);
+const totalDe = m => m.c + m.a + extraDe(m);
+const $ = id => document.getElementById(id);
+
+const st = { v:'C', cli:'api', estado:'ok', barra:true, movil:false, abiertos:new Set() };
+
+function render() {
+  const cli = CLIENTES[st.cli];
+  const niv = NIVELES[cli.nivel];
+  const hayExtra = cli.puntosExtra > 0 || cli.meses.some(m => (m.camps || []).length);
+
+  /* comprobación de la invariante — si falla, el dato del mockup está mal */
+  const suma = cli.meses.reduce((s, m) => s + totalDe(m), 0);
+  if (suma !== cli.puntosActuales || cli.puntosOrdinarios + cli.puntosExtra !== cli.puntosActuales)
+    console.warn('[mockup] invariante rota en', st.cli, { suma, ...cli });
+
+  $('wrap').classList.toggle('movil', st.movil);
+  document.querySelectorAll('.ctl .var').forEach(b => b.classList.toggle('on', b.dataset.var === st.v));
+
+  /* Header + membresía */
+  $('hdr').style.background = niv.bg; $('hdr').style.color = niv.txt;
+  $('saludoNombre').textContent = cli.nombre; $('userNombre').textContent = cli.nombre; $('avatar').textContent = cli.ini;
+  $('badge').textContent = niv.badge; $('badge').style.background = niv.bBg; $('badge').style.color = niv.bFg;
+  $('hdrDesde').textContent = `Miembro desde ${cli.desde}`;
+  const memb = $('memb'); memb.style.background = niv.bg; memb.style.color = niv.txt;
+  $('nivelNombre').textContent = niv.nombre; $('membDesde').textContent = `Miembro desde ${cli.desde}`;
+  $('quacsTotal').textContent = fmt(cli.puntosActuales);
+  let pills = '';
+  if (hayExtra) pills += `<span class="pill extra">${STAR.replace('<svg', '<svg class="star"')}<b>${fmt(cli.puntosExtra)}</b> extra<span class="sep">·</span><b>${fmt(cli.puntosOrdinarios)}</b> ordinarios</span>`;
+  if (cli.puntosAVencer > 0) pills += `<span class="pill"><b>${fmt(cli.puntosAVencer)}</b> vencen el ${cli.vence}</span>`;
+  $('pills').innerHTML = pills; $('pills').hidden = !pills;
+
+  /* Camino: 4 tramos iguales, como en producción */
+  const idx = ORDEN.indexOf(cli.nivel);
+  const sig = ORDEN[idx + 1];
+  const pct = (p) => {
+    if (!sig) return 100;
+    const base = NIVELES[cli.nivel].umbral, top = NIVELES[sig].umbral;
+    return Math.min(100, idx * 25 + Math.max(0, p - base) / (top - base) * 25);
+  };
+  const pTot = pct(cli.puntosActuales);
+  const pOrd = (st.barra && hayExtra) ? pct(cli.puntosOrdinarios) : pTot;
+  const barra = $('barra'); barra.classList.toggle('solo', pOrd === pTot);
+  barra.children[0].style.width = pOrd + '%';
+  barra.children[1].style.width = Math.max(0, pTot - pOrd) + '%';
+  $('checkpoints').innerHTML = ORDEN.slice(1).map((k, i) => {
+    const on = cli.puntosActuales >= NIVELES[k].umbral;
+    return `<div class="h${on ? ' on' : ''}" style="left:${(i + 1) * 25}%"><div class="b">${on ? '✓' : ''}</div><p>${NIVELES[k].nombre.replace('QUAC ', '').replace(/^(.)(.*)$/, (_, a, b) => a + b.toLowerCase())}</p><small>${fmt(NIVELES[k].umbral)}</small></div>`;
+  }).join('');
+  const ley = $('leyenda');
+  ley.hidden = !(st.barra && hayExtra);
+  if (!ley.hidden) {
+    const falta = sig ? NIVELES[sig].umbral - cli.puntosActuales : 0;
+    ley.innerHTML = `<span><i class="dot ord"></i>Ordinarios <b>${fmt(cli.puntosOrdinarios)}</b></span><span><i class="dot ext"></i>Extra por campañas <b>${fmt(cli.puntosExtra)}</b></span>` +
+      (sig ? `<span style="margin-left:auto">Te faltan <b>${fmt(falta)}</b> para ${NIVELES[sig].nombre}</span>` : '');
+  }
+
+  /* Bloque mensual */
+  $('consLoad').hidden = st.estado !== 'load';
+  $('consError').hidden = st.estado !== 'error';
+  $('consOk').hidden = st.estado === 'load' || st.estado === 'error';
+  if ($('consOk').hidden) return;
+
+  const vacio = st.estado === 'vacio';
+  const enCurso = cli.meses.find(m => m.curso);
+  $('consTot').textContent = fmt(vacio ? 0 : cli.puntosActuales);
+  $('consTotSub').hidden = !(hayExtra && !vacio);
+  $('consTotSub').innerHTML = `<b>${fmt(cli.puntosExtra)}</b> son extra`;
+  if (vacio) $('consSub').textContent = 'De dónde salió tu saldo.';
+  else {
+    const ex = extraDe(enCurso);
+    $('consSub').innerHTML = `De dónde salió tu saldo. En ${enCurso.m} llevas <b>${fmt(totalDe(enCurso))} Quacs</b>` + (ex > 0 ? `, <b>${fmt(ex)}</b> de ellos extra.` : '.');
+  }
+  $('consVacio').hidden = !vacio;
+  $('consTabla').hidden = vacio;
+  $('consExtras').hidden = !(st.v === 'C' && hayExtra && !vacio);
+  if (vacio) { $('consTabla').innerHTML = ''; return; }
+
+  const tabla = $('consTabla');
+  const cinco = st.v === 'A' && hayExtra;
+  tabla.className = cinco ? 'cinco' : '';
+  const etiqueta = m => m.vence ? '<span class="et v">Vencen pronto</span>' : m.curso ? '<span class="et c">En curso</span>' : m.vacio ? '<span class="et s">Sin movimientos</span>' : '';
+  const chips = m => (m.camps && st.v !== 'C') ? `<div class="camps">${m.camps.map(c => `<span class="camp${c.p < 0 ? ' neg' : ''}">${STAR}${c.n}</span>`).join('')}</div>` : '';
+
+  let head = '<div class="meses-h"><span>Mes</span><span>Compras</span><span>Abonos</span>' + (cinco ? '<span class="x">Extra</span>' : '') + '<span>Total</span></div>';
+  tabla.innerHTML = head + cli.meses.map((m, i) => {
+    const ex = extraDe(m), tot = totalDe(m);
+    const cls = `mes${m.vence ? ' vence' : ''}${st.v === 'B' && (m.c || m.a || ex) ? ' b-row' : ''}${st.abiertos.has(i) ? ' open' : ''}`;
+    let celdaTotal;
+    if (st.v === 'B') {
+      const chevron = (m.c || m.a || ex) ? CHEV : '';
+      celdaTotal = `<div class="tcell"><span class="n t${tot ? '' : ' z'}">${fmt(tot)}${chevron}</span>${ex ? `<span class="camp${ex < 0 ? ' neg' : ''}">${STAR}${signo(ex)} extra</span>` : ''}</div>`;
+    } else celdaTotal = `<span class="n t${tot ? '' : ' z'}">${fmt(tot)}</span>`;
+    const celdaExtra = cinco ? `<span class="n x${ex ? (ex < 0 ? ' neg' : '') : ' z'}">${ex ? signo(ex) : '0'}</span>` : '';
+    let det = '';
+    if (st.v === 'B' && st.abiertos.has(i)) {
+      det = `<div class="det">
+        <div><span>Compras con Quac</span><span class="n">${fmt(m.c)}</span></div>
+        <div><span>Abonos a tu crédito</span><span class="n">${fmt(m.a)}</span></div>
+        ${(m.camps || []).map(c => `<div><span class="x${c.p < 0 ? ' neg' : ''}">${STAR}${c.n}</span><span class="n${c.p < 0 ? ' neg' : ''}">${signo(c.p)}</span></div>`).join('')}
+      </div>`;
+    }
+    return `<div class="${cls}" data-i="${i}">
+      <div><span class="m">${m.m}</span>${etiqueta(m)}${st.v === 'A' ? chips(m) : ''}</div>
+      <span class="n${m.c ? '' : ' z'}">${fmt(m.c)}</span>
+      <span class="n${m.a ? '' : ' z'}">${fmt(m.a)}</span>
+      ${celdaExtra}${celdaTotal}${det}</div>`;
+  }).join('');
+
+  if (st.v === 'B') tabla.querySelectorAll('.b-row').forEach(r => r.addEventListener('click', () => {
+    const i = Number(r.dataset.i); st.abiertos.has(i) ? st.abiertos.delete(i) : st.abiertos.add(i); render();
+  }));
+
+  /* Variante C: campañas aparte */
+  if (st.v === 'C' && hayExtra) {
+    const items = [];
+    cli.meses.forEach(m => (m.camps || []).forEach(c => items.push({ ...c, mes: m.m })));
+    $('consExtras').innerHTML = `<div class="extras">
+      <div class="h"><h4>${STAR}Tus Quacs extra por campañas</h4><span class="tot">${signo(cli.puntosExtra)}</span></div>
+      <p class="sec-d" style="margin:-6px 0 14px">Ya están sumados en tu total de cada mes. Cuentan igual que los demás para subir de nivel.</p>
+      <div class="lst">${items.map(c => `<div class="cx"><div><p>${c.n}</p><span>${c.mes}</span></div><span class="n${c.p < 0 ? ' neg' : ''}">${signo(c.p)}</span></div>`).join('')}</div>
+    </div>`;
+  }
+}
+
+document.querySelectorAll('.ctl .var').forEach(b => b.addEventListener('click', () => { st.v = b.dataset.var; st.abiertos.clear(); render(); }));
+$('selCliente').addEventListener('change', e => { st.cli = e.target.value; st.abiertos.clear(); render(); });
+$('selEstado').addEventListener('change', e => { st.estado = e.target.value; render(); });
+$('chkBarra').addEventListener('change', e => { st.barra = e.target.checked; render(); });
+$('chkMovil').addEventListener('change', e => { st.movil = e.target.checked; render(); });
+render();
+</script>
+</body>
+</html>
