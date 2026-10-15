@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Post mortem · Stirpe sin marcas de terceros · 15 oct 2026</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root {
+    --ink: #17171c;
+    --ink-soft: #4b4a52;
+    --muted: #8a8892;
+    --paper: #f7f5f0;
+    --card: #ffffff;
+    --line: #e4e0d7;
+    --red: #c2341d;
+    --red-bg: #fbe9e5;
+    --amber: #b7791f;
+    --amber-bg: #fdf3dc;
+    --green: #2f6f4f;
+    --green-bg: #e3f1e8;
+    --blue: #2c4f86;
+    --blue-bg: #e5edf8;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 17px; scroll-behavior: smooth; }
+  body {
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 1.5rem; }
+  h1, h2, h3 { font-family: 'Fraunces', Georgia, serif; line-height: 1.2; }
+  h2 { font-size: 1.75rem; margin-bottom: .4rem; }
+  h3 { font-size: 1.15rem; margin-bottom: .3rem; }
+  .kicker {
+    font-family: 'IBM Plex Mono', monospace; font-size: .75rem; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--red); margin-bottom: .5rem; display: block;
+  }
+  .lead { color: var(--ink-soft); max-width: 720px; margin-bottom: 1.6rem; }
+  code, .mono { font-family: 'IBM Plex Mono', monospace; font-size: .85em; }
+  code { background: #efece5; padding: .08em .35em; border-radius: 5px; }
+  section { padding: 3.2rem 0; border-top: 1px solid var(--line); }
+
+  /* HERO */
+  header.hero { background: var(--ink); color: #f4f2ec; padding: 4rem 0 3.4rem; position: relative; overflow: hidden; }
+  header.hero::after {
+    content: '404'; position: absolute; right: -1rem; bottom: -3.5rem;
+    font-family: 'Fraunces', serif; font-size: 15rem; font-weight: 700;
+    color: rgba(255,255,255,.04); line-height: 1; pointer-events: none;
+  }
+  .hero .tag {
+    display: inline-flex; gap: .5rem; align-items: center; font-family: 'IBM Plex Mono', monospace;
+    font-size: .75rem; letter-spacing: .08em; text-transform: uppercase;
+    border: 1px solid rgba(255,255,255,.18); padding: .3rem .8rem; border-radius: 99px; margin-bottom: 1.3rem;
+  }
+  .hero .tag i { width: 8px; height: 8px; border-radius: 50%; background: #5fd08a; display: inline-block; }
+  .hero h1 { font-size: 2.5rem; max-width: 800px; margin-bottom: 1rem; }
+  .hero p { color: #c9c6be; max-width: 700px; font-size: 1.05rem; }
+  .hero .meta { margin-top: 1.6rem; font-family: 'IBM Plex Mono', monospace; font-size: .78rem; color: #8f8c85; }
+
+  /* STATS */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: -2rem; position: relative; z-index: 2; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem 1.2rem; }
+  .stat b { font-family: 'Fraunces', serif; font-size: 2rem; display: block; line-height: 1.1; }
+  .stat span { font-size: .85rem; color: var(--ink-soft); }
+  .stat.red b { color: var(--red); }
+  .stat.green b { color: var(--green); }
+
+  /* CARDS */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.4rem 1.5rem; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+
+  /* FLOW */
+  .flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; gap: .6rem; margin-top: 1rem; }
+  .flow .step { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.1rem; }
+  .flow .step.hot { border-color: var(--red); box-shadow: 0 0 0 3px var(--red-bg); }
+  .flow .step small { font-family: 'IBM Plex Mono', monospace; font-size: .72rem; color: var(--muted); display: block; margin-bottom: .3rem; }
+  .flow .arrow { align-self: center; font-size: 1.4rem; color: var(--muted); }
+  .flow p { font-size: .9rem; color: var(--ink-soft); }
+  .pill { display: inline-block; font-size: .72rem; font-weight: 600; padding: .1rem .55rem; border-radius: 99px; margin-top: .5rem; }
+  .pill.red { background: var(--red-bg); color: var(--red); }
+  .pill.green { background: var(--green-bg); color: var(--green); }
+
+  /* CHART */
+  .chart { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1.4rem 1.4rem .8rem; }
+  .bars { display: grid; grid-template-columns: repeat(6, 1fr); gap: .9rem; align-items: end; height: 240px; border-bottom: 1px solid var(--line); padding: 0 .4rem; position: relative; }
+  .bars .ref { position: absolute; left: 0; right: 0; border-top: 1px dashed #cfcac0; }
+  .bars .ref span { position: absolute; right: 0; top: -1.3rem; font-size: .7rem; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+  .bar { background: #cfd8cf; border-radius: 8px 8px 0 0; position: relative; transition: height .9s cubic-bezier(.2,.8,.2,1); height: 0; }
+  .bar.bad { background: var(--red); }
+  .bar.mid { background: #e19a8b; }
+  .bar.ok { background: #7fae93; }
+  .bar em { position: absolute; top: -1.45rem; left: 0; right: 0; text-align: center; font-style: normal; font-size: .78rem; font-weight: 600; font-family: 'IBM Plex Mono', monospace; }
+  .labels { display: grid; grid-template-columns: repeat(6, 1fr); gap: .9rem; padding: .5rem .4rem 0; }
+  .labels div { text-align: center; font-size: .74rem; color: var(--ink-soft); line-height: 1.35; }
+  .labels b { display: block; font-family: 'IBM Plex Mono', monospace; font-weight: 500; color: var(--ink); }
+  .chart .note { font-size: .82rem; color: var(--muted); margin-top: .8rem; }
+
+  /* TIMELINE */
+  .timeline { position: relative; margin-top: 1rem; }
+  .timeline::before { content: ''; position: absolute; left: 92px; top: .4rem; bottom: .4rem; width: 2px; background: var(--line); }
+  .tl { display: grid; grid-template-columns: 80px 1fr; gap: 2rem; padding: .55rem 0; position: relative; }
+  .tl time { font-family: 'IBM Plex Mono', monospace; font-size: .85rem; text-align: right; color: var(--ink-soft); padding-top: .1rem; }
+  .tl::after { content: ''; position: absolute; left: 87px; top: 1rem; width: 12px; height: 12px; border-radius: 50%; background: var(--paper); border: 2px solid var(--muted); }
+  .tl.red::after { border-color: var(--red); background: var(--red); }
+  .tl.amber::after { border-color: var(--amber); background: var(--amber-bg); }
+  .tl.green::after { border-color: var(--green); background: var(--green); }
+  .tl div p { font-size: .92rem; color: var(--ink-soft); }
+  .tl div strong { display: block; }
+  .tl.red strong { color: var(--red); }
+
+  /* SIMULATOR */
+  .sim { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .sim-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.3rem; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .sim-head .dots { display: flex; gap: .35rem; }
+  .sim-head .dots span { width: 9px; height: 9px; border-radius: 50%; background: var(--line); transition: background .3s; }
+  .sim-head .dots span.on { background: var(--ink); }
+  .sim-body { display: grid; grid-template-columns: 1.1fr 1fr; }
+  .sim-text { padding: 1.4rem 1.4rem; border-right: 1px solid var(--line); min-height: 250px; }
+  .sim-text .who { font-family: 'IBM Plex Mono', monospace; font-size: .74rem; letter-spacing: .06em; text-transform: uppercase; margin-bottom: .5rem; }
+  .who.c1 { color: var(--blue); } .who.c2 { color: var(--amber); } .who.res { color: var(--red); } .who.neutral { color: var(--muted); }
+  .sim-text h3 { margin-bottom: .5rem; }
+  .sim-text p { font-size: .93rem; color: var(--ink-soft); }
+  .sim-table { padding: 1.2rem 1.3rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th { text-align: left; font-weight: 600; font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: .45rem .5rem; border-bottom: 1px solid var(--line); }
+  td { padding: .55rem .5rem; border-bottom: 1px solid #f0ede6; transition: background .4s; }
+  td.flash { background: #fff4c2; }
+  .chip { font-family: 'IBM Plex Mono', monospace; font-size: .75rem; padding: .1rem .45rem; border-radius: 6px; }
+  .chip.c1 { background: var(--blue-bg); color: var(--blue); }
+  .chip.c2 { background: var(--amber-bg); color: var(--amber); }
+  .chip.none { background: #f0ede6; color: var(--muted); }
+  .zero { color: var(--red); font-weight: 600; }
+  .pub-yes { color: var(--green); font-weight: 600; }
+  .pub-no { color: var(--red); font-weight: 600; }
+  .sim-foot { display: flex; justify-content: space-between; padding: .9rem 1.3rem; border-top: 1px solid var(--line); background: #fbfaf7; }
+  button {
+    font-family: inherit; font-size: .9rem; font-weight: 500; cursor: pointer;
+    border: 1px solid var(--ink); background: var(--ink); color: #fff; padding: .5rem 1.1rem; border-radius: 9px;
+  }
+  button.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  button:disabled { opacity: .35; cursor: default; }
+
+  /* CAUSES */
+  .cause { border-left: 4px solid var(--red); }
+  .cause .n { font-family: 'Fraunces', serif; font-size: 1.6rem; color: var(--red); line-height: 1; margin-bottom: .4rem; display: block; }
+  .cause p, .card p { font-size: .92rem; color: var(--ink-soft); }
+  .notcause { border-left: 4px solid var(--green); }
+  .unknown { border-left: 4px solid var(--amber); }
+
+  /* ACTIONS */
+  .actions { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .actions td, .actions th { padding: .8rem 1rem; vertical-align: top; }
+  .actions td:first-child { width: 90px; }
+  .prio { font-size: .72rem; font-weight: 600; padding: .15rem .55rem; border-radius: 99px; white-space: nowrap; }
+  .prio.alta { background: var(--red-bg); color: var(--red); }
+  .prio.media { background: var(--amber-bg); color: var(--amber); }
+  .prio.baja { background: #eeece6; color: var(--ink-soft); }
+  .actions small { color: var(--muted); display: block; font-size: .8rem; margin-top: .15rem; }
+
+  details { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.3rem; margin-top: .8rem; }
+  summary { cursor: pointer; font-weight: 600; }
+  details pre { margin-top: .8rem; background: #1d1d23; color: #e8e6df; padding: 1rem; border-radius: 10px; overflow-x: auto; font-family: 'IBM Plex Mono', monospace; font-size: .78rem; line-height: 1.55; }
+  details ul { margin: .7rem 0 0 1.2rem; font-size: .9rem; color: var(--ink-soft); }
+
+  footer { padding: 2.5rem 0 3rem; color: var(--muted); font-size: .82rem; border-top: 1px solid var(--line); }
+
+  @media (max-width: 760px) {
+    .stats, .grid3, .grid2 { grid-template-columns: 1fr 1fr; }
+    .flow { grid-template-columns: 1fr; }
+    .flow .arrow { transform: rotate(90deg); justify-self: center; }
+    .sim-body { grid-template-columns: 1fr; }
+    .sim-text { border-right: 0; border-bottom: 1px solid var(--line); min-height: 0; }
+    .hero h1 { font-size: 1.9rem; }
+    .timeline::before { left: 70px; } .tl { grid-template-columns: 58px 1fr; } .tl::after { left: 65px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="tag"><i></i> Post mortem · resuelto</span>
+    <h1>Stirpe: dos cálculos de stock cruzados despublicaron 1.729 productos</h1>
+    <p>El jueves 15 de octubre, entre las 09:59 y las 10:19, stirpe.co mostró «Página no encontrada» en Adidas, Americanino, Festina y otras marcas. El cron de publicación sí corrió. Lo que falló fue el cálculo de stock: se ejecutó dos veces al mismo tiempo, una corrida borró el trabajo de la otra y el sistema creyó que esos productos estaban agotados.</p>
+    <div class="meta">Reportado por Fredy Baguer · 10:19 · Analizado con los logs de PROD (stock_sync, baguer_pro) y el código de api-crontab-v2 @ origin/master</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="stats">
+    <div class="stat red"><b>1.729</b><span>productos despublicados de golpe</span></div>
+    <div class="stat red"><b>4.397</b><span>referencias con stock, cuando lo normal son 17.623</span></div>
+    <div class="stat"><b>~20 min</b><span>sin esas marcas (09:59 → 10:19)</span></div>
+    <div class="stat green"><b>Sí</b><span>el cron de publicación corrió cada 30 min</span></div>
+  </div>
+</div>
+
+<!-- 1. CÓMO FUNCIONA -->
+<section>
+  <div class="wrap">
+    <span class="kicker">1 · Cómo funciona en un día normal</span>
+    <h2>Tres procesos, en cadena</h2>
+    <p class="lead">Para que un producto aparezca en la tienda pasan tres cosas, todas en api-crontab-v2. El problema estuvo en el segundo paso.</p>
+    <div class="flow">
+      <div class="step">
+        <small>Task104 · cada 15 min</small>
+        <h3>1. Traer el stock</h3>
+        <p>Copia del ERP el inventario de todas las bodegas: unos 122.000 registros por corrida.</p>
+        <span class="pill green">Funcionó bien</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step hot">
+        <small>Task104 · justo después</small>
+        <h3>2. Calcular el stock web</h3>
+        <p>Suma ese inventario por referencia y talla, deja en 0 lo que no llegó y <b>despublica</b> los productos que se quedan sin stock.</p>
+        <span class="pill red">Aquí falló</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step">
+        <small>Task78 · cada 30 min</small>
+        <h3>3. Publicar</h3>
+        <p>Revisa producto por producto (stock, imágenes, marca, tienda) y publica los que cumplen.</p>
+        <span class="pill green">Corrió a tiempo</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. LA CAÍDA EN UNA GRÁFICA -->
+<section>
+  <div class="wrap">
+    <span class="kicker">2 · La caída en una gráfica</span>
+    <h2>Referencias con stock después de cada cálculo</h2>
+    <p class="lead">Cada barra es una corrida del paso 2. Durante toda la mañana el número fue estable (~17.600). Cuando dos corridas se cruzaron, cayó a 4.397.</p>
+    <div class="chart">
+      <div class="bars" id="bars">
+        <div class="ref" style="bottom: calc(17623 / 19000 * 100%)"><span>normal ≈ 17.600</span></div>
+      </div>
+      <div class="labels">
+        <div><b>09:20</b>log 45901</div>
+        <div><b>09:34</b>log 45902</div>
+        <div><b>09:41</b>log 45903</div>
+        <div><b>09:54</b>log 45904<br>(fuera del cron)</div>
+        <div><b>09:56</b>log 45905<br>(cron, cruzado)</div>
+        <div><b>10:13</b>log 45906</div>
+      </div>
+      <p class="note">Fuente: <code>stock_sync.shop_log_stock_web</code>, columna <code>total_referencias_exitosas</code>. La corrida 45904 además despublicó 1.729 productos; todas las demás, entre 0 y 5.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 3. SIMULADOR -->
+<section>
+  <div class="wrap">
+    <span class="kicker">3 · Qué pasó, paso a paso</span>
+    <h2>El cruce con tres referencias de ejemplo</h2>
+    <p class="lead">Cada corrida «firma» las referencias que escribe con su número de log. Al terminar, pone en 0 todo lo que no tenga su firma, porque asume que lo que no trajo está agotado. Con una sola corrida a la vez eso funciona. Con dos al tiempo, una borra lo que la otra acaba de escribir.</p>
+
+    <div class="sim">
+      <div class="sim-head">
+        <strong>Simulación</strong>
+        <div class="dots" id="dots"></div>
+      </div>
+      <div class="sim-body">
+        <div class="sim-text">
+          <div class="who" id="who"></div>
+          <h3 id="stitle"></h3>
+          <p id="sdesc"></p>
+        </div>
+        <div class="sim-table">
+          <table>
+            <thead><tr><th>Referencia</th><th>Stock web</th><th>Firma</th><th>En tienda</th></tr></thead>
+            <tbody id="stbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="sim-foot">
+        <button class="ghost" id="prev">← Anterior</button>
+        <button id="next">Siguiente →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. LÍNEA DE TIEMPO -->
+<section>
+  <div class="wrap">
+    <span class="kicker">4 · Línea de tiempo</span>
+    <h2>Jueves 15 de octubre, hora de Bogotá</h2>
+    <div class="timeline">
+      <div class="tl"><time>09:41</time><div><strong>Cálculo normal (log 45903)</strong><p>17.623 referencias con stock. Termina 09:46.</p></div></div>
+      <div class="tl amber"><time>09:46</time><div><strong>Se mergea el PR #575 en api-crontab-v2</strong><p>Cambio de Edwin en la limpieza del historial de stock. No toca el cálculo de stock, pero coincide con el momento del fallo.</p></div></div>
+      <div class="tl amber"><time>09:53</time><div><strong>Arranca una sincronización de stock fuera del cron (log 45904)</strong><p>No queda registrada en <code>activity_log</code>, así que no la lanzó el scheduler. A la misma hora arrancan de golpe varias tareas que no suelen correr juntas, lo que parece un reinicio por el deploy.</p></div></div>
+      <div class="tl"><time>09:54</time><div><strong>Empieza el cálculo de stock web de esa corrida</strong><p>Tarda unos 5 minutos en recorrer ~32.000 referencias.</p></div></div>
+      <div class="tl red"><time>09:56</time><div><strong>El cron lanza otro cálculo (log 45905) mientras el primero sigue corriendo</strong><p>El candado del cron solo frena corridas del propio cron. Esta no vio la otra.</p></div></div>
+      <div class="tl red"><time>09:59</time><div><strong>El primer cálculo termina y pone en 0 lo que ya había firmado el segundo</strong><p>Quedan 4.397 referencias con stock y se despublican 1.729 productos. Las páginas de esas marcas pasan a mostrar 404.</p></div></div>
+      <div class="tl"><time>10:01</time><div><strong>El segundo cálculo termina</strong><p>12.415 referencias con stock. Las que borró el primero siguen en 0.</p></div></div>
+      <div class="tl"><time>10:09</time><div><strong>La publicación programada (Task78) arranca a tiempo</strong><p>Encuentra el stock todavía incompleto.</p></div></div>
+      <div class="tl green"><time>10:13</time><div><strong>Cálculo normal (log 45906)</strong><p>Vuelve a 17.623 referencias con stock. Termina 10:19.</p></div></div>
+      <div class="tl green"><time>10:19</time><div><strong>Fredy reporta en WhatsApp y se vuelve a publicar</strong><p>El catálogo se reescribe entre 10:19:38 y 10:19:52; el equipo cuenta que la publicación se corrió a mano. Desde ahí Adidas (72), Americanino (82) y Festina (31) vuelven a aparecer.</p></div></div>
+      <div class="tl green"><time>10:29</time><div><strong>Verificado</strong><p>La API y stirpe.co/adidas, /americanino y /festina responden con productos.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. POR QUÉ -->
+<section>
+  <div class="wrap">
+    <span class="kicker">5 · Por qué pudo pasar</span>
+    <h2>Tres huecos que se juntaron</h2>
+    <p class="lead">Ninguno solo bastaba. El cruce de las dos corridas fue el disparador; los otros dos dejaron que el error llegara a la tienda sin que nada lo frenara.</p>
+    <div class="grid3">
+      <div class="card cause"><span class="n">1</span><h3>El candado no cubre todo</h3><p><code>withoutOverlapping(45)</code> solo impide que el cron se pise a sí mismo. Una corrida lanzada a mano o por un deploy pasa por encima. La revisión interna («Ya existe un proceso…») solo compara el mismo número de log.</p></div>
+      <div class="card cause"><span class="n">2</span><h3>«Poner en 0 todo lo que no es mío»</h3><p>Al terminar, el cálculo pone en 0 toda referencia que no tenga su firma. Si otra corrida está escribiendo al mismo tiempo, borra el trabajo de esa otra.</p></div>
+      <div class="card cause"><span class="n">3</span><h3>Despublicar sin freno</h3><p>Cuando las referencias con stock caen de 17.600 a 4.400, el sistema despublica igual. El stock que llega del ERP sí tiene un umbral (85 % del promedio); este paso no tiene ninguno.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 6. QUÉ NO FUE / QUÉ NO SABEMOS -->
+<section>
+  <div class="wrap">
+    <span class="kicker">6 · Lo que se descartó y lo que falta saber</span>
+    <div class="grid2">
+      <div>
+        <h3 style="margin-bottom:.8rem">No fue la causa</h3>
+        <div class="card notcause" style="margin-bottom:.8rem"><h3>El cron no se cayó</h3><p>La publicación (Task78) corrió cada 30 minutos toda la mañana: 09:08, 09:30, 10:09. El paso 1 (traer stock) también corrió cada 15.</p></div>
+        <div class="card notcause" style="margin-bottom:.8rem"><h3>El stock del ERP llegó completo</h3><p>Todas las corridas de la mañana trajeron entre 122.600 y 122.740 registros. El dato que llegó estaba bien; se dañó al calcularlo.</p></div>
+        <div class="card notcause"><h3>Ni la web ni la API</h3><p>stirpe-web y get-api no cambiaron nada relevante. Muestran 404 porque la API no encontró productos publicados para esa marca.</p></div>
+      </div>
+      <div>
+        <h3 style="margin-bottom:.8rem">Falta confirmar</h3>
+        <div class="card unknown" style="margin-bottom:.8rem"><h3>¿Quién lanzó la corrida de las 09:53?</h3><p>No está en <code>activity_log</code>. Pudo ser una prueba manual tras el deploy o el propio deploy. Hay que preguntarle a quien hizo el deploy del PR #575.</p></div>
+        <div class="card unknown" style="margin-bottom:.8rem"><h3>¿Por qué «solo marcas propias»?</h3><p>Se despublicaron 1.729 productos, pero no se puede reconstruir cuáles (la tabla de publicación no guarda historia). En los rangos de SKU las marcas están mezcladas, así que el orden de proceso no lo explica limpiamente.</p></div>
+        <div class="card unknown"><h3>¿Pasó antes sin que nadie lo viera?</h3><p>El 14-oct hubo dos corridas que despublicaron 541 y 545 productos (10:30 y 12:30), con el stock del ERP cortado en 99.998 registros. Es otro mecanismo, pero tampoco lo frenó nada.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7. ACCIONES -->
+<section>
+  <div class="wrap">
+    <span class="kicker">7 · Qué hacer para que no se repita</span>
+    <h2>Acciones propuestas</h2>
+    <p class="lead">Las dos primeras bastan para cerrar este caso. El resto son riesgos vecinos que aparecieron durante el análisis.</p>
+    <table class="actions">
+      <thead><tr><th>Prioridad</th><th>Acción</th></tr></thead>
+      <tbody>
+        <tr><td><span class="prio alta">Alta</span></td><td><b>Un candado que valga para todos.</b> Bloquear el cálculo de stock web con un lock compartido (en BD o en una caché común a todos los nodos), no solo con el del cron. Si ya hay uno corriendo, el segundo se sale.<small>ConsolidarStockReferenciasService::consolidar()</small></td></tr>
+        <tr><td><span class="prio alta">Alta</span></td><td><b>Freno antes de despublicar.</b> Si las referencias con stock caen más de un 15 % frente a la corrida anterior, no despublicar y mandar una alerta.<small>despublicarProductosSinStock()</small></td></tr>
+        <tr><td><span class="prio media">Media</span></td><td><b>Poner en 0 solo lo de la corrida anterior.</b> Cambiar «todo lo que no tenga mi firma» por «lo que tenía la firma anterior y no llegó ahora».<small>actualizarStock(), el UPDATE con log_sync_stock_id != logId</small></td></tr>
+        <tr><td><span class="prio media">Media</span></td><td><b>Pausar el cron durante los deploys</b> y no correr estos procesos a mano mientras el cron está activo.<small>Regla operativa del deploy de api-crontab-v2</small></td></tr>
+        <tr><td><span class="prio media">Media</span></td><td><b>Umbral también para los productos.</b> El log de productos 38955 (07:59) terminó «sin error» con 8.000 productos en vez de ~9.740, y el publicador lo aceptó.<small>LocalStockRepository::obtenerUltimoLogProductoValidoSync()</small></td></tr>
+        <tr><td><span class="prio media">Media</span></td><td><b>Apagar el evento de BD <code>limpiar_historial_remoto</code>.</b> El PR #575 lo reemplaza con Task137, pero el evento sigue activo (corrió a las 10:00) y protege el último log terminado, no el último válido.<small>stock_sync · EVENT limpiar_historial_remoto</small></td></tr>
+        <tr><td><span class="prio baja">Baja</span></td><td><b>Alerta de catálogo.</b> Avisar si los productos publicados por tienda bajan de golpe, antes de que lo note un cliente.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 8. EVIDENCIA -->
+<section>
+  <div class="wrap">
+    <span class="kicker">8 · Evidencia</span>
+    <h2>De dónde sale cada dato</h2>
+    <details>
+      <summary>Cálculos de stock web de la mañana (shop_log_stock_web)</summary>
+      <pre>log    inicio    fin       referencias  puestas_en_0  con_stock  despublicados
+45901  09:20:17  09:25:22  31.995       14.372        17.623     5
+45902  09:34:10  09:39:14  31.992       14.370        17.622     3
+45903  09:41:28  09:46:33  31.992       14.369        17.623     0
+45904  09:54:03  09:59:11  31.992       12.574         4.397     1.729   ← fuera del cron
+45905  09:56:09  10:01:20  31.992       14.370        12.415     0       ← cruzado con 45904
+45906  10:13:53  10:19:00  31.987       14.364        17.623     1</pre>
+    </details>
+    <details>
+      <summary>Ejecuciones registradas por el cron (baguer_pro.activity_log)</summary>
+      <pre>09:30:40  Proceso para publicar productos válidos
+09:33:34  Proceso para sincronizar stock web          → log 45902
+09:40:52  Proceso para sincronizar stock web          → log 45903
+           (sin registro)                              → log 45904 · 09:53:21
+09:55:36  Proceso para sincronizar stock web          → log 45905
+10:01:20  Proceso para sincronizar productos crudos
+10:08:59  Proceso para publicar productos válidos
+10:13:18  Proceso para sincronizar stock web          → log 45906</pre>
+    </details>
+    <details>
+      <summary>Código involucrado (api-crontab-v2 @ origin/master)</summary>
+      <ul>
+        <li><code>routes/console.php</code>: Task104 = StockSyncService + ConsolidarStockReferenciasService, <code>everyFifteenMinutes()-&gt;withoutOverlapping(45)</code>.</li>
+        <li><code>ConsolidarStockReferenciasService::actualizarStock()</code>: <code>UPDATE shop_stock_referencias SET referencia_cantidad = 0 WHERE log_sync_stock_id != :log AND referencia_cantidad &gt; 0</code>.</li>
+        <li><code>ConsolidarStockReferenciasService::despublicarProductosSinStock()</code>: <code>publicado = 0</code> a todo producto cuya suma de stock es 0, sin umbral.</li>
+        <li><code>ConsolidarStockReferenciasService::iniciarLog()</code>: la guarda solo rechaza si ya existe una consolidación para el mismo log.</li>
+        <li><code>ProductPublisherService::publicarProductos()</code>: Task78, cada 30 min; vuelve a publicar lo que tenga stock.</li>
+      </ul>
+    </details>
+    <details>
+      <summary>Estado verificado a las 10:29</summary>
+      <pre>GET api.appget.co/api/v2/stirpe/catalog/intelligent-search/adidas       → 200, 36 productos
+GET api.appget.co/api/v2/stirpe/catalog/intelligent-search/americanino  → 200, 36 productos
+GET api.appget.co/api/v2/stirpe/catalog/intelligent-search/festina      → 200, 31 productos
+Publicados en stirpe ahora: Adidas 72 · Americanino 82 · Festina 31</pre>
+    </details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">Post mortem preparado el 15 de octubre de 2026 · Datos de PROD (3308) en solo lectura · Las horas de merge de Bitbucket se pasaron de UTC a hora de Bogotá.</div>
+</footer>
+
+<script>
+  // Gráfica
+  const data = [
+    { v: 17623, c: 'ok' }, { v: 17622, c: 'ok' }, { v: 17623, c: 'ok' },
+    { v: 4397, c: 'bad' }, { v: 12415, c: 'mid' }, { v: 17623, c: 'ok' }
+  ];
+  const bars = document.getElementById('bars');
+  const fmt = n => n.toLocaleString('es-CO');
+  data.forEach(d => {
+    const b = document.createElement('div');
+    b.className = 'bar ' + d.c;
+    b.innerHTML = `<em>${fmt(d.v)}</em>`;
+    b.dataset.h = (d.v / 19000 * 100) + '%';
+    bars.appendChild(b);
+  });
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) { bars.querySelectorAll('.bar').forEach((b, i) => setTimeout(() => b.style.height = b.dataset.h, i * 120)); io.disconnect(); }
+  }), { threshold: .35 });
+  io.observe(bars);
+
+  // Simulador
+  const R = (ref, stock, firma, pub) => ({ ref, stock, firma, pub });
+  const steps = [
+    { who: 'neutral', w: 'Antes · 09:46', t: 'Todo en orden',
+      d: 'Tres referencias de ejemplo con stock y firmadas por el último cálculo normal (45903). Las tres se ven en la tienda.',
+      rows: [R('Tenis A', 5, '45903', 1), R('Reloj B', 3, '45903', 1), R('Jean C', 8, '45903', 1)], flash: [] },
+    { who: 'c1', w: 'Corrida 1 · log 45904 · 09:54', t: 'Empieza la corrida 1 (fuera del cron)',
+      d: 'Recorre las referencias y las firma con 45904. Va por la mitad: ya pasó por A y B.',
+      rows: [R('Tenis A', 5, '45904', 1), R('Reloj B', 3, '45904', 1), R('Jean C', 8, '45903', 1)], flash: [[0,2],[1,2]] },
+    { who: 'c2', w: 'Corrida 2 · log 45905 · 09:56', t: 'El cron lanza la corrida 2 sin ver la primera',
+      d: 'Empieza desde el principio y firma A con 45905. Ahora hay dos corridas escribiendo en la misma tabla.',
+      rows: [R('Tenis A', 5, '45905', 1), R('Reloj B', 3, '45904', 1), R('Jean C', 8, '45904', 1)], flash: [[0,2],[2,2]] },
+    { who: 'res', w: 'Corrida 1 termina · 09:59', t: '«Todo lo que no tenga mi firma, a 0»',
+      d: 'La corrida 1 ve que A tiene la firma 45905, no la suya. Asume que A está agotada y la pone en 0, aunque tiene 5 unidades.',
+      rows: [R('Tenis A', 0, '45904', 1), R('Reloj B', 3, '45904', 1), R('Jean C', 8, '45904', 1)], flash: [[0,1],[0,2]] },
+    { who: 'res', w: 'Corrida 1 · mismo instante', t: 'Despublica lo que quedó sin stock',
+      d: 'El producto A suma 0 en todas sus tallas y sale de la tienda. En la vida real esto les pasó a 1.729 productos.',
+      rows: [R('Tenis A', 0, '45904', 0), R('Reloj B', 3, '45904', 1), R('Jean C', 8, '45904', 1)], flash: [[0,3]] },
+    { who: 'c2', w: 'Corrida 2 termina · 10:01', t: 'La corrida 2 no vuelve atrás',
+      d: 'Sigue con B y C y termina. A ya había pasado por ella, así que no la revisa otra vez: queda en 0 y fuera de la tienda.',
+      rows: [R('Tenis A', 0, '45904', 0), R('Reloj B', 3, '45905', 1), R('Jean C', 8, '45905', 1)], flash: [[1,2],[2,2]] },
+    { who: 'neutral', w: 'Siguientes corridas · 10:13 → 10:19', t: 'Se arregla solo con una corrida limpia',
+      d: 'El cálculo de las 10:13 corre solo, devuelve el stock de A y la publicación de las 10:19 lo vuelve a poner en la tienda.',
+      rows: [R('Tenis A', 5, '45906', 1), R('Reloj B', 3, '45906', 1), R('Jean C', 8, '45906', 1)], flash: [[0,1],[0,3]] }
+  ];
+  let i = 0;
+  const dots = document.getElementById('dots');
+  steps.forEach(() => dots.appendChild(document.createElement('span')));
+  const chipClass = f => f === '45904' ? 'c1' : f === '45905' ? 'c2' : 'none';
+  function render() {
+    const s = steps[i];
+    const who = document.getElementById('who');
+    who.className = 'who ' + s.who; who.textContent = s.w;
+    document.getElementById('stitle').textContent = s.t;
+    document.getElementById('sdesc').textContent = s.d;
+    document.getElementById('stbody').innerHTML = s.rows.map((r, ri) => {
+      const f = c => s.flash.some(([a, b]) => a === ri && b === c) ? ' class="flash"' : '';
+      return `<tr><td${f(0)}>${r.ref}</td>` +
+        `<td${f(1)}>${r.stock === 0 ? '<span class="zero">0</span>' : r.stock}</td>` +
+        `<td${f(2)}><span class="chip ${chipClass(r.firma)}">${r.firma}</span></td>` +
+        `<td${f(3)}>${r.pub ? '<span class="pub-yes">Sí</span>' : '<span class="pub-no">No</span>'}</td></tr>`;
+    }).join('');
+    dots.querySelectorAll('span').forEach((d, di) => d.classList.toggle('on', di <= i));
+    document.getElementById('prev').disabled = i === 0;
+    document.getElementById('next').textContent = i === steps.length - 1 ? 'Reiniciar ↺' : 'Siguiente →';
+  }
+  document.getElementById('next').onclick = () => { i = i === steps.length - 1 ? 0 : i + 1; render(); };
+  document.getElementById('prev').onclick = () => { if (i > 0) { i--; render(); } };
+  render();
+</script>
+</body>
+</html>
