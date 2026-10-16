@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup AQ-011 · v2 · App QUAC v2: actualizar la app y mantenimiento</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Nunito+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script>
+tailwind.config = { theme: { extend: {
+  colors: { quac:'#7633FF', quacdark:'#321185', lavender:'#E9E8F1', lila:'#C5C5FF',
+            txt:'#140F26', txt2:'#374957', muted:'#A19EB5', err:'#FF6464', rosa:'#E5147E' },
+  fontFamily: { display:['Poppins','sans-serif'], body:['"Nunito Sans"','sans-serif'] }
+} } }
+</script>
+<style>
+  body { font-family:'Nunito Sans', sans-serif; }
+  .font-display { font-family:'Poppins', sans-serif; }
+  .fade { animation: fade .22s ease-out; } @keyframes fade { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+  .spin { animation: spin .9s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+  .sube { animation: sube .26s cubic-bezier(.16,1,.3,1); } @keyframes sube { from{transform:translateY(100%)} to{transform:none} }
+  /* tokens de app-quac-v2 (core/theme/colors.dart, typography.dart) */
+  .h1-app { font-family:'Poppins',sans-serif; font-size:26px; font-weight:700; line-height:1.15; color:#321185; }
+  .h3-app { font-family:'Poppins',sans-serif; font-size:20px; font-weight:700; line-height:1.2; color:#140F26; }
+  .body-2 { font-size:16px; line-height:1.4; color:#374957; }
+  .btn-app { height:50px; border-radius:10px; width:100%; font-weight:700; font-size:16px; background:#7633FF; color:#fff; display:flex; align-items:center; justify-content:center; gap:10px; }
+  .btn-txt { height:44px; width:100%; font-weight:700; font-size:16px; color:#7633FF; }
+  .ico { width:96px; height:96px; border-radius:999px; background:#E9E8F1; display:flex; align-items:center; justify-content:center; }
+  .nuevo { outline:2px dashed #818cf8; outline-offset:5px; border-radius:8px; position:relative; }
+  .nuevo::after { content:'nuevo en AQ-011'; position:absolute; top:-17px; right:0; font-size:10px; font-weight:700; color:#4f46e5; background:#eef2ff; padding:0 6px; border-radius:4px; }
+  .on { background:#312e81; color:#fff; border-color:#312e81; }
+  .off { background:#fff; color:#475569; border-color:#e2e8f0; }
+  .chip { font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  pre { white-space:pre-wrap; }
+</style>
+</head>
+<body class="bg-slate-100 p-6">
+<div class="flex gap-6 items-start justify-center max-w-[1180px] mx-auto">
+
+<!-- ═════════════ PANEL DE CONTROL ═════════════ -->
+<aside class="w-[430px] shrink-0 space-y-4 text-sm text-slate-600">
+  <div>
+    <p class="text-xs font-bold text-quac uppercase tracking-widest">Mockup · AQ-011 · v2 · 2026-10-15 · para validación</p>
+    <h1 class="font-display font-bold text-lg leading-tight mt-1">App QUAC v2: actualizar la app y mantenimiento</h1>
+    <p class="text-[11px] text-slate-500 mt-2 leading-relaxed bg-white rounded-lg p-2 border border-slate-200">
+      Tres capas que la app pone <b>encima</b> de cualquier pantalla según lo que responda <code>GET /v2/app/configuracion</code> o un 426/503 de cualquier endpoint. Ícono, título, mensaje y rótulos de los botones llegan del API (D13). No son rutas nuevas: el router y la sesión no se tocan (D9). Lo punteado en <span class="text-indigo-600 font-bold">azul</span> no existe hoy en la v2.
+    </p>
+  </div>
+
+  <div class="bg-white rounded-xl p-3 shadow-sm space-y-3">
+    <div>
+      <p class="font-semibold mb-1">① Pantalla</p>
+      <div class="grid grid-cols-2 gap-1" id="navP">
+        <button data-p="arranque"      class="np px-1 py-1.5 rounded-lg border text-[11px] font-bold">Arranque en frío</button>
+        <button data-p="obligatoria"   class="np px-1 py-1.5 rounded-lg border text-[11px] font-bold">Actualizar (obligatoria)</button>
+        <button data-p="recomendada"   class="np px-1 py-1.5 rounded-lg border text-[11px] font-bold">Hoja recomendada</button>
+        <button data-p="mantenimiento" class="np px-1 py-1.5 rounded-lg border text-[11px] font-bold">Mantenimiento</button>
+        <button data-p="enmedio"       class="np px-1 py-1.5 rounded-lg border text-[11px] font-bold">426 a mitad de un pago</button>
+        <button data-p="legacy"        class="np px-1 py-1.5 rounded-lg border text-[11px] font-bold">Hoy en el legacy</button>
+      </div>
+    </div>
+    <div id="bloqueEstado">
+      <p class="font-semibold mb-1">② Estado</p>
+      <div class="grid grid-cols-3 gap-1" id="navE"></div>
+    </div>
+    <div>
+      <p class="font-semibold mb-1">③ Plataforma</p>
+      <div class="grid grid-cols-2 gap-1">
+        <button data-o="android" class="no px-1 py-1.5 rounded-lg border text-[11px] font-bold">Android</button>
+        <button data-o="ios"     class="no px-1 py-1.5 rounded-lg border text-[11px] font-bold">iOS</button>
+      </div>
+    </div>
+    <p id="nota" class="text-[11px] text-slate-500 leading-relaxed bg-slate-50 rounded p-2 border border-slate-200"></p>
+  </div>
+
+  <div class="bg-white rounded-xl p-3 shadow-sm space-y-1 text-[11px] leading-relaxed">
+    <p class="font-semibold text-slate-700 text-sm">Respuesta del API en este estado</p>
+    <pre id="json" class="bg-slate-900 text-slate-100 rounded p-2 text-[10.5px] leading-snug"></pre>
+  </div>
+
+  <div class="bg-white rounded-xl p-3 shadow-sm space-y-2 text-[11px] leading-relaxed">
+    <p class="font-semibold text-slate-700 text-sm">Qué cambia respecto al legacy</p>
+    <p><b>D2 · Mínima y recomendada, por número.</b> Hoy la app se compara por texto exacto con una sola versión: una 3.8.6 se bloquea si la fila dice 3.8.5 (así está Android en PROD hoy). En la v2 una versión más nueva nunca se bloquea.</p>
+    <p><b>D5 · Mantenimiento tapa toda la app</b>, no solo el login: en la v2 la sesión persiste y el cliente entra directo al Home, donde con el CRM caído vería su cartera en cero.</p>
+    <p><b>D7 · Se revisa también al volver del segundo plano y al abrir desde una push</b> (el legacy lo salta), y ante un 426/503 de cualquier endpoint.</p>
+    <p><b>Botón a la ficha real de la tienda.</b> Hoy Android abre una búsqueda «quac» en Play.</p>
+  </div>
+
+  <div class="bg-slate-50 rounded-xl p-3 border border-slate-200 space-y-1 text-[11px] leading-relaxed">
+    <p class="font-semibold text-slate-700 text-sm">Fuera de este mockup</p>
+    <p>Avisos remotos con imagen y botón, preaprobado y la pantalla de get-web para editar versiones (→ AQ-011.5). Cambiar la versión es un <code>UPDATE</code> de runbook (D8).</p>
+  </div>
+</aside>
+
+<!-- ═════════════ TELÉFONO ═════════════ -->
+<main class="shrink-0">
+  <div class="w-[390px] h-[844px] rounded-[48px] bg-black p-[10px] shadow-2xl">
+    <div id="tel" class="relative w-full h-full rounded-[38px] overflow-hidden bg-[#F8F8F8]"></div>
+  </div>
+  <p id="pie" class="text-center text-[11px] text-slate-400 mt-2">390 × 844 · iPhone 14</p>
+</main>
+</div>
+
+<script>
+const A = 'assets-aq-008/';
+const S = { p:'obligatoria', e:'ok', o:'android' };
+
+const TIENDA = {
+  android: { url:'play.google.com/store/apps/details?id=quac.porcuotas.com', nom:'Google Play' },
+  ios:     { url:'apps.apple.com/co/app/quac/id6446182225', nom:'App Store' }
+};
+const ESTADOS = {
+  arranque:      [['ok','Configuración responde'],['lenta','Tarda más de 3 s'],['falla','Sin red / 500']],
+  obligatoria:   [['ok','Pantalla'],['abriendo','Tocó «Actualizar»']],
+  recomendada:   [['ok','Hoja abierta'],['despues','Tocó «Después»']],
+  mantenimiento: [['ok','Pantalla'],['carga','Reintentando'],['sigue','Sigue encendido']],
+  enmedio:       [['antes','Antes del 426'],['ok','Después del 426']],
+  legacy:        [['req1','requerida = 1'],['req0','requerida = 0']]
+};
+
+const statusBar = (claro) => `<div class="absolute top-0 inset-x-0 h-11 flex items-center justify-between px-7 text-[14px] font-semibold z-20 ${claro?'text-white':'text-txt'}"><span>9:41</span><span>●●● ▮</span></div>`;
+
+const iconoDescarga = `<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>`;
+const iconoHerramienta = `<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg>`;
+
+function home(atenuado) {
+  return `<div class="absolute inset-0 ${atenuado?'':''}">
+    <div class="h-[230px] bg-gradient-to-br from-[#4197ED] via-[#7D2FEB] to-[#CB1CE7] px-6 pt-16 text-white">
+      <p class="text-[15px] opacity-90">Hola,</p><p class="font-display font-bold text-[24px]">Laura Marcela</p>
+      <div class="mt-4 bg-white/15 rounded-xl p-3"><p class="text-[12px] opacity-90">Cupo disponible</p><p class="font-display font-bold text-[26px]">$1.250.000</p></div>
+    </div>
+    <div class="px-5 pt-4 space-y-3">
+      <div class="bg-white rounded-xl p-4 shadow-sm"><p class="text-[13px] text-muted">Próximo pago</p><p class="font-bold text-txt text-[18px]">$186.400 · 05 nov</p></div>
+      <div class="bg-white rounded-xl p-4 shadow-sm h-24"></div>
+    </div>
+    <div class="absolute bottom-0 inset-x-0 h-[78px] bg-white border-t border-slate-200 grid grid-cols-5 text-[10px] text-muted text-center pt-3">
+      <span class="text-quac font-bold">Inicio</span><span>Movimientos</span><span>Pagar</span><span>Quac+</span><span>Más</span></div>
+  </div>`;
+}
+
+function pagar() {
+  return `<div class="absolute inset-0 bg-[#F8F8F8] pt-14 px-5">
+    <p class="text-quac text-[16px]">‹ Volver</p>
+    <p class="h1-app mt-3">Paga con PSE</p>
+    <div class="mt-5 bg-white rounded-xl p-4 shadow-sm space-y-2"><p class="text-muted text-[13px]">Valor</p><p class="font-bold text-[22px] text-txt">$186.400</p><p class="text-muted text-[13px] pt-2">Banco</p><p class="text-txt">Bancolombia</p></div>
+    <button class="btn-app mt-6">${S.e==='antes'?'Pagar':'<span class="w-5 h-5 border-2 border-white/40 border-t-white rounded-full spin"></span>'}</button>
+  </div>`;
+}
+
+function capaPantalla(icono, titulo, mensaje, boton, extra='') {
+  return `<div class="absolute inset-0 z-10 bg-[#F8F8F8] flex flex-col fade nuevo" style="outline-offset:-6px">
+    <div class="pt-20 flex justify-center"><img src="assets-aq-011/logo-simple-primary.png" class="h-10" alt="QUAC"></div>
+    <div class="flex-1 flex flex-col items-center justify-center px-8 text-center">
+      <div class="ico">${icono}</div>
+      <p class="h1-app mt-6">${titulo}</p>
+      <p class="body-2 mt-3">${mensaje}</p>
+      ${extra}
+    </div>
+    <div class="px-6 pb-12">${boton}</div>
+  </div>`;
+}
+
+function render() {
+  const t = document.getElementById('tel');
+  const tienda = TIENDA[S.o];
+  let h = '', nota = '', json = {};
+
+  if (S.p === 'arranque') {
+    h = `<div class="absolute inset-0 bg-gradient-to-b from-[#4197ED] via-[#7D2FEB] to-[#CB1CE7] flex items-center justify-center">
+      <img src="${A}logo-texto-completo.png" class="h-12 brightness-0 invert" alt="QUAC"></div>${statusBar(true)}`;
+    if (S.e==='ok') { nota = 'Splash nativo. La app espera la sesión guardada y la configuración a la vez; con la respuesta, monta el router y la capa que toque. El cliente no ve el Home antes de taparse.'; json = {estado:'ok', url_tienda:null, icono_url:null, titulo:null, mensaje:null, boton_principal:null, boton_secundario:null}; }
+    if (S.e==='lenta') { nota = 'A los 3 s sin respuesta la app entra igual (fail-open, D7). Si la versión estaba bloqueada, el primer endpoint que llame responde 426 y la capa aparece entonces.'; json = {'(sin respuesta a los 3 s)':'la app sigue como estado = ok'}; }
+    if (S.e==='falla') { nota = 'Sin red o con error del servidor, la app entra igual, como el legacy. El rastro queda en el log con el trace_id.'; json = {'(HTTP 500 / timeout)':'la app sigue como estado = ok'}; }
+  }
+
+  if (S.p === 'obligatoria') {
+    h = home() + capaPantalla(iconoDescarga, 'Actualiza QUAC para seguir',
+      'Tenemos novedades para ti. Descarga la nueva versión desde la tienda para seguir usando QUAC.',
+      `<button class="btn-app">Actualizar</button>`) + statusBar();
+    if (S.e==='abriendo') h += `<div class="absolute inset-x-4 bottom-24 z-30 bg-txt text-white rounded-xl p-3 text-[13px] fade">Abriendo ${tienda.nom}…<br><span class="text-white/60 text-[11px]">${tienda.url}</span></div>`;
+    nota = 'Sin salida: no hay «Después», el atrás de Android no hace nada (PopScope) y tapa la pantalla que esté abierta. Ícono, título, mensaje y rótulo del botón salen del API (app_config_mensajes, D13). Al volver de la tienda sin actualizar, sigue aquí.';
+    json = {estado:'obligatoria', url_tienda:'https://'+tienda.url, icono_url:'https://cdn.baguer.co/quac/app-config/actualizar.svg', titulo:'Actualiza QUAC para seguir', mensaje:'Tenemos novedades para ti. Descarga la nueva versión desde la tienda para seguir usando QUAC.', boton_principal:'Actualizar', boton_secundario:null};
+  }
+
+  if (S.p === 'recomendada') {
+    h = home() + statusBar(true);
+    if (S.e==='ok') {
+      h += `<div class="absolute inset-0 z-10 bg-black/40 fade"></div>
+      <div class="absolute inset-x-0 bottom-0 z-20 bg-white rounded-t-[28px] px-5 pb-8 sube nuevo" style="outline-offset:-6px">
+        <div class="w-8 h-1 rounded-full bg-slate-300 mx-auto mt-3 mb-5"></div>
+        <div class="ico" style="width:64px;height:64px">${iconoDescarga.replace(/44/g,'30')}</div>
+        <p class="h3-app mt-4">Hay una versión nueva de QUAC</p>
+        <p class="body-2 mt-2">Trae mejoras para que pagues y consultes tu cupo más rápido.</p>
+        <button class="btn-app mt-5">Actualizar</button>
+        <button class="btn-txt mt-1">Después</button>
+      </div>`;
+      nota = 'Mismo patrón que la hoja de «Cerrar sesión» de AQ-007 (showModalBottomSheet con asa, botón primario y botón de texto). Ícono, título, mensaje y los dos rótulos salen del API (D13). Sale en cada arranque en frío mientras la versión esté por debajo de la recomendada (D10); al volver del segundo plano no se repite.';
+    } else {
+      nota = '«Después» cierra la hoja y el cliente sigue en el Home. En el próximo arranque en frío vuelve a salir.';
+    }
+    json = {estado:'recomendada', url_tienda:'https://'+tienda.url, icono_url:'https://cdn.baguer.co/quac/app-config/actualizar.svg', titulo:'Hay una versión nueva de QUAC', mensaje:'Trae mejoras para que pagues y consultes tu cupo más rápido.', boton_principal:'Actualizar', boton_secundario:'Después'};
+  }
+
+  if (S.p === 'mantenimiento') {
+    const boton = S.e==='carga'
+      ? `<button class="btn-app"><span class="w-5 h-5 border-2 border-white/40 border-t-white rounded-full spin"></span></button>`
+      : `<button class="btn-app">Reintentar</button>`;
+    const extra = S.e==='sigue' ? `<p class="mt-4 text-[14px] text-rosa font-semibold fade">Seguimos en mantenimiento. Intenta de nuevo en unos minutos.</p>` : '';
+    h = home() + capaPantalla(iconoHerramienta, 'Estamos en mantenimiento',
+      'No podrás usar la app hasta las 7:15 a. m. del lunes 03 de agosto.', boton, extra) + statusBar();
+    nota = 'Ícono, título, mensaje y rótulo del botón salen de var_env.MANTENIMIENTO_APP_LOGIN_MSG (claves titulo, message, icono_url, boton), el mismo interruptor del legacy (D6); el legacy solo lee titulo y message. El aviso rosa de «sigue encendido» es el único texto que trae la app. Ojo: el texto de la ventana del 2026-07-31 dice «no podrás iniciar sesión»; para la v2, que bloquea toda la app, conviene redactarlo para ambas (OPS). Texto de ejemplo adaptado del de esa ventana. «Reintentar» reconsulta; si ya terminó, la capa desaparece y el cliente sigue donde estaba (D11).';
+    json = {estado:'mantenimiento', url_tienda:null, icono_url:'https://cdn.baguer.co/quac/app-config/mantenimiento.svg', titulo:'Estamos en mantenimiento', mensaje:'No podrás usar la app hasta las 7:15 a. m. del lunes 03 de agosto.', boton_principal:'Reintentar', boton_secundario:null};
+  }
+
+  if (S.p === 'enmedio') {
+    h = pagar() + statusBar();
+    if (S.e==='ok') h += capaPantalla(iconoDescarga, 'Actualiza QUAC para seguir',
+      'Tenemos novedades para ti. Descarga la nueva versión desde la tienda para seguir usando QUAC.',
+      `<button class="btn-app">Actualizar</button>`) + statusBar();
+    nota = S.e==='antes'
+      ? 'El cliente tenía la app abierta en segundo plano cuando se subió la mínima. Toca «Pagar».'
+      : 'POST /v2/pagos/pse responde 426: el interceptor actualiza el estado y la capa tapa la pantalla de pago. El pago no se envió (el middleware corta antes del controlador).';
+    json = S.e==='antes' ? {'(petición)':'POST /v2/pagos/pse · X-App-Version: 4.0.0'} : {'HTTP':426, estado:'obligatoria', url_tienda:'https://'+tienda.url, icono_url:'https://cdn.baguer.co/quac/app-config/actualizar.svg', titulo:'Actualiza QUAC para seguir', mensaje:'…', boton_principal:'Actualizar', boton_secundario:null};
+  }
+
+  if (S.p === 'legacy') {
+    h = `<div class="absolute inset-0 bg-gradient-to-b from-[#4197ED] via-[#7D2FEB] to-[#CB1CE7] flex items-center justify-center"><img src="${A}logo-texto-completo.png" class="h-12 brightness-0 invert" alt="QUAC"></div>${statusBar(true)}
+    <div class="absolute inset-0 z-10 bg-black/40 flex items-center justify-center px-12">
+      <div class="bg-white/95 rounded-[14px] w-full text-center overflow-hidden">
+        <p class="font-semibold text-[17px] text-txt pt-5 px-4">Actualizamos QUAC</p>
+        <p class="text-[13px] text-txt px-4 pt-1 pb-4 leading-snug">En esta versión incluimos pequeños ajustes para que tu navegación en Quac sea más amigable.</p>
+        <div class="border-t border-slate-200 grid ${S.e==='req0'?'grid-cols-2':''}">
+          ${S.e==='req0'?'<button class="py-3 text-[16px] text-[#007AFF]">Después</button>':''}
+          <button class="py-3 text-[16px] text-[#007AFF] ${S.e==='req0'?'border-l border-slate-200':''}">Actualizar ahora</button>
+        </div>
+      </div>
+    </div>`;
+    nota = 'app-qac 3.8.6 (validate_token_screen.dart): CupertinoAlertDialog en el splash, solo en arranque en frío y solo si no se abrió desde una push. Textos reales de config_app en PROD (editada 2026-09-17, requerida = 1). Compara por texto exacto con version_android 3.8.5 / version_ios 3.8.6.';
+    json = {config:{version_android:'3.8.5', version_ios:'3.8.6', requerida: S.e==='req0'?0:1, titulo:'Actualizamos QUAC', update_url_android:'https://play.google.com/store/search?q=quac&c=apps', save_local:[], delete_local:[]}, router:null};
+  }
+
+  t.innerHTML = h;
+  document.getElementById('nota').textContent = nota;
+  document.getElementById('json').textContent = JSON.stringify(json, null, 2);
+  document.getElementById('pie').textContent = (S.o==='ios'?'390 × 844 · iPhone 14':'390 × 844 · Android (ancho de referencia)');
+  pintarNav();
+}
+
+function pintarNav() {
+  document.querySelectorAll('.np').forEach(b => b.className = 'np px-1 py-1.5 rounded-lg border text-[11px] font-bold ' + (b.dataset.p===S.p?'on':'off'));
+  document.querySelectorAll('.no').forEach(b => b.className = 'no px-1 py-1.5 rounded-lg border text-[11px] font-bold ' + (b.dataset.o===S.o?'on':'off'));
+  const e = document.getElementById('navE');
+  e.innerHTML = ESTADOS[S.p].map(([k,l]) => `<button data-e="${k}" class="ne px-1 py-1.5 rounded-lg border text-[11px] font-bold ${k===S.e?'on':'off'}">${l}</button>`).join('');
+  e.querySelectorAll('.ne').forEach(b => b.onclick = () => { S.e = b.dataset.e; guardar(); render(); });
+}
+
+function guardar() { location.hash = `p=${S.p}&e=${S.e}&o=${S.o}`; }
+function leer() {
+  const q = new URLSearchParams(location.hash.slice(1));
+  if (q.get('p') && ESTADOS[q.get('p')]) S.p = q.get('p');
+  S.e = ESTADOS[S.p].some(([k]) => k===q.get('e')) ? q.get('e') : ESTADOS[S.p][0][0];
+  if (q.get('o')) S.o = q.get('o');
+}
+
+document.querySelectorAll('.np').forEach(b => b.onclick = () => { S.p = b.dataset.p; S.e = ESTADOS[S.p][0][0]; guardar(); render(); });
+document.querySelectorAll('.no').forEach(b => b.onclick = () => { S.o = b.dataset.o; guardar(); render(); });
+leer(); render();
+</script>
+</body>
+</html>
