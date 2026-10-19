@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-190 · Mockup · Wizard de promociones: regalo o precio especial sin dudas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { theme: { extend: { fontFamily: { sans: ['ui-sans-serif', 'system-ui', 'sans-serif'] } } } }
+</script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, sans-serif; }
+  main label { color: #374151; }
+  input[type=radio], input[type=checkbox] { width: 15px; height: 15px; }
+  .skel { background: linear-gradient(90deg,#f1f3f5 25%,#e6e8eb 37%,#f1f3f5 63%); background-size: 400% 100%; animation: sk 1.2s ease infinite; }
+  @keyframes sk { 0%{background-position:100% 0} 100%{background-position:0 0} }
+  .spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg);} }
+  .tb-btn { @apply text-xs px-2.5 py-1 rounded-md border; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<!-- ===== Barra del mockup (no es parte de get-web) ===== -->
+<div class="sticky top-0 z-50 bg-gray-900 text-gray-100 text-xs border-b border-gray-700">
+  <div class="px-4 py-2 flex flex-wrap items-center gap-x-6 gap-y-2">
+    <span class="font-semibold tracking-wide text-gray-300">MOCKUP GW-190</span>
+    <div class="flex items-center gap-1"><span class="text-gray-400 mr-1">Variante</span>
+      <button data-set="variante=A" class="tb px-2.5 py-1 rounded-md border border-gray-600">A · Con probador</button>
+      <button data-set="variante=B" class="tb px-2.5 py-1 rounded-md border border-gray-600">B · Sin probador</button>
+    </div>
+    <div class="flex items-center gap-1"><span class="text-gray-400 mr-1">Receta</span>
+      <button data-set="receta=monto" class="tb px-2.5 py-1 rounded-md border border-gray-600">Regalo por monto (#1291)</button>
+      <button data-set="receta=montoMixto" class="tb px-2.5 py-1 rounded-md border border-gray-600">Por monto · camisetas Derek, jeans Derek o Unser</button>
+      <button data-set="receta=productos" class="tb px-2.5 py-1 rounded-md border border-gray-600">Regalo por productos</button>
+      <button data-set="receta=nxm" class="tb px-2.5 py-1 rounded-md border border-gray-600">Paga menos, lleva más</button>
+    </div>
+    <div class="flex items-center gap-1"><span class="text-gray-400 mr-1">Pantalla</span>
+      <button data-set="paso=2" class="tb px-2.5 py-1 rounded-md border border-gray-600">Paso 2 · Condiciones</button>
+      <button data-set="paso=4" class="tb px-2.5 py-1 rounded-md border border-gray-600">Paso 4 · Publicar</button>
+    </div>
+    <div id="tb-probador" class="flex items-center gap-1"><span class="text-gray-400 mr-1">Probador</span>
+      <button data-set="probador=ok" class="tb px-2.5 py-1 rounded-md border border-gray-600">Comprobado</button>
+      <button data-set="probador=calculando" class="tb px-2.5 py-1 rounded-md border border-gray-600">Calculando</button>
+      <button data-set="probador=problema" class="tb px-2.5 py-1 rounded-md border border-gray-600">Con problema</button>
+      <button data-set="probador=caido" class="tb px-2.5 py-1 rounded-md border border-gray-600">Servicio caído</button>
+    </div>
+    <div class="flex items-center gap-1"><span class="text-gray-400 mr-1">Recuento</span>
+      <button data-set="alcance=ok" class="tb px-2.5 py-1 rounded-md border border-gray-600">Con cifras</button>
+      <button data-set="alcance=contando" class="tb px-2.5 py-1 rounded-md border border-gray-600">Contando</button>
+      <button data-set="alcance=cero" class="tb px-2.5 py-1 rounded-md border border-gray-600">Cero</button>
+      <button data-set="alcance=error" class="tb px-2.5 py-1 rounded-md border border-gray-600">Error</button>
+    </div>
+    <button id="btn-notas" class="ml-auto px-2.5 py-1 rounded-md border border-gray-600">Notas y origen de los ejemplos</button>
+  </div>
+  <div id="notas" class="hidden border-t border-gray-700 bg-gray-800 px-4 py-3 text-[12px] leading-relaxed">
+    <div class="grid grid-cols-3 gap-6 max-w-6xl">
+      <div>
+        <p class="font-semibold text-gray-200 mb-1">¿De dónde salen los ejemplos?</p>
+        <ol class="list-decimal ml-4 space-y-1 text-gray-300">
+          <li><b>get-web arma cinco carritos de prueba</b> a partir de lo configurado, con plantillas fijas por receta: justo encima del mínimo con el producto; justo debajo; mezcla con productos que no cuentan; sin el producto que se lleva; el doble del mínimo con dos productos. Cada línea es sintética: marca o grupo tomado de la condición, precio el que haga falta, «precio anterior» vacío o con rebaja según el filtro. El único producto real es el que se lleva (SKU, nombre y precio de hoy).</li>
+          <li><b>Variante A:</b> cada carrito y la configuración (sin guardar) van a get-api; allí se arma la promoción transitoria y el carrito pasa por el mismo motor del checkout. Vuelve «aplica / no aplica», el descuento y el motivo. get-web pinta lo que el motor respondió, nunca lo que calculó por su cuenta.</li>
+          <li><b>Variante B:</b> no se consulta nada. El resultado de cada ejemplo es el texto de la plantilla («llega al mínimo → aplica»). Dice lo que el comercial quiso, no lo que el motor hará.</li>
+          <li><b>Visto verde (A):</b> el carrito principal aplica y el beneficio coincide con lo configurado. Si no, «Con problema» y Publicar se desactiva.</li>
+        </ol>
+      </div>
+      <div>
+        <p class="font-semibold text-gray-200 mb-1">Qué cambia frente a hoy</p>
+        <ul class="list-disc ml-4 space-y-1 text-gray-300">
+          <li>Un solo bloque «¿Qué debe comprar?»: monto o artículos, en qué productos y a qué precio cuentan. Desaparecen «Umbral», «Compra requerida», «Regla», «dimensión», «OR», «matriz».</li>
+          <li>Un «conjunto» es lo que hoy se llama «regla»: dentro de él, tipo <b>y</b> marca se cumplen a la vez, y varios valores de la misma dimensión se leen con «o». Entre conjuntos, «o también». Cada conjunto muestra cómo se lee («camisetas Derek»).</li>
+          <li>El producto que se lleva se busca por nombre o SKU y se ve con imagen, nombre y precio (hoy: caja «Ingresar SKU…»). <b>Cambia el control.</b></li>
+          <li>«Regalo» solo si es gratis; si paga, «precio especial» (D5).</li>
+          <li>Con compra mínima no existe «cantidad requerida»; con la receta por monto no existe «sin umbral».</li>
+          <li>Recuento con y sin filtro de precio: «cuentan 1.481 · 961 rebajados fuera».</li>
+          <li>La frase de arriba la arma el formulario y lleva todas las condiciones. El resumen del paso 4 también.</li>
+          <li>Sin cambios: cabecera, stepper, «Medios de pago», «Acumulable», botones.</li>
+        </ul>
+      </div>
+      <div>
+        <p class="font-semibold text-gray-200 mb-1">Flujos cubiertos / fuera</p>
+        <ul class="list-disc ml-4 space-y-1 text-gray-300">
+          <li>Cubiertos: paso 2 y paso 4 para las tres recetas de regalo; estados del probador (comprobado, calculando, con problema, servicio caído); recuento (cifras, contando, cero, error); selección de producto vacía.</li>
+          <li>Fuera: paso 1 y paso 3 (no cambian); carrito libre «pruébala con tu carrito» (fase 2, otro REQ); descuento y envío gratis (solo reciben frase y resumen); móvil.</li>
+          <li>Textos de «Regalo por productos» y «Paga menos, lleva más» siguen la misma estructura; sus copys se cierran en la entrevista.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Marco de get-web (calcado de appget.co/promociones/1291/editar, 2026-10-15) ===== -->
+<div class="flex min-h-screen">
+  <aside class="w-16 bg-[#111214] flex flex-col items-center py-4 gap-7 text-gray-400">
+    <svg class="w-5 h-5 text-gray-200" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
+    <div class="h-4"></div>
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M2 3h3l2.7 12.4a2 2 0 0 0 2 1.6h8.7a2 2 0 0 0 2-1.6L22 7H6"/></svg>
+    <svg class="w-5 h-5 text-gray-200" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2 20a7 7 0 0 1 14 0"/><circle cx="17" cy="9" r="2.5"/><path d="M22 19a5 5 0 0 0-6-4.5"/></svg>
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M6 7h12l1 14H5z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg>
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path d="M3 10h11a5 5 0 0 1 0 10H9"/><path d="M7 6 3 10l4 4"/></svg>
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+  </aside>
+
+  <main class="flex-1 min-w-0">
+    <div class="bg-white border-b border-gray-200">
+      <div class="flex items-center justify-between px-7 h-14">
+        <div class="w-[405px] h-10 border border-gray-200 rounded-lg flex items-center px-3 text-sm text-gray-500 gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Filtrar menú...
+        </div>
+        <div class="flex items-center gap-2 text-sm">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-red-400 to-purple-600"></div>
+          <div class="leading-tight"><div class="font-semibold">Francisco L.</div><div class="text-[11px] text-gray-500">Admin</div></div>
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+      </div>
+      <div class="px-7 py-2 text-xs text-gray-500 flex items-center gap-2 border-t border-gray-100">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>›</span>
+      </div>
+      <div class="px-8 py-6">
+        <h1 id="titulo" class="text-3xl font-bold text-slate-900">Editar: Perfume por $29.900</h1>
+        <p class="text-base text-gray-600 mt-1">Modifica los parámetros y condiciones de la promoción</p>
+      </div>
+    </div>
+
+    <div class="px-8 py-6"><div class="mx-auto max-w-4xl space-y-6">
+      <!-- Stepper (sin cambios) -->
+      <div id="stepper" class="flex items-start"></div>
+
+      <!-- Tu promoción, en palabras (ahora la arma el formulario) -->
+      <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3">
+        <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tu promoción, en palabras</div>
+        <p id="frase" class="mt-0.5 text-base text-emerald-950"></p>
+      </div>
+
+      <!-- ===== PASO 2 ===== -->
+      <section id="paso2" class="space-y-6">
+        <h2 class="text-base font-semibold text-neutral-900">Condiciones</h2>
+
+        <!-- 1. Qué debe comprar -->
+        <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <div class="flex items-baseline gap-2 mb-1"><span class="w-5 h-5 rounded-full bg-gray-900 text-white text-[11px] font-semibold inline-flex items-center justify-center">1</span><h3 class="text-sm font-semibold">¿Qué debe comprar el cliente?</h3></div>
+          <p class="text-xs text-gray-500 mb-4 ml-7">Lo que tiene que haber en el carrito para que la promoción aplique.</p>
+
+          <div class="ml-7 space-y-5">
+            <div>
+              <div class="text-sm font-medium mb-2">Al menos</div>
+              <div class="flex items-center gap-5 text-sm">
+                <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="minimoTipo" value="monto"> <span>$</span>
+                  <input id="minimoMonto" class="h-12 w-36 rounded-md border border-gray-200 px-3 text-sm shadow-xs" value="500.000"> <span class="text-gray-600">en compras</span></label>
+                <span class="text-gray-400">o</span>
+                <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="minimoTipo" value="articulos">
+                  <input id="minimoArticulos" class="h-12 w-16 rounded-md border border-gray-200 px-3 text-sm shadow-xs" value="2"> <span class="text-gray-600">artículos</span></label>
+              </div>
+            </div>
+
+            <div>
+              <div class="text-sm font-medium mb-2">¿En qué productos?</div>
+              <div class="flex items-center gap-5 text-sm mb-3">
+                <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="enQue" value="cualquiera"> Cualquiera de la tienda</label>
+                <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="enQue" value="estos"> Solo estos</label>
+              </div>
+              <div id="grupos-wrap">
+                <div id="grupos"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="text-sm font-medium mb-2">¿A qué precio cuentan?</div>
+              <div class="flex items-center gap-5 text-sm mb-3">
+                <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="precio" value="full"> Solo a precio full</label>
+                <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="precio" value="cualquiera"> A cualquier precio</label>
+                <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="precio" value="rebajados"> Solo rebajados</label>
+              </div>
+              <div id="recuento"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Qué se lleva -->
+        <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <div class="flex items-baseline gap-2 mb-1"><span class="w-5 h-5 rounded-full bg-gray-900 text-white text-[11px] font-semibold inline-flex items-center justify-center">2</span><h3 class="text-sm font-semibold">¿Qué se lleva?</h3></div>
+          <p class="text-xs text-gray-500 mb-4 ml-7">El cliente lo agrega al carrito; la promoción le cambia el precio. <span id="lleva-nota"></span></p>
+
+          <div class="ml-7 space-y-5">
+            <div>
+              <div id="lleva-opciones" class="flex items-center gap-5 text-sm mb-3"></div>
+              <div id="lleva-detalle"></div>
+            </div>
+
+            <div class="flex items-start gap-10">
+              <div>
+                <div class="text-sm font-medium mb-2">Lo paga a</div>
+                <div class="flex items-center gap-5 text-sm">
+                  <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="pagaTipo" value="gratis"> Gratis</label>
+                  <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="pagaTipo" value="fijo"> $ <input id="pagaValor" class="h-12 w-32 rounded-md border border-gray-200 px-3 text-sm shadow-xs" value="29.900"></label>
+                  <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="pagaTipo" value="pct"> <input id="pagaPct" class="h-12 w-16 rounded-md border border-gray-200 px-3 text-sm shadow-xs" value="50"> % menos</label>
+                </div>
+                <p id="paga-ayuda" class="text-xs text-gray-500 mt-2"></p>
+              </div>
+              <div>
+                <div class="text-sm font-medium mb-2">Cantidad</div>
+                <input id="cantidad" class="h-12 w-16 rounded-md border border-gray-200 px-3 text-sm shadow-xs" value="1">
+              </div>
+              <div id="sale-wrap">
+                <div class="text-sm font-medium mb-2">Sale</div>
+                <div class="flex items-center gap-4 text-sm h-12">
+                  <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="sale" value="barato"> el más barato</label>
+                  <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="sale" value="caro"> el más caro</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Cuántas veces -->
+        <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <div class="flex items-baseline gap-2 mb-1"><span class="w-5 h-5 rounded-full bg-gray-900 text-white text-[11px] font-semibold inline-flex items-center justify-center">3</span><h3 class="text-sm font-semibold">¿Cuántas veces por pedido?</h3></div>
+          <p class="text-xs text-gray-500 mb-4 ml-7">Qué pasa si el cliente compra el doble.</p>
+          <div class="ml-7 flex items-center gap-6 text-sm">
+            <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="veces" value="una"> Una sola vez</label>
+            <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="veces" value="cadaMinimo"> <span id="veces-cada"></span></label>
+            <label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="veces" value="hasta"> Hasta <input id="vecesHasta" class="h-12 w-16 rounded-md border border-gray-200 px-3 text-sm shadow-xs" value="2"> veces</label>
+          </div>
+          <p id="veces-ayuda" class="text-xs text-gray-500 mt-2 ml-7"></p>
+        </div>
+
+        <!-- Medios de pago (sin cambios) -->
+        <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <h3 class="text-sm font-medium mb-3">Medios de pago</h3>
+          <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" class="h-4 w-4 rounded border-gray-300"> Restringir a medios de pago específicos</label>
+        </div>
+
+        <!-- Acumulable (sin cambios de fondo; sale del bloque de precio) -->
+        <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <h3 class="text-sm font-medium mb-3">Otras promociones</h3>
+          <label class="inline-flex items-center gap-2 text-sm"><input id="acumulable" type="checkbox" class="h-4 w-4 rounded border-gray-300"> Acumulable con otras promociones</label>
+          <p class="text-xs text-gray-500 mt-2">En stirpe hay otra promoción automática en esas fechas: envío gratis desde $349.900 (#1038), acumulable.</p>
+        </div>
+
+        <!-- 4. Así va a funcionar (probador) -->
+        <div id="probador-card" class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"></div>
+
+        <div class="flex items-center justify-between border-t border-gray-100 pt-4">
+          <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border bg-white shadow-xs h-12 px-4 text-sm font-medium"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>Atrás</button>
+          <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md bg-neutral-900 text-white shadow-xs h-12 px-4 text-sm font-medium">Continuar<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+        </div>
+      </section>
+
+      <!-- ===== PASO 4 ===== -->
+      <section id="paso4" class="hidden space-y-6">
+        <h2 class="text-base font-semibold text-neutral-900">Publicar</h2>
+        <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <h3 class="text-sm font-semibold text-neutral-800 mb-2">Resumen de la promoción</h3>
+          <div id="resumen" class="space-y-1 text-sm text-gray-600"></div>
+        </div>
+        <div id="antes-card" class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"></div>
+        <div class="flex items-center justify-end gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border bg-white shadow-xs h-12 px-4 text-sm font-medium"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Guardar borrador</button>
+          <div class="flex flex-col items-end"><button id="btn-publicar" class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md bg-emerald-600 text-white shadow-xs h-12 px-4 text-sm font-medium"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>Publicar</button><span id="publicar-ayuda" class="text-[11px] text-gray-500 mt-1"></span></div>
+        </div>
+        <div class="flex items-center justify-between border-t border-gray-100 pt-4"><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border bg-white shadow-xs h-12 px-4 text-sm font-medium"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>Atrás</button></div>
+      </section>
+    </div></div>
+  </main>
+</div>
+
+<script>
+// ---------- Estado ----------
+const S = {
+  variante: 'A', receta: 'monto', paso: 2, probador: 'ok', alcance: 'ok',
+  f: {}
+};
+const RECETAS = {
+  monto: {
+    titulo: 'Editar: Perfume por $29.900',
+    minimoTipo: 'monto', minimoMonto: 500000, minimoArticulos: 2, enQue: 'estos',
+    conjuntos: [{ Marca: ['Derek','Derek lovely','Unser','Typer','Gas','Groggy'] }],
+    precio: 'full', llevaTipo: 'puntual',
+    producto: { sku: '837604', nombre: 'Perfume Unser Black 100 ml', precio: 229900, color: '#1f2937' },
+    llevaConjuntos: [{ Tipo: ['Perfumes'] }],
+    pagaTipo: 'fijo', pagaValor: 29900, pagaPct: 50, cantidad: 1, sale: 'barato', veces: 'cadaMinimo', vecesHasta: 2, acumulable: false,
+    recuento: { cuentan: 1481, fuera: 961, total: 2442 }
+  },
+  montoMixto: {
+    titulo: 'Editar: Perfume por $29.900 en camisetas y jeans',
+    minimoTipo: 'monto', minimoMonto: 500000, minimoArticulos: 2, enQue: 'estos',
+    conjuntos: [{ Tipo: ['Camisetas'], Marca: ['Derek'] }, { Tipo: ['Jeans'], Marca: ['Derek','Unser'] }],
+    precio: 'full', llevaTipo: 'puntual',
+    producto: { sku: '837604', nombre: 'Perfume Unser Black 100 ml', precio: 229900, color: '#1f2937' },
+    llevaConjuntos: [{ Tipo: ['Perfumes'] }],
+    pagaTipo: 'fijo', pagaValor: 29900, pagaPct: 50, cantidad: 1, sale: 'barato', veces: 'cadaMinimo', vecesHasta: 2, acumulable: false,
+    recuento: { cuentan: 412, fuera: 188, total: 600 }
+  },
+  productos: {
+    titulo: 'Editar: Gorra Goorin por $49.900',
+    minimoTipo: 'articulos', minimoMonto: 400000, minimoArticulos: 2, enQue: 'estos',
+    conjuntos: [{ Tipo: ['Jeans'] }],
+    precio: 'cualquiera', llevaTipo: 'estos',
+    producto: { sku: '512204', nombre: 'Gorra Goorin Bros Trucker', precio: 189900, color: '#7c3aed' },
+    llevaConjuntos: [{ Tipo: ['Gorras'], Marca: ['Goorin'] }],
+    pagaTipo: 'fijo', pagaValor: 49900, pagaPct: 50, cantidad: 1, sale: 'barato', veces: 'cadaMinimo', vecesHasta: 2, acumulable: false,
+    recuento: { cuentan: 533, fuera: 0, total: 533 }
+  },
+  nxm: {
+    titulo: 'Editar: Paga 2 perfumes, lleva 3',
+    minimoTipo: 'articulos', minimoMonto: 300000, minimoArticulos: 3, enQue: 'estos',
+    conjuntos: [{ Tipo: ['Perfumes'] }],
+    precio: 'full', llevaTipo: 'comprados',
+    producto: { sku: '837604', nombre: 'Perfume Unser Black 100 ml', precio: 229900, color: '#1f2937' },
+    llevaConjuntos: [{ Tipo: ['Perfumes'] }],
+    pagaTipo: 'gratis', pagaValor: 29900, pagaPct: 50, cantidad: 1, sale: 'barato', veces: 'cadaMinimo', vecesHasta: 2, acumulable: false,
+    recuento: { cuentan: 297, fuera: 236, total: 533 }
+  }
+};
+const $ = s => document.querySelector(s);
+const money = n => '$' + Math.round(n).toLocaleString('es-CO');
+const parseMoney = s => Number(String(s).replace(/[^\d]/g,'')) || 0;
+const lista = (arr, sep='o') => arr.length <= 1 ? arr.join('') : arr.slice(0,-1).join(', ') + ' ' + sep + ' ' + arr[arr.length-1];
+
+const DIMS = ['Tipo','Marca','Categoría','Género','Producto'];
+const CAT_M = ['Derek','Unser','Typer','Gas','Groggy','Derek lovely','Goorin'], CAT_T = ['Camisetas','Jeans','Chaquetas','Gorras','Perfumes'];
+const low = a => a.map(x=>x.toLowerCase());
+function descConjunto(c){
+  const tipos = c.Tipo||[], marcas = c.Marca||[], cats = c['Categoría']||[], prods = c.Producto||[];
+  let s = prods.length ? lista(prods) : tipos.length ? lista(low(tipos)) : cats.length ? lista(low(cats)) : 'productos';
+  if (marcas.length) s += ' ' + lista(marcas);
+  return s;
+}
+function descConjuntos(cs){ return cs.map(descConjunto).join(' o en '); }
+function fueraDe(cs){
+  const c0 = cs[0], marcas = new Set(cs.flatMap(c=>c.Marca||[])), tipos = new Set(cs.flatMap(c=>c.Tipo||[]));
+  if ((c0.Tipo||[]).length && (c0.Marca||[]).length) return `${CAT_T.find(x=>!tipos.has(x)).toLowerCase()} ${c0.Marca[0]}`;
+  if ((c0.Marca||[]).length) return 'otras marcas';
+  if ((c0.Tipo||[]).length) return CAT_T.find(x=>!tipos.has(x)).toLowerCase();
+  return 'otros productos';
+}
+function cargarReceta(k){ S.f = JSON.parse(JSON.stringify(RECETAS[k])); S.receta = k; }
+
+// ---------- Frase ----------
+function fraseCondicion(){
+  const f = S.f;
+  let s = f.minimoTipo === 'monto' ? `Por compras de ${money(f.minimoMonto)} o más` : `Por cada ${f.minimoArticulos} artículos o más`;
+  s += f.enQue === 'cualquiera' ? ' en toda la tienda' : ' en ' + descConjuntos(f.conjuntos);
+  s += f.precio === 'full' ? ' a precio full' : f.precio === 'rebajados' ? ' rebajados' : '';
+  return s;
+}
+function nombreLleva(){
+  const f = S.f;
+  if (f.llevaTipo === 'puntual') return (f.cantidad > 1 ? f.cantidad + ' ' : '1 ') + f.producto.nombre;
+  if (f.llevaTipo === 'comprados') return (f.cantidad > 1 ? f.cantidad + ' de ellos' : 'uno de ellos') + (f.sale === 'barato' ? ', el más barato,' : ', el más caro,');
+  return `${f.cantidad} de estos: ${descConjuntos(f.llevaConjuntos)}` + (f.sale === 'barato' ? ' (el más barato)' : ' (el más caro)');
+}
+function frasePaga(){
+  const f = S.f;
+  if (f.pagaTipo === 'gratis') return ' gratis';
+  if (f.pagaTipo === 'fijo') return ` por ${money(f.pagaValor)}`;
+  return ` con ${f.pagaPct} % menos`;
+}
+function fraseVeces(){
+  const f = S.f;
+  if (f.veces === 'una') return 'Una sola vez por pedido.';
+  if (f.veces === 'hasta') return `Hasta ${f.vecesHasta} veces por pedido.`;
+  return f.minimoTipo === 'monto' ? `Una vez por cada ${money(f.minimoMonto)}.` : `Una vez por cada ${f.minimoArticulos} artículos.`;
+}
+function frase(){
+  return `${fraseCondicion()}, el cliente lleva ${nombreLleva()}${frasePaga()}. ${fraseVeces()} Del 19 al 26 de octubre de 2026 en stirpe.`;
+}
+
+// ---------- Ejemplos (plantillas por receta; el resultado lo pone el motor en A) ----------
+function ejemplos(){
+  const f = S.f, p = f.producto, nombre = f.llevaTipo === 'puntual' ? 'el ' + p.nombre.split(' ')[0].toLowerCase() : 'el producto que se lleva';
+  const marca = f.enQue === 'estos' ? descConjunto(f.conjuntos[0]) : 'la tienda', marca2 = f.enQue === 'estos' && f.conjuntos[1] ? descConjunto(f.conjuntos[1]) : marca, fuera = f.enQue === 'estos' ? fueraDe(f.conjuntos) : 'otros productos';
+  const pagaTxt = f.pagaTipo === 'gratis' ? 'gratis' : f.pagaTipo === 'fijo' ? `a ${money(f.pagaValor)}` : `con ${f.pagaPct} % menos`;
+  const ahorro = f.pagaTipo === 'gratis' ? p.precio : f.pagaTipo === 'fijo' ? p.precio - f.pagaValor : Math.round(p.precio * f.pagaPct/100);
+  const precioTxt = f.precio === 'full' ? ' a precio full' : f.precio === 'rebajados' ? ' rebajados' : '';
+  if (f.minimoTipo === 'monto') {
+    const m = f.minimoMonto, enc = Math.round(m * 1.04 / 1000) * 1000;
+    return [
+      { carrito: `${money(enc)} en ${marca}${precioTxt} + ${nombre}`, aplica: true,  res: `${nombre} ${pagaTxt} (ahorra ${money(ahorro)})`, principal: true },
+      { carrito: `${money(m - 1)} en ${marca}${precioTxt} + ${nombre}`, aplica: false, res: `no llega a ${money(m)}` },
+      { carrito: `${money(m*0.6)} en ${marca} + ${money(m*1.2)} en ${fuera} + ${nombre}`, aplica: false, res: `solo cuentan ${money(m*0.6)}; ${fuera} no entran` },
+      { carrito: `${money(enc)} en ${marca}, sin ${nombre}`, aplica: false, res: `el cliente debe agregar ${nombre}` },
+      { carrito: `${money(m*2)} en ${marca2}${precioTxt} + 2 × ${nombre}`, aplica: f.veces !== 'una', res: f.veces === 'una' ? `1 ${pagaTxt}; el segundo a precio normal` : `los 2 ${pagaTxt} (ahorra ${money(ahorro*2)})` },
+    ];
+  }
+  const n = f.minimoArticulos, g = descConjunto(f.conjuntos[0]);
+  if (f.llevaTipo === 'comprados') {
+    return [
+      { carrito: `${n} ${g}${precioTxt}`, aplica: true, res: `el más barato sale ${pagaTxt}`, principal: true },
+      { carrito: `${n-1} ${g}`, aplica: false, res: `faltan artículos: necesita ${n}` },
+      { carrito: `${n-1} ${g} + 1 camisa`, aplica: false, res: `la camisa no cuenta` },
+      { carrito: `${n} ${g}, uno rebajado`, aplica: f.precio !== 'full', res: f.precio === 'full' ? 'el rebajado no cuenta: quedan ' + (n-1) : `el más barato sale ${pagaTxt}` },
+      { carrito: `${n*2} ${g}${precioTxt}`, aplica: f.veces !== 'una', res: f.veces === 'una' ? `solo 1 ${pagaTxt}` : `2 ${pagaTxt}` },
+    ];
+  }
+  return [
+    { carrito: `${n} ${g} + 1 ${p.nombre}`, aplica: true, res: `${p.nombre.split(' ')[0].toLowerCase()} ${pagaTxt} (ahorra ${money(ahorro)})`, principal: true },
+    { carrito: `${n-1} ${g} + 1 ${p.nombre}`, aplica: false, res: `faltan artículos: necesita ${n}` },
+    { carrito: `${n} ${g}, sin gorra`, aplica: false, res: `el cliente debe agregar una gorra` },
+    { carrito: `${n} ${g} + 2 gorras`, aplica: true, res: `1 ${pagaTxt} (la más barata); la otra a precio normal` },
+    { carrito: `${n*2} ${g} + 2 gorras`, aplica: f.veces !== 'una', res: f.veces === 'una' ? `solo 1 ${pagaTxt}` : `2 ${pagaTxt}` },
+  ];
+}
+function reglasFijas(){
+  const f = S.f, nombre = f.llevaTipo === 'puntual' ? 'el ' + f.producto.nombre.split(' ')[0].toLowerCase() : 'lo que se lleva';
+  const r = [`${nombre} debe estar en el carrito; la promoción no lo agrega`];
+  if (f.llevaTipo !== 'comprados') r.push(f.minimoTipo === 'monto' ? `${nombre} no suma para los ${money(f.minimoMonto)}` : `${nombre} no cuenta entre los ${f.minimoArticulos} artículos`);
+  if (f.precio === 'full') r.push(`si ${nombre} se rebaja, la promoción no aplica`);
+  return r;
+}
+const PROBLEMA = () => `El motor no aplicó la promoción en el carrito principal: hoy ${S.f.producto.nombre} (${S.f.producto.sku}) está rebajado a ${money(S.f.producto.precio*0.78)} y la promoción solo cuenta precio full. Cambia «¿A qué precio cuentan?» o elige otro producto.`;
+
+// ---------- Render ----------
+const DIM = { Marca: 'bg-emerald-100 text-emerald-700', Tipo: 'bg-violet-100 text-violet-700', Categoría: 'bg-sky-100 text-sky-700', SKU: 'bg-red-100 text-red-700' };
+function chip(txt, tipo){
+  const col = tipo ? `<span class="rounded-full px-1.5 text-[10px] font-medium ${DIM[tipo]||'bg-gray-100 text-gray-600'}">${tipo}</span>` : '';
+  return `<span class="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs text-gray-700">${col}${txt}<button class="ml-0.5 text-gray-400 hover:text-gray-700">×</button></span>`;
+}
+function buscador(ph, w='w-64'){ return `<input class="h-7 ${w} rounded border border-gray-200 px-2 text-xs focus:border-neutral-400 focus:outline-none" placeholder="${ph}">`; }
+function renderConjuntos(cs){
+  const sepO = '<span class="text-[11px] text-gray-400 px-0.5">o</span>', sepY = '<span class="text-[11px] font-semibold text-gray-500 px-1">y</span>';
+  return cs.map((c,i)=>{
+    const dims = DIMS.filter(d=>c[d]&&c[d].length), faltan = DIMS.filter(d=>!(c[d]&&c[d].length));
+    const bloques = dims.map(d=>`<div class="inline-flex items-center gap-1.5 flex-wrap"><span class="rounded-full px-2 py-0.5 text-[10px] font-medium ${DIM[d]||'bg-gray-100 text-gray-600'}">${d}</span>${c[d].map(v=>chip(v)).join(sepO)}${buscador('Buscar y agregar...', 'w-32')}</div>`).join(sepY);
+    const ambos = (c.Tipo||[]).length && (c.Marca||[]).length;
+    return `${i>0 ? '<div class="flex items-center gap-3 my-2"><div class="h-px flex-1 bg-gray-200"></div><span class="text-[11px] uppercase tracking-wide text-gray-500">o también</span><div class="h-px flex-1 bg-gray-200"></div></div>' : ''}
+    <div class="relative rounded-lg border border-gray-200 bg-gray-50 p-3 pr-8">
+      <div class="flex flex-wrap items-center gap-y-2">${bloques}
+        <button class="ml-3 text-xs text-gray-600 underline underline-offset-2">+ ${low(faltan).join(' / ')}</button>
+        ${cs.length>1 ? '<button class="absolute top-2 right-2.5 text-gray-400 hover:text-gray-700 text-sm" title="Quitar este conjunto">×</button>' : ''}
+      </div>
+      <div class="mt-2 text-xs text-gray-600">Se lee: <span class="font-medium text-gray-800">${descConjunto(c)}</span>${ambos ? ' (tipo y marca a la vez)' : ''}</div>
+    </div>`;
+  }).join('') + `<button class="mt-2 text-xs text-gray-700 underline underline-offset-2">+ Agregar otro conjunto (cuenta uno u otro)</button>`;
+}
+
+function renderStepper(){
+  const pasos = ['Tipo y beneficio','Condiciones','Presentación','Publicar'];
+  $('#stepper').innerHTML = pasos.map((p,i)=>{
+    const n = i+1, estado = n < S.paso ? 'ok' : n === S.paso ? 'act' : 'pend';
+    const circ = estado === 'ok' ? `<div class="flex h-9 w-9 items-center justify-center rounded-full border-2 bg-emerald-600 text-white border-emerald-600"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg></div>`
+      : estado === 'act' ? `<div class="flex h-9 w-9 items-center justify-center rounded-full border-2 bg-neutral-900 text-white border-neutral-900 text-sm font-semibold">${n}</div>`
+      : `<div class="flex h-9 w-9 items-center justify-center rounded-full border-2 bg-white text-gray-400 border-gray-300 text-sm font-semibold">${n}</div>`;
+    const linea = i < 3 ? `<div class="mx-2 h-0.5 flex-1 mt-[17px] ${n < S.paso ? 'bg-emerald-600' : 'bg-neutral-200'}"></div>` : '';
+    return `<div class="flex flex-col items-center gap-1 w-24 shrink-0">${circ}<div class="text-xs text-gray-500 whitespace-nowrap">${p}</div></div>${linea}`;
+  }).join('');
+}
+
+function renderForm(){
+  const f = S.f;
+  $('#titulo').textContent = f.titulo;
+  document.querySelectorAll('input[name=minimoTipo]').forEach(r=>r.checked = r.value===f.minimoTipo);
+  $('#minimoMonto').value = f.minimoMonto.toLocaleString('es-CO'); $('#minimoArticulos').value = f.minimoArticulos;
+  document.querySelectorAll('input[name=enQue]').forEach(r=>r.checked = r.value===f.enQue);
+  $('#grupos-wrap').classList.toggle('hidden', f.enQue==='cualquiera');
+  $('#grupos').innerHTML = renderConjuntos(f.conjuntos);
+  document.querySelectorAll('input[name=precio]').forEach(r=>r.checked = r.value===f.precio);
+  // recuento
+  const rc = f.recuento, estado = S.alcance;
+  const ok = `<div class="inline-flex items-center gap-2 text-xs text-gray-700 bg-gray-100 rounded-md px-2.5 py-1.5"><svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4m0 4h.01"/></svg>${f.precio==='full' ? `Hoy cuentan <b>${rc.cuentan.toLocaleString('es-CO')}</b> productos${f.enQue==='estos'?' de los elegidos':''}; <b>${rc.fuera.toLocaleString('es-CO')}</b> rebajados quedan fuera` : f.precio==='rebajados' ? `Hoy cuentan <b>${rc.fuera.toLocaleString('es-CO')}</b> productos rebajados; ${rc.cuentan.toLocaleString('es-CO')} a precio full quedan fuera` : `Hoy cuentan <b>${rc.total.toLocaleString('es-CO')}</b> productos${f.enQue==='estos'?' de los elegidos':''}`}. <button class="underline underline-offset-2 text-gray-600">Ver cuáles</button></div>`;
+  const contando = `<div class="inline-flex items-center gap-1.5 text-xs text-gray-500"><svg class="h-3.5 w-3.5 spin text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>contando productos…</div>`;
+  const cero = `<div class="inline-flex items-center gap-2 text-xs text-red-800 bg-red-50 border border-red-200 rounded-md px-2.5 py-1.5">Hoy <b>ningún</b> producto cumple esta condición${f.precio==='full'?': todos los de estas marcas están rebajados':''}. Puedes guardar, pero la promoción no aplicará a nadie.</div>`;
+  const error = `<div class="inline-flex items-center gap-1.5 text-xs text-gray-500">no se pudo contar ahora. <button class="font-medium text-neutral-900 underline">Reintentar</button></div>`;
+  $('#recuento').innerHTML = {ok, contando, cero, error}[estado];
+
+  // qué se lleva
+  const esNxm = f.llevaTipo === 'comprados' || S.receta === 'nxm';
+  $('#lleva-nota').textContent = f.pagaTipo === 'gratis' ? 'Como es gratis, es un regalo.' : 'Como paga algo, es un precio especial, no un regalo.';
+  const ops = [
+    ['puntual','Un producto puntual'],
+    ['estos','Cualquiera de estos'],
+    ...(S.receta==='nxm' ? [['comprados','Uno de los que compró']] : [])
+  ];
+  $('#lleva-opciones').innerHTML = ops.map(o=>`<label class="inline-flex items-center gap-2"><input type="radio" class="h-4 w-4" name="llevaTipo" value="${o[0]}" ${f.llevaTipo===o[0]?'checked':''}> ${o[1]}</label>`).join('');
+  const p = f.producto;
+  const tile = p ? `<div class="flex items-center gap-3 border border-gray-200 rounded-lg p-3 w-[440px]">
+      <div class="w-14 h-14 rounded-md" style="background:${p.color}"></div>
+      <div class="flex-1 text-sm"><div class="font-medium">${p.nombre}</div><div class="text-xs text-gray-500">SKU ${p.sku} · precio normal ${money(p.precio)} · publicado en stirpe</div></div>
+      <button class="text-xs text-gray-700 underline underline-offset-2">Cambiar</button></div>`
+    : `<div class="border border-dashed border-gray-300 rounded-lg p-3 w-[440px] text-sm text-gray-500">${buscador('Buscar por nombre o SKU…')} <span class="text-xs">Elige el producto que se lleva.</span></div>`;
+  const grupos = `<div>${renderConjuntos(f.llevaConjuntos)}</div>`;
+  const comprados = `<p class="text-sm text-gray-600">Sale de los ${descConjuntos(f.conjuntos)} que el cliente puso en el carrito. Si prefieres que el beneficio sea otro producto, elige «Un producto puntual» o «Cualquiera de estos».</p>`;
+  $('#lleva-detalle').innerHTML = f.llevaTipo==='puntual' ? tile : f.llevaTipo==='estos' ? grupos : comprados;
+  $('#sale-wrap').classList.toggle('hidden', f.llevaTipo==='puntual');
+  document.querySelectorAll('input[name=sale]').forEach(r=>r.checked = r.value===f.sale);
+  document.querySelectorAll('input[name=pagaTipo]').forEach(r=>r.checked = r.value===f.pagaTipo);
+  $('#pagaValor').value = f.pagaValor.toLocaleString('es-CO'); $('#pagaPct').value = f.pagaPct; $('#cantidad').value = f.cantidad;
+  $('#paga-ayuda').textContent = f.llevaTipo==='puntual' ? (f.pagaTipo==='gratis' ? `Ahorra ${money(p.precio)} (100 %).` : f.pagaTipo==='fijo' ? `Ahorra ${money(p.precio - f.pagaValor)} (${Math.round((1 - f.pagaValor/p.precio)*100)} %) sobre el precio normal.` : `Ahorra ${money(p.precio*f.pagaPct/100)} sobre el precio normal.`) : (f.pagaTipo==='fijo' ? 'Si el producto vale menos que este valor, sale gratis.' : '');
+
+  // veces
+  document.querySelectorAll('input[name=veces]').forEach(r=>r.checked = r.value===f.veces);
+  $('#veces-cada').textContent = f.minimoTipo==='monto' ? `Una por cada ${money(f.minimoMonto)}` : `Una por cada ${f.minimoArticulos} artículos`;
+  $('#vecesHasta').value = f.vecesHasta;
+  $('#veces-ayuda').textContent = f.veces==='cadaMinimo' ? (f.minimoTipo==='monto' ? `Ejemplo: con ${money(f.minimoMonto*2)} y 2 unidades en el carrito, las 2 salen con el beneficio.` : `Ejemplo: con ${f.minimoArticulos*2} artículos y 2 unidades en el carrito, las 2 salen con el beneficio.`) : f.veces==='una' ? `Ejemplo: con ${f.minimoTipo==='monto'?money(f.minimoMonto*2):f.minimoArticulos*2+' artículos'} y 2 unidades, solo 1 sale con el beneficio.` : `Nunca más de ${f.vecesHasta} unidades con beneficio en un mismo pedido.`;
+  $('#acumulable').checked = f.acumulable;
+  $('#frase').textContent = frase();
+}
+
+function chipEstado(){
+  const v = S.variante, e = S.probador;
+  if (v === 'B') return `<span class="inline-flex items-center gap-1.5 text-xs bg-gray-100 text-gray-700 rounded-full px-2.5 py-1">Según lo configurado · sin comprobar</span>`;
+  if (e === 'ok') return `<span class="inline-flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full px-2.5 py-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>Comprobado con el motor de la tienda · hace un momento</span>`;
+  if (e === 'calculando') return `<span class="inline-flex items-center gap-1.5 text-xs bg-gray-100 text-gray-700 rounded-full px-2.5 py-1"><svg class="w-3.5 h-3.5 spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>Comprobando con el motor…</span>`;
+  if (e === 'problema') return `<span class="inline-flex items-center gap-1.5 text-xs bg-red-50 text-red-800 border border-red-200 rounded-full px-2.5 py-1">El motor no aplica la promoción como está</span>`;
+  return `<span class="inline-flex items-center gap-1.5 text-xs bg-red-50 text-red-800 border border-red-200 rounded-full px-2.5 py-1">No pudimos comprobar con el motor</span>`;
+}
+
+function renderProbador(){
+  const v = S.variante, e = S.probador, ej = ejemplos();
+  const titulo = v === 'A' ? 'Así va a funcionar, según el motor de la tienda' : 'Así va a funcionar, según lo que configuraste';
+  const sub = v === 'A' ? 'Cinco carritos de prueba pasan por el mismo cálculo que usa el checkout. Si algo no cuadra, lo ves aquí antes de publicar.' : 'Cinco carritos de ejemplo escritos a partir de tu configuración. No se comprueban con el motor: lo que pase de verdad se sabe cuando la promoción esté activa.';
+  let filas;
+  if (v === 'A' && e === 'calculando') {
+    filas = ej.map(x=>`<tr class="border-t border-gray-100"><td class="py-2.5 pr-4 text-gray-800">${x.carrito}</td><td class="py-2.5"><span class="skel inline-block w-40 h-3.5 rounded"></span></td></tr>`).join('');
+  } else if (v === 'A' && e === 'caido') {
+    filas = ej.map(x=>`<tr class="border-t border-gray-100"><td class="py-2.5 pr-4 text-gray-800">${x.carrito}</td><td class="py-2.5 text-gray-400">—</td></tr>`).join('');
+  } else {
+    filas = ej.map((x,i)=>{
+      const falla = v === 'A' && e === 'problema' && x.principal;
+      const ico = v === 'B' ? '' : falla
+        ? `<span class="inline-flex w-5 h-5 rounded-full bg-red-100 text-red-700 items-center justify-center mr-2 shrink-0"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span>`
+        : x.aplica ? `<span class="inline-flex w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 items-center justify-center mr-2 shrink-0"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg></span>`
+        : `<span class="inline-flex w-5 h-5 rounded-full bg-gray-100 text-gray-500 items-center justify-center mr-2 shrink-0"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></span>`;
+      const res = falla ? `<span class="text-red-800">no aplica: ${S.f.producto.nombre.split(' ')[0]} está rebajado hoy y solo cuenta precio full</span>` : (v==='B' ? (x.aplica ? 'Aplica: ' : 'No aplica: ') : (x.aplica ? '<b class="font-medium">Aplica:</b> ' : '<b class="font-medium">No aplica:</b> ')) + x.res;
+      return `<tr class="border-t border-gray-100 ${x.principal?'bg-gray-50/60':''}"><td class="py-2.5 pr-4 text-gray-800 align-top">${x.carrito}${x.principal?' <span class="text-[10px] uppercase tracking-wide text-gray-500 ml-1">principal</span>':''}</td><td class="py-2.5 align-top"><div class="flex items-start">${ico}<span>${res}</span></div></td></tr>`;
+    }).join('');
+  }
+  const aviso = v === 'A' && e === 'problema' ? `<div class="mt-4 text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-4 py-3">${PROBLEMA()}</div>`
+    : v === 'A' && e === 'caido' ? `<div class="mt-4 text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center justify-between"><span>El servicio que calcula las promociones no respondió. Puedes seguir configurando y guardar; para publicar hace falta la comprobación.</span><button class="bg-white border border-red-200 rounded-md px-3 py-1.5 text-xs font-medium">Reintentar</button></div>` : '';
+  $('#probador-card').innerHTML = `
+    <div class="flex items-start justify-between gap-4 mb-1">
+      <div class="flex items-baseline gap-2"><span class="w-5 h-5 rounded-full bg-gray-900 text-white text-[11px] font-semibold inline-flex items-center justify-center">4</span><h3 class="text-sm font-semibold">${titulo}</h3></div>
+      ${chipEstado()}
+    </div>
+    <p class="text-xs text-gray-500 mb-4 ml-7">${sub}</p>
+    <div class="ml-7">
+      <table class="w-full text-sm"><thead><tr class="text-[11px] uppercase tracking-wide text-gray-500"><th class="text-left font-medium pb-2 w-1/2">Si el carrito tiene…</th><th class="text-left font-medium pb-2">${v==='A' ? 'Qué hace el motor' : 'Qué debería pasar'}</th></tr></thead><tbody>${filas}</tbody></table>
+      ${aviso}
+      <div class="mt-4 text-xs text-gray-600"><span class="font-medium text-gray-700">Reglas que aplican siempre:</span> ${reglasFijas().join(' · ')}.</div>
+      <div class="mt-2 text-xs"><button class="text-gray-600 underline underline-offset-2">${v==='A' ? '¿Cómo se arman estos carritos?' : '¿Por qué no se comprueba con el motor?'}</button></div>
+    </div>`;
+}
+
+function renderPaso4(){
+  const f = S.f, v = S.variante, e = S.probador, rc = f.recuento;
+  const alcance = S.alcance==='ok' ? (f.precio==='full' ? `${rc.cuentan.toLocaleString('es-CO')} productos cuentan · ${rc.fuera.toLocaleString('es-CO')} rebajados quedan fuera` : `${(f.precio==='rebajados'?rc.fuera:rc.total).toLocaleString('es-CO')} productos cuentan`) : S.alcance==='cero' ? '<span class="text-red-800">ningún producto cumple hoy</span>' : S.alcance==='contando' ? '<span class="inline-flex items-center gap-1.5 text-gray-500"><svg class="h-3.5 w-3.5 spin text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>contando productos…</span>' : '<span class="text-gray-500">no se pudo contar ahora.</span> <button class="font-medium text-neutral-900 underline">Reintentar</button>';
+  const filas = [
+    ['Nombre', f.titulo.replace('Editar: ','')], ['Tienda', 'stirpe'], ['Vigencia', 'Del 19 al 26 de octubre de 2026'], ['Activación', 'Automática'],
+    ['Qué debe comprar', fraseCondicion().replace(/^Por (compras de|cada) /,'$1 '.replace('compras de ','Al menos ').replace('cada ','Al menos ')).replace(/ o más/,'')],
+    ['Qué se lleva', `${nombreLleva()}${frasePaga()}${f.llevaTipo==='puntual' ? ` (precio normal ${money(f.producto.precio)})` : ''}`],
+    ['Cuántas veces', fraseVeces().replace(/\.$/,'')], ['Acumulable', f.acumulable ? 'Sí' : 'No'], ['Medios de pago', 'Todos'], ['Alcance hoy', alcance]
+  ];
+  $('#resumen').innerHTML = filas.map(x=>`<p><span class="font-medium text-gray-800">${x[0]}:</span> ${x[1]}</p>`).join('');
+
+  let cuerpo, publicarOn = true, ayuda = '';
+  if (v === 'B') {
+    cuerpo = `<p class="text-sm text-emerald-700">La configuración está completa: tiene producto, mínimo, marcas y fechas.</p><p class="text-xs text-gray-500 mt-2">No se comprueba con el motor. Lo que pase en el carrito se sabe cuando la promoción esté activa.</p>`;
+  } else if (e === 'ok') {
+    cuerpo = `<p class="text-sm text-emerald-700 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>Comprobado con el motor de la tienda: los 5 carritos de prueba dan lo esperado.</p><p class="text-xs text-gray-500 mt-2">Última comprobación hoy a las 16:42, con los precios de hoy. Si cambias algo, se vuelve a comprobar.</p>`;
+  } else if (e === 'calculando') {
+    cuerpo = `<p class="text-sm text-gray-700 flex items-center gap-2"><svg class="w-4 h-4 spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>Comprobando con el motor…</p>`; publicarOn = false; ayuda = 'Publicar se activa al terminar la comprobación';
+  } else if (e === 'problema') {
+    cuerpo = `<div class="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-4 py-3">${PROBLEMA()}</div>`; publicarOn = false; ayuda = 'Publicar se activa cuando el motor aplique el carrito principal';
+  } else {
+    cuerpo = `<div class="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center justify-between"><span>No pudimos comprobar con el motor. Puedes guardar sin publicar.</span><button class="bg-white border border-red-200 rounded-md px-3 py-1.5 text-xs font-medium">Reintentar</button></div>`; publicarOn = false; ayuda = 'Publicar requiere la comprobación';
+  }
+  $('#antes-card').innerHTML = `<h3 class="text-sm font-semibold mb-2">Antes de publicar</h3>${cuerpo}`;
+  const b = $('#btn-publicar');
+  b.className = 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md shadow-xs h-12 px-4 text-sm font-medium ' + (publicarOn ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-500 cursor-not-allowed');
+  $('#publicar-ayuda').textContent = ayuda;
+}
+
+function render(){
+  document.querySelectorAll('.tb').forEach(b=>{
+    const [k,v] = b.dataset.set.split('=');
+    const on = String(S[k]) === v;
+    b.className = 'tb px-2.5 py-1 rounded-md border ' + (on ? 'bg-white text-gray-900 border-white font-semibold' : 'border-gray-600 text-gray-300');
+  });
+  $('#tb-probador').style.visibility = S.variante === 'A' ? 'visible' : 'hidden';
+  $('#paso2').classList.toggle('hidden', S.paso !== 2);
+  $('#paso4').classList.toggle('hidden', S.paso !== 4);
+  renderStepper(); renderForm(); renderProbador(); renderPaso4();
+}
+
+// ---------- Eventos ----------
+document.querySelectorAll('.tb').forEach(b=>b.addEventListener('click',()=>{
+  const [k,v] = b.dataset.set.split('=');
+  if (k === 'receta') cargarReceta(v); else S[k] = isNaN(v) ? v : Number(v);
+  render();
+}));
+$('#btn-notas').addEventListener('click',()=>$('#notas').classList.toggle('hidden'));
+document.addEventListener('change', ev=>{
+  const t = ev.target, f = S.f;
+  if (t.name && t.type === 'radio') f[t.name] = t.value;
+  if (t.id === 'acumulable') f.acumulable = t.checked;
+  render();
+});
+document.addEventListener('input', ev=>{
+  const t = ev.target, f = S.f;
+  if (t.id === 'minimoMonto') f.minimoMonto = parseMoney(t.value);
+  if (t.id === 'minimoArticulos') f.minimoArticulos = Number(t.value)||1;
+  if (t.id === 'pagaValor') f.pagaValor = parseMoney(t.value);
+  if (t.id === 'pagaPct') f.pagaPct = Number(t.value)||0;
+  if (t.id === 'cantidad') f.cantidad = Number(t.value)||1;
+  if (t.id === 'vecesHasta') f.vecesHasta = Number(t.value)||1;
+  if (['minimoMonto','minimoArticulos','pagaValor','pagaPct','cantidad','vecesHasta'].includes(t.id)) { $('#frase').textContent = frase(); renderProbador(); renderPaso4(); $('#veces-cada').textContent = f.minimoTipo==='monto' ? `Una por cada ${money(f.minimoMonto)}` : `Una por cada ${f.minimoArticulos} artículos`; }
+});
+
+cargarReceta('monto'); render();
+</script>
+</body>
+</html>
