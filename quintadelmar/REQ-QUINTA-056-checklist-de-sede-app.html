@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REQ-QUINTA-056 · Checklist de sede en la app · mockup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0">
+<style>
+  /* Fuente del sistema: la app no declara fontFamily (Roboto en Android, SF en iOS) */
+  body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, "Segoe UI", sans-serif; }
+  .ms { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; line-height: 1; display: inline-block; font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
+  .ms.fill { font-variation-settings: 'FILL' 1; }
+  .phone { width: 390px; height: 844px; }
+  .scroll::-webkit-scrollbar { width: 0; }
+  .seg button { transition: background-color .15s, color .15s; }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .sheet-in { animation: up .22s ease-out; }
+  @keyframes up { from { transform: translateY(40px); opacity: .4; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .spin, .sheet-in { animation: none; } }
+  :focus-visible { outline: 2px solid #314CFB; outline-offset: 2px; }
+</style>
+</head>
+<body class="bg-neutral-100 text-neutral-900">
+<div class="min-h-screen flex">
+
+  <!-- Navegación del mockup -->
+  <aside class="w-72 shrink-0 bg-white border-r border-neutral-200 p-5 overflow-y-auto">
+    <h1 class="text-[15px] font-bold leading-snug">Checklist de sede en la app</h1>
+    <p class="text-xs text-neutral-500 mt-1">REQ-QUINTA-056 · mockup v1 · 2026-10-15</p>
+    <p class="text-xs text-neutral-500 mt-3 leading-relaxed">Escenario: hoy es jueves 23 de octubre. Rosa Elena Contreras (coordinadora, sedes Tintipan, El Paraíso, La Joya y Crystal Beach) sigue el recorrido de La Joya.</p>
+    <nav id="nav" class="mt-5 space-y-5 text-sm"></nav>
+  </aside>
+
+  <!-- Teléfono -->
+  <main class="flex-1 flex items-start justify-center py-8 gap-8">
+    <div class="phone relative bg-white rounded-[44px] shadow-[0_0_0_10px_#1f1f1f,0_20px_50px_rgba(0,0,0,.25)] overflow-hidden flex flex-col">
+      <div class="h-11 shrink-0 flex items-center justify-between px-7 text-[15px] font-semibold">
+        <span>9:41</span><span class="flex gap-1 items-center"><span class="ms text-[18px]">signal_cellular_alt</span><span class="ms text-[18px]">wifi</span><span class="ms text-[18px]">battery_full</span></span>
+      </div>
+      <div id="screen" class="flex-1 flex flex-col min-h-0 relative"></div>
+    </div>
+
+    <!-- Notas de la pantalla -->
+    <section class="w-80 shrink-0">
+      <h2 id="noteTitle" class="text-sm font-bold"></h2>
+      <div id="notes" class="mt-2 text-[13px] leading-relaxed text-neutral-700 space-y-2"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ---------- Datos de ejemplo (sedes y habitaciones reales, BD 2026-10-15) ---------- */
+const C = { primary:'#314CFB', g50:'#FAFAFA', g100:'#F5F5F7', g200:'#E5E5EA', g300:'#D2D2D7', g400:'#C7C7CC', g500:'#AEAEB2', g600:'#86868B', g700:'#636366' };
+
+const lista = [
+  { sede:'La Joya', fecha:'jue 23 oct 2026', resp:'Rosa Elena Contreras', estado:'proceso', areas:[6,10], items:[147,231] },
+  { sede:'Crystal Beach', fecha:'jue 23 oct 2026', resp:'Rosa Elena Contreras', estado:'pendiente', areas:[0,14], items:[0,379] },
+  { sede:'La Joya', fecha:'mié 22 oct 2026', resp:'Admin La Joya', estado:'completo', areas:[10,10], items:[231,231] },
+  { sede:'Tintipan', fecha:'mié 22 oct 2026', resp:'Admin Tintipan', estado:'completo', areas:[9,9], items:[194,194] },
+  { sede:'La Joya', fecha:'mar 21 oct 2026', resp:'Admin La Joya', estado:'sinterminar', areas:[7,10], items:[134,231] },
+  { sede:'Crystal Beach', fecha:'lun 20 oct 2026', resp:'Rosa Elena Contreras', estado:'completo', areas:[14,14], items:[379,379] },
+];
+
+const areas = [
+  { icon:'wb_sunny', nombre:'Apertura general', r:8, t:8, fotos:[2,2], nc:0 },
+  { icon:'beach_access', nombre:'Playa', r:3, t:3, fotos:[1,1], nc:0 },
+  { icon:'pool', nombre:'Piscina / Jacuzzi', r:13, t:13, fotos:[2,2], nc:1 },
+  { icon:'kitchen', nombre:'Cocina', r:11, t:18, fotos:[1,2], nc:1, go:true },
+  { icon:'redeem', nombre:'Cortesías', r:0, t:4, fotos:[0,1], nc:0 },
+];
+const habs = [
+  { nombre:'Habitación 101', sub:'Deluxe 101', r:37, t:37, fotos:[3,3], nc:0 },
+  { nombre:'Habitación 201', sub:'Deluxe 201', r:37, t:37, fotos:[3,3], nc:2 },
+  { nombre:'Habitación 202', sub:'Deluxe 202', r:37, t:37, fotos:[3,3], nc:0 },
+  { nombre:'Habitación A1', sub:'A1', r:1, t:37, fotos:[0,3], nc:0 },
+  { nombre:'Habitación A2', sub:'A2', r:0, t:37, fotos:[0,3], nc:0 },
+];
+
+// Cocina (Anexo A del brainstorming). foto = mínimo de fotos si es fotográfico (Anexo B)
+const cocinaBase = [
+  { txt:'Mesas limpias', resp:'cumple', quien:'Rosa Elena · 9:31 a. m.' },
+  { txt:'Sillas limpias y en buen estado', resp:'cumple', quien:'Rosa Elena · 9:31 a. m.' },
+  { txt:'Barra limpia', resp:'cumple', quien:'Rosa Elena · 9:32 a. m.' },
+  { txt:'Piso limpio', resp:'cumple', quien:'Rosa Elena · 9:32 a. m.' },
+  { txt:'Vajilla completa y limpia', resp:'cumple', quien:'Rosa Elena · 9:33 a. m.' },
+  { txt:'Cubiertos completos y limpios', resp:'cumple', quien:'Rosa Elena · 9:33 a. m.' },
+  { txt:'Vasos / copas completos y limpios', resp:'cumple', quien:'Rosa Elena · 9:34 a. m.' },
+  { txt:'Refrigeradores limpios', foto:1, resp:'cumple', quien:'Rosa Elena · 9:36 a. m.', fotos:[] },
+  { txt:'Congeladores limpios', resp:'nocumple', quien:'Rosa Elena · 9:38 a. m.', com:'El congelador 2 marca −8 °C. Se reportó a mantenimiento.', fotos:['#7f9cb3'] },
+  { txt:'Temperaturas de conservación verificadas', resp:'cumple', quien:'Rosa Elena · 9:39 a. m.' },
+  { txt:'Inventario de alimentos verificado', resp:null },
+  { txt:'Estado de alimentos verificado', resp:null },
+  { txt:'Fechas de vencimiento verificadas', resp:null },
+  { txt:'Cocina limpia', foto:1, resp:'cumple', quien:'Admin La Joya · 7:12 a. m.', fotos:['#a7b8a0'] },
+  { txt:'Estufa limpia', resp:'cumple', quien:'Admin La Joya · 7:13 a. m.' },
+  { txt:'Utensilios limpios', resp:null },
+  { txt:'Canecas limpias', resp:null },
+  { txt:'Residuos retirados', resp:null },
+];
+let cocina = JSON.parse(JSON.stringify(cocinaBase));
+
+/* ---------- Estado del mockup ---------- */
+const S = { screen:'lista', state:'datos', filtro:'todos', areaFiltro:'todos', saveErr:null, dialog:null, toast:null };
+
+const NAV = [
+  { id:'lista', t:'1 · Lista de la última semana', states:[['datos','Con checklists'],['carga','Cargando'],['vacio','Vacío'],['error','Error de red'],['permiso','Sin permiso']] },
+  { id:'nuevo', t:'2 · Nuevo checklist', states:[['normal','Elegir sede'],['abierto','Sede con checklist de hoy']] },
+  { id:'detalle', t:'3 · Checklist del día', states:[['proceso','En proceso'],['completo','Se completó solo'],['cerrado','Día pasado: solo lectura']] },
+  { id:'area', t:'4 · Área con ítems (Cocina)', states:[['proceso','Respondiendo (interactivo)'],['guardaerror','Respuesta sin guardar'],['borrar','Borrar foto: confirmación'],['cerrado','Día pasado: solo lectura']] },
+  { id:'vieja', t:'5 · App 2.0.7 sin actualizar', states:[['lista','Lista con aviso'],['nuevo','Toca «Nuevo»'],['subir','Intenta subir fotos']] },
+];
+
+/* ---------- Piezas de UI ---------- */
+const ms = (n, cls='', fill=false) => `<span class="ms ${fill?'fill':''} ${cls}">${n}</span>`;
+
+function appBar(title, { left='arrow_back', right='' } = {}) {
+  return `<header class="h-14 shrink-0 bg-white flex items-center px-2">
+    <button class="w-10 h-10 grid place-items-center rounded-full" aria-label="Volver">${ms(left,'text-[24px]')}</button>
+    <h1 class="flex-1 text-center text-[18px] font-bold truncate">${title}</h1>
+    <div class="w-10 h-10 grid place-items-center">${right}</div>
+  </header>`;
+}
+
+// Paleta de chips del contrato: gris pendiente, negro en curso, esmeralda completo, rosa bloqueante
+const EST = {
+  pendiente:   { t:'Pendiente',    cls:'bg-neutral-100 text-neutral-600' },
+  proceso:     { t:'En proceso',   cls:'bg-neutral-900 text-white' },
+  completo:    { t:'Completo',     cls:'bg-emerald-50 text-emerald-700' },
+  sinterminar: { t:'Sin terminar', cls:'bg-rose-50 text-rose-700' },
+};
+const chip = e => `<span class="px-2.5 py-1 rounded-full text-xs font-semibold ${EST[e].cls}">${EST[e].t}</span>`;
+
+function bar(r, t, h=6) {
+  const p = t ? Math.round(r*100/t) : 0;
+  const col = p===100 ? '#10B981' : C.primary;
+  return `<div class="w-full rounded-full overflow-hidden" style="height:${h}px;background:${C.g200}"><div style="width:${p}%;height:100%;background:${col}"></div></div>`;
+}
+
+function filterChips(opts, sel, key) {
+  return `<div class="flex gap-2 px-4 py-2 overflow-x-auto scroll shrink-0">${opts.map(([v,l]) => {
+    const on = v===sel;
+    return `<button data-set="${key}:${v}" class="shrink-0 px-3 h-8 rounded-lg text-[13px] flex items-center gap-1 ${on?'font-semibold':'font-medium'}"
+      style="${on?`background:rgba(49,76,251,.2);color:${C.primary};border:1px solid ${C.primary}`:`background:${C.g100};color:${C.g600};border:1px solid transparent`}">${on?ms('check','text-[16px]'):''}${l}</button>`;
+  }).join('')}</div>`;
+}
+
+function fab(label='Nuevo', icon='add_task') {
+  return `<button data-go="nuevo:normal" class="absolute right-4 bottom-6 h-14 px-5 rounded-2xl text-white font-semibold flex items-center gap-2 shadow-lg" style="background:${C.primary}">${ms(icon,'text-[22px]')}${label}</button>`;
+}
+
+function snack(text, color='#1c1c1e') {
+  return `<div class="absolute left-3 right-3 bottom-4 rounded-lg px-4 py-3.5 text-white text-sm shadow-lg sheet-in" style="background:${color}">${text}</div>`;
+}
+
+/* ---------- Pantalla 1: lista ---------- */
+function scrLista() {
+  const st = S.state;
+  let body = '';
+  if (st==='carga') body = `<div class="flex-1 grid place-items-center">${ms('progress_activity','spin text-[36px] text-[#314CFB]')}</div>`;
+  else if (st==='error') body = `<div class="flex-1 flex flex-col items-center justify-center px-10 text-center">
+      ${ms('wifi_off','text-[48px]','')}<p class="mt-3 text-[15px] text-neutral-800 font-semibold">No se pudo cargar la lista</p>
+      <p class="mt-1 text-sm" style="color:${C.g600}">Revisa la conexión a internet y vuelve a intentar.</p>
+      <button class="mt-5 h-12 px-6 rounded-xl text-white font-semibold" style="background:${C.primary}">Reintentar</button></div>`;
+  else if (st==='vacio') body = `<div class="flex-1 flex flex-col items-center justify-center px-10 text-center">
+      ${ms('fact_check','text-[64px] text-[#D2D2D7]')}<p class="mt-3 text-[18px] font-semibold" style="color:${C.g500}">Sin checklists esta semana</p>
+      <p class="mt-1 text-sm" style="color:${C.g400}">Abre el de hoy con el botón Nuevo.</p></div>${fab()}`;
+  else if (st==='permiso') body = `<div class="flex-1 flex flex-col items-center justify-center px-10 text-center">
+      ${ms('lock','text-[56px] text-[#D2D2D7]')}<p class="mt-3 text-[17px] font-semibold text-neutral-800">Tu rol no tiene acceso al checklist de sede</p>
+      <p class="mt-1 text-sm" style="color:${C.g600}">Pide el permiso al administrador del sistema.</p></div>`;
+  else {
+    const f = S.filtro;
+    const rows = lista.filter(x => f==='todos' || x.estado===f);
+    body = filterChips([['todos','Todos'],['pendiente','Pendientes'],['proceso','En proceso'],['completo','Completos'],['sinterminar','Sin terminar']], f, 'filtro') +
+      `<div class="flex-1 overflow-y-auto scroll px-4 pt-1 pb-28 space-y-3">
+        <p class="text-[13px] pb-1" style="color:${C.g600}">Del viernes 17 al jueves 23 de octubre</p>
+        ${rows.map(card).join('') || `<p class="text-sm text-center pt-10" style="color:${C.g500}">Ningún checklist con este estado esta semana.</p>`}
+      </div>${fab()}`;
+  }
+  return appBar('Checklist de sede') + body;
+}
+function card(x) {
+  return `<button data-go="detalle:${x.estado==='completo'?'completo':x.estado==='sinterminar'?'cerrado':'proceso'}" class="w-full text-left bg-white rounded-2xl p-4" style="border:1px solid ${C.g200};box-shadow:0 2px 8px rgba(0,0,0,.04)">
+    <div class="flex items-center justify-between gap-2"><span class="text-[17px] font-bold">${x.sede}</span>${chip(x.estado)}</div>
+    <div class="mt-2 flex items-center gap-4 text-[13px]" style="color:${C.g600}">
+      <span class="flex items-center gap-1">${ms('calendar_today','text-[14px] text-[#AEAEB2]')}${x.fecha}</span>
+      <span class="flex items-center gap-1 truncate">${ms('person','text-[14px] text-[#AEAEB2]')}${x.resp}</span></div>
+    <div class="mt-3 flex justify-between text-xs"><span style="color:${C.g500}">${x.areas[0]}/${x.areas[1]} áreas · ${x.items[0]}/${x.items[1]} ítems</span>
+      <span class="font-semibold" style="color:${x.items[0]===x.items[1]?'#10B981':C.g600}">${Math.round(x.items[0]*100/x.items[1])}%</span></div>
+    <div class="mt-1.5">${bar(x.items[0], x.items[1])}</div>
+  </button>`;
+}
+
+/* ---------- Pantalla 2: nuevo ---------- */
+function scrNuevo() {
+  const abierto = S.state==='abierto';
+  const sede = abierto ? 'La Joya (5 hab.)' : 'Tintipan (4 hab.)';
+  return scrListaBase() + `<div class="absolute inset-0 bg-black/40"></div>
+  <div class="absolute left-0 right-0 bottom-0 bg-white rounded-t-[20px] p-5 pb-8 sheet-in">
+    <div class="flex items-center justify-between"><h2 class="text-[20px] font-bold">Nuevo checklist</h2><button data-go="lista:datos" aria-label="Cerrar">${ms('close','text-[24px]')}</button></div>
+    <label class="block mt-5 text-sm font-semibold" style="color:${C.g600}">Sede</label>
+    <div class="mt-2 h-14 rounded-xl px-4 flex items-center justify-between" style="border:1px solid ${C.g300}"><span class="text-[16px]">${sede}</span>${ms('arrow_drop_down','text-[24px]')}</div>
+    <p class="mt-1.5 text-xs" style="color:${C.g500}">Solo tus sedes: Tintipan, El Paraíso, La Joya y Crystal Beach.</p>
+    <label class="block mt-4 text-sm font-semibold" style="color:${C.g600}">Fecha</label>
+    <div class="mt-2 h-14 rounded-xl px-4 flex items-center gap-3" style="background:${C.g100}">${ms('today','text-[20px] text-[#86868B]')}<span class="text-[16px]">Hoy, jueves 23 de octubre</span></div>
+    <p class="mt-1.5 text-xs" style="color:${C.g500}">El checklist es del día: no se abre con otra fecha.</p>
+    ${abierto
+      ? `<div class="mt-5 rounded-xl p-3.5 text-sm flex gap-2" style="background:${C.g100}">${ms('info','text-[20px] text-neutral-500')}<span>La Joya ya tiene el checklist de hoy, abierto por Rosa Elena Contreras a las 7:04 a. m. Puedes seguir en el mismo.</span></div>
+         <button data-go="detalle:proceso" class="mt-4 w-full h-14 rounded-xl text-white font-semibold" style="background:${C.primary}">Abrir el de hoy</button>`
+      : `<button data-go="detalle:proceso" class="mt-6 w-full h-14 rounded-xl text-white font-semibold" style="background:${C.primary}">Iniciar checklist</button>`}
+  </div>`;
+}
+function scrListaBase() { const s = S.state; S.state='datos'; const h = scrLista(); S.state = s; return h; }
+
+/* ---------- Pantalla 3: detalle ---------- */
+function scrDetalle() {
+  const st = S.state;
+  const cerrado = st==='cerrado', completo = st==='completo';
+  const fecha = cerrado ? 'Martes, 21 de octubre de 2026' : 'Jueves, 23 de octubre de 2026';
+  const sede = 'La Joya';
+  const tot = completo ? [231,231] : cerrado ? [134,231] : [147,231];
+  const ar = completo ? [10,10] : cerrado ? [7,10] : [6,10];
+  let banner = '';
+  if (completo) banner = `<div class="mx-4 mt-3 rounded-2xl p-4 bg-emerald-50 text-emerald-800 text-sm flex gap-3">${ms('task_alt','text-[22px]')}<div><p class="font-semibold">Checklist completo</p><p class="mt-0.5">Se completó solo a las 11:42 a. m., con el último ítem. Puedes corregir respuestas y fotos hasta las 11:59 p. m. de hoy.</p></div></div>`;
+  if (cerrado) banner = `<div class="mx-4 mt-3 rounded-2xl p-4 bg-rose-50 text-rose-800 text-sm flex gap-3">${ms('lock_clock','text-[22px]')}<div><p class="font-semibold">Sin terminar · solo lectura</p><p class="mt-0.5">El día terminó con 97 ítems sin responder. Ya no se puede corregir.</p></div></div>`;
+  const tile = (a, hab=false) => {
+    const done = completo || a.r===a.t;
+    const r = completo ? a.t : a.r;
+    const fotosOk = completo || a.fotos[0]>=a.fotos[1];
+    const go = a.go ? `data-go="area:${cerrado?'cerrado':'proceso'}"` : '';
+    return `<button ${go} class="w-full text-left bg-white rounded-2xl p-4 flex items-center gap-3" style="border:1px solid ${done?'rgba(16,185,129,.35)':C.g200}">
+      <span class="w-11 h-11 rounded-xl grid place-items-center shrink-0 ${done?'bg-emerald-50 text-emerald-600':''}" style="${done?'':`background:${C.g100};color:${C.g600}`}">${ms(hab?'bed':a.icon,'text-[22px]')}</span>
+      <span class="flex-1 min-w-0"><span class="block text-[16px] font-semibold truncate">${a.nombre}</span>
+        <span class="block text-xs mt-0.5" style="color:${C.g500}">${hab?a.sub+' · ':''}${r} de ${a.t} ítems${a.nc&&!completo?` · <span class="text-rose-600 font-semibold">${a.nc} no cumple</span>`:''}</span></span>
+      <span class="flex flex-col items-end gap-1 shrink-0">
+        ${done?`<span class="text-emerald-600">${ms('check_circle','text-[22px]',true)}</span>`:`<span class="text-xs font-semibold" style="color:${C.g600}">${Math.round(r*100/a.t)}%</span>`}
+        ${a.fotos[1]?`<span class="text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-0.5 ${fotosOk?'bg-emerald-50 text-emerald-700':'bg-rose-50 text-rose-700'}">${ms('photo_camera','text-[13px]')}${completo?a.fotos[1]:a.fotos[0]}/${a.fotos[1]}</span>`:''}
+      </span></button>`;
+  };
+  return appBar(sede) + `<div class="flex-1 overflow-y-auto scroll pb-8" style="background:${C.g50}">
+    ${banner}
+    <div class="mx-4 mt-3 bg-white rounded-2xl p-4">
+      <p class="flex items-center gap-2 text-[15px] font-semibold">${ms('calendar_today','text-[18px] text-[#86868B]')}${fecha}</p>
+      <p class="mt-2 flex items-center gap-2 text-sm" style="color:${C.g600}">${ms('person','text-[18px]')}Abrió: ${cerrado?'Admin La Joya · 6:50 a. m.':'Rosa Elena Contreras · 7:04 a. m.'}</p>
+    </div>
+    <div class="mx-4 mt-3 bg-white rounded-2xl p-4">
+      <div class="flex items-center justify-between"><span class="text-[16px] font-semibold">Progreso</span>
+        <span class="px-2.5 py-0.5 rounded-full text-sm font-bold ${tot[0]===tot[1]?'bg-emerald-50 text-emerald-700':''}" style="${tot[0]===tot[1]?'':`background:rgba(49,76,251,.15);color:${C.primary}`}">${Math.round(tot[0]*100/tot[1])}%</span></div>
+      <div class="mt-3">${bar(tot[0], tot[1], 10)}</div>
+      <p class="mt-2 text-[13px]" style="color:${C.g500}">${tot[0]} de ${tot[1]} ítems respondidos · ${ar[0]} de ${ar[1]} áreas completas</p>
+    </div>
+    <p class="mx-4 mt-5 mb-2 text-sm font-semibold" style="color:${C.g600}">Áreas de la sede</p>
+    <div class="mx-4 space-y-3">${areas.map(a=>tile(a)).join('')}</div>
+    <p class="mx-4 mt-5 mb-2 text-sm font-semibold" style="color:${C.g600}">Habitaciones</p>
+    <div class="mx-4 space-y-3">${habs.map(a=>tile(a,true)).join('')}</div>
+    <p class="mx-4 mt-5 mb-2 text-sm font-semibold" style="color:${C.g600}">Observaciones del día</p>
+    <div class="mx-4 bg-white rounded-2xl p-4" style="border:1px solid ${C.g200}">
+      ${cerrado?`<p class="text-sm" style="color:${C.g700}">Sin observaciones.</p>`:
+      `<textarea rows="3" class="w-full text-sm resize-none outline-none" placeholder="Algo del día que no encaja en un ítem">Llegan 14 huéspedes a las 3:00 p. m.; se adelantó el aseo de 201 y 202.</textarea>
+       <p class="text-[11px] mt-1" style="color:${C.g500}">Se guarda al salir del campo · editable hasta las 11:59 p. m.</p>`}
+    </div>
+  </div>`;
+}
+
+/* ---------- Pantalla 4: área con ítems ---------- */
+const RESP = {
+  cumple:   { t:'Cumple',    on:'bg-emerald-600 text-white', ic:'check' },
+  nocumple: { t:'No cumple', on:'bg-rose-600 text-white',    ic:'close' },
+  noaplica: { t:'No aplica', on:'bg-neutral-600 text-white', ic:'remove' },
+};
+function itemListo(it) { return it.resp && (!it.foto || (it.fotos||[]).length >= it.foto); }
+
+function scrArea() {
+  const st = S.state, ro = st==='cerrado';
+  const items = cocina;
+  const r = items.filter(itemListo).length, t = items.length;
+  const fotosObl = items.filter(i=>i.foto), fotosOk = fotosObl.filter(i=>(i.fotos||[]).length>=i.foto).length;
+  const pend = items.filter(i=>!itemListo(i)).length, nc = items.filter(i=>i.resp==='nocumple').length;
+  const f = S.areaFiltro;
+  const shown = items.map((it,i)=>[it,i]).filter(([it]) => f==='todos' || (f==='pend' && !itemListo(it)) || (f==='nc' && it.resp==='nocumple'));
+  let html = appBar('Cocina', { left:'arrow_back' }) + `<div class="flex-1 overflow-y-auto scroll pb-10" style="background:${C.g50}">
+    ${ro?`<div class="mx-4 mt-3 rounded-2xl p-3.5 bg-rose-50 text-rose-800 text-sm flex gap-2">${ms('lock_clock','text-[20px]')}<span>Día pasado: solo lectura.</span></div>`:''}
+    <div class="mx-4 mt-3 bg-white rounded-2xl p-4 flex gap-3 items-center">
+      <span class="p-2.5 rounded-xl" style="background:rgba(49,76,251,.1);color:${C.primary}">${ms('kitchen','text-[24px]')}</span>
+      <div class="flex-1"><p class="text-[18px] font-bold">Cocina</p>
+        <div class="mt-2">${bar(r,t)}</div>
+        <p class="mt-1.5 text-[13px] font-semibold" style="color:${C.g600}">${r} de ${t} ítems listos · fotos obligatorias ${fotosOk}/${fotosObl.length}</p></div>
+    </div>
+    ${filterChips([['todos',`Todos ${t}`],['pend',`Pendientes ${pend}`],['nc',`No cumple ${nc}`]], f, 'areaFiltro')}
+    <div class="mx-4 space-y-3">${shown.map(([it,i])=>itemCard(it,i,ro)).join('') || `<p class="text-sm text-center py-8" style="color:${C.g500}">Nada pendiente en Cocina.</p>`}</div>
+  </div>`;
+  if (st==='borrar' || S.dialog) html += dialogBorrar();
+  if (S.toast) html += snack(S.toast.t, S.toast.c);
+  return html;
+}
+
+function itemCard(it, i, ro) {
+  const listo = itemListo(it);
+  const err = S.state==='guardaerror' && i===10;
+  const falta = it.resp && it.foto && (it.fotos||[]).length < it.foto;
+  const seg = Object.entries(RESP).map(([k,v]) => {
+    const on = it.resp===k || (err && k==='cumple');
+    return `<button ${ro?'disabled':''} data-resp="${i}:${k}" class="flex-1 h-11 flex items-center justify-center gap-1 text-[13px] font-semibold ${on?v.on:'bg-white text-neutral-700'} ${ro&&!on?'opacity-50':''}">${on?ms(v.ic,'text-[16px]'):''}${v.t}</button>`;
+  }).join('<span class="w-px bg-neutral-200"></span>');
+  const fotos = it.fotos || [];
+  const showFotos = it.foto || fotos.length || it.resp==='nocumple';
+  return `<article class="bg-white rounded-2xl p-4" style="border:1px solid ${err||falta?'#fecdd3':listo?'rgba(16,185,129,.35)':C.g200}">
+    <div class="flex items-start gap-2">
+      <p class="flex-1 text-[15px] font-semibold leading-snug">${it.txt}</p>
+      ${it.foto?`<span class="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-0.5 bg-neutral-100 text-neutral-700">${ms('photo_camera','text-[13px]')}Foto obligatoria</span>`:''}
+    </div>
+    <div class="seg mt-3 flex rounded-xl overflow-hidden" style="border:1px solid ${C.g300}">${seg}</div>
+    ${err?`<p class="mt-2 text-xs text-rose-700 flex items-center gap-1">${ms('cloud_off','text-[16px]')}No se guardó: sin conexión. <button class="font-semibold underline">Reintentar</button></p>`:''}
+    ${falta&&!err?`<p class="mt-2 text-xs text-rose-700 font-semibold">Falta ${it.foto - fotos.length} foto para dar el ítem por listo.</p>`:''}
+    ${it.com!==undefined || it.resp==='nocumple' ? `<div class="mt-3 rounded-xl p-3 text-sm" style="background:${C.g100}">${it.com?`<span>${it.com}</span>`:`<span style="color:${C.g500}">Comentario (opcional)</span>`}</div>`:''}
+    ${showFotos?`<div class="mt-3 flex gap-2 flex-wrap">
+      ${fotos.map((c,fi)=>`<div class="relative w-[72px] h-[72px] rounded-[10px] overflow-hidden" style="background:${c}">
+        ${c==='subiendo'?`<div class="absolute inset-0 grid place-items-center bg-neutral-300">${ms('progress_activity','spin text-[24px] text-white')}</div>`:
+          `<span class="absolute left-1 bottom-1 text-[9px] text-white font-semibold bg-black/50 px-1 rounded">${it.quien?it.quien.split(' · ')[1]:''}</span>`}
+        ${!ro&&c!=='subiendo'?`<button data-del="${i}:${fi}" aria-label="Borrar foto" class="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/55 text-white grid place-items-center">${ms('close','text-[15px]')}</button>`:''}
+      </div>`).join('')}
+      ${!ro?`<button data-foto="${i}" class="w-[72px] h-[72px] rounded-[10px] flex flex-col items-center justify-center gap-0.5" style="background:rgba(49,76,251,.1);border:2px solid rgba(49,76,251,.3);color:${C.primary}">${ms('add_a_photo','text-[22px]')}<span class="text-[10px] font-medium">Foto</span></button>`:''}
+    </div>`:''}
+    ${it.quien || it.resp ? `<div class="mt-2.5 flex items-center gap-3 text-[13px]">
+      ${!ro && it.resp && it.com===undefined ? `<button class="font-semibold flex items-center gap-1" style="color:${C.primary}">${ms('add_comment','text-[16px]')}Comentario</button>`:''}
+      ${!ro && it.resp && !showFotos ? `<button data-foto="${i}" class="font-semibold flex items-center gap-1" style="color:${C.primary}">${ms('add_a_photo','text-[16px]')}Foto</button>`:''}
+      <span class="ml-auto text-[11px]" style="color:${C.g500}">${it.quien||''}</span></div>`:''}
+  </article>`;
+}
+
+function dialogBorrar() {
+  return `<div class="absolute inset-0 bg-black/40 grid place-items-center px-8">
+    <div class="bg-white rounded-[28px] p-6 w-full sheet-in">
+      <h3 class="text-[20px] font-semibold">¿Borrar esta foto?</h3>
+      <p class="mt-3 text-sm text-neutral-600 leading-relaxed">«Cocina limpia» pide 1 foto. Si la borras, el ítem vuelve a pendiente y la Cocina deja de estar completa.</p>
+      <div class="mt-6 flex justify-end gap-2">
+        <button data-dlg="no" class="h-10 px-4 rounded-full text-sm font-semibold" style="color:${C.primary}">Cancelar</button>
+        <button data-dlg="si" class="h-10 px-4 rounded-full text-sm font-semibold text-rose-700">Borrar foto</button>
+      </div></div></div>`;
+}
+
+/* ---------- Pantalla 5: app 2.0.7 (chrome viejo calcado) ---------- */
+function scrVieja() {
+  const st = S.state;
+  const oldChip = `<span class="px-2.5 py-1 rounded-full text-xs font-semibold" style="background:rgba(255,149,0,.15);color:#FF9500">Pendiente</span>`;
+  let h = appBar('Checklists Fotográficos') +
+    `<div class="flex gap-2 px-4 py-2 overflow-x-auto scroll shrink-0">${['Todos','Pendientes','En Proceso','Completados','Revisados'].map((l,i)=>`<span class="shrink-0 px-3 h-8 rounded-lg text-[13px] flex items-center gap-1 ${i===0?'font-semibold':''}" style="${i===0?`background:rgba(49,76,251,.2);color:${C.primary};border:1px solid ${C.primary}`:`background:${C.g100};color:${C.g600}`}">${i===0?ms('check','text-[16px]'):''}${l}</span>`).join('')}</div>
+    <div class="flex-1 overflow-y-auto scroll px-4 pt-2 space-y-3">
+      <div class="bg-white rounded-2xl p-4" style="border:1px solid ${C.g200};box-shadow:0 2px 8px rgba(0,0,0,.04)">
+        <div class="flex items-center justify-between"><span class="text-[17px] font-bold">Módulo desactualizado</span>${oldChip}</div>
+        <div class="mt-2 flex items-center gap-4 text-[13px]" style="color:${C.g600}"><span class="flex items-center gap-1">${ms('calendar_today','text-[14px] text-[#AEAEB2]')}23 oct 2026</span><span class="flex items-center gap-1">${ms('person','text-[14px] text-[#AEAEB2]')}Actualiza la app</span></div>
+        <div class="mt-3 flex justify-between text-xs"><span style="color:${C.g500}">0/0 áreas</span><span class="font-semibold" style="color:${C.g600}">0%</span></div>
+        <div class="mt-1.5">${bar(0,1)}</div>
+      </div></div>
+    <button class="absolute right-4 bottom-6 h-14 px-5 rounded-2xl text-white font-semibold flex items-center gap-2 shadow-lg" style="background:${C.primary}">${ms('add_a_photo','text-[22px]')}Nuevo</button>`;
+  if (st==='nuevo') h += snack('No tienes cabañas asignadas');
+  if (st==='subir') h += snack('Error al subir fotos: Exception: Este módulo está desactualizado. Actualiza la app desde la tienda.', '#FF3B30');
+  return h;
+}
+
+/* ---------- Notas por pantalla ---------- */
+const NOTES = {
+  lista: ['Lista de la última semana', [
+    'Trae solo los checklists de los últimos 7 días (hoy y los 6 anteriores) de las sedes del usuario. El rango lo aplica la API, no la app (D22). Lo anterior se consulta en quinta-web y luego en el 057.',
+    'Título nuevo: «Checklist de sede» (D5). El menú «Más» muestra la entrada solo si el rol tiene el permiso nuevo, con el mismo patrón que «Informe de ventas» (D20).',
+    'Desaparecen el filtro «Revisados» y las estrellas (D11). Aparece «Sin terminar»: un checklist de un día pasado que no llegó al 100 %. Es solo un rótulo; en la BD sigue EN_PROCESO.',
+    'Chips con la paleta del contrato: gris pendiente, negro en proceso, esmeralda completo, rosa sin terminar. El naranja de hoy sale (ámbar prohibido).',
+    '«Sin permiso» cubre el caso de alguien que llega a la pantalla sin el permiso del rol: la API responde 403 con mensaje.']],
+  nuevo: ['Nuevo checklist', [
+    'La fecha es siempre hoy y no se edita (D17). El selector de sede muestra solo las sedes asignadas (D20).',
+    'Si la sede ya tiene checklist hoy, no se crea otro: se ofrece abrir el existente (UNIQUE sede + día). Al crear, se copian los ítems de las áreas de esa sede (D10, D19).']],
+  detalle: ['Checklist del día', [
+    'Sin botón «Completar»: el checklist se completa solo al responder el último ítem (D8). El progreso cuenta ítems listos; un ítem fotográfico está listo con su respuesta y su mínimo de fotos (D7).',
+    'Habitaciones en su propio bloque: una por cada habitación de la sede (5 en La Joya).',
+    'Las observaciones del día se editan en cualquier momento hasta medianoche (D8, D15).',
+    '«Se completó solo»: se puede corregir hasta las 11:59 p. m.; si una respuesta queda vacía, vuelve a En proceso (D15). «Día pasado»: solo lectura.',
+    'Solo «Cocina» es navegable en este mockup.']],
+  area: ['Área con ítems', [
+    'Cada ítem tiene un control de tres botones: Cumple, No cumple y No aplica (D6). Tócalos: la respuesta se guarda al instante, sin botón «Guardar».',
+    'Un ítem fotográfico pide su mínimo (por defecto 1, D7). Mientras falte la foto, el ítem no cuenta como listo aunque tenga respuesta: es el caso de «Refrigeradores limpios».',
+    'Cualquier ítem admite fotos opcionales; «No cumple» abre el comentario y sugiere foto como evidencia.',
+    'Bajo cada respuesta aparecen quién y a qué hora (D21): «Cocina limpia» la respondió el administrador y el resto Rosa Elena.',
+    'La foto se sube al tomarla, con la marca de agua de hoy (área y hora). Borrarla pide confirmación (D16). Toca la × de la foto de «Cocina limpia».',
+    'Filtro «Pendientes» para ir directo a lo que falta: con 37 ítems por habitación, recorrer la lista entera cansa.']],
+  vieja: ['App 2.0.7 sin actualizar', [
+    'Chrome viejo calcado: la 2.0.7 no se puede cambiar, solo lo que responde la API (D13, D18).',
+    'La lista recibe una sola tarjeta falsa: sede «Módulo desactualizado» y responsable «Actualiza la app». No se ve ningún checklist real.',
+    '«Nuevo» muestra el SnackBar propio de la app vieja, «No tienes cabañas asignadas», porque la API le manda la lista de sedes vacía.',
+    'Si alguien tenía fotos en cola, la subida responde 400 con el mensaje. La app vieja antepone «Exception:» y no hay forma de quitarlo desde la API.',
+    'Nada se escribe en la BD desde las rutas viejas.']],
+};
+
+/* ---------- Render y eventos ---------- */
+function render() {
+  const nav = document.getElementById('nav');
+  nav.innerHTML = NAV.map(n => `<div><p class="font-semibold text-neutral-900">${n.t}</p><div class="mt-1.5 flex flex-wrap gap-1.5">${n.states.map(([v,l]) => {
+    const on = S.screen===n.id && S.state===v;
+    return `<button data-go="${n.id}:${v}" class="px-2.5 py-1 rounded-md text-xs ${on?'bg-neutral-900 text-white':'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}">${l}</button>`;
+  }).join('')}</div></div>`).join('');
+  const fn = { lista:scrLista, nuevo:scrNuevo, detalle:scrDetalle, area:scrArea, vieja:scrVieja }[S.screen];
+  document.getElementById('screen').innerHTML = fn();
+  const [t, ps] = NOTES[S.screen];
+  document.getElementById('noteTitle').textContent = t;
+  document.getElementById('notes').innerHTML = ps.map(p => `<p>${p}</p>`).join('');
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const d = b.dataset;
+  if (d.go) {
+    const [scr, st] = d.go.split(':'); S.screen = scr; S.state = st; S.dialog = null; S.toast = null;
+    if (scr==='area' && st!=='guardaerror') cocina = JSON.parse(JSON.stringify(cocinaBase));
+    if (scr==='area' && st==='borrar') S.dialog = { i:13, f:0 };
+    if (scr==='lista') S.filtro = 'todos';
+    S.areaFiltro = 'todos';
+  } else if (d.set) {
+    const [k, v] = d.set.split(':'); S[k] = v;
+  } else if (d.resp) {
+    const [i, k] = d.resp.split(':'); const it = cocina[+i];
+    it.resp = it.resp===k ? null : k; it.quien = it.resp ? 'Rosa Elena · 9:52 a. m.' : null;
+    if (k==='nocumple' && it.resp && it.com===undefined) it.com = '';
+    const listos = cocina.filter(itemListo).length;
+    S.toast = listos===cocina.length ? { t:'Cocina completa', c:'#047857' } : null;
+    if (S.state==='guardaerror') S.state = 'proceso';
+  } else if (d.foto) {
+    const it = cocina[+d.foto]; it.fotos = it.fotos || []; it.fotos.push('subiendo'); it.quien = it.quien || 'Rosa Elena · 9:52 a. m.';
+    render();
+    setTimeout(() => { it.fotos[it.fotos.indexOf('subiendo')] = '#9fb7c9'; S.toast = cocina.every(itemListo) ? { t:'Cocina completa', c:'#047857' } : { t:'Foto subida', c:'#1c1c1e' }; render(); setTimeout(()=>{ S.toast=null; render(); }, 1600); }, 900);
+    return;
+  } else if (d.del) {
+    const [i, f] = d.del.split(':'); S.dialog = { i:+i, f:+f };
+  } else if (d.dlg) {
+    if (d.dlg==='si' && S.dialog) { cocina[S.dialog.i].fotos.splice(S.dialog.f, 1); S.toast = { t:'Foto borrada. «'+cocina[S.dialog.i].txt+'» quedó pendiente.', c:'#1c1c1e' }; }
+    S.dialog = null; if (S.state==='borrar') S.state = 'proceso';
+  } else return;
+  render();
+});
+render();
+</script>
+</body>
+</html>
