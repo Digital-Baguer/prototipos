@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>GW-193 · Promociones: elegir si aplican en la web, en WhatsApp o en ambos (mockup)</title>
+<meta name="viewport" content="width=1440" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['ui-sans-serif', 'system-ui', 'sans-serif', 'Apple Color Emoji', 'Segoe UI Emoji'] },
+        colors: {
+          primary: 'hsl(0 0% 9%)',
+          'primary-foreground': 'hsl(0 0% 98%)',
+          secondary: 'hsl(161.38 93.55% 30.39%)',
+          input: 'hsl(0 0% 89.8%)',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { background: #e5e7eb; }
+  .nuevo { outline: 2px dashed #10b981; outline-offset: 4px; position: relative; }
+  .nuevo::after {
+    content: 'Nuevo en GW-193'; position: absolute; top: -12px; right: 8px; background: #10b981; color: #fff;
+    font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 9999px; letter-spacing: .02em;
+  }
+  .nuevo-chip { outline: 2px dashed #10b981; outline-offset: 2px; }
+  .anot-off .nuevo, .anot-off .nuevo-chip { outline: none; }
+  .anot-off .nuevo::after { display: none; }
+</style>
+</head>
+<body class="font-sans text-[16px] antialiased">
+
+<!-- ========== Barra de control del mockup (no es parte de la pantalla) ========== -->
+<div class="mx-auto w-[1440px] bg-neutral-800 px-6 py-2.5 text-xs text-neutral-200 flex items-center gap-4">
+  <span class="font-semibold text-white">Mockup GW-193</span>
+  <span class="text-neutral-400">Pantalla:</span>
+  <div class="flex gap-1" id="ctl-pantalla">
+    <button data-p="paso2" class="rounded px-2 py-1">Wizard · paso 2 Condiciones</button>
+    <button data-p="paso4" class="rounded px-2 py-1">Wizard · paso 4 Publicar</button>
+    <button data-p="listado" class="rounded px-2 py-1">Listado de promociones</button>
+  </div>
+  <span class="ml-4 text-neutral-400">Tienda elegida en el paso 1:</span>
+  <div class="flex gap-1" id="ctl-tienda">
+    <button data-t="stirpe" class="rounded px-2 py-1">stirpe</button>
+    <button data-t="derek" class="rounded px-2 py-1">derek</button>
+    <button data-t="typer" class="rounded px-2 py-1">typer (sin venta asistida)</button>
+  </div>
+  <label class="ml-auto flex items-center gap-1.5"><input id="ctl-anot" type="checkbox" checked class="h-3.5 w-3.5"> Marcar lo nuevo</label>
+</div>
+
+<!-- ========== Pantalla 1440 px ========== -->
+<div id="pantalla" class="mx-auto w-[1440px] flex min-h-[900px] bg-white relative overflow-hidden">
+
+  <!-- Sidebar (AppSidebar, #18181b) -->
+  <aside class="w-[220px] shrink-0 bg-[#18181b] text-[#a1a1aa] flex flex-col">
+    <div class="flex h-14 items-center gap-2 px-4 border-b border-[#27272a]">
+      <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-neutral-900 text-xs font-bold">g</span>
+      <span class="text-white font-bold text-lg tracking-tight">get</span>
+    </div>
+    <nav class="mt-5 flex flex-col text-[13px]">
+      <a class="px-4 py-2.5">Dashboard</a>
+      <a class="px-4 py-2.5">Pedidos</a>
+      <a class="px-4 py-2.5 bg-white/10 text-white border-l-2 border-[#34d399]">Descuentos</a>
+      <a class="px-4 py-2.5">Clientes</a>
+      <a class="px-4 py-2.5">Venta asistida</a>
+      <a class="px-4 py-2.5">Devoluciones</a>
+      <a class="px-4 py-2.5">QUAC</a>
+      <a class="px-4 py-2.5">Configuración</a>
+    </nav>
+  </aside>
+
+  <main class="flex-1 min-w-0 bg-gray-50">
+    <!-- AppSidebarHeader -->
+    <div class="min-h-16 border-b border-gray-200 bg-white px-8 py-4 flex items-center justify-between">
+      <div class="relative min-w-[28rem]">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input class="flex h-12 w-full rounded-md border border-input bg-transparent pl-9 pr-3 text-sm" placeholder="Filtrar menú..." />
+      </div>
+      <div class="flex items-center gap-2 text-sm text-gray-700">
+        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold">CM</span>Coordinador mercadeo
+      </div>
+    </div>
+    <!-- Breadcrumb -->
+    <div class="px-8 py-2 border-b border-gray-200 bg-white flex items-center gap-2 text-sm text-gray-500">
+      <span>Inicio</span><span class="text-gray-400">›</span><span class="text-gray-700" id="miga">Promociones</span>
+    </div>
+
+    <!-- ================= WIZARD ================= -->
+    <div id="vista-wizard">
+      <section class="px-8 py-6 bg-white border-b border-gray-200">
+        <header class="flex items-center justify-between">
+          <div>
+            <h1 class="!mb-0 text-3xl font-bold text-slate-900">Nueva promoción</h1>
+            <p class="text-base text-gray-600">Configura los parámetros, condiciones y presentación</p>
+          </div>
+        </header>
+      </section>
+
+      <div class="px-8 py-6">
+        <div class="mx-auto max-w-4xl space-y-6">
+
+          <!-- Stepper -->
+          <div class="flex items-start" id="stepper"></div>
+
+          <!-- Frase viva -->
+          <section class="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3">
+            <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tu promoción, en palabras</p>
+            <p class="mt-0.5 text-base text-emerald-950">
+              Con compras de $150.000 o más en toda la tienda, el cliente tiene 10 % de descuento sobre el carrito. Del 21 al 31 de octubre de 2026 en <span class="js-tienda">stirpe</span>.<span id="frase-canal" class="nuevo-inline"></span>
+            </p>
+          </section>
+
+          <!-- ---------- PASO 2 ---------- -->
+          <div id="paso2" class="space-y-6">
+            <h2 class="text-base font-semibold text-neutral-900">Condiciones</h2>
+
+            <div class="space-y-3 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+              <p class="text-sm font-medium text-neutral-800">Umbral mínimo de compra</p>
+              <div class="flex gap-4 text-sm">
+                <label class="inline-flex items-center gap-2"><input type="radio" name="umbral" checked class="h-4 w-4"><span class="text-gray-700">Monto mínimo ($)</span></label>
+                <label class="inline-flex items-center gap-2"><input type="radio" name="umbral" class="h-4 w-4"><span class="text-gray-700">Cantidad mínima (artículos)</span></label>
+                <label class="inline-flex items-center gap-2"><input type="radio" name="umbral" class="h-4 w-4"><span class="text-gray-700">Sin umbral</span></label>
+              </div>
+              <input class="flex h-12 w-full max-w-xs rounded-md border border-input bg-transparent px-3 text-sm" value="150000" />
+            </div>
+
+            <div class="space-y-3 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+              <p class="text-sm font-medium text-neutral-800">Productos que habilitan la promo</p>
+              <p class="text-sm text-gray-500">Toda la tienda (sin conjuntos).</p>
+            </div>
+
+            <!-- NUEVO: Canal de venta (solo tiendas con venta asistida) -->
+            <div id="card-canal" class="nuevo space-y-3 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+              <p class="text-sm font-medium text-neutral-800">Canal de venta</p>
+              <div class="flex gap-2" id="seg-canal">
+                <button type="button" data-c="WEB" class="flex-1 rounded border-2 px-3 py-1.5 text-xs font-medium transition-colors">Web</button>
+                <button type="button" data-c="WHATSAPP" class="flex-1 rounded border-2 px-3 py-1.5 text-xs font-medium transition-colors">WhatsApp</button>
+                <button type="button" data-c="AMBOS" class="flex-1 rounded border-2 px-3 py-1.5 text-xs font-medium transition-colors">Ambos</button>
+              </div>
+              <p id="ayuda-canal" class="text-xs text-gray-500"></p>
+            </div>
+
+            <div class="space-y-3 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+              <p class="text-sm font-medium text-neutral-800">Medios de pago</p>
+              <label class="flex cursor-pointer items-center gap-2">
+                <input type="checkbox" class="h-4 w-4 rounded border-gray-300" />
+                <span class="text-sm text-gray-700">Restringir a medios de pago específicos</span>
+              </label>
+            </div>
+
+            <div class="space-y-3 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+              <p class="text-sm font-medium text-neutral-800">Aplica según precio</p>
+              <div class="space-y-2 text-sm">
+                <label class="flex items-center gap-2"><input type="radio" name="precio" checked class="h-4 w-4"><span class="text-gray-700">Solo precio full (sin descuento previo)</span></label>
+                <label class="flex items-center gap-2"><input type="radio" name="precio" class="h-4 w-4"><span class="text-gray-700">Todos los precios</span></label>
+                <label class="flex items-center gap-2"><input type="radio" name="precio" class="h-4 w-4"><span class="text-gray-700">Solo productos con descuento</span></label>
+              </div>
+              <label class="flex cursor-pointer items-center gap-2 pt-1"><input type="checkbox" class="h-4 w-4 rounded border-gray-300" /><span class="text-sm text-gray-700">Acumulable con otras promociones</span></label>
+            </div>
+          </div>
+
+          <!-- ---------- PASO 4 ---------- -->
+          <div id="paso4" class="space-y-6 hidden">
+            <h2 class="text-base font-semibold text-neutral-900">Publicar</h2>
+            <div class="space-y-2 rounded-lg border border-gray-200 bg-white p-5 text-sm shadow-sm">
+              <p class="font-semibold text-neutral-800">Resumen de la promoción</p>
+              <div class="space-y-1 text-gray-600">
+                <p><span class="font-medium text-gray-800">Nombre:</span> 10 % desde $150.000</p>
+                <p><span class="font-medium text-gray-800">Tienda:</span> <span class="js-tienda">stirpe</span></p>
+                <p><span class="font-medium text-gray-800">Vigencia:</span> 21 oct 2026 → 31 oct 2026</p>
+                <p><span class="font-medium text-gray-800">Activación:</span> Automática</p>
+                <p><span class="font-medium text-gray-800">Qué debe comprar:</span> $150.000 o más en toda la tienda</p>
+                <p><span class="font-medium text-gray-800">Beneficio:</span> 10 % sobre el carrito</p>
+                <p><span class="font-medium text-gray-800">Acumulable:</span> No</p>
+                <p><span class="font-medium text-gray-800">Medios de pago:</span> Todos</p>
+                <p id="fila-canal" class="nuevo w-fit pr-2"><span class="font-medium text-gray-800">Canal de venta:</span> <span id="resumen-canal">Web y WhatsApp</span></p>
+                <p><span class="font-medium text-gray-800">Alcance hoy:</span> 1.481 productos cuentan · 961 rebajados quedan fuera</p>
+              </div>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+              <p class="mb-2 text-sm font-semibold">Antes de publicar</p>
+              <ul class="space-y-1.5 text-sm"><li class="text-emerald-700">La configuración no tiene problemas que impidan aplicar.</li></ul>
+            </div>
+            <div class="flex items-center justify-end gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <button class="inline-flex h-12 items-center gap-2 rounded-md border bg-white px-4 text-sm font-medium shadow-sm">Guardar borrador</button>
+              <button class="inline-flex h-12 items-center gap-2 rounded-md bg-emerald-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-emerald-700">Guardar y publicar</button>
+            </div>
+          </div>
+
+          <!-- Navegación -->
+          <div class="flex items-center justify-between border-t border-gray-100 pt-4">
+            <button class="inline-flex h-12 items-center gap-2 rounded-md border bg-white px-4 text-sm font-medium shadow-sm">‹ Atrás</button>
+            <button id="btn-continuar" class="inline-flex h-12 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm">Continuar ›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= LISTADO ================= -->
+    <div id="vista-listado" class="hidden">
+      <section class="px-8 py-6 bg-white border-b border-gray-200">
+        <header class="flex items-center justify-between">
+          <div>
+            <h1 class="!mb-0 text-3xl font-bold text-slate-900">Promociones de descuento</h1>
+            <p class="text-base text-gray-600">Gestiona ofertas, códigos y beneficios para tus tiendas</p>
+          </div>
+          <button class="inline-flex h-12 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm">+ Crear promoción</button>
+        </header>
+      </section>
+
+      <div class="space-y-6 px-8 py-6">
+        <div>
+          <div class="flex border-b border-gray-200 text-gray-500">
+            <span class="-mb-px h-12 inline-flex items-center gap-2 border-b-[3px] border-neutral-900 px-5 text-base font-semibold text-neutral-900">Estrategias <span class="rounded-full bg-neutral-900 px-2 py-0.5 text-xs font-medium text-white">17</span></span>
+            <span class="-mb-px h-12 inline-flex items-center gap-2 border-b-[3px] border-transparent px-5 text-base font-semibold">Cupones (un código) <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">70</span></span>
+            <span class="-mb-px h-12 inline-flex items-center gap-2 border-b-[3px] border-transparent px-5 text-base font-semibold">Cupones (códigos únicos) <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">111</span></span>
+            <span class="-mb-px h-12 inline-flex items-center gap-2 border-b-[3px] border-transparent px-5 text-base font-semibold">Suscripción <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">6</span></span>
+          </div>
+          <p class="mt-3 text-sm text-gray-500">Promociones automáticas: aplican solas cuando el carrito cumple la condición (antes módulo Estrategias).</p>
+        </div>
+
+        <div class="flex flex-wrap items-end gap-3">
+          <input class="flex h-12 min-w-[180px] flex-1 rounded-md border border-input bg-white px-3 text-sm" placeholder="Buscar por nombre o código..." />
+          <div class="min-w-[160px]"><label class="mb-1 block text-xs font-medium text-gray-600">Tienda</label><div class="flex h-10 items-center justify-between rounded-md border border-input bg-white px-3 text-sm">Todas las tiendas <span>⌄</span></div></div>
+          <div class="min-w-[160px]"><label class="mb-1 block text-xs font-medium text-gray-600">Estado</label><div class="flex h-10 items-center justify-between rounded-md border border-input bg-white px-3 text-sm">Todos <span>⌄</span></div></div>
+          <button class="inline-flex h-12 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">Buscar</button>
+        </div>
+
+        <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-gray-100 bg-gray-50">
+                <th class="w-[72px] px-4 py-3 text-left align-top font-medium text-gray-600">ID</th>
+                <th class="px-4 py-3 text-left align-top font-medium text-gray-600">Promoción</th>
+                <th class="px-4 py-3 text-left align-top font-medium text-gray-600">Beneficio</th>
+                <th class="px-4 py-3 text-left align-top font-medium text-gray-600">Tienda</th>
+                <th class="px-4 py-3 text-left align-top font-medium text-gray-600">Vigencia</th>
+                <th class="px-4 py-3 text-left align-top font-medium text-gray-600">Estado</th>
+                <th class="px-4 py-3 text-right align-top font-medium text-gray-600">Redimidos<span class="block text-[11px] leading-tight font-normal text-gray-400">Pedidos pagados y no cancelados</span></th>
+                <th class="px-4 py-3 text-right align-top font-medium text-gray-600">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="filas"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Notas del mockup -->
+<div class="mx-auto w-[1440px] bg-white border-t border-gray-200 px-8 py-5 text-sm text-gray-600 space-y-1">
+  <p class="font-semibold text-neutral-800">Qué muestra este mockup</p>
+  <p>· La tarjeta «Canal de venta» va en el paso 2, antes de «Medios de pago». Solo aparece en tiendas con venta asistida (stirpe y derek). Una promo nueva arranca en «Ambos».</p>
+  <p>· Si se cambia la tienda a una sin venta asistida, la tarjeta desaparece y el canal vuelve a «Ambos». El servidor guarda siempre «Ambos» para esas tiendas.</p>
+  <p>· «WhatsApp» son los carritos que arma un asesor de venta asistida en GET, aunque el cliente los pague con el link en la web.</p>
+  <p>· La frase de la promo nombra el canal solo cuando no es «Ambos». En stirpe y derek, el resumen del paso 4 trae siempre la fila «Canal de venta» («Web y WhatsApp» en Ambos). En el listado, una etiqueta gris bajo la tienda («solo WhatsApp» o «solo Web»).</p>
+  <p>· Una promo «solo WhatsApp» no sale en el banner del catálogo de la tienda web. Eso no tiene pantalla en get-web.</p>
+</div>
+
+<script>
+  const estado = { pantalla: 'paso2', tienda: 'stirpe', canal: 'AMBOS' };
+  const conVentaAsistida = ['stirpe', 'derek'];
+  const ayudas = {
+    WEB: 'Solo compras que el cliente hace en la tienda en línea.',
+    WHATSAPP: 'Solo carritos que arma un asesor de venta asistida en GET, aunque el cliente pague con el link.',
+    AMBOS: 'Aplica en la tienda en línea y en venta asistida.',
+  };
+  const frases = { WEB: ' Solo en compras por la web.', WHATSAPP: ' Solo en compras por WhatsApp.', AMBOS: '' };
+  const resumen = { WEB: 'Solo web', WHATSAPP: 'Solo WhatsApp', AMBOS: 'Web y WhatsApp' };
+
+  const filas = [
+    ['#1325', '10 % desde $150.000 por WhatsApp', 'Descuento %', 'stirpe', 'WHATSAPP', '21 oct 2026 → 31 oct 2026', 'activa', '—', ''],
+    ['#1291', 'Perfume por $29.900', 'Regalo', 'stirpe', 'AMBOS', '19 oct 2026 → 26 oct 2026', 'activa', '14', '$ 2.798.600'],
+    ['#1322', 'Envío gratis en la web', 'Envío gratis', 'derek', 'WEB', '20 oct 2026 → sin fin', 'programada', '—', ''],
+    ['#1300', 'Hot Days', 'Descuento %', 'typer', 'AMBOS', '17 oct 2026 → 20 oct 2026', 'activa', '83', '$ 6.991.894'],
+    ['#1038', '[Migrada] Envío gratis desde $349.900 · Stirpe', 'Envío gratis', 'stirpe', 'AMBOS', '01 ene 2026 → sin fin', 'activa', '121', '$ 1.327.200'],
+    ['#1318', 'Borrador combo jeans', 'Descuento $', 'derek', 'WHATSAPP', '<span class="text-gray-400">Sin vigencia</span>', 'borrador', '—', ''],
+  ];
+  const chip = {
+    activa: ['Activa', 'bg-emerald-100 text-emerald-700 border border-emerald-200'],
+    programada: ['Programada', 'bg-neutral-900 text-white border border-neutral-900'],
+    borrador: ['Borrador', 'bg-white text-neutral-500 border border-neutral-300'],
+  };
+
+  function pintarStepper() {
+    const pasos = ['Tipo y beneficio', 'Condiciones', 'Presentación', 'Publicar'];
+    const actual = estado.pantalla === 'paso4' ? 4 : 2;
+    let html = '';
+    pasos.forEach((p, i) => {
+      const n = i + 1;
+      const cls = n < actual ? 'bg-emerald-600 text-white border-emerald-600'
+        : n === actual ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white text-gray-400 border-gray-300';
+      html += `<div class="flex flex-col items-center gap-1 w-24"><button class="flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-semibold ${cls}">${n < actual ? '✓' : n}</button><span class="text-xs whitespace-nowrap text-gray-500">${p}</span></div>`;
+      if (n < 4) html += `<div class="mx-2 mt-[17px] h-0.5 flex-1 ${n < actual ? 'bg-emerald-600' : 'bg-neutral-200'}"></div>`;
+    });
+    document.getElementById('stepper').innerHTML = html;
+  }
+
+  function pintar() {
+    const va = conVentaAsistida.includes(estado.tienda);
+    if (!va) estado.canal = 'AMBOS';
+    document.querySelectorAll('.js-tienda').forEach(e => e.textContent = estado.tienda);
+
+    document.getElementById('vista-wizard').classList.toggle('hidden', estado.pantalla === 'listado');
+    document.getElementById('vista-listado').classList.toggle('hidden', estado.pantalla !== 'listado');
+    document.getElementById('paso2').classList.toggle('hidden', estado.pantalla !== 'paso2');
+    document.getElementById('paso4').classList.toggle('hidden', estado.pantalla !== 'paso4');
+    document.getElementById('btn-continuar').classList.toggle('invisible', estado.pantalla === 'paso4');
+    document.getElementById('miga').textContent = estado.pantalla === 'listado' ? 'Promociones' : 'Promociones › Nueva';
+
+    document.getElementById('card-canal').classList.toggle('hidden', !va);
+    document.querySelectorAll('#seg-canal button').forEach(b => {
+      const on = b.dataset.c === estado.canal;
+      b.className = 'flex-1 rounded border-2 px-3 py-1.5 text-xs font-medium transition-colors ' +
+        (on ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300');
+    });
+    document.getElementById('ayuda-canal').textContent = ayudas[estado.canal];
+    document.getElementById('frase-canal').textContent = frases[estado.canal];
+    document.getElementById('fila-canal').classList.toggle('hidden', !va);
+    document.getElementById('resumen-canal').textContent = resumen[estado.canal];
+
+    document.getElementById('filas').innerHTML = filas.map(f => {
+      const etiqueta = f[4] === 'AMBOS' ? '' :
+        `<span class="nuevo-chip mt-1 inline-flex whitespace-nowrap w-fit items-center rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">${f[4] === 'WEB' ? 'solo Web' : 'solo WhatsApp'}</span>`;
+      const red = f[7] === '—' ? '<span class="text-gray-400">—</span>' : `<span class="font-medium">${f[7]}</span><br><span class="text-xs text-gray-400">${f[8]}</span>`;
+      return `<tr class="border-b border-gray-50 hover:bg-gray-50">
+        <td class="px-4 py-3 font-mono text-xs text-gray-500">${f[0]}</td>
+        <td class="px-4 py-3"><a class="font-medium text-neutral-900 hover:underline">${f[1]}</a></td>
+        <td class="px-4 py-3 text-gray-600">${f[2]}</td>
+        <td class="px-4 py-3 text-gray-600"><div class="flex flex-col">${f[3]}${etiqueta}</div></td>
+        <td class="px-4 py-3 text-xs text-gray-600">${f[5]}</td>
+        <td class="px-4 py-3"><span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${chip[f[6]][1]}">${chip[f[6]][0]}</span></td>
+        <td class="px-4 py-3 text-right text-gray-700">${red}</td>
+        <td class="px-4 py-3 text-right text-gray-400">⋮</td></tr>`;
+    }).join('');
+
+    document.querySelectorAll('#ctl-pantalla button').forEach(b => b.className = 'rounded px-2 py-1 ' + (b.dataset.p === estado.pantalla ? 'bg-white text-neutral-900' : 'bg-neutral-700 hover:bg-neutral-600'));
+    document.querySelectorAll('#ctl-tienda button').forEach(b => b.className = 'rounded px-2 py-1 ' + (b.dataset.t === estado.tienda ? 'bg-white text-neutral-900' : 'bg-neutral-700 hover:bg-neutral-600'));
+    document.getElementById('ctl-tienda').parentElement && (document.getElementById('ctl-tienda').style.opacity = estado.pantalla === 'listado' ? .4 : 1);
+    pintarStepper();
+  }
+
+  document.querySelectorAll('#ctl-pantalla button').forEach(b => b.onclick = () => { estado.pantalla = b.dataset.p; pintar(); });
+  document.querySelectorAll('#ctl-tienda button').forEach(b => b.onclick = () => { estado.tienda = b.dataset.t; pintar(); });
+  document.querySelectorAll('#seg-canal button').forEach(b => b.onclick = () => { estado.canal = b.dataset.c; pintar(); });
+  document.getElementById('btn-continuar').onclick = () => { estado.pantalla = 'paso4'; pintar(); };
+  document.getElementById('ctl-anot').onchange = e => document.body.classList.toggle('anot-off', !e.target.checked);
+  pintar();
+</script>
+</body>
+</html>
