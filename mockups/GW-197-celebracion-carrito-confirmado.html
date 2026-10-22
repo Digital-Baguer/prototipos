@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>GW-197 · Venta asistida: celebración cuando un cliente confirma un carrito</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, sans-serif; }
+  .toast-in { animation: tin .35s ease-out; }
+  @keyframes tin { from { transform: translateX(110%); opacity: 0 } to { transform: none; opacity: 1 } }
+  .toast-out { animation: tout .3s ease-in forwards; }
+  @keyframes tout { to { transform: translateX(110%); opacity: 0 } }
+  .bar { animation: shrink linear forwards; }
+  @keyframes shrink { from { width: 100% } to { width: 0 } }
+</style>
+</head>
+<body class="bg-white text-[#171717]">
+
+<div class="flex min-h-screen">
+  <!-- Sidebar (calcado de AppSidebar en origin/master) -->
+  <aside class="w-[272px] shrink-0 bg-[#18181b] border-r border-[#27272a] text-sm">
+    <div class="h-14 px-4 border-b border-[#27272a] flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="h-8 w-8 rounded-lg bg-[#fafafa] flex items-center justify-center font-black text-[11px]">G</div>
+        <span class="text-white font-semibold text-lg tracking-tight">get</span>
+      </div>
+      <svg class="size-4 text-[#71717a]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M16 15l-3-3 3-3"/></svg>
+    </div>
+    <nav class="py-3 space-y-0.5">
+      <div class="mx-2 px-3 h-9 flex items-center gap-3 text-[#a1a1aa]">▦ <span>Dashboard</span></div>
+      <div class="mx-2 px-3 h-9 flex items-center gap-3 text-[#a1a1aa]">▤ <span>Pedidos</span></div>
+      <div class="mx-2 px-3 h-9 flex items-center gap-3 text-[#a1a1aa]">％ <span>Descuentos</span></div>
+      <div class="mx-2 px-3 h-9 flex items-center gap-3 text-[#a1a1aa]">☺ <span>Clientes</span></div>
+      <div class="mx-2 px-3 h-9 flex items-center gap-3 text-[#fafafa] font-semibold"><span class="text-[#34d399]">🛍</span><span class="flex-1">Venta asistida</span><span class="rotate-90">›</span></div>
+      <div class="ml-6 mr-2 space-y-0.5">
+        <div class="h-8 px-3 rounded-lg text-[13px] text-[#a1a1aa] flex items-center">Asignar clientes</div>
+        <div class="h-8 px-3 rounded-lg text-[13px] text-[#a1a1aa] flex items-center">Gestión de ventas</div>
+        <div class="h-8 px-3 rounded-lg text-[13px] text-[#a1a1aa] flex items-center">Gestión entregas</div>
+        <div class="relative h-8 px-3 rounded-lg text-[13px] bg-white/10 text-white font-medium flex items-center"><span class="absolute left-0 h-4 w-0.5 rounded-sm bg-[#34d399]"></span>Mis ventas</div>
+        <div class="h-8 px-3 rounded-lg text-[13px] text-[#a1a1aa] flex items-center">Mis Entregas</div>
+        <div class="h-8 px-3 rounded-lg text-[13px] text-[#a1a1aa] flex items-center">Productos visitados</div>
+      </div>
+      <div class="mx-2 px-3 h-9 flex items-center gap-3 text-[#a1a1aa]">↺ <span>Devoluciones</span></div>
+      <div class="mx-2 px-3 h-9 flex items-center gap-3 text-[#a1a1aa]">◎ <span>QUAC</span></div>
+      <div class="mx-2 px-3 h-9 flex items-center gap-3 text-[#a1a1aa]">⚙ <span>Configuración</span></div>
+    </nav>
+  </aside>
+
+  <!-- Contenido -->
+  <main class="flex-1 min-w-0">
+    <header class="flex min-h-16 items-center border-b border-[#e8e8e8] px-8 py-4 justify-between">
+      <div class="flex items-center gap-2 border rounded-md px-3 h-9 lg:min-w-[28rem] text-sm text-gray-400">
+        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Filtrar menú...
+      </div>
+      <div class="flex items-center gap-4">
+        <!-- NUEVO: botón de silenciar (hueco de la campana comentada) -->
+        <button id="mute" title="Silenciar celebraciones" class="w-9 h-9 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-colors">
+          <svg id="ico-on" class="size-[18px]" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 9a4 4 0 0 1 0 6"/></svg>
+          <svg id="ico-off" class="size-[18px] hidden" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m21 9-5 6M16 9l5 6"/></svg>
+        </button>
+        <div class="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-[#f5f5f5]">
+          <div class="h-8 w-8 rounded-full bg-[#f5f5f5] flex items-center justify-center text-xs font-medium">PS</div>
+          <div class="leading-tight"><div class="text-sm font-medium">Paola andrea S.</div><div class="text-xs text-gray-500">Asesor de ventas</div></div>
+          <span class="text-gray-500">⌄</span>
+        </div>
+      </div>
+    </header>
+    <div class="px-8 py-2 border-b bg-white text-xs text-gray-500">Venta asistida / Mis ventas</div>
+    <div class="bg-gray-50 min-h-[calc(100vh-7rem)]">
+      <div class="px-8 py-6 bg-white border-b border-gray-200 flex justify-between items-center">
+        <div><h1 class="text-2xl font-semibold">Mis Ventas</h1><p class="text-gray-600">Gestiona tus ventas asistidas</p></div>
+        <div class="flex items-center gap-4">
+          <!-- NUEVO (solo en temporada): calabaza del asesor -->
+          <!-- Variante A: tarjeta oscura -->
+          <div data-cal="A" class="cal hidden items-center gap-3 rounded-xl pl-2 pr-5 py-2 bg-gradient-to-br from-[#1c1917] via-[#292524] to-[#3b1d0e] shadow-[0_6px_24px_-6px_rgba(249,115,22,.45)] ring-1 ring-white/5">
+            <svg class="cal-svg drop-shadow-[0_0_10px_rgba(251,146,60,.35)]" width="76" height="76" viewBox="0 0 80 80"></svg>
+            <div class="leading-tight min-w-[150px]">
+              <div class="text-[11px] uppercase tracking-wider text-orange-300/90">Tu calabaza de hoy</div>
+              <div class="text-xl font-semibold text-white"><span class="cal-n">6</span> <span class="text-sm font-normal text-white/60">dulces</span></div>
+              <div class="cal-meta">
+                <div class="mt-1.5 h-1.5 w-full rounded-full bg-white/10 overflow-hidden"><div class="cal-bar h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-300 transition-[width] duration-700"></div></div>
+                <div class="cal-txt mt-1 text-[11px] text-white/60"></div>
+              </div>
+            </div>
+          </div>
+          <!-- Variante B: tarjeta clara, del mismo estilo del panel -->
+          <div data-cal="B" class="cal hidden items-center gap-3 rounded-xl pl-1 pr-5 py-1 bg-white border border-gray-200 shadow-sm">
+            <svg class="cal-svg" width="68" height="68" viewBox="0 0 80 80"></svg>
+            <div class="leading-tight min-w-[140px]">
+              <div class="text-xs text-gray-500">Tu calabaza de hoy</div>
+              <div class="text-xl font-semibold text-[#171717]"><span class="cal-n">6</span> <span class="text-sm font-normal text-gray-500">dulces</span></div>
+              <div class="cal-meta">
+                <div class="mt-1.5 h-1.5 w-full rounded-full bg-gray-100 overflow-hidden"><div class="cal-bar h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-300 transition-[width] duration-700"></div></div>
+                <div class="cal-txt mt-1 text-[11px] text-gray-500"></div>
+              </div>
+            </div>
+          </div>
+          <button class="bg-[#171717] text-white text-sm px-4 h-9 rounded-md">Nueva Venta</button>
+        </div>
+      </div>
+      <div class="px-8 pt-4 flex gap-6 text-sm border-b bg-white">
+        <span class="pb-2 text-gray-500">Dashboard cumplimiento</span>
+        <span class="pb-2 border-b-2 border-[#171717] font-medium">Consultar ventas</span>
+      </div>
+      <div class="p-8">
+        <table class="w-full bg-white border rounded-lg text-sm">
+          <thead class="text-left text-gray-500 border-b"><tr><th class="p-3">Carrito ID</th><th>Cliente</th><th>Origen</th><th>Pago</th><th>Pedido</th><th>Ítems</th><th class="text-right pr-3">Total</th></tr></thead>
+          <tbody class="divide-y">
+            <tr><td class="p-3">412880</td><td>Marcela Rojas</td><td>WhatsApp</td><td><span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-xs">Pagado</span></td><td>98213</td><td>3</td><td class="text-right pr-3">$389.900</td></tr>
+            <tr><td class="p-3">412861</td><td>Andrés Pérez</td><td>WhatsApp</td><td><span class="px-2 py-0.5 rounded bg-gray-100 text-gray-700 text-xs">Pendiente</span></td><td>—</td><td>2</td><td class="text-right pr-3">$254.000</td></tr>
+            <tr><td class="p-3">412840</td><td>Diana Castro</td><td>WhatsApp</td><td><span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-xs">Pagado</span></td><td>98190</td><td>5</td><td class="text-right pr-3">$712.500</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Variante C: calabaza asomándose por el borde derecho (solo en Mis ventas) -->
+<div id="calC" data-cal="C" class="cal hidden fixed right-0 top-[46%] z-30 group">
+  <div id="calC-in" class="relative translate-x-[38%] -rotate-[14deg] group-hover:translate-x-[8%] group-hover:rotate-0 transition-transform duration-500 ease-out">
+    <div class="absolute right-[calc(100%-8px)] top-3 opacity-0 group-hover:opacity-100 transition-opacity bg-[#171717] text-white rounded-lg px-3 py-2 text-xs leading-tight whitespace-nowrap shadow-lg">
+      Tu calabaza de hoy<br><span class="text-base font-semibold"><span class="cal-n">6</span> dulces</span>
+      <div class="cal-meta w-44">
+        <div class="mt-1.5 h-1.5 w-full rounded-full bg-white/15 overflow-hidden"><div class="cal-bar h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-300 transition-[width] duration-700"></div></div>
+        <div class="cal-txt mt-1 text-[11px] text-white/70"></div>
+      </div>
+    </div>
+    <svg class="cal-svg drop-shadow-[0_6px_14px_rgba(234,88,12,.35)]" width="120" height="120" viewBox="0 0 80 80"></svg>
+    <div id="calC-badge" class="group-hover:opacity-0 transition-opacity absolute left-2 top-4 h-6 min-w-6 px-1.5 rounded-full bg-[#171717] text-white text-xs font-semibold flex items-center justify-center ring-2 ring-white"><span class="cal-n">6</span></div>
+  </div>
+</div>
+
+<canvas id="dulces" class="fixed inset-0 pointer-events-none z-40"></canvas>
+
+<!-- Pila de toasts: top-right, como el <Toast /> de AppLayout -->
+<div id="stack" class="fixed top-5 right-5 z-50 flex flex-col gap-3 w-[25rem]"></div>
+
+<!-- Panel del mockup (no es parte de la interfaz) -->
+<div class="fixed bottom-4 left-4 z-50 w-[330px] bg-white border-2 border-dashed border-gray-300 rounded-lg p-4 text-xs space-y-3 shadow-lg">
+  <div class="font-semibold text-sm">Panel del mockup · GW-197</div>
+  <div>
+    <div class="text-gray-500 mb-1">Temporada (variable de entorno)</div>
+    <div class="flex gap-1">
+      <button data-t="defecto" class="t px-2 py-1 rounded border bg-[#171717] text-white">Por defecto · confeti</button>
+      <button data-t="halloween" class="t px-2 py-1 rounded border">Halloween · dulces</button>
+    </div>
+  </div>
+  <div id="selcal" class="hidden">
+    <div class="text-gray-500 mb-1">Calabaza</div>
+    <div class="flex gap-1">
+      <button data-c="A" class="c px-2 py-1 rounded border">A · Oscura</button>
+      <button data-c="B" class="c px-2 py-1 rounded border bg-[#171717] text-white">B · Clara (elegida)</button>
+      <button data-c="C" class="c px-2 py-1 rounded border">C · Asomada</button>
+    </div>
+  </div>
+  <div>
+    <div class="text-gray-500 mb-1">Sonido</div>
+    <div class="flex gap-1">
+      <select id="selsnd" class="border rounded px-1 py-1 flex-1">
+        <option value="azar">Al azar: 1, 2 o 3</option>
+        <option value="437">Ovación pequeña (6 s)</option>
+        <option value="531">Grito de fiesta (5 s)</option>
+        <option value="459">Público gritando, corto (4 s)</option>
+        <option value="515">Grito y aplausos (6 s)</option>
+        <option value="518">Grupo: vivas y aplausos (10 s)</option>
+        <option value="462">Estadio: victoria (10 s)</option>
+        <option value="campanita">Campanita (actual)</option>
+      </select>
+      <button id="probar" class="px-2 py-1 rounded border">▶ Probar</button>
+    </div>
+  </div>
+  <div class="space-y-1">
+    <div class="text-gray-500">Simular (un servicio revisa cada 20 s)</div>
+    <button id="s1" class="w-full text-left px-2 py-1.5 rounded border hover:bg-gray-50">1 · Llega 1 carrito confirmado</button>
+    <button id="s3" class="w-full text-left px-2 py-1.5 rounded border hover:bg-gray-50">2 · Llegan 3 en la misma consulta</button>
+    <button id="spropia" class="w-full text-left px-2 py-1.5 rounded border hover:bg-gray-50">3 · Confirma un cliente de Paola (yo): en Halloween suma 1 dulce</button>
+    <label class="flex items-center gap-2 pt-1"><input type="checkbox" id="sinmeta"> 6 · Sin meta (antes del reparto o descanso)</label>
+    <label class="flex items-center gap-2"><input type="checkbox" id="apagado"> 4 · Interruptor general apagado</label>
+    <label class="flex items-center gap-2"><input type="checkbox" id="sinacceso"> 5 · Usuario sin acceso a venta asistida</label>
+  </div>
+  <div id="nota" class="text-gray-500 leading-snug">Silenciar: ícono de volumen junto al nombre. Quita el sonido; el confeti y el toast siguen. El navegador recuerda la elección.</div>
+</div>
+
+<script>
+const ventas = [
+  { asesor: 'Sheyla mariyuri J.', tienda: 'Stirpe', total: 497000, carrito: 412901 },
+  { asesor: 'Lady stephanie G.', tienda: 'Derek', total: 1250400, carrito: 412902 },
+  { asesor: 'Sheyla mariyuri J.', tienda: 'Stirpe', total: 189900, carrito: 412903 },
+];
+const propia = { asesor: 'Paola andrea S.', tienda: 'Stirpe', total: 642300, carrito: 412904 };
+let temporada = 'defecto';
+let calN = 6;
+let ventaHoy = 2748862; const META = 4695460;
+let muted = localStorage.getItem('gw197-mute') === '1';
+const fmt = n => '$' + n.toLocaleString('es-CO');
+const iniciales = s => s.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
+const DURACION = 8000;
+
+function pintarMute() {
+  document.getElementById('ico-on').classList.toggle('hidden', muted);
+  document.getElementById('ico-off').classList.toggle('hidden', !muted);
+  document.getElementById('mute').title = muted ? 'Activar sonido de celebraciones' : 'Silenciar celebraciones';
+}
+document.getElementById('mute').onclick = () => { muted = !muted; localStorage.setItem('gw197-mute', muted ? '1' : '0'); pintarMute(); };
+pintarMute();
+
+let varCal = 'B';
+function mostrarCal() {
+  document.querySelectorAll('.cal').forEach(el => {
+    const on = temporada === 'halloween' && el.dataset.cal === varCal;
+    el.classList.toggle('hidden', !on); if (el.dataset.cal !== 'C') el.classList.toggle('flex', on);
+  });
+  document.getElementById('selcal').classList.toggle('hidden', temporada !== 'halloween');
+}
+document.querySelectorAll('.t').forEach(b => b.onclick = () => {
+  temporada = b.dataset.t;
+  document.querySelectorAll('.t').forEach(x => x.className = 't px-2 py-1 rounded border' + (x === b ? ' bg-[#171717] text-white' : ''));
+  mostrarCal(); pintarCalabaza();
+});
+document.querySelectorAll('.c').forEach(b => b.onclick = () => {
+  varCal = b.dataset.c;
+  document.querySelectorAll('.c').forEach(x => x.className = 'c px-2 py-1 rounded border' + (x === b ? ' bg-[#171717] text-white' : ''));
+  mostrarCal();
+});
+
+// Dulce envuelto (misma idea que dulce() del mockup GW-196): menta, rosa, naranja, blanco
+const COLORES = ['#34d399', '#f472b6', '#fb923c', '#fafafa'];
+function dulce(ctx, x, y, r, rot, color) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+  ctx.fillStyle = color; ctx.strokeStyle = '#171717'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(-r * .9, 0); ctx.lineTo(-r * 1.7, -r * .7); ctx.lineTo(-r * 1.7, r * .7); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(r * .9, 0); ctx.lineTo(r * 1.7, -r * .7); ctx.lineTo(r * 1.7, r * .7); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(0, 0, r, r * .75, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-r * .4, -r * .6); ctx.lineTo(r * .1, r * .6); ctx.stroke();
+  ctx.restore();
+}
+function lluviaDulces() {
+  const cv = document.getElementById('dulces'), ctx = cv.getContext('2d');
+  cv.width = innerWidth; cv.height = innerHeight;
+  const ps = Array.from({ length: 70 }, () => ({
+    x: Math.random() * cv.width, y: -30 - Math.random() * cv.height * .6,
+    v: 3 + Math.random() * 4, r: 7 + Math.random() * 6, rot: Math.random() * 6, vr: (Math.random() - .5) * .2,
+    c: COLORES[Math.floor(Math.random() * COLORES.length)]
+  }));
+  const t0 = performance.now();
+  (function frame(t) {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ps.forEach(p => { p.y += p.v; p.rot += p.vr; dulce(ctx, p.x, p.y, p.r, p.rot, p.c); });
+    if (t - t0 < 3500) requestAnimationFrame(frame); else ctx.clearRect(0, 0, cv.width, cv.height);
+  })(t0);
+}
+
+// Calabaza de dulces: calabaza tallada con boca abierta arriba; los dulces se apilan en la boca y la cara brilla más a medida que se llena
+const CAP = 12;
+const PALETA = [['#6ee7b7','#10b981'], ['#f9a8d4','#ec4899'], ['#ffffff','#d4d4d8']];
+const PUNTOS = [[30,25,-20],[42,26,15],[52,25,-10],[36,21,30],[47,21,-25],[25,21,10],[41,16,-5],[31,16,25],[51,17,-30],[36,11,10],[46,12,-15],[41,7,0]];
+function dulceSvg(x, y, rot, i, anim) {
+  const [a, b] = PALETA[i % 3];
+  return `<g transform="translate(${x} ${y}) rotate(${rot})"><g>${anim}
+    <path d="M-5 0 L-10 -4 Q-11 0 -10 4 Z M5 0 L10 -4 Q11 0 10 4 Z" fill="${b}"/>
+    <ellipse rx="6" ry="4.4" fill="url(#Pdg${i % 3})"/>
+    <path d="M-3 -2.6 Q0 -3.8 3 -2.6" stroke="#fff" stroke-opacity=".8" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+  </g></g>`;
+}
+function pintarCalabaza(nuevo) {
+  const visibles = Math.min(calN, CAP);
+  const brillo = document.getElementById('sinmeta')?.checked ? .35 + .65 * (visibles / CAP) : .3 + .7 * Math.min(ventaHoy / META, 1);
+  let pila = '';
+  for (let i = 0; i < visibles; i++) {
+    const [x, y, r] = PUNTOS[i];
+    const anim = (nuevo && i === visibles - 1) ? `<animateTransform attributeName="transform" type="translate" values="0 -45; 0 2; 0 0" keyTimes="0;.8;1" dur=".6s" fill="freeze"/>` : '';
+    pila += dulceSvg(x, y, r, i, anim);
+  }
+  const grad = PALETA.map(([a, b], k) => `<radialGradient id="Pdg${k}" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".25" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></radialGradient>`).join('');
+  const html = `<defs>${grad}
+      <radialGradient id="Ppk" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#fdba74"/><stop offset=".55" stop-color="#f97316"/><stop offset="1" stop-color="#9a3412"/></radialGradient>
+      <radialGradient id="Pluz" cx=".5" cy=".5" r=".6"><stop offset="0" stop-color="#fef9c3"/><stop offset=".6" stop-color="#fde047"/><stop offset="1" stop-color="#f59e0b"/></radialGradient>
+      <filter id="Pglow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <ellipse cx="40" cy="74" rx="24" ry="3" fill="#000" opacity=".35"/>
+    <ellipse cx="22" cy="49" rx="15" ry="22" fill="url(#Ppk)"/>
+    <ellipse cx="58" cy="49" rx="15" ry="22" fill="url(#Ppk)"/>
+    <ellipse cx="40" cy="50" rx="18" ry="23.5" fill="url(#Ppk)"/>
+    <path d="M30 30 Q26 50 30 71 M50 30 Q54 50 50 71" stroke="#7c2d12" stroke-opacity=".35" stroke-width="1.2" fill="none"/>
+    <ellipse cx="40" cy="29" rx="21" ry="5.5" fill="#431407"/>
+    ${pila}
+    <path d="M17 29.5 Q40 36.5 63 29.5" stroke="#c2410c" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    <g filter="url(#Pglow)" opacity="${brillo.toFixed(2)}">
+      <path d="M26 46 L32 39 L36 47 Z M44 47 L48 39 L54 46 Z" fill="url(#Pluz)"/>
+      <path d="M27 55 Q40 66 53 55 L49 57 L46 54.5 L43 58 L40 55 L37 58 L34 54.5 L31 57 Z" fill="url(#Pluz)"/>
+    </g>
+    <path d="M60 24 q4 -6 9 -4 q-3 1 -4 4 q-2 3 -5 0z" fill="#22c55e"/>`;
+  document.querySelectorAll('.cal-svg').forEach((el, k) => el.innerHTML = html.replaceAll('#P', '#c' + k).replaceAll('id="P', 'id="c' + k));
+  document.querySelectorAll('.cal-n').forEach(el => el.textContent = calN);
+  const sinMeta = document.getElementById('sinmeta').checked;
+  const pct = Math.round(ventaHoy / META * 100);
+  document.querySelectorAll('.cal-meta').forEach(el => el.classList.toggle('hidden', sinMeta));
+  document.querySelectorAll('.cal-bar').forEach(el => el.style.width = Math.min(pct, 100) + '%');
+  document.querySelectorAll('.cal-txt').forEach(el => el.textContent = `${fmt(ventaHoy)} de ${fmt(META)} · ${pct} %`);
+  if (nuevo && varCal === 'C') {
+    const c = document.getElementById('calC-in');
+    c.style.transform = 'translateX(8%) rotate(0deg) scale(1.08)';
+    setTimeout(() => c.style.transform = '', 2200);
+  }
+}
+pintarCalabaza();
+
+let tipoSonido = 'azar';
+const AL_AZAR = ['437', '531', '459'];
+document.getElementById('selsnd').onchange = e => tipoSonido = e.target.value;
+document.getElementById('probar').onclick = () => { const m = muted; muted = false; sonido(); muted = m; };
+
+function sonido() {
+  if (muted) return;
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  if (tipoSonido === 'campanita') return campanita(ctx);
+  ctx.close();
+  // Grabación real de Mixkit (licencia libre, uso comercial). Se corta a los 3 s con desvanecido.
+  const id = tipoSonido === 'azar' ? AL_AZAR[Math.floor(Math.random() * AL_AZAR.length)] : tipoSonido;
+  const a = new Audio(`https://assets.mixkit.co/active_storage/sfx/${id}/${id}-preview.mp3`);
+  a.volume = .8; a.play();
+  setTimeout(() => { const f = setInterval(() => { a.volume = Math.max(0, a.volume - .08); if (a.volume === 0) { a.pause(); clearInterval(f); } }, 50); }, 2500);
+}
+function campanita(ctx) {
+  [[784, 0], [988, .12], [1319, .24]].forEach(([f, t]) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'triangle'; o.frequency.value = f;
+    g.gain.setValueAtTime(.0001, ctx.currentTime + t);
+    g.gain.exponentialRampToValueAtTime(.25, ctx.currentTime + t + .02);
+    g.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + t + .35);
+    o.connect(g).connect(ctx.destination); o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + .4);
+  });
+}
+function confeti() {
+  confetti({ particleCount: 140, spread: 80, origin: { y: .25, x: .8 }, colors: ['#34d399', '#10b981', '#171717', '#fafafa', '#f472b6'] });
+}
+
+function toastHTML(v, esPropia) {
+  if (false) {
+    return `<div class="toast-in relative overflow-hidden rounded-[6px] border border-[#bbf7d0] bg-[#f0fdf4]/95 backdrop-blur-[1.5px] shadow-[0_4px_8px_rgb(34_197_94/4%)] p-3 flex gap-2">
+      <svg class="size-[1.125rem] mt-0.5 text-[#16a34a] shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>
+      <div class="flex-1">
+        <div class="text-[#16a34a] font-medium">${esPropia ? '¡Tu cliente confirmó el carrito!' : '¡Carrito confirmado!'} 🎉</div>
+        <div class="text-[#3f3f46] text-sm font-medium">${v.asesor} · ${v.tienda} · ${fmt(v.total)}</div>
+      </div>
+      <button class="w-7 h-7 rounded-full hover:bg-[#dcfce7] text-[#16a34a]" onclick="cerrar(this.closest('.toast-in'))">✕</button>
+      <div class="bar absolute bottom-0 left-0 h-0.5 bg-[#16a34a]/40" style="animation-duration:${DURACION}ms"></div>
+    </div>`;
+  }
+  return `<div class="toast-in relative overflow-hidden rounded-[6px] border border-[#bbf7d0] bg-white shadow-lg p-3 flex gap-3 items-center">
+    <div class="h-10 w-10 rounded-full bg-[#34d399] text-[#064e3b] font-semibold flex items-center justify-center shrink-0">${iniciales(v.asesor)}</div>
+    <div class="flex-1 min-w-0">
+      <div class="text-xs text-gray-500">${esPropia ? '¡Tu cliente confirmó el carrito!' : 'Carrito confirmado'} ${temporada === 'halloween' ? '🎃' : '🎉'}</div>
+      <div class="font-medium truncate">${v.asesor} <span class="ml-1 text-[11px] px-1.5 py-0.5 rounded bg-[#171717] text-white align-middle">${v.tienda}</span></div>
+      <div class="text-xl font-semibold text-[#16a34a]">${fmt(v.total)}</div>
+    </div>
+    <button class="w-7 h-7 rounded-full hover:bg-gray-100 text-gray-500 self-start" onclick="cerrar(this.closest('.toast-in'))">✕</button>
+    <div class="bar absolute bottom-0 left-0 h-0.5 bg-[#34d399]" style="animation-duration:${DURACION}ms"></div>
+  </div>`;
+}
+
+function cerrar(el) { if (!el) return; el.classList.add('toast-out'); setTimeout(() => el.remove(), 300); }
+
+function llegan(lista) {
+  const nota = document.getElementById('nota');
+  if (document.getElementById('apagado').checked) { nota.textContent = 'Interruptor general apagado: la pantalla no consulta ni muestra nada.'; return; }
+  if (document.getElementById('sinacceso').checked) { nota.textContent = 'Usuario sin acceso a venta asistida (SAC, logística, mensajero): no ve avisos.'; return; }
+  nota.textContent = lista.length > 1 ? `${lista.length} toasts apilados, un solo confeti y un solo sonido (D12).` : 'Un toast, confeti y sonido. Se cierra solo a los 8 s o con la ✕.';
+  const stack = document.getElementById('stack');
+  lista.forEach(v => {
+    const w = document.createElement('div');
+    w.innerHTML = toastHTML(v, v === propia);
+    const el = w.firstElementChild; stack.appendChild(el);
+    setTimeout(() => cerrar(el), DURACION);
+  });
+  if (temporada === 'halloween') lluviaDulces(); else confeti();
+  sonido();
+  if (temporada === 'halloween' && lista.includes(propia)) { calN++; ventaHoy += propia.total; setTimeout(() => pintarCalabaza(true), 400); }
+}
+
+document.getElementById('s1').onclick = () => llegan([ventas[0]]);
+document.getElementById('s3').onclick = () => llegan(ventas);
+document.getElementById('sinmeta').onchange = () => pintarCalabaza();
+document.getElementById('spropia').onclick = () => llegan([propia]);
+</script>
+</body>
+</html>
