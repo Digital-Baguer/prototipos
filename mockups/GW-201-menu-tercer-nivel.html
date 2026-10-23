@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-201 · Menú de get: tercer nivel con panel al lado</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{--bg:#18181b;--border:#27272a;--hover:rgba(255,255,255,.05);--module:#a1a1aa;--module-current:#fafafa;--screen:#a1a1aa;--icon:#71717a;--active-bg:rgba(255,255,255,.10);--active-fg:#fff;--accent:#34d399;--guide:#3f3f46}
+  body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif}
+  .side{background:var(--bg);color:var(--module)}
+  .row{display:flex;align-items:center;gap:10px;margin:1px 8px;padding:8px 10px;border-radius:6px;cursor:pointer;position:relative;user-select:none}
+  .row:hover{background:var(--hover)}
+  .row svg{width:18px;height:18px;flex-shrink:0;color:var(--icon)}
+  .row .chev{margin-left:auto;width:16px;height:16px;transition:transform .2s}
+  .row.open>.chev{transform:rotate(90deg)}
+  .row.current{color:var(--module-current);font-weight:600}.row.current>svg{color:var(--accent)}
+  .sub{margin:4px 0 6px 25px;border-left:1px solid var(--guide);padding-left:4px}
+  .scr,.grp{display:flex;align-items:center;gap:12px;padding:7px 10px;margin:1px 8px 1px 6px;border-radius:6px;color:var(--screen);cursor:pointer;position:relative}
+  .scr:hover,.grp:hover{background:var(--hover)}
+  .scr svg,.grp svg{width:16px;height:16px;color:var(--icon);flex-shrink:0}
+  .scr.active{background:var(--active-bg);color:var(--active-fg);font-weight:500}
+  .scr.active svg{color:var(--accent)}
+  .scr.active::before,.grp.current::before,.row.active::before{content:"";position:absolute;left:0;top:50%;height:16px;width:2px;margin-top:-8px;border-radius:2px;background:var(--accent)}
+  .grp .n{margin-left:auto;font-size:11px;color:#71717a;background:#27272a;border-radius:9px;padding:0 7px}
+  .grp .chev{width:14px;height:14px;margin-left:4px;transition:transform .2s}
+  .grp.inline-open .chev{transform:rotate(90deg)}
+  .grp.current{background:var(--active-bg);color:var(--active-fg);font-weight:500}
+  .grp.current svg{color:var(--accent)}
+  .grp.opened{background:#27272a;color:#fafafa}
+  .sub3{margin:2px 0 4px 22px;border-left:1px solid var(--guide);padding-left:2px}
+  .pi{padding:10px 16px;border-top:1px solid var(--border);cursor:pointer;position:relative}
+  .pi:hover{background:var(--hover)}
+  .pi .t{color:#e4e4e7;font-weight:500}
+  .pi .d{color:#71717a;font-size:12.5px;margin-top:2px}
+  .pi.active{background:var(--active-bg)}
+  .pi.active .t{color:#fff}
+  .pi.active::before{content:"";position:absolute;left:0;top:12px;height:18px;width:3px;border-radius:2px;background:var(--accent)}
+  .scroll::-webkit-scrollbar{width:6px}.scroll::-webkit-scrollbar-thumb{background:#3f3f46;border-radius:3px}
+  mark{background:rgba(52,211,153,.25);color:inherit;border-radius:2px}
+  .ri{width:40px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--icon);position:relative}
+  .ri:hover{background:var(--hover);color:#d4d4d8}
+  .ri.current{color:var(--accent)}
+  .ri svg{width:18px;height:18px}
+  .dd{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px;min-width:208px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .dd .lbl{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--icon);padding:4px 8px 8px;border-bottom:1px solid var(--border);margin-bottom:6px}
+  .dd .lbl svg{width:16px;height:16px;color:var(--accent)}
+  .dd .it{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;color:var(--screen);cursor:pointer;font-size:14px;position:relative}
+  .dd .it:hover{background:var(--hover)}
+  .dd .it svg{width:16px;height:16px;color:var(--icon)}
+  .dd .it.active{background:var(--active-bg);color:#fff}
+  .dd .it.active svg{color:var(--accent)}
+  .dd .it.opened{background:#27272a;color:#fafafa}
+  .dd .it .chev{margin-left:auto;width:14px;height:14px}
+</style>
+</head>
+<body class="bg-zinc-100 text-zinc-900">
+
+<header class="bg-white border-b border-zinc-200 sticky top-0 z-30">
+  <div class="px-6 pt-4 pb-2 flex items-baseline gap-3">
+    <h1 class="text-lg font-semibold">GW-201 · Menú de get: tercer nivel que se abre en un panel al lado</h1>
+    <span class="text-xs text-zinc-500">Mockup · 2026-10-22 · grupos de ejemplo: PVAL, App, Entregas, Comisiones</span>
+  </div>
+  <nav class="px-6 flex gap-1 text-sm" id="tabs"></nav>
+</header>
+
+<main class="p-6 flex gap-6 items-start flex-wrap" id="stage"></main>
+
+<!-- modales (sin alert/confirm del navegador) -->
+<div id="modal" class="hidden fixed inset-0 z-40 bg-black/40 flex items-center justify-center"></div>
+
+<script>
+const I = {
+  dash:'<path d="M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z"/>',
+  cart:'<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2 2h3l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/>',
+  list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  pct:'<path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  mail:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+  userplus:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
+  bag:'<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/>',
+  chart:'<path d="M3 3v18h18M7 16v-4M11 16V8M15 16v-6M19 16v-9"/>',
+  truck:'<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2M15 18H9M19 18h2a1 1 0 0 0 1-1v-3.6a1 1 0 0 0-.2-.6l-3.5-4.4A1 1 0 0 0 17.5 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  bike:'<circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM12 17.5V14l-3-3 4-3 2 3h2"/>',
+  eye:'<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+  dollar:'<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  undo:'<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
+  card:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/>',
+  calc:'<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>',
+  phone:'<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/>',
+  mega:'<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  key:'<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
+  nav:'<path d="m3 11 19-9-9 19-2-8-8-2z"/>',
+  chev:'<path d="m9 18 6-6-6-6"/>',
+  back:'<path d="M19 12H5M12 19l-7-7 7-7"/>',
+  folder:'<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/>',
+  home:'<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+  panel:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M16 15l-3-3 3-3"/>',
+  menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  trash:'<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>',
+  reset:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  save:'<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  pencil:'<path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/>',
+  palette:'<circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 0 0 0 20c1 0 1.7-.8 1.7-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.8-1.7 1.7-1.7H16a6 6 0 0 0 6-6c0-4.9-4.5-8.4-10-8.4z"/>',
+};
+const svg = (n, cls='') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${I[n]}</svg>`;
+
+/* Árbol de ejemplo: menús visibles reales de PROD (get.menu, 2026-10-22) con 4 grupos de ejemplo.
+   Un hijo con `items` es un GRUPO (2º nivel que solo agrupa, D5). */
+let MENU = [
+  {id:1, t:'Dashboard', i:'dash', href:true},
+  {id:2, t:'Pedidos', i:'cart', items:[{id:201,t:'Consultar', i:'list', d:''}]},
+  {id:3, t:'Descuentos', i:'pct', items:[{id:301,t:'Promociones', i:'pct', d:'Crear y editar promociones y su vigencia'},{id:302,t:'Newsletter', i:'mail', d:''}]},
+  {id:5, t:'Venta asistida', i:'bag', items:[
+    {id:56,t:'Asignar clientes', i:'userplus', d:''},
+    {id:55,t:'Gestión de ventas', i:'chart', d:''},
+    {id:52,t:'Mis ventas', i:'cart', d:''},
+    {id:57,t:'Productos visitados', i:'eye', d:''},
+    {id:901,t:'Entregas', i:'truck', grupo:true, d:'', items:[
+      {id:53,t:'Gestión entregas', i:'truck', d:'Despachos pendientes y en curso'},
+      {id:54,t:'Mis Entregas', i:'bike', d:'Entregas asignadas al mensajero'}]},
+    {id:902,t:'Comisiones', i:'dollar', grupo:true, d:'', items:[
+      {id:67,t:'Configuración comisiones', i:'pct', d:'Porcentajes y reglas por equipo'},
+      {id:70,t:'Liquidación de comisiones', i:'dollar', d:'Cálculo del pago por período'},
+      {id:72,t:'Cierre de períodos', i:'cal', d:'Cerrar el período para liquidar'},
+      {id:78,t:'Equipos de venta', i:'users', d:''}]}]},
+  {id:6, t:'Devoluciones', i:'undo', items:[{id:601,t:'Consultar devoluciones', i:'list', d:''}]},
+  {id:7, t:'QUAC', i:'card', items:[
+    {id:903,t:'PVAL', i:'folder', grupo:true, d:'', items:[
+      {id:58,t:'Cortes PVAL', i:'mail', d:'Cortes enviados y su resultado'},
+      {id:59,t:'Consulta PVAL', i:'search', d:'Buscar un cliente en PVAL'}]},
+    {id:60,t:'Consulta de Planes', i:'file', d:''},
+    {id:73,t:'Simulador compras', i:'calc', d:''},
+    {id:904,t:'App', i:'phone', grupo:true, d:'', items:[
+      {id:79,t:'Menu App', i:'phone', d:'Opciones del menú de la app'},
+      {id:81,t:'Avisos de la app', i:'mega', d:'Mensajes que ve el cliente en la app'},
+      {id:82,t:'Versión de la app', i:'phone', d:''}]}]},
+  {id:8, t:'Configuración', i:'gear', items:[
+    {id:801,t:'Usuarios', i:'users', d:''},{id:802,t:'Roles', i:'key', d:''},{id:803,t:'Permisos de Navegación', i:'nav', d:''}]},
+];
+
+const S = {
+  tab:'esc', active:'Consulta PVAL',
+  open:new Set([5,7]), fly:null, closedBy:'',
+  q:'', ddMod:null, ddGrp:null,
+  mOpen:new Set([7]), mInline:new Set([903]), mq:'',
+};
+
+/* ---------- utilidades del árbol ---------- */
+const leaves = m => (m.items||[]).flatMap(x => x.items ? x.items : [x]);
+const pathOf = name => {
+  for (const m of MENU){ if (m.t===name) return [m.t];
+    for (const x of (m.items||[])){ if (x.t===name) return [m.t,x.t];
+      for (const y of (x.items||[])) if (y.t===name) return [m.t,x.t,y.t]; } }
+  return [name];
+};
+const modHasActive = m => leaves(m).some(s => s.t===S.active);
+const grpHasActive = g => g.items.some(s => s.t===S.active);
+const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const hl = (t,q) => { if(!q) return t; const i = norm(t).indexOf(norm(q)); return i<0 ? t : t.slice(0,i)+'<mark>'+t.slice(i,i+q.length)+'</mark>'+t.slice(i+q.length); };
+const findGrp = id => { for (const m of MENU) for (const x of (m.items||[])) if (x.id===id) return [m,x]; return [null,null]; };
+
+/* filtro de 3 niveles: módulo que coincide → completo; grupo que coincide → completo; si no, solo las pantallas que coinciden */
+function filtrar(q){
+  if (!q.trim()) return MENU;
+  const ok = t => norm(t).includes(norm(q.trim()));
+  return MENU.map(m => {
+    if (ok(m.t)) return m;
+    if (!m.items) return null;
+    const items = m.items.map(x => {
+      if (x.items){ if (ok(x.t)) return x; const h = x.items.filter(s => ok(s.t)); return h.length ? {...x, items:h} : null; }
+      return ok(x.t) ? x : null;
+    }).filter(Boolean);
+    return items.length ? {...m, items} : null;
+  }).filter(Boolean);
+}
+
+/* ---------- lateral expandido (escritorio) ---------- */
+function scrRow(s,q){ return `<div class="scr ${s.t===S.active?'active':''}" data-go="${s.t}">${svg(s.i)}<span>${hl(s.t,q)}</span></div>`; }
+function lateral({mobile=false}={}){
+  const q = mobile ? S.mq : S.q, buscando = q.trim().length>0;
+  const openSet = mobile ? S.mOpen : S.open;
+  return filtrar(q).map(m => {
+    if (!m.items) return `<div class="row ${S.active===m.t?'active current':''}" data-go="${m.t}">${svg(m.i)}<span>${hl(m.t,q)}</span></div>`;
+    const open = openSet.has(m.id) || buscando;
+    const body = m.items.map(x => {
+      if (!x.items) return scrRow(x,q);
+      const cur = grpHasActive(x);
+      // En escritorio sin búsqueda: fila con contador y panel al lado (D1). Con búsqueda o en móvil: en línea (D10, D12).
+      if (!mobile && !buscando)
+        return `<div class="grp ${cur?'current':''} ${S.fly===x.id?'opened':''}" data-fly="${x.id}">${svg(x.i)}<span>${x.t}</span><span class="n">${x.items.length}</span>${svg('chev','chev')}</div>`;
+      const inl = buscando || S.mInline.has(x.id);
+      return `<div class="grp ${cur&&!inl?'current':''} ${inl?'inline-open':''}" data-inline="${x.id}">${svg(x.i)}<span>${hl(x.t,q)}</span><span class="n">${x.items.length}</span>${svg('chev','chev')}</div>`
+        + (inl ? `<div class="sub3">${x.items.map(s=>scrRow(s,q)).join('')}</div>` : '');
+    }).join('');
+    return `<div class="row ${open?'open':''} ${modHasActive(m)?'current':''}" data-tog="${m.id}" data-mobile="${mobile?1:''}">${svg(m.i)}<span>${hl(m.t,q)}</span>${svg('chev','chev')}</div>`
+      + (open ? `<div class="sub">${body}</div>` : '');
+  }).join('') || `<div class="px-5 py-6 text-sm text-zinc-500">Ningún menú coincide con «${q}».</div>`;
+}
+
+function marca(){ return `<div class="h-14 flex items-center gap-2 px-4 border-b border-[color:var(--border)] text-zinc-50 font-bold text-xl"><span class="w-8 h-8 rounded-lg bg-zinc-50 text-zinc-900 flex items-center justify-center text-xs">get</span>get<span class="ml-auto text-zinc-500">${svg('panel','w-5 h-5')}</span></div>`; }
+
+function contenido(){
+  const p = ['Dashboard',...pathOf(S.active)];
+  return `<div class="flex-1 min-w-0 flex flex-col">
+    <div class="h-14 bg-white border-b border-zinc-200 flex items-center px-6">
+      <label class="flex items-center gap-2 border border-zinc-200 rounded-lg px-3 py-1.5 w-72 text-sm text-zinc-500">${svg('search','w-4 h-4')}
+        <input id="q" class="outline-none flex-1 bg-transparent text-zinc-900" placeholder="Filtrar menú…" value="${S.q}"></label>
+    </div>
+    <div class="px-6 py-3 bg-white border-b border-zinc-100 text-sm text-zinc-500 flex items-center gap-2">${svg('home','w-4 h-4')} ${p.map((x,i)=> i===p.length-1?`<span class="text-zinc-900">${x}</span>`:x).join(' <span class="text-zinc-300">›</span> ')}</div>
+    <div class="p-6"><h2 class="text-2xl font-bold mb-4">${S.active}</h2>
+      <div class="h-28 rounded-xl bg-white border border-dashed border-zinc-300 mb-4 flex items-center justify-center text-zinc-400 text-sm">Contenido de la pantalla</div>
+      <div class="h-28 rounded-xl bg-white border border-dashed border-zinc-300 flex items-center justify-center text-zinc-400 text-sm">Contenido de la pantalla</div></div>
+  </div>`;
+}
+
+function panel(){
+  if (!S.fly) return '';
+  const [m,g] = findGrp(S.fly);
+  return `<div class="absolute inset-y-0 left-[272px] right-0 z-10 bg-black/10" data-cerrar="clic afuera"></div>
+  <aside class="absolute inset-y-0 left-[272px] w-[300px] z-20 bg-[#1f1f23] border-l border-[color:var(--border)] shadow-[8px_0_24px_rgba(0,0,0,.25)] flex flex-col">
+    <div class="flex items-center justify-between px-4 pt-4 pb-1 text-zinc-50 text-lg font-semibold"><span>${g.t}</span>
+      <button class="text-zinc-500 hover:text-zinc-50 p-1" data-cerrar="flecha ←" title="Cerrar (Esc)">${svg('back','w-5 h-5')}</button></div>
+    <div class="px-4 pb-3 text-xs text-zinc-500">${m.t} › ${g.t}</div>
+    <div class="scroll overflow-y-auto">${g.items.map(s => `<div class="pi ${s.t===S.active?'active':''}" data-go="${s.t}"><div class="t">${s.t}</div>${s.d?`<div class="d">${s.d}</div>`:''}</div>`).join('')}<div class="border-t border-[color:var(--border)]"></div></div>
+  </aside>`;
+}
+
+/* ---------- pestañas ---------- */
+const TABS = [
+  ['esc','1 · Escritorio: panel del grupo'],
+  ['bus','2 · Buscar en el menú'],
+  ['con','3 · Lateral contraído'],
+  ['mov','4 · Móvil'],
+  ['per','5 · Permisos de Navegación'],
+  ['rol','6 · Roles'],
+];
+
+function nota(html){ return `<aside class="w-[340px] bg-white rounded-xl border border-zinc-200 p-5 text-sm text-zinc-700 space-y-2">${html}</aside>`; }
+
+function vistaEscritorio(){
+  return `<div class="relative flex h-[760px] w-[980px] rounded-xl overflow-hidden shadow-xl bg-zinc-50">
+    <aside class="side w-[272px] flex flex-col shrink-0">${marca()}<div class="scroll overflow-y-auto flex-1 py-2">${lateral()}</div></aside>
+    ${contenido()}${panel()}
+  </div>` + nota(`
+    <h3 class="font-semibold text-base text-zinc-900">Escritorio, lateral expandido</h3>
+    <p>Un grupo (PVAL, App, Entregas, Comisiones) es una fila con su número de pantallas y <b>›</b>. Al hacer clic se abre el panel al lado, <b>flotando sobre el contenido</b>.</p>
+    <p class="font-medium text-zinc-900">El panel se cierra de cuatro formas:</p>
+    <ul class="list-disc pl-5 space-y-1">
+      <li>al <b>elegir una pantalla</b> (navega y cierra);</li>
+      <li>con la <b>flecha ←</b> del panel;</li>
+      <li>con la tecla <b>Esc</b>;</li>
+      <li>con un <b>clic afuera</b> (sobre el contenido).</li>
+      <li>Clic otra vez en el mismo grupo también lo cierra.</li></ul>
+    <div class="rounded-lg px-3 py-2 ${S.closedBy?'bg-emerald-50 text-emerald-800':'bg-zinc-100 text-zinc-600'}">${S.closedBy?`Último cierre: <b>${S.closedBy}</b>`:'Abre un grupo y ciérralo de cada forma.'}</div>
+    <p>Con la pantalla activa dentro de un grupo, la fila del grupo queda marcada en verde y la ruta de arriba muestra los tres niveles.</p>
+    <p class="text-zinc-500">Si una pantalla no tiene descripción, el panel muestra solo su nombre (D4).</p>`);
+}
+
+function vistaBusqueda(){
+  if (!S.q) S.q = 'pval';
+  return vistaEscritorio().replace(/<aside class="w-\[340px\][\s\S]*$/, '') + nota(`
+    <h3 class="font-semibold text-base text-zinc-900">Buscar en el menú</h3>
+    <p>Con texto en «Filtrar menú…», los grupos <b>no abren panel</b>: sus pantallas aparecen en el lateral, debajo del grupo, para verlas de una vez.</p>
+    <ul class="list-disc pl-5 space-y-1">
+      <li>Escribir «<b>pval</b>»: QUAC › PVAL con Cortes y Consulta.</li>
+      <li>Escribir «<b>entregas</b>»: el grupo Entregas completo.</li>
+      <li>Escribir «<b>avisos</b>»: QUAC › App › Avisos de la app.</li>
+      <li>Escribir «<b>xyz</b>»: aviso de que ningún menú coincide.</li></ul>
+    <p class="text-zinc-500">Hoy el filtro solo mira dos niveles; con GW-201 busca también dentro de los grupos.</p>`);
+}
+
+function vistaContraido(){
+  const mods = MENU.map(m => `<div class="ri ${modHasActive(m)||S.active===m.t?'current':''} ${S.ddMod===m.id?'bg-[var(--active-bg)]':''}" data-dd="${m.id}" title="${m.t}">${svg(m.i)}</div>`).join('');
+  let dd = '';
+  if (S.ddMod){
+    const m = MENU.find(x => x.id===S.ddMod), idx = MENU.indexOf(m);
+    if (m.items){
+      const top = 64 + idx*44;
+      dd = `<div class="absolute inset-0 z-10" data-ddclose></div><div class="dd absolute z-20" style="left:66px;top:${top}px">
+        <div class="lbl">${svg(m.i)}${m.t}</div>
+        ${m.items.map(x => x.items
+          ? `<div class="it ${S.ddGrp===x.id?'opened':''} ${grpHasActive(x)?'text-white':''}" data-ddg="${x.id}">${svg(x.i)}<span>${x.t}</span>${svg('chev','chev')}</div>`
+          : `<div class="it ${x.t===S.active?'active':''}" data-go="${x.t}">${svg(x.i)}<span>${x.t}</span></div>`).join('')}
+      </div>`;
+      if (S.ddGrp){
+        const gi = m.items.findIndex(x => x.id===S.ddGrp), g = m.items[gi];
+        if (g) dd += `<div class="dd absolute z-30" style="left:${66+216}px;top:${top + 40 + gi*36}px">
+          <div class="lbl">${svg(g.i)}${m.t} › ${g.t}</div>
+          ${g.items.map(s => `<div class="it ${s.t===S.active?'active':''}" data-go="${s.t}">${svg(s.i)}<span>${s.t}</span></div>`).join('')}</div>`;
+      }
+    }
+  }
+  return `<div class="relative flex h-[640px] w-[980px] rounded-xl overflow-hidden shadow-xl bg-zinc-50">
+    <aside class="side w-14 flex flex-col items-center shrink-0 border-r border-[color:var(--border)]">
+      <div class="h-14 flex items-center"><span class="w-8 h-8 rounded-lg bg-zinc-50 text-zinc-900 flex items-center justify-center text-xs font-bold">get</span></div>
+      <div class="flex flex-col items-center gap-1 pt-2">${mods}</div></aside>
+    ${contenido()}${dd}
+  </div>` + nota(`
+    <h3 class="font-semibold text-base text-zinc-900">Lateral contraído (solo íconos)</h3>
+    <p>Como hoy, el clic en un módulo abre su menú flotante. Lo nuevo: un grupo aparece con <b>›</b> y abre <b>un segundo flotante a su derecha</b> con sus pantallas.</p>
+    <ul class="list-disc pl-5 space-y-1">
+      <li>Prueba <b>QUAC</b> (tarjeta) › <b>PVAL</b> o <b>App</b>.</li>
+      <li>Prueba <b>Venta asistida</b> (bolsa) › <b>Comisiones</b>.</li>
+      <li>Elegir una pantalla navega y cierra los dos flotantes; clic afuera o Esc también los cierra.</li></ul>
+    <p class="text-zinc-500">En este modo no se muestran descripciones, igual que hoy no se muestran subtítulos en el flotante.</p>`);
+}
+
+function vistaMovil(){
+  return `<div class="w-[390px] h-[760px] rounded-[28px] border-[10px] border-zinc-900 overflow-hidden shadow-xl relative bg-zinc-50">
+    <div class="absolute inset-0 bg-black/40"></div>
+    <aside class="side absolute inset-y-0 left-0 w-[300px] flex flex-col">
+      <div class="h-14 flex items-center gap-2 px-4 border-b border-[color:var(--border)] text-zinc-50 font-bold text-xl"><span class="w-8 h-8 rounded-lg bg-zinc-50 text-zinc-900 flex items-center justify-center text-xs">get</span>get<span class="ml-auto text-zinc-500">${svg('x','w-5 h-5')}</span></div>
+      <div class="px-3 pt-3"><label class="flex items-center gap-2 bg-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-400">${svg('search','w-4 h-4')}<input id="mq" class="outline-none flex-1 bg-transparent text-zinc-100" placeholder="Filtrar menú…" value="${S.mq}"></label></div>
+      <div class="scroll overflow-y-auto flex-1 py-2">${lateral({mobile:true})}</div>
+    </aside>
+  </div>` + nota(`
+    <h3 class="font-semibold text-base text-zinc-900">Móvil</h3>
+    <p>En móvil no hay espacio para un panel al lado: el grupo se <b>despliega en línea</b>, debajo y con sangría (D10).</p>
+    <ul class="list-disc pl-5 space-y-1">
+      <li>Toca <b>PVAL</b> o <b>App</b> para abrir y cerrar.</li>
+      <li>El filtro también funciona aquí. Hoy en móvil no filtra; GW-201 lo conecta.</li></ul>
+    <p class="text-zinc-500">Ancho de la hoja: 300 px dentro de un teléfono de 390 px.</p>`);
+}
+
+/* ---------- Permisos de Navegación ---------- */
+const P = { edits:{}, err:'', toast:'' };
+function filasPermisos(){
+  const rows = [];
+  MENU.forEach(m => {
+    rows.push({n:m, nivel:0, padre:null});
+    (m.items||[]).forEach(x => {
+      rows.push({n:x, nivel:1, padre:m});
+      (x.items||[]).forEach(y => rows.push({n:y, nivel:2, padre:x, abuelo:m}));
+    });
+  });
+  return rows;
+}
+function opcionesUbicacion(r){
+  // D6: un grupo solo puede ir en un módulo; una pantalla en un módulo o en un grupo.
+  const ops = [];
+  MENU.filter(m => m.items).forEach(m => {
+    ops.push([m.id, m.t]);
+    if (!r.n.items) (m.items||[]).filter(x => x.items).forEach(g => ops.push([g.id, `${m.t} › ${g.t}`]));
+  });
+  return ops;
+}
+function vistaPermisos(){
+  const rows = filasPermisos();
+  const cambios = Object.keys(P.edits).length;
+  const tr = rows.map(r => {
+    const n = r.n, esGrupo = !!n.items && r.nivel===1, modif = P.edits[n.id];
+    const vacio = esGrupo && n.items.length===0;
+    const padreId = r.nivel===0 ? null : r.padre.id;
+    const estado = esGrupo ? `<span class="inline-flex items-center gap-1 rounded-md border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700">${svg('folder','w-3 h-3')} Grupo</span>`
+      : r.nivel===0 ? `<span class="rounded-md border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs text-gray-500">Sin modulo</span>`
+      : `<span class="rounded-md border border-green-200 bg-green-100 px-2 py-0.5 text-xs text-green-700">Activo</span>`;
+    const ubic = r.nivel===0 ? `<span class="text-xs text-zinc-400">—</span>`
+      : `<select class="h-8 w-full rounded-md border border-zinc-200 bg-white px-2 text-sm" data-mover="${n.id}">${opcionesUbicacion(r).map(([id,t]) => `<option value="${id}" ${id===padreId?'selected':''}>${t}</option>`).join('')}</select>`;
+    const acciones = esGrupo
+      ? (vacio ? `<button class="text-zinc-500 hover:text-rose-600 p-1" data-borrar="${n.id}" title="Borrar grupo">${svg('trash','w-4 h-4')}</button>`
+               : `<span class="inline-block text-zinc-300 p-1 cursor-not-allowed" title="Mueve sus ${n.items.length} pantallas antes de borrarlo">${svg('trash','w-4 h-4')}</span>`)
+      : '';
+    return `<tr class="border-b border-zinc-100 ${r.nivel===0?'bg-gray-50/50':''} ${modif?'!bg-blue-50':''}">
+      <td class="px-3 py-2"><div class="flex items-center gap-2" style="padding-left:${r.nivel*24}px">${r.nivel?'<span class="text-gray-400 text-sm">└</span>':''}
+        <input class="h-8 w-full rounded-md border border-zinc-200 px-2 text-sm ${r.nivel===0||esGrupo?'font-semibold':''}" value="${n.t}"></div></td>
+      <td class="px-3 py-2 max-w-[240px]">${r.nivel===0 ? '<span class="text-xs text-zinc-400">—</span>'
+        : n.d ? `<button class="group flex items-center gap-1.5 max-w-full text-left text-sm text-zinc-700 hover:text-blue-700" data-desc="${n.id}" title="${n.d}"><span class="truncate underline decoration-zinc-300 underline-offset-2 group-hover:decoration-blue-400">${n.d}</span>${svg('pencil','w-3.5 h-3.5 shrink-0 text-zinc-400 group-hover:text-blue-600')}</button>`
+        : `<button class="flex items-center gap-1 text-sm text-blue-600 hover:underline" data-desc="${n.id}">${svg('plus','w-3.5 h-3.5')} Agregar descripción</button>`}</td>
+      <td class="px-3 py-2">${ubic}</td>
+      <td class="px-3 py-2 text-center"><span class="inline-flex h-8 px-2 items-center rounded-md border border-gray-200">${svg(n.i,'w-4 h-4')}</span></td>
+      <td class="px-3 py-2 text-center"><input type="number" class="h-8 w-16 rounded-md border border-zinc-200 text-center text-sm" value="${(r.padre?.items||MENU).indexOf(n)+1}"></td>
+      <td class="px-3 py-2 text-center"><input type="checkbox" checked class="h-4 w-4 accent-blue-600"></td>
+      <td class="px-3 py-2 text-center">${estado}</td>
+      <td class="px-3 py-2 text-center whitespace-nowrap">${modif?`<button class="text-zinc-500 hover:text-blue-600 p-1" data-revertir="${n.id}" title="Restablecer">${svg('reset','w-4 h-4')}</button>`:''}${acciones}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="w-full max-w-[1280px] bg-zinc-50 rounded-xl shadow-xl overflow-hidden">
+    <div class="bg-white border-b border-zinc-200 px-6 py-5 flex items-start gap-4">
+      <div><div class="flex items-center gap-3"><h2 class="text-2xl font-bold">Permisos de Navegacion</h2>
+        ${cambios?`<span class="rounded-md border border-blue-200 bg-blue-100 px-2 py-0.5 text-xs text-blue-700">${cambios} cambio${cambios>1?'s':''} sin guardar</span>`:''}</div>
+        <p class="text-sm text-zinc-500">Administra los items del menu de navegacion del sistema</p></div>
+      <div class="ml-auto flex gap-2">
+        ${cambios?`<button class="h-9 px-3 rounded-md border border-zinc-200 bg-white text-sm flex items-center gap-2" data-revertir-todo>${svg('reset','w-4 h-4')} Restablecer todo</button>`:''}
+        <button class="h-9 px-3 rounded-md border border-zinc-200 bg-white text-sm flex items-center gap-2" data-nuevo>${svg('plus','w-4 h-4')} Nuevo grupo</button>
+        <button class="h-9 px-3 rounded-md text-sm flex items-center gap-2 text-white ${cambios?'bg-blue-600 hover:bg-blue-700':'bg-blue-600/50 cursor-not-allowed'}" data-guardar>${svg('save','w-4 h-4')} Guardar cambios</button>
+      </div>
+    </div>
+    ${P.toast?`<div class="mx-6 mt-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2 text-sm">${P.toast}</div>`:''}
+    <div class="px-6 pt-4 flex items-center gap-4 text-sm">
+      <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-green-500"></span><span class="text-gray-600">Activo (tiene ruta)</span></span>
+      <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-gray-400"></span><span class="text-gray-600">Sin modulo</span></span>
+      <span class="flex items-center gap-1.5">${svg('folder','w-3.5 h-3.5 text-zinc-600')}<span class="text-gray-600">Grupo: agrupa pantallas, sin ruta propia</span></span>
+    </div>
+    <div class="p-6 pt-3"><div class="rounded-xl border border-gray-200 bg-white overflow-x-auto">
+      <table class="w-full text-sm"><thead><tr class="border-b border-zinc-200 text-left text-zinc-500">
+        <th class="px-3 py-3 w-[260px] font-medium">Titulo</th><th class="px-3 py-3 w-[240px] font-medium">Descripción <span class="text-emerald-600 text-xs">nuevo</span></th>
+        <th class="px-3 py-3 w-[210px] font-medium">Ubicación <span class="text-emerald-600 text-xs">nuevo</span></th>
+        <th class="px-3 py-3 text-center font-medium">Icono</th><th class="px-3 py-3 text-center font-medium">Orden</th><th class="px-3 py-3 text-center font-medium">Visible</th><th class="px-3 py-3 text-center font-medium">Estado</th><th class="px-3 py-3 text-center font-medium">Acciones</th></tr></thead>
+      <tbody>${tr}</tbody></table></div></div>
+  </div>` + nota(`
+    <h3 class="font-semibold text-base text-zinc-900">Configuración › Permisos de Navegación</h3>
+    <p>La tabla es la de hoy, con tres agregados:</p>
+    <ul class="list-disc pl-5 space-y-1">
+      <li><b>Nuevo grupo</b>: se elige el módulo, se escribe el nombre y, si se quiere, el ícono y la descripción. Prueba con «Clientes» en QUAC.</li>
+      <li><b>Ubicación</b>: mueve una pantalla a otro módulo o a un grupo. Un grupo solo puede ir dentro de un módulo (máximo 3 niveles). Mueve «Simulador compras» a «QUAC › PVAL».</li>
+      <li><b>Descripción</b>: enlace «Agregar descripción» o el texto actual con un lápiz; abre una ventana con un área de texto (máx. 160 caracteres), contador y vista previa de cómo se ve en el panel. «Aplicar» la deja como cambio sin guardar.</li>
+      <li><b>Borrar</b>: solo en grupos <b>vacíos</b>; con pantallas adentro, el botón queda gris y explica por qué.</li></ul>
+    <p class="text-zinc-500">Mover y editar quedan como «cambio sin guardar» hasta pulsar Guardar, igual que hoy.</p>`);
+}
+
+/* ---------- Roles ---------- */
+const R = { sel:new Set([58,59,60,73,79,81,82,201]) };
+function vistaRoles(){
+  const chk = (estado, attrs) => `<input type="checkbox" ${estado==='all'?'checked':''} ${estado==='some'?'data-ind="1"':''} class="h-4 w-4 accent-blue-600" ${attrs}>`;
+  const est = ids => { const n = ids.filter(i => R.sel.has(i)).length; return n===0?'none':n===ids.length?'all':'some'; };
+  const tree = MENU.filter(m => m.items).map(m => {
+    const ids = leaves(m).map(s => s.id);
+    return `<div class="space-y-0.5">
+      <label class="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-50 cursor-pointer">${chk(est(ids), `data-rtog="${ids.join(',')}"`)}${svg(m.i,'h-4 w-4 text-gray-500')}<span class="text-sm font-medium text-gray-900">${m.t}</span><span class="text-xs text-gray-400 ml-auto">${ids.filter(i=>R.sel.has(i)).length}/${ids.length}</span></label>
+      <div class="pl-6 space-y-0.5">${m.items.map(x => x.items
+        ? `<label class="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-gray-50 cursor-pointer">${chk(est(x.items.map(s=>s.id)), `data-rtog="${x.items.map(s=>s.id).join(',')}"`)}${svg('folder','h-3.5 w-3.5 text-gray-400')}<span class="text-sm font-medium text-gray-700">${x.t}</span><span class="text-xs text-gray-400 ml-auto">${x.items.filter(s=>R.sel.has(s.id)).length}/${x.items.length}</span></label>
+           <div class="pl-6 space-y-0.5">${x.items.map(s => `<label class="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-gray-50 cursor-pointer">${chk(R.sel.has(s.id)?'all':'none', `data-rtog="${s.id}"`)}<span class="text-sm text-gray-700">${s.t}</span></label>`).join('')}</div>`
+        : `<label class="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-gray-50 cursor-pointer">${chk(R.sel.has(x.id)?'all':'none', `data-rtog="${x.id}"`)}<span class="text-sm text-gray-700">${x.t}</span></label>`).join('')}</div></div>`;
+  }).join('');
+  return `<div class="w-[520px] bg-white rounded-xl shadow-xl border border-zinc-200 p-5">
+    <div class="text-xs text-zinc-500 mb-1">Configuración › Roles › Editar rol</div>
+    <h2 class="text-xl font-bold mb-4">Analista QUAC</h2>
+    <div class="flex items-center justify-between mb-2"><h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wide">Menus</h3>
+      <div class="flex gap-1 text-xs"><button class="px-2 py-1 text-blue-600">Todos</button><button class="px-2 py-1 text-gray-500">Ninguno</button></div></div>
+    <div class="space-y-1 max-h-[640px] overflow-y-auto pr-1">${tree}</div>
+  </div>` + nota(`
+    <h3 class="font-semibold text-base text-zinc-900">Configuración › Roles</h3>
+    <p>El árbol de permisos muestra los <b>tres niveles</b>. El contador del módulo cuenta pantallas.</p>
+    <ul class="list-disc pl-5 space-y-1">
+      <li>Marcar un <b>grupo</b> marca o desmarca todas sus pantallas.</li>
+      <li>El grupo no es un permiso aparte: el rol <b>lo ve si tiene al menos una pantalla adentro</b> (D7). Por eso mover «Consulta PVAL» al grupo PVAL no le quita nada a nadie.</li>
+      <li>Desmarca Cortes y Consulta PVAL: PVAL queda en 0/2 y desaparecería del lateral de este rol.</li></ul>`);
+}
+
+/* ---------- modal: nuevo grupo / borrar ---------- */
+function modal(html){ const el = document.getElementById('modal'); el.innerHTML = html; el.classList.toggle('hidden', !html); }
+function modalNuevo(err=''){
+  modal(`<div class="bg-white rounded-xl w-[440px] p-6 shadow-2xl">
+    <h3 class="text-lg font-semibold mb-1">Nuevo grupo</h3><p class="text-sm text-zinc-500 mb-4">Agrupa pantallas de un módulo. No tiene ruta propia: su clic abre el panel.</p>
+    <label class="block text-sm font-medium mb-1">Módulo</label>
+    <select id="ng-mod" class="h-9 w-full rounded-md border border-zinc-200 px-2 text-sm mb-3">${MENU.filter(m=>m.items).map(m=>`<option value="${m.id}" ${m.t==='QUAC'?'selected':''}>${m.t}</option>`).join('')}</select>
+    <label class="block text-sm font-medium mb-1">Nombre</label>
+    <input id="ng-nom" class="h-9 w-full rounded-md border ${err?'border-rose-400':'border-zinc-200'} px-2 text-sm" placeholder="Ej.: Clientes" value="">
+    ${err?`<p class="text-xs text-rose-600 mt-1">${err}</p>`:''}
+    <div class="flex gap-3 mt-3"><div><label class="block text-sm font-medium mb-1">Ícono</label><button class="h-9 px-3 rounded-md border border-zinc-200 flex items-center gap-1 text-zinc-400">${svg('palette','w-4 h-4')}</button></div>
+      <div class="flex-1"><label class="block text-sm font-medium mb-1">Descripción <span class="text-zinc-400 font-normal">(opcional)</span></label><input class="h-9 w-full rounded-md border border-zinc-200 px-2 text-sm"></div></div>
+    <div class="flex justify-end gap-2 mt-6"><button class="h-9 px-4 rounded-md border border-zinc-200 text-sm" data-mcerrar>Cancelar</button><button class="h-9 px-4 rounded-md bg-blue-600 text-white text-sm" data-crear>Crear grupo</button></div>
+  </div>`);
+}
+const MAX_DESC = 160;
+function buscarNodo(id){ for (const m of MENU) for (const x of (m.items||[])){ if (x.id===id) return [x, m]; for (const y of (x.items||[])) if (y.id===id) return [y, x]; } return [null,null]; }
+function modalDesc(id){
+  const [n, padre] = buscarNodo(id);
+  modal(`<div class="bg-white rounded-xl w-[520px] p-6 shadow-2xl">
+    <h3 class="text-lg font-semibold">Descripción de «${n.t}»</h3>
+    <p class="text-sm text-zinc-500 mb-4">${padre.t} › ${n.t}. Se ve bajo el nombre en el panel del grupo. Opcional.</p>
+    <textarea id="desc-txt" rows="4" maxlength="${MAX_DESC}" class="w-full rounded-md border border-zinc-200 p-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej.: Despachos pendientes y en curso de las tiendas">${n.d||''}</textarea>
+    <div class="flex justify-between text-xs text-zinc-400 mt-1"><span>Una frase corta: qué se hace en la pantalla.</span><span id="desc-cnt">${(n.d||'').length}/${MAX_DESC}</span></div>
+    <div class="mt-4 rounded-lg bg-[#1f1f23] p-3"><div class="text-[11px] uppercase tracking-wide text-zinc-500 mb-1">Así se ve en el panel</div>
+      <div class="pi !border-0 !px-1 !py-1"><div class="t">${n.t}</div><div class="d" id="desc-prev">${n.d||'Sin descripción: solo el nombre'}</div></div></div>
+    <div class="flex items-center gap-2 mt-6">${n.d?`<button class="h-9 px-3 rounded-md text-sm text-rose-600 hover:bg-rose-50" data-desc-quitar="${id}">Quitar descripción</button>`:''}
+      <span class="flex-1"></span><button class="h-9 px-4 rounded-md border border-zinc-200 text-sm" data-mcerrar>Cancelar</button><button class="h-9 px-4 rounded-md bg-blue-600 text-white text-sm" data-desc-ok="${id}">Aplicar</button></div>
+  </div>`);
+  const ta = document.getElementById('desc-txt'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+}
+function modalBorrar(id){
+  const [m,g] = findGrp(id);
+  modal(`<div class="bg-white rounded-xl w-[400px] p-6 shadow-2xl"><h3 class="text-lg font-semibold mb-2">¿Borrar el grupo «${g.t}»?</h3>
+    <p class="text-sm text-zinc-600">Está vacío. Se quita de ${m.t} y de los permisos de todos los roles.</p>
+    <div class="flex justify-end gap-2 mt-6"><button class="h-9 px-4 rounded-md border border-zinc-200 text-sm" data-mcerrar>Cancelar</button><button class="h-9 px-4 rounded-md bg-rose-600 text-white text-sm" data-confborrar="${id}">Borrar grupo</button></div></div>`);
+}
+
+/* ---------- render y eventos ---------- */
+function render(){
+  document.getElementById('tabs').innerHTML = TABS.map(([k,t]) => `<button data-tab="${k}" class="px-3 py-2 border-b-2 ${S.tab===k?'border-zinc-900 text-zinc-900 font-medium':'border-transparent text-zinc-500 hover:text-zinc-800'}">${t}</button>`).join('');
+  const v = {esc:vistaEscritorio, bus:vistaBusqueda, con:vistaContraido, mov:vistaMovil, per:vistaPermisos, rol:vistaRoles}[S.tab]();
+  document.getElementById('stage').innerHTML = v;
+  document.querySelectorAll('[data-ind]').forEach(e => e.indeterminate = true);
+}
+function foco(id){ const el = document.getElementById(id); if (el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }
+
+document.addEventListener('input', e => {
+  if (e.target.id==='q'){ S.q = e.target.value; S.fly = null; render(); foco('q'); }
+  if (e.target.id==='desc-txt'){ const v = e.target.value; document.getElementById('desc-cnt').textContent = `${v.length}/${MAX_DESC}`; document.getElementById('desc-prev').textContent = v || 'Sin descripción: solo el nombre'; }
+  if (e.target.id==='mq'){ S.mq = e.target.value; render(); foco('mq'); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key!=='Escape') return;
+  if (!document.getElementById('modal').classList.contains('hidden')) { modal(''); return; }
+  if (S.fly){ S.fly = null; S.closedBy = 'tecla Esc'; render(); }
+  if (S.ddMod){ S.ddMod = null; S.ddGrp = null; render(); }
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.mover){
+    const id = +t.dataset.mover, dest = +t.value;
+    // sacar el nodo de su padre actual
+    let nodo = null;
+    MENU.forEach(m => (m.items||[]).forEach((x,i,arr) => {
+      if (x.id===id){ nodo = x; arr.splice(i,1); }
+      else (x.items||[]).forEach((y,j,a2) => { if (y.id===id){ nodo = y; a2.splice(j,1); } });
+    }));
+    const destMod = MENU.find(m => m.id===dest), [,destGrp] = findGrp(dest);
+    (destMod || destGrp).items.push(nodo);
+    P.edits[id] = true; P.toast = ''; render();
+  }
+  if (t.dataset.rtog){
+    const ids = t.dataset.rtog.split(',').map(Number), todos = ids.every(i => R.sel.has(i));
+    ids.forEach(i => todos ? R.sel.delete(i) : R.sel.add(i)); render();
+  }
+});
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-tab],[data-tog],[data-go],[data-fly],[data-cerrar],[data-inline],[data-dd],[data-ddg],[data-ddclose],[data-nuevo],[data-crear],[data-mcerrar],[data-borrar],[data-confborrar],[data-guardar],[data-revertir],[data-revertir-todo],[data-desc],[data-desc-ok],[data-desc-quitar]');
+  if (!t) return;
+  const d = t.dataset;
+  if (d.tab){ S.tab = d.tab; S.fly = null; S.ddMod = null; S.ddGrp = null; if (d.tab==='esc') S.q = ''; if (d.tab==='bus') S.q = 'pval'; }
+  else if (d.tog){ const set = d.mobile ? S.mOpen : S.open, k = +d.tog; set.has(k) ? set.delete(k) : set.add(k); S.fly = null; }
+  else if (d.go){ S.active = d.go; if (S.fly) S.closedBy = 'elegir una pantalla'; S.fly = null; S.ddMod = null; S.ddGrp = null; }
+  else if (d.fly){ const k = +d.fly; if (S.fly===k){ S.fly = null; S.closedBy = 'clic otra vez en el grupo'; } else S.fly = k; }
+  else if (d.cerrar){ S.fly = null; S.closedBy = d.cerrar; }
+  else if (d.inline){ const k = +d.inline; S.mInline.has(k) ? S.mInline.delete(k) : S.mInline.add(k); }
+  else if (d.dd){ const k = +d.dd, m = MENU.find(x => x.id===k); if (!m.items){ S.active = m.t; S.ddMod = null; } else { S.ddMod = S.ddMod===k ? null : k; } S.ddGrp = null; }
+  else if (d.ddg){ const k = +d.ddg; S.ddGrp = S.ddGrp===k ? null : k; }
+  else if ('ddclose' in d){ S.ddMod = null; S.ddGrp = null; }
+  else if ('nuevo' in d){ modalNuevo(); return; }
+  else if ('mcerrar' in d){ modal(''); return; }
+  else if ('crear' in d){
+    const nom = document.getElementById('ng-nom').value.trim(), mod = MENU.find(m => m.id===+document.getElementById('ng-mod').value);
+    if (!nom) { modalNuevo('Escribe un nombre.'); return; }
+    if (mod.items.some(x => norm(x.t)===norm(nom))) { modalNuevo(`Ya hay un ítem «${nom}» en ${mod.t}.`); return; }
+    const id = Date.now()%100000;
+    mod.items.push({id, t:nom, i:'folder', grupo:true, d:'', items:[]});
+    modal(''); P.toast = `Grupo «${nom}» creado en ${mod.t}. Está vacío: muévele pantallas con «Ubicación». Mientras esté vacío no se ve en el lateral.`;
+  }
+  else if (d.desc){ modalDesc(+d.desc); return; }
+  else if (d.descOk || d.descQuitar){ const id = +(d.descOk||d.descQuitar), [n] = buscarNodo(id), v = d.descOk ? document.getElementById('desc-txt').value.trim() : '';
+    if (v !== (n.d||'')){ n.d = v; P.edits[id] = true; } modal(''); P.toast = ''; }
+  else if (d.borrar){ modalBorrar(+d.borrar); return; }
+  else if (d.confborrar){ const [m,g] = findGrp(+d.confborrar); m.items.splice(m.items.indexOf(g),1); modal(''); P.toast = `Grupo «${g.t}» borrado.`; }
+  else if ('guardar' in d){ if (!Object.keys(P.edits).length) return; P.edits = {}; P.toast = 'Menus actualizados exitosamente.'; }
+  else if (d.revertir || 'revertirTodo' in d){ P.toast = 'En el mockup, restablecer solo quita la marca de cambio.'; if (d.revertir) delete P.edits[d.revertir]; else P.edits = {}; }
+  render();
+});
+render();
+</script>
+</body>
+</html>
