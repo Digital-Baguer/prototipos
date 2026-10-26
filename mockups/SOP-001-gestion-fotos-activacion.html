@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>SOP-001 · QUAC › Validación de fotos › Gestión de fotos (mockup)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          primary: 'hsl(0 0% 9%)',
+          'primary-foreground': 'hsl(0 0% 98%)',
+          secondary: 'hsl(161.38 93.55% 30.39%)',
+          muted: 'hsl(0 0% 96.1%)',
+          'muted-foreground': 'hsl(0 0% 45.1%)',
+          accent: 'hsl(0 0% 96.1%)',
+          input: 'hsl(0 0% 89.8%)',
+          border: 'hsl(0 0% 92.8%)',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  /* Pila tipográfica real de get-web (mismo criterio que el mockup aprobado GW-194). */
+  html, body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; font-size: 16px; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  /* Select nativo de get-web: appearance-none + flecha a la derecha */
+  .sel-nativo { appearance: none; -webkit-appearance: none; background-repeat: no-repeat; background-position: right 8px center;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23737373' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
+  /* PrimeVue DataTable (preset Aura), como lo pinta Consulta PVAL */
+  .p-dt th { background:#fff; color:#334155; font-weight:600; text-align:left; padding:.75rem 1rem; border-bottom:1px solid #e2e8f0; white-space:nowrap; }
+  .p-dt td { padding:.75rem 1rem; border-bottom:1px solid #e2e8f0; color:#334155; vertical-align:middle; }
+  .p-dt tbody tr:hover td { background:#f8fafc; }
+  /* Paginador Aura: botones redondos, página actual en verde suave */
+  .p-pg-btn { min-width:2.5rem; height:2.5rem; border-radius:9999px; display:inline-flex; align-items:center; justify-content:center; color:#64748b; }
+  .p-pg-btn:hover:not(:disabled) { background:#f1f5f9; color:#334155; }
+  .p-pg-btn:disabled { opacity:.5; cursor:default; }
+  .p-btn { border-radius:4px; background:#262626; padding:3px 8px; color:#d4d4d4; }
+  .p-btn:hover { background:#404040; }
+  .p-btn.on { background:#fff; color:#171717; font-weight:600; }
+  .json-k { color:#0f172a; } .json-s { color:#047857; } .json-n { color:#1d4ed8; } .json-b { color:#be123c; } .json-z { color:#64748b; }
+  details > summary { list-style:none; } details > summary::-webkit-details-marker { display:none; }
+  details[open] > summary .rot { transform: rotate(90deg); }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  .girar { animation: girar .8s linear infinite; }
+  @keyframes entrar { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  .toast-in { animation: entrar .2s ease; }
+</style>
+</head>
+<body class="bg-neutral-200 text-[hsl(0_0%_3.9%)] antialiased">
+
+<!-- ══ Nota del mockup (no es parte de la UI) ══ -->
+<div class="mx-auto w-[1440px] bg-slate-900 px-6 pt-2.5 text-white">
+  <div class="flex items-center gap-3 text-xs">
+    <span class="font-bold tracking-wide">SOP-001 · MOCKUP</span>
+    <span class="text-slate-500">|</span>
+    <span id="titulo-flujo" class="text-sm font-semibold text-white"></span>
+  </div>
+  <p id="nota-flujo" class="mt-1 text-[12px] leading-snug text-slate-300"></p>
+  <nav id="tabs" class="mt-2 flex gap-1 text-sm"></nav>
+</div>
+
+<!-- ══ Pantalla 1440 px ══ -->
+<div class="mx-auto w-[1440px] bg-white">
+  <!-- Franja de Pruebas: mismo patrón que ImpersonationBanner (fija arriba, h-10, el layout baja mt-10), en rosa -->
+  <div id="franja"></div>
+
+  <div class="flex min-h-[1000px]">
+    <!-- ══ AppSidebar (expandido 17rem, superficie --gw-sidebar-*) ══ -->
+    <aside class="relative flex w-[272px] shrink-0 flex-col bg-[#18181b]">
+      <div class="flex h-14 shrink-0 items-center justify-between border-b border-[#27272a] px-4">
+        <div class="flex min-w-0 items-center gap-2">
+          <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#fafafa] text-[13px] font-black text-neutral-900">g</span>
+          <span class="text-lg font-bold tracking-tight text-white">get</span>
+        </div>
+        <i data-i="panel-left-close" class="h-[18px] w-[18px] text-[#a1a1aa]"></i>
+      </div>
+      <nav id="lateral" class="flex flex-col gap-1 p-2 pt-3 text-sm"></nav>
+    </aside>
+
+    <!-- ══ SidebarInset ══ -->
+    <main class="relative flex min-w-0 flex-1 flex-col bg-white">
+      <div id="panel-grupo"></div>
+
+      <!-- AppSidebarHeader -->
+      <header class="flex min-h-16 shrink-0 items-center gap-2 border-b border-[hsl(0_0%_91%)] px-8 py-4">
+        <div class="flex w-full items-center justify-between gap-4">
+          <div class="relative w-[448px] text-muted-foreground">
+            <span class="absolute left-0 top-0 flex h-12 w-12 items-center justify-center"><i data-i="search" class="h-5 w-5"></i></span>
+            <input type="search" placeholder="Filtrar menú..." class="flex h-12 w-full rounded-md border border-input bg-transparent pl-12 pr-3 text-sm shadow-sm outline-none placeholder:text-muted-foreground">
+          </div>
+          <div class="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent">
+            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold text-neutral-700">CM</span>
+            <div class="text-left text-sm leading-tight">
+              <div class="font-medium">Carolina Mejía</div>
+              <div class="text-xs text-muted-foreground">cmejia@empresa-ejemplo.co</div>
+            </div>
+            <i data-i="chevron-down" class="ml-2 h-4 w-4"></i>
+          </div>
+        </div>
+      </header>
+
+      <!-- Breadcrumbs (AppSidebarLayout; con GW-201 muestra los tres niveles) -->
+      <div class="sticky top-0 z-[1] border-b border-border bg-white px-8 py-2">
+        <ol id="migas" class="flex items-center gap-2.5 text-sm text-muted-foreground"></ol>
+      </div>
+
+      <!-- AppLayout: <div class="bg-gray-50"><slot/></div> -->
+      <div class="flex-1 bg-gray-50">
+        <div id="pagina" class="space-y-6 p-6"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ══ Toast (PrimeVue Toast, arriba a la derecha) ══ -->
+<div id="toasts" class="fixed right-4 top-4 z-[80] flex w-[360px] flex-col gap-2"></div>
+
+<!-- ══ Modal de foto (Dialog de get-web: overlay negro 80 %, caja blanca, X arriba a la derecha) ══ -->
+<div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 p-4">
+  <div class="relative grid max-h-[90vh] w-full max-w-4xl gap-4 overflow-y-auto rounded-lg border bg-white p-6 shadow-lg">
+    <button type="button" data-cerrar-modal class="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100"><i data-i="x" class="h-4 w-4"></i></button>
+    <div id="modal-cuerpo"></div>
+  </div>
+</div>
+
+<!-- ══ Panel de estados del mockup (no es parte de la UI) ══ -->
+<div id="panel" class="fixed bottom-4 right-4 z-[90] w-[300px] rounded-xl bg-neutral-900 p-3 text-xs text-neutral-200 shadow-2xl">
+  <div class="mb-2 flex items-center justify-between">
+    <span class="font-bold text-white">Estados del mockup</span>
+    <button id="panel-plegar" class="rounded px-1.5 py-0.5 text-neutral-400 hover:bg-neutral-800">—</button>
+  </div>
+  <div id="panel-cuerpo" class="space-y-2.5"></div>
+</div>
+
+<script>
+/* ───────────── Íconos (lucide, mismos nombres que Icon.vue) ───────────── */
+const ICONOS = {
+  'search': '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+  'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+  'house': '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  'calendar-days': '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>',
+  'package': '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/>',
+  'align-justify': '<path d="M3 12h18"/><path d="M3 18h18"/><path d="M3 6h18"/>',
+  'layout-dashboard': '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+  'undo-2': '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>',
+  'undo': '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>',
+  'image': '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  'check': '<path d="M20 6 9 17l-5-5"/>',
+  'phone': '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  'map-pin': '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  'map': '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>',
+  'calendar': '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  'user': '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  'x': '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  'triangle-alert': '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  'info': '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  'lock': '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  'history': '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  'loader': '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+  'message-circle': '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  'credit-card': '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
+  'truck': '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  'bike': '<circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>',
+  'shopping-bag': '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  'shopping-cart': '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
+  'percent': '<line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  'users': '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  'settings': '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  'chart-column': '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  'user-plus': '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/>',
+  'eye': '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+  'dollar-sign': '<line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  'panel-left-close': '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>',
+  'circle-check': '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  'clock': '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  'file-text': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  'wallet': '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  'banknote': '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+  'gift': '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/>',
+  'landmark': '<line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/>',
+  'refresh': '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  'scan-face': '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/>',
+  'images': '<path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/>',
+  'folder': '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  'smartphone': '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
+  'calculator': '<rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/>',
+  'arrow-left': '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  'copy': '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c0-1.1.9-2 2-2h2"/><path d="M4 8V6c0-1.1.9-2 2-2h8c1.1 0 2 .9 2 2"/>',
+  'flask': '<path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/>',
+  'shield-alert': '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  'chevrons-left': '<path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/>',
+  'chevrons-right': '<path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>',
+  'chevron-left': '<path d="m15 18-6-6 6-6"/>',
+  'upload': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>',
+  'wifi-off': '<path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/>',
+};
+function ic(n, c) { return '<svg class="' + (c || 'h-4 w-4') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + (ICONOS[n] || '') + '</svg>'; }
+function pintarIconos(raiz) { (raiz || document).querySelectorAll('i[data-i]').forEach(function (el) { el.outerHTML = ic(el.dataset.i, el.className); }); }
+
+/* ───────────── Textos simples para los valores de la base ───────────── */
+const ESTADOS = { PENDING: 'Pendiente', IN_PROCESS: 'En proceso', MANUAL_REVIEW: 'Revisión manual', APPROVED: 'Aprobada', REJECTED: 'Rechazada', EXPIRED: 'Vencida', ERROR: 'Error' };
+const PASOS = { 'validate-selfie': 'Selfie', 'validate-frontal': 'Cédula frente', 'validate-reverse': 'Cédula reverso', 'liveness-evidence': 'Prueba de vida' };
+const TIPOS_FOTO = { selfie: 'Selfie', frontal: 'Cédula frente', reverso: 'Cédula reverso', liveness_collage: 'Prueba de vida (collage)' };
+const ESTADOS_FOTO = { APPROVED: 'Aprobada', REQUIRES_REVIEW: 'Requiere revisión', REJECTED: 'Rechazada', IN_PROCESS: 'En proceso', ERROR: 'Error' };
+const ESTADOS_CREDITO = { PENDING: 'Pendiente', MANUAL_REVIEW: 'Revisión manual', APPROVED: 'Aprobado', REJECTED: 'Rechazado' };
+
+/* Paleta de chips: gris neutro, esmeralda positivo, negro en curso, rosa bloqueante (sin ámbar).
+   Forma del chip: la de Consulta PVAL (px-2 py-0.5 text-xs font-medium rounded). */
+const CHIP = {
+  gris: 'bg-gray-100 text-gray-700',
+  grisSuave: 'bg-gray-100 text-gray-500',
+  esmeralda: 'bg-emerald-100 text-emerald-700',
+  negro: 'bg-gray-900 text-white',
+  negroBorde: 'border border-gray-900 bg-white text-gray-900',
+  rosa: 'bg-rose-100 text-rose-700',
+  rosaBorde: 'border border-rose-300 bg-white text-rose-700',
+};
+const COLOR_SESION = { PENDING: 'gris', IN_PROCESS: 'negroBorde', MANUAL_REVIEW: 'negro', APPROVED: 'esmeralda', REJECTED: 'rosa', EXPIRED: 'grisSuave', ERROR: 'rosaBorde' };
+const COLOR_FOTO = { APPROVED: 'esmeralda', REQUIRES_REVIEW: 'negro', REJECTED: 'rosa', IN_PROCESS: 'negroBorde', ERROR: 'rosaBorde' };
+const COLOR_CREDITO = { PENDING: 'gris', MANUAL_REVIEW: 'negro', APPROVED: 'esmeralda', REJECTED: 'rosa' };
+function chip(texto, color, icono) {
+  return '<span class="inline-flex items-center gap-1 whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium ' + CHIP[color] + '">' + (icono ? ic(icono, 'h-3 w-3') : '') + texto + '</span>';
+}
+const pesos = v => '$ ' + Number(v).toLocaleString('es-CO');
+const fecha = s => { const [d, h] = s.split(' '); const [a, m, dd] = d.split('-'); return dd + '/' + m + '/' + a + ' ' + h; };
+
+/* ───────────── Datos de ejemplo (inventados; formato real de la base) ───────────── */
+const COMERCIOS = [
+  ['901245778', 'Calzado Rivera S.A.S.'], ['830114052', 'Distribuidora El Paso'], ['900876321', 'Almacén La Novena'],
+  ['901532904', 'Moda Urbana del Eje'], ['800451276', 'Tiendas Montecristo'],
+];
+function uuid(semilla) {
+  let t = (semilla * 2654435761) >>> 0, s = '';
+  for (let i = 0; i < 32; i++) { t = (t + 0x6D2B79F5) >>> 0; let r = Math.imul(t ^ (t >>> 15), 1 | t); r ^= r + Math.imul(r ^ (r >>> 7), 61 | r); s += (((r ^ (r >>> 14)) >>> 0) % 16).toString(16); }
+  return s.slice(0, 8) + '-' + s.slice(8, 12) + '-4' + s.slice(13, 16) + '-a' + s.slice(17, 20) + '-' + s.slice(20, 32);
+}
+/* Primeras 10 filas a mano (lo que se ve sin tocar filtros); las demás completan las páginas 2 y 3. */
+const BASE_PROD = [
+  { f: '2026-10-26 09:41', doc: '1094882301', nom: 'Laura Marcela Ríos Peña', c: 0, b: '112', paso: 'validate-reverse', e: 'MANUAL_REVIEW', caso: 'revision' },
+  { f: '2026-10-26 09:12', doc: '1007343618', nom: null, c: 1, b: '045', paso: 'validate-frontal', e: 'PENDING', caso: 'pendiente' },
+  { f: '2026-10-26 08:57', doc: '1116254890', nom: 'Jhon Fredy Cárdenas Mora', c: 2, b: '207', paso: 'liveness-evidence', e: 'REJECTED', caso: 'suplantador' },
+  { f: '2026-10-25 19:33', doc: '52987441', nom: 'Gloria Inés Bermúdez Vargas', c: 0, b: '112', paso: null, e: 'APPROVED', caso: 'aprobada' },
+  { f: '2026-10-25 18:05', doc: '1096073264', nom: 'Yeison Andrés Quintero Lozano', c: 3, b: '031', paso: 'validate-reverse', e: 'MANUAL_REVIEW', caso: 'revision' },
+  { f: '2026-10-25 16:48', doc: '1032498877', nom: null, c: 4, b: '118', paso: null, e: 'PENDING', caso: 'pendiente' },
+  { f: '2026-10-25 15:20', doc: '1152704963', nom: 'Daniela Restrepo Gaviria', c: 1, b: '045', paso: 'validate-selfie', e: 'IN_PROCESS', caso: 'proceso' },
+  { f: '2026-10-25 11:02', doc: '79845120', nom: 'Hernán Darío Pulido Rojas', c: 2, b: '207', paso: 'validate-reverse', e: 'ERROR', caso: 'error' },
+  { f: '2026-10-24 17:46', doc: '1098071733', nom: 'Sara Valentina Ortiz Celis', c: 0, b: '112', paso: 'validate-reverse', e: 'MANUAL_REVIEW', caso: 'revision' },
+  { f: '2026-10-20 10:15', doc: '1075263398', nom: 'Óscar Mauricio Lara Duque', c: 3, b: '031', paso: 'validate-frontal', e: 'EXPIRED', caso: 'vencida' },
+];
+const NOMBRES_EXTRA = ['Paula Andrea Gómez Silva', 'Edwin Alexis Torres Mena', 'Luz Dary Castaño Ruiz', 'Brayan Steven Patiño Ochoa', 'Natalia Cifuentes Arango', 'Carlos Alberto Mesa Ríos', 'Yuliana Marín Holguín', 'Wilmar Hoyos Cardona', 'Angie Lorena Prada Suárez', 'Kevin Santiago Rueda Pinzón', 'Leidy Johana Ospina Mejía', 'Fabián Ernesto Rincón Gil', 'Marcela Ruiz Londoño', 'Julián David Henao Cano'];
+const MEZCLA = ['PENDING', 'MANUAL_REVIEW', 'PENDING', 'APPROVED', 'MANUAL_REVIEW', 'PENDING', 'REJECTED', 'IN_PROCESS', 'PENDING', 'MANUAL_REVIEW', 'APPROVED', 'PENDING', 'MANUAL_REVIEW', 'PENDING'];
+const PASOS_MEZCLA = ['validate-reverse', null, 'validate-reverse', null, 'validate-reverse', 'validate-selfie', 'validate-reverse', 'validate-frontal', null, 'validate-reverse', null, 'liveness-evidence', 'validate-reverse', null];
+function armarProd() {
+  const filas = BASE_PROD.map((r, i) => Object.assign({ ref: uuid(i + 1) }, r));
+  NOMBRES_EXTRA.forEach((n, i) => {
+    const dia = 24 - Math.floor(i / 3), hora = String(18 - (i % 3) * 3).padStart(2, '0') + ':' + String((i * 17) % 60).padStart(2, '0');
+    const e = MEZCLA[i];
+    filas.push({ ref: uuid(100 + i), f: '2026-10-' + (dia < 10 ? '0' + dia : dia) + ' ' + hora, doc: String(1000000000 + (i * 7919373) % 150000000),
+      nom: (e === 'PENDING' && i % 2) ? null : n, c: i % 5, b: ['112', '045', '207', '031', '118'][i % 5], paso: PASOS_MEZCLA[i], e,
+      caso: { PENDING: 'pendiente', MANUAL_REVIEW: 'revision', APPROVED: 'aprobada', REJECTED: 'suplantador', IN_PROCESS: 'proceso' }[e] });
+  });
+  return filas.sort((a, b) => b.f.localeCompare(a.f));
+}
+const DATOS = {
+  prod: armarProd(),
+  pruebas: [
+    { ref: uuid(900), f: '2026-10-22 16:10', doc: '1000000003', nom: 'Cliente Prueba Tres', c: 9, b: '999', paso: 'validate-reverse', e: 'MANUAL_REVIEW', caso: 'revision' },
+    { ref: uuid(901), f: '2026-10-22 11:47', doc: '1000000002', nom: null, c: 9, b: '999', paso: 'validate-selfie', e: 'PENDING', caso: 'pendiente' },
+    { ref: uuid(902), f: '2026-10-21 09:30', doc: '1000000001', nom: 'Cliente Prueba Uno', c: 9, b: '999', paso: null, e: 'APPROVED', caso: 'aprobada' },
+  ],
+};
+COMERCIOS[9] = ['900000001', 'Comercio de pruebas'];
+
+/* ───────────── Fotos de ejemplo (placeholder neutro, nunca caras reales) ───────────── */
+function placeholder(tipo, ancho, alto) {
+  const etiqueta = TIPOS_FOTO[tipo].replace(' (collage)', '');
+  const tonos = { selfie: ['#e5e7eb', '#d1d5db'], frontal: ['#e2e8f0', '#cbd5e1'], reverso: ['#e7e5e4', '#d6d3d1'], liveness_collage: ['#e4e4e7', '#d4d4d8'] }[tipo];
+  const marco = tipo === 'selfie'
+    ? '<circle cx="50%" cy="42%" r="18%" fill="none" stroke="#9ca3af" stroke-width="2" stroke-dasharray="6 5"/>'
+    : tipo === 'liveness_collage'
+      ? '<g fill="none" stroke="#9ca3af" stroke-width="2"><rect x="8%" y="14%" width="26%" height="52%" rx="6"/><rect x="37%" y="14%" width="26%" height="52%" rx="6"/><rect x="66%" y="14%" width="26%" height="52%" rx="6"/></g>'
+      : '<rect x="12%" y="16%" width="76%" height="56%" rx="10" fill="none" stroke="#9ca3af" stroke-width="2" stroke-dasharray="6 5"/>';
+  const fs = ancho > 200 ? 22 : 9;
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + ancho + '" height="' + alto + '"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + tonos[0] + '"/><stop offset="1" stop-color="' + tonos[1] + '"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/>' + marco + '<text x="50%" y="88%" text-anchor="middle" font-family="ui-sans-serif,system-ui" font-size="' + fs + '" fill="#4b5563">' + etiqueta + '</text></svg>';
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+/* Detalle según el caso: fotos con estado, carga, suplantador, mensaje y los dos JSON. */
+function detalleDe(r) {
+  const nom2 = (r.nom || '').toUpperCase().split(' ');
+  const nombre = nom2.slice(0, nom2.length > 3 ? 2 : 1).join(' '), apellido = nom2.slice(nom2.length > 3 ? 2 : 1).join(' ');
+  const docPuntos = Number(r.doc).toLocaleString('es-CO');
+  const ocrFrente = ['REPUBLICA DE COLOMBIA', 'IDENTIFICACION PERSONAL', 'CEDULA DE CIUDADANIA', 'NUMERO ' + docPuntos, apellido, 'APELLIDOS', nombre, 'NOMBRES'];
+  const ocrReverso = ['FECHA DE NACIMIENTO 14-MAR-1994', 'PEREIRA', '(RISARALDA)', 'LUGAR DE NACIMIENTO', '1.62', 'O+', 'ESTATURA', 'G.S. RH', '22-MAR-2012 PEREIRA', 'FECHA Y LUGAR DE EXPEDICION', 'REGISTRADOR NACIONAL'];
+  const selfieOk = { tipo: 'selfie', estado: 'APPROVED', carga: true, fake: false, msg: 'Validación exitosa', resp: { faceLiveness: { Status: 'SUCCEEDED', Confidence: 97.42 }, livenessEvidence: { referenceImage: true, auditImages: 3 } }, track: null };
+  const frenteOk = { tipo: 'frontal', estado: 'APPROVED', carga: true, fake: false, msg: 'Validación exitosa', resp: { Labels: [{ Name: 'Id Cards', Confidence: 99.1 }, { Name: 'Document', Confidence: 98.6 }], FaceMatches: [{ Similarity: 96.83 }] }, track: ocrFrente };
+  const reversoOk = { tipo: 'reverso', estado: 'APPROVED', carga: true, fake: false, msg: 'Validación exitosa', resp: { Labels: [{ Name: 'Id Cards', Confidence: 98.9 }], resultSearchWords: ['REGISTRADOR NACIONAL', 'FECHA DE NACIMIENTO', 'LUGAR DE NACIMIENTO'], resultSearchInvalidWords: [] }, track: ocrReverso };
+  const collageOk = { tipo: 'liveness_collage', estado: 'APPROVED', carga: true, fake: false, msg: null, resp: null, track: null };
+  const identidadOk = { nombre: [nombre, true], apellido: [apellido, true], documento: [docPuntos, true], expedicion: ['2012-03-22', true] };
+  const base = { identidad: identidadOk, credito: { estado: 'PENDING', cupo: null }, actualizada: r.f, fotos: [] };
+  switch (r.caso) {
+    case 'suplantador':
+      return Object.assign(base, {
+        identidad: Object.assign({}, identidadOk, { expedicion: ['2012-03-22', false] }),
+        credito: { estado: 'REJECTED', cupo: null }, actualizada: r.f.replace(/\d\d$/, m => String(Math.min(59, +m + 2)).padStart(2, '0')),
+        fotos: [
+          { tipo: 'selfie', estado: 'REJECTED', carga: true, fake: true, msg: 'Suplantador detectado', resp: { faceLiveness: { Status: 'SUCCEEDED', Confidence: 31.07 }, livenessEvidence: { referenceImage: true, auditImages: 3 } }, track: null },
+          { tipo: 'frontal', estado: 'REJECTED', carga: true, fake: false, msg: 'La foto selfie y la foto del documento no coinciden', resp: { Labels: [{ Name: 'Id Cards', Confidence: 98.2 }], FaceMatches: [] }, track: ocrFrente },
+          reversoOk, collageOk] });
+    case 'revision':
+      return Object.assign(base, {
+        credito: { estado: 'MANUAL_REVIEW', cupo: null },
+        fotos: [selfieOk, frenteOk,
+          { tipo: 'reverso', estado: 'REQUIRES_REVIEW', carga: true, fake: false, msg: 'La foto está borrosa en la zona del código de barras', resp: { score: 0.62, criteria: 'reverso_cedula', is_valid: false, failed_codes: ['BLUR_LOW'], observations: ['La foto está borrosa en la zona del código de barras'], blocking_failed_codes: [], detected_document_type: 'CEDULA_DIGITAL_REVERSO' }, track: ocrReverso.slice(0, 6) },
+          collageOk] });
+    case 'aprobada':
+      return Object.assign(base, { credito: { estado: 'APPROVED', cupo: 1500000 }, fotos: [selfieOk, frenteOk, reversoOk, collageOk] });
+    case 'pendiente':
+      return Object.assign(base, { identidad: null, credito: { estado: 'PENDING', cupo: null },
+        fotos: [selfieOk,
+          { tipo: 'frontal', estado: 'IN_PROCESS', carga: false, fake: false, msg: null, resp: null, track: null },
+          { tipo: 'reverso', estado: 'IN_PROCESS', carga: false, fake: false, msg: null, resp: null, track: null }] });
+    case 'proceso':
+      return Object.assign(base, { identidad: null, fotos: [{ tipo: 'selfie', estado: 'IN_PROCESS', carga: true, fake: false, msg: null, resp: null, track: null }] });
+    case 'error':
+      return Object.assign(base, { identidad: 'error', credito: { estado: 'PENDING', cupo: null },
+        fotos: [selfieOk, frenteOk,
+          { tipo: 'reverso', estado: 'ERROR', carga: true, fake: false, msg: 'No fue posible validar la foto. Intenta de nuevo', resp: { error: 'timeout', message: 'El servicio de validación no respondió a tiempo' }, track: null }] });
+    case 'vencida':
+      return Object.assign(base, { identidad: null, fotos: [selfieOk, { tipo: 'frontal', estado: 'IN_PROCESS', carga: false, fake: false, msg: null, resp: null, track: null }] });
+  }
+  return base;
+}
+
+/* ───────────── Estado del mockup ───────────── */
+const HOY = '2026-10-26', HACE7 = '2026-10-19';
+const S = {
+  vista: 'listado',          // listado | detalle
+  tab: 'listado',
+  ambiente: 'prod',          // prod | pruebas (dura la sesión de login)
+  permiso: true,             // tiene la operación de cambiar ambiente
+  carga: 'normal',           // normal | cargando | vacio | error
+  filtros: { doc: '', desde: HACE7, hasta: HOY, estado: '' },
+  aplicados: { doc: '', desde: HACE7, hasta: HOY, estado: '' },
+  pagina: 0, porPagina: 10,
+  ref: null, refAmbiente: null,
+  panelGrupo: false,
+};
+
+/* ───────────── Navegación del mockup (pestañas + panel) ───────────── */
+const TABS = [
+  ['listado', '1 · Listado «Gestión de fotos»', 'Lista plana de sesiones de activación, la más reciente primero. Filtros: documento exacto, rango de fechas (por defecto los últimos 7 días) y estado. Clic en una fila o en «Ver» abre el detalle. Con el panel de abajo a la derecha se ven cargando, vacío y error. En el menú, QUAC › Validación de fotos es un grupo de tercer nivel: por ahora con una sola pantalla (Suplantadores y Generar link crédito llegan después); clic en el grupo abre su panel al lado.'],
+  ['detalle', '2 · Detalle de una sesión', 'Tiene dirección propia por referencia de activación (se muestra en la cabecera y en la barra del navegador). Caso cargado: sesión con selfie marcada como posible suplantador y cédula frente rechazada. Cambia de caso en el panel o abre otra fila desde el listado. «Ver» abre la foto grande con los dos visores plegables.'],
+  ['pruebas', '3 · Modo Pruebas', 'El interruptor Producción / Pruebas solo lo ve quien tiene el permiso de cambiar ambiente (en el panel: «Sin permiso» lo oculta). En Pruebas aparece la franja rosa fija arriba en todas las pantallas de Validación de fotos y los datos son los de la base de pruebas. Al volver a iniciar sesión arranca en Producción.'],
+];
+function irTab(t) {
+  S.tab = t;
+  if (t === 'listado') { S.vista = 'listado'; }
+  if (t === 'detalle') { S.vista = 'detalle'; S.ambiente = 'prod'; S.ref = DATOS.prod.find(r => r.caso === 'suplantador').ref; S.refAmbiente = 'prod'; }
+  if (t === 'pruebas') { S.permiso = true; S.ambiente = 'pruebas'; S.vista = 'listado'; S.pagina = 0; S.carga = 'normal'; }
+  render();
+}
+
+function panelEstados() {
+  const b = (attr, val, txt, on) => '<button data-' + attr + '="' + val + '" class="p-btn ' + (on ? 'on' : '') + '">' + txt + '</button>';
+  const casos = [['suplantador', 'Posible suplantador'], ['revision', 'Revisión manual'], ['aprobada', 'Aprobada con cupo'], ['pendiente', 'Cliente no creado'], ['error', 'Error de validación'], ['noexiste', 'Referencia no encontrada']];
+  const casoActual = S.vista === 'detalle' ? (filaPorRef(S.ref, S.ambiente) || { caso: 'noexiste' }).caso : '';
+  return '' +
+    '<div><p class="mb-1 text-[10px] uppercase tracking-wide text-neutral-500">Permiso de cambiar ambiente</p><div class="flex flex-wrap gap-1">' +
+      b('permiso', 'si', 'Con permiso', S.permiso) + b('permiso', 'no', 'Sin permiso', !S.permiso) + '</div></div>' +
+    '<div><p class="mb-1 text-[10px] uppercase tracking-wide text-neutral-500">Listado: carga</p><div class="flex flex-wrap gap-1">' +
+      b('carga', 'normal', 'Normal', S.carga === 'normal') + b('carga', 'cargando', 'Cargando', S.carga === 'cargando') + b('carga', 'vacio', 'Vacío', S.carga === 'vacio') + b('carga', 'error', 'Error de conexión', S.carga === 'error') + '</div></div>' +
+    '<div><p class="mb-1 text-[10px] uppercase tracking-wide text-neutral-500">Detalle: caso (Producción)</p><div class="flex flex-wrap gap-1">' +
+      casos.map(([k, t]) => b('caso', k, t, casoActual === k && S.ambiente === 'prod')).join('') + '</div></div>';
+}
+
+/* ───────────── Chrome: lateral con QUAC › Validación de fotos (grupo, 3er nivel GW-201) ───────────── */
+function lateral() {
+  const mod = (icono, txt, abierto, actual) => '<a class="relative mx-2 flex h-8 items-center gap-2 rounded-md px-2 ' + (actual ? 'font-semibold text-[#fafafa]' : 'text-[#a1a1aa] hover:bg-white/5') + '"><i data-i="' + icono + '" class="h-4 w-4 ' + (actual ? 'text-[#34d399]' : 'text-[#71717a]') + '"></i>' + txt + '<i data-i="chevron-right" class="ml-auto h-4 w-4 text-[#71717a] ' + (abierto ? 'rotate-90' : '') + '"></i></a>';
+  const pant = (icono, txt) => '<a class="flex h-8 items-center gap-3 rounded-lg px-3 text-[#a1a1aa] hover:bg-white/5"><i data-i="' + icono + '" class="h-4 w-4 text-[#71717a]"></i><span class="truncate whitespace-nowrap font-medium">' + txt + '</span></a>';
+  const grupo = (icono, txt, n, actual, id) => '<button type="button" ' + (id ? 'data-grupo="' + id + '"' : '') + ' class="relative flex h-8 w-full items-center gap-3 rounded-lg px-3 text-left ' +
+    (S.panelGrupo && id ? 'bg-[#27272a] text-[#fafafa]' : actual ? 'bg-white/10 font-medium text-white' : 'text-[#a1a1aa] hover:bg-white/5') + '">' +
+    (actual ? '<span class="absolute left-0 top-[7px] h-[18px] w-[2px] rounded-sm bg-[#34d399]"></span>' : '') +
+    '<i data-i="' + icono + '" class="h-4 w-4 ' + (actual ? 'text-[#34d399]' : 'text-[#71717a]') + '"></i><span class="flex-1 truncate font-medium">' + txt + '</span>' +
+    '<span class="ml-auto rounded-full bg-[#27272a] px-1.5 text-[11px] text-[#71717a]">' + n + '</span><i data-i="chevron-right" class="h-3.5 w-3.5 text-[#71717a]"></i></button>';
+  return '<a class="relative mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-[#a1a1aa] hover:bg-white/5"><i data-i="layout-dashboard" class="h-4 w-4 text-[#71717a]"></i>Dashboard</a>' +
+    mod('shopping-cart', 'Pedidos') + mod('percent', 'Descuentos') + mod('users', 'Clientes') + mod('shopping-bag', 'Venta asistida') + mod('undo', 'Devoluciones') +
+    mod('credit-card', 'QUAC', true, true) +
+    '<div class="mx-3.5 my-2 flex flex-col gap-1 border-l border-[#3f3f46] px-2.5 py-0.5 text-[13px]">' +
+      grupo('folder', 'PVAL', 2, false) + pant('file-text', 'Consulta de Planes') + pant('calculator', 'Simulador compras') +
+      grupo('smartphone', 'App', 3, false) + grupo('scan-face', 'Validación de fotos', 1, true, 'vf') +
+    '</div>' +
+    mod('settings', 'Configuración');
+}
+function panelGrupo() {
+  if (!S.panelGrupo) return '';
+  // NavGrupoPanel.vue: flota al lado del lateral, fondo #1f1f23, título, ruta y pantallas con descripción.
+  return '<div class="absolute inset-0 z-40 bg-black/10" data-cerrar-grupo></div>' +
+    '<aside class="absolute inset-y-0 left-0 z-50 flex w-[300px] flex-col border-l border-[#27272a] bg-[#1f1f23] shadow-[8px_0_24px_rgba(0,0,0,.25)]">' +
+      '<div class="flex items-center justify-between px-4 pb-1 pt-4 text-lg font-semibold text-[#fafafa]"><span>Validación de fotos</span><button data-cerrar-grupo class="p-1 text-[#71717a] hover:text-[#fafafa]" title="Cerrar (Esc)"><i data-i="arrow-left" class="h-5 w-5"></i></button></div>' +
+      '<div class="px-4 pb-3 text-xs text-[#71717a]">QUAC › Validación de fotos</div>' +
+      '<div class="flex-1 overflow-y-auto border-t border-[#27272a]">' +
+        '<a data-ir-listado class="relative block cursor-pointer border-b border-[#27272a] bg-white/10 px-4 py-2.5"><span class="absolute left-0 top-[12px] h-[18px] w-[3px] rounded-sm bg-[#34d399]"></span>' +
+        '<div class="text-sm font-medium text-white">Gestión de fotos</div><div class="mt-0.5 text-[12.5px] text-[#71717a]">Sesiones de activación de crédito y sus fotos</div></a>' +
+      '</div>' +
+    '</aside>';
+}
+
+function migas() {
+  const sep = '<li><i data-i="chevron-right" class="h-3.5 w-3.5"></i></li>';
+  let h = '<li><i data-i="house" class="h-4 w-4"></i></li>' + sep + '<li>QUAC</li>' + sep + '<li>Validación de fotos</li>' + sep;
+  if (S.vista === 'listado') h += '<li class="font-normal text-foreground">Gestión de fotos</li>';
+  else h += '<li class="cursor-pointer hover:text-foreground" data-ir-listado>Gestión de fotos</li>' + sep + '<li class="font-normal text-foreground">Sesión ' + S.ref.slice(0, 8) + '…</li>';
+  return h;
+}
+
+function franja() {
+  if (S.ambiente !== 'pruebas') return '';
+  return '<div class="sticky top-0 z-30 flex h-10 items-center gap-3 bg-rose-600 px-6 text-sm text-white shadow">' + ic('flask', 'h-5 w-5 shrink-0') +
+    '<span class="min-w-0 truncate"><strong>Modo Pruebas.</strong> Estás viendo datos de Pruebas: estas activaciones no son de clientes reales.</span>' +
+    (S.permiso ? '<button data-ambiente="prod" class="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50">' + ic('arrow-left', 'h-3.5 w-3.5') + 'Volver a Producción</button>' : '') +
+    '</div>';
+}
+
+/* Interruptor de ambiente: mismo control segmentado que las vistas de Gestión de Entregas (bg-gray-100 p-1). */
+function interruptor() {
+  if (!S.permiso) return '';
+  const op = (v, txt, icono) => '<button type="button" data-ambiente="' + v + '" class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ' +
+    (S.ambiente === v ? (v === 'pruebas' ? 'bg-rose-600 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm') : 'text-gray-600 hover:text-gray-900') + '">' + ic(icono, 'h-[15px] w-[15px]') + txt + '</button>';
+  return '<div class="flex items-center gap-2"><span class="text-sm text-gray-500">Ambiente</span><div class="inline-flex gap-1 rounded-lg bg-gray-100 p-1">' +
+    op('prod', 'Producción', 'circle-check') + op('pruebas', 'Pruebas', 'flask') + '</div></div>';
+}
+
+/* ───────────── Pantalla 1: listado ───────────── */
+function filasFiltradas() {
+  const a = S.aplicados;
+  return DATOS[S.ambiente].filter(r => {
+    const d = r.f.slice(0, 10);
+    if (a.doc && r.doc !== a.doc.trim()) return false;
+    if (a.estado && r.e !== a.estado) return false;
+    if (S.ambiente === 'prod' && (d < a.desde || d > a.hasta)) return false;
+    return true;
+  });
+}
+function vistaListado() {
+  const f = S.filtros;
+  const input = 'w-full rounded-md border border-gray-300 px-3 py-2 text-sm';
+  let h = '<div class="flex items-start justify-between gap-4"><h1 class="!mb-0 text-xl font-semibold text-gray-900">Gestión de fotos</h1>' + interruptor() + '</div>';
+  // Formulario (calco de Consulta PVAL: tarjeta blanca, grid, labels y botón Buscar)
+  h += '<div class="rounded-lg border border-gray-200 bg-white p-4"><div class="grid grid-cols-5 items-end gap-3">' +
+    '<div><label class="mb-1 block text-sm font-medium text-gray-700">Nro. Documento</label><input id="f-doc" type="text" inputmode="numeric" placeholder="Ej: 1094882301" value="' + f.doc + '" class="' + input + '"></div>' +
+    '<div><label class="mb-1 block text-sm font-medium text-gray-700">Desde</label><input id="f-desde" type="date" value="' + f.desde + '" class="' + input + '"></div>' +
+    '<div><label class="mb-1 block text-sm font-medium text-gray-700">Hasta</label><input id="f-hasta" type="date" value="' + f.hasta + '" class="' + input + '"></div>' +
+    '<div><label class="mb-1 block text-sm font-medium text-gray-700">Estado</label><select id="f-estado" class="sel-nativo ' + input + ' pr-8 bg-white"><option value="">Todos</option>' +
+      Object.entries(ESTADOS).map(([k, v]) => '<option value="' + k + '" ' + (f.estado === k ? 'selected' : '') + '>' + v + '</option>').join('') + '</select></div>' +
+    '<div><button id="btn-buscar" type="button" class="inline-flex h-12 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-50" ' + (S.carga === 'cargando' ? 'disabled' : '') + '>' + (S.carga === 'cargando' ? 'Buscando...' : 'Buscar') + '</button></div>' +
+    '</div><p class="mt-2 text-xs text-gray-500">El documento se busca exacto. Sin documento se muestran las sesiones del rango de fechas.</p></div>';
+
+  // Resultados
+  h += '<div class="rounded-lg border border-gray-200 bg-white">';
+  if (S.carga === 'error') {
+    h += '<div class="flex flex-col items-center gap-3 p-8 text-center">' + ic('wifi-off', 'h-8 w-8 text-rose-600') +
+      '<div class="font-medium text-gray-900">No pudimos consultar las sesiones</div><p class="text-sm text-gray-500">Se perdió la conexión con la base de activaciones. Intenta de nuevo en un momento.</p>' +
+      '<button data-reintentar class="inline-flex h-8 items-center gap-1.5 rounded-md border bg-white px-3 text-sm font-medium shadow-sm hover:bg-accent">' + ic('refresh', 'h-4 w-4') + 'Reintentar</button></div></div>';
+    return h;
+  }
+  const filas = S.carga === 'vacio' ? [] : filasFiltradas();
+  if (S.carga !== 'cargando' && filas.length === 0) {
+    return h + '<div class="p-8 text-center text-gray-500">No hay sesiones con esos filtros</div></div>';
+  }
+  const desde = S.pagina * S.porPagina, pag = filas.slice(desde, desde + S.porPagina);
+  h += '<div class="overflow-x-auto"><table class="p-dt w-full text-sm"><thead><tr><th>Fecha</th><th>Documento</th><th>Nombre</th><th>Comercio</th><th>Bodega</th><th>Paso</th><th>Estado</th><th></th></tr></thead><tbody>';
+  if (S.carga === 'cargando') {
+    for (let i = 0; i < 6; i++) h += '<tr>' + [110, 90, 170, 200, 40, 90, 80, 50].map(w => '<td><span class="inline-block h-3.5 animate-pulse rounded bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100" style="width:' + w + 'px"></span></td>').join('') + '</tr>';
+  } else {
+    pag.forEach(r => {
+      const com = COMERCIOS[r.c];
+      h += '<tr class="cursor-pointer" data-ver="' + r.ref + '">' +
+        '<td class="whitespace-nowrap tabular-nums">' + fecha(r.f) + '</td>' +
+        '<td class="tabular-nums">' + r.doc + '</td>' +
+        '<td>' + (r.nom || '<span class="text-gray-400">Cliente no creado</span>') + '</td>' +
+        '<td><span class="tabular-nums">' + com[0] + '</span> – ' + com[1] + '</td>' +
+        '<td class="tabular-nums">' + r.b + '</td>' +
+        '<td class="whitespace-nowrap">' + (r.paso ? PASOS[r.paso] : '<span class="text-gray-400">—</span>') + '</td>' +
+        '<td>' + chip(ESTADOS[r.e], COLOR_SESION[r.e]) + '</td>' +
+        '<td class="text-right"><button data-ver="' + r.ref + '" class="inline-flex h-8 items-center rounded-md border bg-white px-3 text-sm font-medium shadow-sm hover:bg-accent">Ver</button></td></tr>';
+    });
+  }
+  h += '</tbody></table></div>';
+  // Paginador (plantilla de TablaPlanes: filas por página, primera, anterior, «x a y de z», siguiente, última)
+  const total = S.carga === 'cargando' ? 0 : filas.length, paginas = Math.max(1, Math.ceil(total / S.porPagina));
+  const dis = c => c ? 'disabled' : '';
+  h += '<div class="flex items-center justify-center gap-1 px-4 py-2 text-sm text-slate-600">' +
+    '<select id="por-pagina" class="sel-nativo mr-2 h-10 rounded-md border border-slate-300 bg-white pl-3 pr-8 text-sm">' + [10, 20, 50].map(n => '<option ' + (n === S.porPagina ? 'selected' : '') + '>' + n + '</option>').join('') + '</select>' +
+    '<button class="p-pg-btn" data-pag="0" ' + dis(S.pagina === 0) + '>' + ic('chevrons-left') + '</button>' +
+    '<button class="p-pg-btn" data-pag="' + (S.pagina - 1) + '" ' + dis(S.pagina === 0) + '>' + ic('chevron-left') + '</button>' +
+    '<span class="px-3 tabular-nums">' + (total ? (desde + 1) + ' a ' + Math.min(total, desde + S.porPagina) + ' de ' + total.toLocaleString('es-CO') : '—') + '</span>' +
+    '<button class="p-pg-btn" data-pag="' + (S.pagina + 1) + '" ' + dis(S.pagina >= paginas - 1) + '>' + ic('chevron-right') + '</button>' +
+    '<button class="p-pg-btn" data-pag="' + (paginas - 1) + '" ' + dis(S.pagina >= paginas - 1) + '>' + ic('chevrons-right') + '</button></div>';
+  return h + '</div>';
+}
+
+/* ───────────── Pantalla 2: detalle ───────────── */
+function filaPorRef(ref, amb) { return DATOS[amb].find(r => r.ref === ref); }
+function campo(et, val) { return '<div><div class="text-xs text-gray-500">' + et + '</div><div class="mt-0.5 text-sm text-gray-900">' + val + '</div></div>'; }
+
+function vistaDetalle() {
+  const r = filaPorRef(S.ref, S.ambiente);
+  let h = '<div class="flex items-start justify-between gap-4"><div class="flex items-center gap-3">' +
+    '<button data-ir-listado class="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium hover:bg-accent">' + ic('arrow-left', 'h-4 w-4') + 'Volver</button>' +
+    '<h1 class="!mb-0 text-xl font-semibold text-gray-900">Sesión de activación</h1></div>' + interruptor() + '</div>';
+  if (!r) {
+    return h + '<div class="rounded-lg border border-gray-200 bg-white p-8 text-center"><div class="font-medium text-gray-900">No encontramos esta sesión en ' + (S.ambiente === 'pruebas' ? 'Pruebas' : 'Producción') + '</div>' +
+      '<p class="mt-1 text-sm text-gray-500">La referencia <span class="font-mono">' + S.ref + '</span> no existe en este ambiente.' + (S.permiso && S.refAmbiente && S.refAmbiente !== S.ambiente ? ' Es de ' + (S.refAmbiente === 'pruebas' ? 'Pruebas' : 'Producción') + ': cambia el ambiente para verla.' : '') + '</p>' +
+      '<button data-ir-listado class="mt-4 inline-flex h-8 items-center rounded-md border bg-white px-3 text-sm font-medium shadow-sm hover:bg-accent">Ir al listado</button></div>';
+  }
+  const d = detalleDe(r), com = COMERCIOS[r.c];
+  // Cabecera de la sesión
+  h += '<div class="rounded-lg border border-gray-200 bg-white p-4">' +
+    '<div class="mb-4 flex items-center justify-between gap-3 border-b border-gray-100 pb-3"><div class="flex items-center gap-2 text-sm text-gray-500">Referencia <span class="font-mono text-gray-900">' + r.ref + '</span>' +
+      '<button data-copiar class="rounded p-1 text-gray-400 hover:bg-accent hover:text-gray-700" title="Copiar referencia">' + ic('copy', 'h-3.5 w-3.5') + '</button></div>' + chip(ESTADOS[r.e], COLOR_SESION[r.e]) + '</div>' +
+    '<div class="grid grid-cols-4 gap-x-6 gap-y-4">' +
+      campo('Documento', '<span class="tabular-nums">' + r.doc + '</span>') +
+      campo('Nombre', r.nom || '<span class="text-gray-400">Cliente no creado</span>') +
+      campo('Comercio', '<span class="tabular-nums">' + com[0] + '</span> – ' + com[1]) +
+      campo('Bodega', r.b) +
+      campo('Paso actual', r.paso ? PASOS[r.paso] : '<span class="text-gray-400">—</span>') +
+      campo('Estado de la sesión', ESTADOS[r.e]) +
+      campo('Creada', '<span class="tabular-nums">' + fecha(r.f) + '</span>') +
+      campo('Última actualización', '<span class="tabular-nums">' + fecha(d.actualizada) + '</span>') +
+    '</div></div>';
+
+  // Validación de identidad + Crédito
+  let iden;
+  if (d.identidad === null) iden = '<p class="text-sm text-gray-500">Aún no hay validación de identidad: el cliente no ha terminado de subir la cédula.</p>';
+  else if (d.identidad === 'error') iden = '<p class="text-sm text-rose-700">La validación de identidad no respondió. Se ve de nuevo cuando el cliente reintente la foto.</p>';
+  else {
+    const filas = [['Nombre', d.identidad.nombre], ['Apellido', d.identidad.apellido], ['Documento', d.identidad.documento], ['Fecha de expedición', [fecha(d.identidad.expedicion[0] + ' x').slice(0, 10), d.identidad.expedicion[1]]]];
+    iden = '<table class="w-full text-sm"><tbody>' + filas.map(([et, [v, ok]]) => '<tr class="border-b border-gray-100 last:border-0"><td class="py-2 text-gray-500">' + et + '</td><td class="py-2 text-gray-900">' + v + '</td><td class="w-24 py-2 text-right">' +
+      (ok ? '<span class="inline-flex items-center gap-1 text-emerald-700">' + ic('check', 'h-4 w-4') + 'Coincide</span>' : '<span class="inline-flex items-center gap-1 text-rose-700">' + ic('x', 'h-4 w-4') + 'No coincide</span>') + '</td></tr>').join('') + '</tbody></table>';
+  }
+  const resumen = d.identidad === null ? chip('Sin validar aún', 'gris') : d.identidad === 'error' ? chip('Error', 'rosaBorde') :
+    Object.values(d.identidad).every(x => x[1]) ? chip('Válida', 'esmeralda') : chip('No válida', 'rosa');
+  h += '<div class="grid grid-cols-3 gap-6">' +
+    '<div class="col-span-2 rounded-lg border border-gray-200 bg-white p-4"><div class="mb-3 flex items-center justify-between"><h2 class="!mb-0 text-base font-semibold text-gray-900">Validación de identidad</h2>' + resumen + '</div>' + iden +
+      '<p class="mt-2 text-xs text-gray-500">Datos leídos de la cédula comparados con los registrados del cliente.</p></div>' +
+    '<div class="rounded-lg border border-gray-200 bg-white p-4"><h2 class="!mb-3 text-base font-semibold text-gray-900">Crédito</h2><div class="space-y-3">' +
+      campo('Estado del crédito', chip(ESTADOS_CREDITO[d.credito.estado], COLOR_CREDITO[d.credito.estado])) +
+      campo('Cupo aprobado', d.credito.cupo ? '<span class="text-lg font-semibold tabular-nums">' + pesos(d.credito.cupo) + '</span>' : '<span class="text-gray-400">Sin cupo aprobado</span>') +
+    '</div></div></div>';
+
+  // Fotos
+  h += '<div class="rounded-lg border border-gray-200 bg-white"><div class="flex items-center justify-between px-4 pt-4"><h2 class="!mb-0 text-base font-semibold text-gray-900">Fotos</h2><span class="text-sm text-gray-500">' + d.fotos.filter(x => x.carga).length + ' de ' + d.fotos.length + ' cargadas</span></div>';
+  if (!d.fotos.length) h += '<div class="p-8 text-center text-gray-500">El cliente todavía no ha subido fotos</div>';
+  else {
+    h += '<div class="overflow-x-auto"><table class="p-dt w-full text-sm"><thead><tr><th>Foto</th><th>Tipo</th><th>Estado</th><th>Carga</th><th>Alerta</th><th>Mensaje de la validación</th><th></th></tr></thead><tbody>';
+    d.fotos.forEach((p, i) => {
+      h += '<tr class="' + (p.fake ? 'bg-rose-50/60' : '') + '">' +
+        '<td>' + (p.carga ? '<img src="' + placeholder(p.tipo, 72, 48) + '" class="h-12 w-[72px] rounded border border-gray-200 object-cover" alt="' + TIPOS_FOTO[p.tipo] + '">' : '<div class="flex h-12 w-[72px] items-center justify-center rounded border border-dashed border-gray-300 text-gray-400">' + ic('upload', 'h-4 w-4') + '</div>') + '</td>' +
+        '<td class="whitespace-nowrap font-medium text-gray-900">' + TIPOS_FOTO[p.tipo] + '</td>' +
+        '<td>' + chip(ESTADOS_FOTO[p.estado], COLOR_FOTO[p.estado]) + '</td>' +
+        '<td class="whitespace-nowrap">' + (p.carga ? '<span class="text-gray-700">Cargada</span>' : '<span class="text-gray-400">Pendiente de cargar</span>') + '</td>' +
+        '<td>' + (p.fake ? chip('Posible suplantador', 'rosa', 'shield-alert') : '<span class="text-gray-400">—</span>') + '</td>' +
+        '<td class="max-w-[320px] text-gray-700">' + (p.msg || '<span class="text-gray-400">—</span>') + '</td>' +
+        '<td class="text-right">' + (p.carga ? '<button data-foto="' + i + '" class="inline-flex h-8 items-center rounded-md border bg-white px-3 text-sm font-medium shadow-sm hover:bg-accent">Ver</button>' : '') + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+  return h + '</div>';
+}
+
+/* Visor JSON plegable (lectura) */
+function jsonColor(v, sang) {
+  sang = sang || '';
+  if (v === null) return '<span class="json-z">null</span>';
+  if (Array.isArray(v)) return v.length ? '[\n' + v.map(x => sang + '  ' + jsonColor(x, sang + '  ')).join(',\n') + '\n' + sang + ']' : '[]';
+  if (typeof v === 'object') { const k = Object.keys(v); return k.length ? '{\n' + k.map(x => sang + '  <span class="json-k">"' + x + '"</span>: ' + jsonColor(v[x], sang + '  ')).join(',\n') + '\n' + sang + '}' : '{}'; }
+  if (typeof v === 'string') return '<span class="json-s">"' + v.replace(/</g, '&lt;') + '"</span>';
+  if (typeof v === 'boolean') return '<span class="json-b">' + v + '</span>';
+  return '<span class="json-n">' + v + '</span>';
+}
+function visor(titulo, dato, abierto) {
+  return '<details class="rounded-md border border-gray-200" ' + (abierto ? 'open' : '') + '><summary class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50">' +
+    ic('chevron-right', 'rot h-4 w-4 text-gray-400 transition-transform') + titulo + '</summary>' +
+    (dato == null ? '<div class="border-t border-gray-200 px-3 py-3 text-sm text-gray-500">Sin datos para esta foto</div>'
+      : '<pre class="max-h-60 overflow-auto border-t border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs leading-5">' + jsonColor(dato) + '</pre>') + '</details>';
+}
+function abrirFoto(i) {
+  const r = filaPorRef(S.ref, S.ambiente), p = detalleDe(r).fotos[i];
+  document.getElementById('modal-cuerpo').innerHTML =
+    '<div class="mb-4 flex flex-col gap-2 pr-6"><h2 class="!mb-0 flex items-center gap-2 text-lg font-semibold leading-none">' + TIPOS_FOTO[p.tipo] + ' ' + chip(ESTADOS_FOTO[p.estado], COLOR_FOTO[p.estado]) + (p.fake ? chip('Posible suplantador', 'rosa', 'shield-alert') : '') + '</h2>' +
+    '<p class="text-sm text-muted-foreground">Documento ' + r.doc + ' · ' + (r.nom || 'Cliente no creado') + '</p></div>' +
+    '<div class="grid grid-cols-5 gap-5"><div class="col-span-3"><img src="' + placeholder(p.tipo, 520, 360) + '" class="w-full rounded-md border border-gray-200" alt="' + TIPOS_FOTO[p.tipo] + '">' +
+      '<p class="mt-1.5 text-xs text-gray-500">Foto original, sin marca de agua.</p></div>' +
+    '<div class="col-span-2 space-y-3">' +
+      (p.fake ? '<div class="flex gap-2 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">' + ic('shield-alert', 'mt-0.5 h-4 w-4 shrink-0') + '<span>La validación marcó esta foto como posible suplantador. Compárala con las otras fotos antes de responder al cliente.</span></div>' : '') +
+      campo('Carga', p.carga ? 'Cargada' : 'Pendiente de cargar') + campo('Mensaje de la validación', p.msg || '<span class="text-gray-400">—</span>') +
+      visor('Respuesta de la validación', p.resp, false) + visor('Seguimiento', p.track, false) +
+    '</div></div>';
+  const m = document.getElementById('modal'); m.classList.remove('hidden'); m.classList.add('flex'); pintarIconos(m);
+}
+function cerrarModal() { const m = document.getElementById('modal'); m.classList.add('hidden'); m.classList.remove('flex'); }
+
+/* ───────────── Toast ───────────── */
+function toast(titulo, texto, tipo) {
+  const c = tipo === 'pruebas' ? 'border-rose-200 bg-rose-50 text-rose-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900';
+  const el = document.createElement('div');
+  el.className = 'toast-in rounded-md border p-3 text-sm shadow-md ' + c;
+  el.innerHTML = '<div class="font-semibold">' + titulo + '</div><div class="mt-0.5">' + texto + '</div>';
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+/* ───────────── Render ───────────── */
+function render() {
+  const t = TABS.find(x => x[0] === S.tab);
+  document.getElementById('titulo-flujo').textContent = t[1];
+  document.getElementById('nota-flujo').textContent = t[2] + (S.permiso ? '' : ' · Ahora: usuario SIN permiso de cambiar ambiente, no ve el interruptor y siempre ve Producción.');
+  document.getElementById('tabs').innerHTML = TABS.map(([k, txt]) => '<button data-tab="' + k + '" class="rounded-t-md px-3 py-1.5 ' + (S.tab === k ? 'bg-white font-semibold text-slate-900' : 'text-slate-300 hover:bg-slate-800') + '">' + txt + '</button>').join('');
+  document.getElementById('franja').innerHTML = franja();
+  document.getElementById('lateral').innerHTML = lateral();
+  document.getElementById('panel-grupo').innerHTML = panelGrupo();
+  document.getElementById('migas').innerHTML = migas();
+  document.getElementById('pagina').innerHTML = S.vista === 'listado' ? vistaListado() : vistaDetalle();
+  document.getElementById('panel-cuerpo').innerHTML = panelEstados();
+  document.title = S.vista === 'detalle' ? 'Sesión ' + S.ref.slice(0, 8) + ' · Gestión de fotos - get' : 'Gestión de fotos - get';
+  // Dirección propia del detalle: se refleja en el hash (en get será /quac/validacion-fotos/gestion/{referencia})
+  history.replaceState(null, '', S.vista === 'detalle' ? '#/quac/validacion-fotos/gestion/' + S.ref : '#/quac/validacion-fotos/gestion');
+  pintarIconos(document);
+}
+
+/* ───────────── Eventos ───────────── */
+document.addEventListener('click', e => {
+  const el = sel => e.target.closest(sel);
+  let x;
+  if ((x = el('[data-tab]'))) return irTab(x.dataset.tab);
+  if ((x = el('[data-cerrar-modal]')) || e.target.id === 'modal') return cerrarModal();
+  if ((x = el('[data-foto]'))) return abrirFoto(+x.dataset.foto);
+  if ((x = el('[data-grupo]'))) { S.panelGrupo = !S.panelGrupo; return render(); }
+  if ((x = el('[data-cerrar-grupo]'))) { S.panelGrupo = false; return render(); }
+  if ((x = el('[data-ir-listado]'))) { S.panelGrupo = false; S.vista = 'listado'; if (S.tab === 'detalle') S.tab = 'listado'; return render(); }
+  if ((x = el('[data-ver]'))) { S.vista = 'detalle'; S.ref = x.dataset.ver; S.refAmbiente = S.ambiente; if (S.tab === 'listado') S.tab = 'detalle'; window.scrollTo(0, 0); return render(); }
+  if ((x = el('[data-copiar]'))) return toast('Referencia copiada', S.ref);
+  if ((x = el('[data-ambiente]'))) {
+    const v = x.dataset.ambiente; if (v === S.ambiente) return;
+    S.ambiente = v; S.pagina = 0; S.carga = 'normal';
+    if (S.vista === 'listado') S.tab = v === 'pruebas' ? 'pruebas' : 'listado';
+    render();
+    return v === 'pruebas' ? toast('Cambiaste a Pruebas', 'Las pantallas de Validación de fotos leen la base de pruebas hasta que cierres sesión.', 'pruebas') : toast('Volviste a Producción', 'Ves de nuevo las activaciones reales.');
+  }
+  if ((x = el('[data-pag]'))) { S.pagina = +x.dataset.pag; return render(); }
+  if ((x = el('#btn-buscar'))) {
+    S.filtros = { doc: document.getElementById('f-doc').value.trim(), desde: document.getElementById('f-desde').value, hasta: document.getElementById('f-hasta').value, estado: document.getElementById('f-estado').value };
+    S.carga = 'cargando'; S.pagina = 0; render();
+    return setTimeout(() => { S.aplicados = Object.assign({}, S.filtros); S.carga = 'normal'; render(); }, 700);
+  }
+  if ((x = el('[data-reintentar]'))) { S.carga = 'cargando'; render(); return setTimeout(() => { S.carga = 'normal'; render(); }, 700); }
+  // Panel del mockup
+  if ((x = el('[data-permiso]'))) { S.permiso = x.dataset.permiso === 'si'; if (!S.permiso) S.ambiente = 'prod'; if (!S.permiso && S.tab === 'pruebas') S.tab = 'listado'; return render(); }
+  if ((x = el('[data-carga]'))) { S.carga = x.dataset.carga; S.vista = 'listado'; if (S.tab === 'detalle') S.tab = 'listado'; return render(); }
+  if ((x = el('[data-caso]'))) {
+    S.ambiente = 'prod'; S.vista = 'detalle'; S.tab = 'detalle';
+    S.ref = x.dataset.caso === 'noexiste' ? '00000000-0000-4000-a000-000000000000' : DATOS.prod.find(r => r.caso === x.dataset.caso).ref; S.refAmbiente = 'prod';
+    return render();
+  }
+  if ((x = el('#panel-plegar'))) { document.getElementById('panel-cuerpo').classList.toggle('hidden'); }
+});
+document.addEventListener('change', e => { if (e.target.id === 'por-pagina') { S.porPagina = +e.target.value; S.pagina = 0; render(); } });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { cerrarModal(); if (S.panelGrupo) { S.panelGrupo = false; render(); } }
+  if (e.key === 'Enter' && e.target.id === 'f-doc') document.getElementById('btn-buscar').click();
+});
+render();
+</script>
+</body>
+</html>
