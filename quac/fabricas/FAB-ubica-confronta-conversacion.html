@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ubica y Confronta: la conversación</title>
+<style>
+  :root{
+    --tinta:#1d2433; --suave:#5b6577; --linea:#d5dae3; --fondo:#f5f6f9; --blanco:#fff;
+    --azul:#2457c5; --azul-f:#e8eefb;
+    --voz:#8a4bd1; --voz-f:#f3ecfc;
+    --ok:#1f8a4c; --ok-f:#e5f5ec;
+    --disc:#c47a00; --disc-f:#fdf2df;
+    --rojo:#c23b3b; --rojo-f:#fbe8e8;
+    --gris:#6b7280; --gris-f:#eef0f3;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--tinta);background:var(--fondo);overflow:hidden}
+
+  /* diapositivas */
+  .slide{position:absolute;inset:0 0 56px;overflow:auto;padding:48px max(32px, calc((100% - 1040px) / 2));display:none}
+  .slide.activa{display:block}
+  .slide h2{font-size:30px;margin:0 0 6px}
+  .slide .sub{color:var(--suave);font-size:18px;margin:0 0 28px}
+  .portada{display:none;flex-direction:column;justify-content:center}
+  .portada.activa{display:flex}
+  .portada h1{font-size:44px;line-height:1.15;margin:0 0 14px}
+  .portada p{font-size:20px;color:var(--suave);margin:0}
+  .portada .marca{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--azul);font-weight:700;margin-bottom:18px}
+
+  nav{position:fixed;left:0;right:0;bottom:0;height:56px;background:var(--blanco);border-top:1px solid var(--linea);display:flex;align-items:center;justify-content:space-between;padding:0 24px;gap:12px}
+  nav button{border:1px solid var(--linea);background:var(--blanco);border-radius:8px;padding:8px 16px;font:inherit;cursor:pointer}
+  nav button:disabled{opacity:.35;cursor:default}
+  nav .titulo{color:var(--suave);font-size:14px;flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  nav .puntos{display:flex;gap:6px}
+  nav .puntos i{width:8px;height:8px;border-radius:50%;background:var(--linea);display:block}
+  nav .puntos i.on{background:var(--azul)}
+
+  .tarjeta{background:var(--blanco);border:1px solid var(--linea);border-radius:12px;padding:20px 22px}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+  .tarjeta h3{margin:0 0 8px;font-size:19px}
+  .tarjeta p{margin:0;color:var(--suave)}
+  .cifra{font-size:46px;font-weight:800;line-height:1;margin-bottom:8px}
+  .cifra.mala{color:var(--rojo)}
+  ul.lista{margin:0;padding-left:20px}
+  ul.lista li{margin:6px 0}
+
+  /* selector */
+  .selector{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 14px}
+  .selector button{flex:1 1 280px;text-align:left;border:2px solid var(--linea);background:var(--blanco);border-radius:10px;padding:12px 16px;cursor:pointer;font:inherit;color:inherit}
+  .selector button strong{display:block;font-size:16px}
+  .selector button span{color:var(--suave);font-size:14px}
+  .selector button[aria-pressed="true"]{border-color:var(--azul);background:var(--azul-f)}
+
+  /* chips */
+  .tecla{display:inline-block;min-width:26px;padding:1px 8px;border-radius:6px;background:var(--azul);color:#fff;font-weight:700;text-align:center;font-size:13px;margin-right:6px}
+  .res{display:inline-block;padding:3px 10px;border-radius:999px;font-weight:700;font-size:13px;white-space:nowrap}
+  .res.ok{background:var(--ok-f);color:var(--ok)}
+  .res.disc{background:var(--disc-f);color:var(--disc)}
+  .res.noreco{background:var(--rojo-f);color:var(--rojo)}
+  .res.sig{background:var(--gris-f);color:var(--gris)}
+  .muestra-voz{display:inline-block;width:22px;height:14px;border:2px dashed var(--voz);border-radius:4px;background:var(--voz-f)}
+  .leyenda{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 18px;font-size:13px;color:var(--suave)}
+  .leyenda span{display:inline-flex;align-items:center;gap:6px}
+
+  /* árbol */
+  .arbol, .arbol ul{list-style:none;margin:0;padding:0}
+  .arbol ul{margin-left:26px;padding-left:22px;border-left:2px solid var(--linea)}
+  .arbol li{position:relative;padding:10px 0 0}
+  .arbol ul > li::before{content:"";position:absolute;left:-22px;top:32px;width:20px;border-top:2px solid var(--linea)}
+  .arbol ul > li:last-child{border-left:2px solid var(--fondo);margin-left:-2px}
+  .nodo{background:var(--blanco);border:1px solid var(--linea);border-radius:10px;padding:12px 14px;max-width:720px}
+  .nodo + .nodo{margin-top:10px}
+  .nodo .que{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--suave);margin-bottom:4px}
+  .nodo .dice::before{content:"🤖 "}
+  .nodo.inicio{background:var(--tinta);color:#fff;border-color:var(--tinta)}
+  .nodo.inicio .que,.nodo.inicio .nota{color:#c9cfdb}
+  .nodo.voz{border:2px dashed var(--voz);background:var(--voz-f)}
+  .nodo.voz .que{color:var(--voz)}
+  .nodo.voz .dice::before{content:"🎙️ "}
+  .nota{font-size:13px;color:var(--suave);margin-top:6px}
+  .rama{font-weight:600;font-size:14px;margin:0 0 2px;display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+  .rama .tecla{margin-right:0}
+
+  /* variantes A/B por diapositiva */
+  .slide .solo-a,.slide .solo-b{display:none}
+  .slide.va .solo-a{display:block}
+  .slide.vb .solo-b{display:block}
+  .slide.va span.solo-a,.slide.vb span.solo-b{display:inline-flex}
+
+  table{width:100%;border-collapse:collapse;background:var(--blanco);border:1px solid var(--linea);border-radius:12px;overflow:hidden}
+  th,td{padding:12px 14px;border-bottom:1px solid var(--linea);text-align:left;vertical-align:top;font-size:15px}
+  th{background:var(--gris-f);font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--suave)}
+  tr:last-child td{border-bottom:0}
+
+  @media (max-width:640px){
+    .slide{padding:28px 16px}
+    .portada h1{font-size:32px}
+    .arbol ul{margin-left:10px;padding-left:14px}
+    .arbol ul > li::before{left:-14px;width:12px}
+    nav .titulo{display:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- 1 · Ubica -->
+<section class="slide va" data-titulo="Ubica: la conversación" data-variantes>
+  <h2>Ubica: la conversación</h2>
+  <div class="selector" role="group" aria-label="Variante del Ubica">
+    <button data-v="a" aria-pressed="true"><strong>A · Voz solo si niega la solicitud</strong><span>Se graba el nombre del cliente únicamente cuando dice que no está pidiendo el crédito.</span></button>
+    <button data-v="b" aria-pressed="false"><strong>B · Voz también al confirmar</strong><span>Además se graba el nombre cuando el cliente confirma la solicitud.</span></button>
+  </div>
+  <div class="leyenda">
+    <span><span class="tecla">1</span> el cliente marca</span>
+    <span><span class="muestra-voz"></span> se graba la voz, no se evalúa</span>
+    <span><span class="res ok">OK</span></span><span><span class="res disc">Discrepancia</span></span><span><span class="res noreco">No reconoce la solicitud</span></span><span><span class="res sig">Siguiente línea</span></span>
+  </div>
+  <ul class="arbol">
+    <li>
+      <div class="nodo inicio"><div class="que">Inicio</div>Se marca cada número del Reconocer, hasta 3 veces, con tiempo entre un intento y otro.</div>
+      <ul>
+        <li>
+          <div class="nodo"><div class="que">Saludo</div><div class="dice">«Hola, le habla el asistente virtual de Por Cuotas S.A.S. Esta llamada está siendo grabada para su seguridad. ¿Hablo con <b>{nombre completo}</b>? Si es usted, marque 1. Si no es usted pero lo conoce, marque 2. Si no lo conoce, marque 3. Para repetir este menú, marque 4.»</div></div>
+          <ul>
+            <li>
+              <p class="rama"><span class="tecla">1</span> Es el titular</p>
+              <div class="nodo"><div class="que">Confirmar la solicitud</div><div class="dice">«Lo llamamos por la solicitud de crédito que está haciendo en uno de nuestros comercios aliados. Si usted la está haciendo, marque 1. Si no, marque 2.»</div></div>
+              <ul>
+                <li>
+                  <p class="rama"><span class="tecla">1</span> Sí la está haciendo</p>
+                  <div class="nodo voz solo-b"><div class="que">Constancia de voz</div><div class="dice">«Para dejar constancia, diga su nombre completo después del tono.»</div></div>
+                  <div class="nodo"><div class="que">Celular de la solicitud</div><div class="dice">«Digite el número de celular con el que hizo la solicitud y termine con numeral.»</div></div>
+                  <ul>
+                    <li><p class="rama">Coincide <span class="res ok">OK</span></p></li>
+                    <li><p class="rama">No coincide <span class="res disc">Discrepancia</span></p></li>
+                  </ul>
+                </li>
+                <li>
+                  <p class="rama"><span class="tecla">2</span> No la está haciendo</p>
+                  <div class="nodo"><div class="que">Explicar la llamada</div><div class="dice">«Le hablamos de Por Cuotas S.A.S. Lo estamos llamando porque en uno de nuestros comercios aliados se está haciendo una solicitud de crédito a su nombre.»</div><div class="nota">El cliente no esperaba la llamada: primero se le explica por qué lo llamamos.</div></div>
+                  <div class="nodo voz"><div class="que">Constancia de voz</div><div class="dice">«Para cancelar la solicitud, por favor confírmeme su nombre completo después del tono.»</div></div>
+                  <div class="nodo"><div class="que">Proteger la identidad</div><div class="dice">«Para proteger su identidad, digite su número de cédula y termine con numeral.»</div></div>
+                  <ul>
+                    <li><p class="rama">Coincide <span class="res noreco">No reconoce la solicitud</span></p></li>
+                    <li><p class="rama">No coincide <span class="res disc">Discrepancia</span></p></li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <p class="rama"><span class="tecla">2</span> Lo conoce</p>
+              <div class="nodo"><div class="que">Conseguir el celular del titular</div><div class="dice">«Necesitamos comunicarnos con <b>{nombre}</b>. Si tiene su número de celular, marque 1. Si no lo tiene, marque 2.»</div><div class="nota">No se menciona el crédito.</div></div>
+              <ul>
+                <li>
+                  <p class="rama"><span class="tecla">1</span> Tiene el número</p>
+                  <div class="nodo"><div class="dice">«Digite el número de celular de <b>{nombre}</b> y termine con numeral.»</div></div>
+                  <ul>
+                    <li><p class="rama">Coincide con el de la solicitud <span class="res ok">OK</span></p></li>
+                    <li><p class="rama">No coincide <span class="res disc">Discrepancia</span></p></li>
+                  </ul>
+                </li>
+                <li>
+                  <p class="rama"><span class="tecla">2</span> No lo tiene</p>
+                  <div class="nodo"><div class="dice">«Hemos finalizado el proceso, gracias por su atención.»</div></div>
+                  <ul><li><p class="rama">Sin dato <span class="res sig">Siguiente línea</span></p></li></ul>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <p class="rama"><span class="tecla">3</span> No lo conoce</p>
+              <div class="nodo"><div class="dice">«Disculpe la molestia. Hemos finalizado el proceso, gracias por su atención.»</div></div>
+              <ul><li><p class="rama">Número equivocado <span class="res sig">Siguiente línea</span></p></li></ul>
+            </li>
+            <li><p class="rama"><span class="tecla">4</span> Repetir → se vuelve a leer el saludo</p></li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+  </ul>
+  <div class="tarjeta" style="margin-top:16px"><b>Despedida en toda llamada:</b> «Hemos finalizado el proceso, gracias por su atención.» La primera respuesta que da un resultado termina el Ubica. Si ninguna línea contesta, se hace el Confronta.</div>
+</section>
+
+<!-- 2 · Confronta -->
+<section class="slide" data-titulo="Confronta: la conversación">
+  <h2>Confronta: la conversación</h2>
+  <div class="leyenda">
+    <span><span class="tecla">1</span> el cliente marca</span>
+    <span><span class="muestra-voz"></span> el cliente responde hablando</span>
+    <span><span class="res ok">OK</span></span><span><span class="res disc">Discrepancia</span></span><span><span class="res noreco">No reconoce la solicitud</span></span>
+  </div>
+  <ul class="arbol">
+    <li>
+      <div class="nodo inicio"><div class="que">Inicio</div>Se llama al celular de la solicitud, hasta 3 veces, con tiempo entre un intento y otro.</div>
+      <ul>
+        <li>
+          <div class="nodo"><div class="que">Saludo</div><div class="dice">«Hola, le habla el asistente virtual de Por Cuotas S.A.S. Esta llamada está siendo grabada para su seguridad. ¿Hablo con <b>{nombre completo}</b>? Si es usted, marque 1. Si no, marque 2. Para repetir este menú, marque 3.»</div></div>
+          <ul>
+            <li>
+              <p class="rama"><span class="tecla">2</span> No es el titular</p>
+              <div class="nodo"><div class="dice">«Disculpe la molestia. Hemos finalizado el proceso, gracias por su atención.»</div></div>
+              <ul><li><p class="rama">El celular de la solicitud no es del cliente <span class="res disc">Discrepancia</span></p></li></ul>
+            </li>
+            <li>
+              <p class="rama"><span class="tecla">1</span> Es el titular</p>
+              <div class="nodo"><div class="que">Confirmar la solicitud</div><div class="dice">«Lo llamamos por la solicitud de crédito que está haciendo en uno de nuestros comercios aliados. Si usted la está haciendo, marque 1. Si no, marque 2.»</div></div>
+              <ul>
+                <li>
+                  <p class="rama"><span class="tecla">2</span> No la está haciendo</p>
+                  <div class="nodo voz"><div class="que">Constancia de voz</div><div class="dice">«Para dejar constancia, diga su nombre completo después del tono.»</div></div>
+                  <ul><li><p class="rama"><span class="res noreco">No reconoce la solicitud</span></p></li></ul>
+                </li>
+                <li>
+                  <p class="rama"><span class="tecla">1</span> Sí la está haciendo</p>
+                  <div class="nodo voz"><div class="que">Dato 1 · Nombre</div><div class="dice">«Para iniciar con la validación de datos, confirme su nombre completo después del tono.»</div></div>
+                  <div class="nodo voz"><div class="que">Dato 2 · Documento</div><div class="dice">«Ahora diga su número de documento después del tono.»</div></div>
+                  <div class="nodo voz"><div class="que">Dato 3 · Correo</div><div class="dice">«Ahora diga su correo electrónico después del tono.»</div></div>
+                  <div class="nodo voz"><div class="que">Dato 4 · Dirección</div><div class="dice">«Diga su dirección completa, con el barrio y la ciudad, después del tono.»</div></div>
+                  <div class="nodo"><div class="que">Cambio a teclado</div><div class="dice">«Las siguientes respuestas márquelas con el teclado de su celular. No las diga en voz alta.»</div><div class="nota">Primero va todo lo hablado y al final lo marcado. Este aviso evita que el cliente diga los números.</div></div>
+                  <div class="nodo"><div class="que">Dato 5 · Celular de la solicitud</div><div class="dice">«Digite el número de celular con el que hizo la solicitud y termine con numeral.»</div></div>
+                  <div class="nodo"><div class="que">Dato 6 · Otro celular</div><div class="dice">«¿Tiene otro número de celular? Si lo tiene, digítelo y termine con numeral. Si no tiene otro, marque solo numeral.»</div><div class="nota">Si marca solo numeral, este dato no cuenta.</div></div>
+                  <ul>
+                    <li><p class="rama">Todo coincide con la solicitud y el Reconocer <span class="res ok">OK</span></p></li>
+                    <li><p class="rama">Algún dato no coincide <span class="res disc">Discrepancia</span></p><div class="nota">Pasa a la fábrica de soporte con la grabación de la llamada.</div></li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+            <li><p class="rama"><span class="tecla">3</span> Repetir → se vuelve a leer el saludo</p></li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+  </ul>
+  <div class="tarjeta" style="margin-top:16px"><b>Despedida en toda llamada:</b> «Hemos finalizado el proceso, gracias por su atención.»</div>
+</section>
+
+<!-- 3 · Preguntas -->
+<section class="slide" data-titulo="Para decidir">
+  <h2>Para decidir</h2>
+  <p class="sub">Lo que falta definir antes de programar la conversación.</p>
+  <div class="grid2">
+    <div class="tarjeta"><h3>1 · ¿Grabamos la voz también cuando confirma?</h3><p>Cuando el cliente niega la solicitud, siempre se graba su nombre. A: solo en ese caso. B: también cuando la confirma, como evidencia si después dice «yo no pedí ese crédito».</p></div>
+    <div class="tarjeta"><h3>2 · Si el cliente dice que no pidió el crédito</h3><p>¿La solicitud se cancela de inmediato o la revisa primero la fábrica de soporte?</p></div>
+    <div class="tarjeta"><h3>3 · ¿Cuándo se hace cada llamada?</h3><p>Propuesta: el Ubica cuando el cliente no lleva 4 meses con la misma línea, y el Confronta solo si ninguna línea del Ubica contesta.</p></div>
+    <div class="tarjeta"><h3>4 · Si un conocido da otro celular</h3><p>Si el número que digita no es el de la solicitud, ¿es una discrepancia o solo se registra?</p></div>
+    <div class="tarjeta"><h3>5 · Solicitudes por la página web</h3><p>El bot dice «en uno de nuestros comercios aliados». ¿Qué dice cuando la solicitud se hizo por la página web?</p></div>
+    <div class="tarjeta"><h3>6 · Tiempo entre intentos</h3><p>¿Cuánto esperamos entre una llamada y otra al mismo número? Propuesta: 10 minutos.</p></div>
+    <div class="tarjeta"><h3>7 · «No tengo otro celular»</h3><p>Si el cliente dice que no tiene otro celular pero el Reconocer trae uno, ¿cuenta como discrepancia? Propuesta: no cuenta, porque muchos números del Reconocer son viejos. El resultado se decide con los demás datos.</p></div>
+  </div>
+</section>
+
+<nav>
+  <button id="ant" aria-label="Anterior">← Anterior</button>
+  <div class="puntos" id="puntos"></div>
+  <div class="titulo" id="titulo"></div>
+  <button id="sig" aria-label="Siguiente">Siguiente →</button>
+</nav>
+
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  const puntos = document.getElementById('puntos');
+  slides.forEach(() => puntos.appendChild(document.createElement('i')));
+  let i = 0;
+  function ir(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('activa', k === i));
+    [...puntos.children].forEach((p, k) => p.classList.toggle('on', k === i));
+    document.getElementById('titulo').textContent = (i + 1) + ' / ' + slides.length + ' · ' + slides[i].dataset.titulo;
+    document.getElementById('ant').disabled = i === 0;
+    document.getElementById('sig').disabled = i === slides.length - 1;
+    slides[i].scrollTop = 0;
+    history.replaceState(null, '', '#' + (i + 1));
+  }
+  document.getElementById('ant').onclick = () => ir(i - 1);
+  document.getElementById('sig').onclick = () => ir(i + 1);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') ir(i + 1);
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') ir(i - 1);
+  });
+  document.querySelectorAll('[data-variantes]').forEach(s => {
+    s.querySelectorAll('.selector button').forEach(b => b.onclick = () => {
+      const v = b.dataset.v;
+      s.classList.toggle('va', v === 'a'); s.classList.toggle('vb', v === 'b');
+      s.querySelectorAll('.selector button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    });
+  });
+  ir((parseInt(location.hash.slice(1), 10) || 1) - 1);
+</script>
+</body>
+</html>
