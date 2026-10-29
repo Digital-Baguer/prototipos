@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REQ-QUINTA-064 · Responsables de bodega</title>
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+/* Tokens del admin nuevo (resources/css/app.css de quinta-admin-v2, origin/main f91ca): mismos HSL que el mockup 077. */
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: {
+    fontFamily: { sans: ['Instrument Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+    colors: {
+      border: 'hsl(var(--border) / <alpha-value>)', input: 'hsl(var(--input) / <alpha-value>)', ring: 'hsl(var(--ring) / <alpha-value>)',
+      background: 'hsl(var(--background) / <alpha-value>)', foreground: 'hsl(var(--foreground) / <alpha-value>)',
+      primary: { DEFAULT: 'hsl(var(--primary) / <alpha-value>)', foreground: 'hsl(var(--primary-foreground) / <alpha-value>)' },
+      muted: { DEFAULT: 'hsl(var(--muted) / <alpha-value>)', foreground: 'hsl(var(--muted-foreground) / <alpha-value>)' },
+      accent: { DEFAULT: 'hsl(var(--accent) / <alpha-value>)', foreground: 'hsl(var(--accent-foreground) / <alpha-value>)' },
+      card: { DEFAULT: 'hsl(var(--card) / <alpha-value>)', foreground: 'hsl(var(--card-foreground) / <alpha-value>)' },
+      popover: { DEFAULT: 'hsl(var(--popover) / <alpha-value>)', foreground: 'hsl(var(--popover-foreground) / <alpha-value>)' },
+      sidebar: { DEFAULT: 'hsl(var(--sidebar-background) / <alpha-value>)', foreground: 'hsl(var(--sidebar-foreground) / <alpha-value>)',
+        accent: { DEFAULT: 'hsl(var(--sidebar-accent) / <alpha-value>)', foreground: 'hsl(var(--sidebar-accent-foreground) / <alpha-value>)' },
+        border: 'hsl(var(--sidebar-border) / <alpha-value>)' },
+    },
+    borderRadius: { lg: 'var(--radius)', md: 'calc(var(--radius) - 2px)', sm: 'calc(var(--radius) - 4px)' },
+  } },
+};
+</script>
+<style>
+  :root{--background:0 0% 100%;--foreground:0 0% 3.9%;--card:0 0% 100%;--card-foreground:0 0% 3.9%;--popover:0 0% 100%;--popover-foreground:0 0% 3.9%;--primary:218 68% 42%;--primary-foreground:0 0% 98%;--secondary:0 0% 92.1%;--muted:0 0% 96.1%;--muted-foreground:0 0% 45.1%;--accent:0 0% 96.1%;--accent-foreground:0 0% 9%;--border:0 0% 92.8%;--input:0 0% 89.8%;--ring:218 68% 42%;--radius:0.5rem;--sidebar-background:0 0% 98%;--sidebar-foreground:240 5.3% 26.1%;--sidebar-accent:0 0% 94%;--sidebar-accent-foreground:0 0% 30%;--sidebar-border:0 0% 91%}
+  *{border-color:hsl(var(--border))}
+  body{background:hsl(var(--background));color:hsl(var(--foreground))}
+  .mk-bar{position:sticky;top:0;z-index:60}
+  .mk-ic{width:1rem;height:1rem;flex:none}
+  .no-scrollbar::-webkit-scrollbar{display:none}
+  .th-sticky{position:sticky;top:0;z-index:2}
+  .col-sticky{position:sticky;left:0;z-index:1}
+  tr.anulada td{color:hsl(var(--muted-foreground))}
+  tr.anulada td .tachar{text-decoration:line-through}
+  @keyframes entra{from{transform:translateX(100%)}to{transform:none}}
+  @keyframes funde{from{opacity:0}to{opacity:1}}
+  .anim-sheet{animation:entra .35s cubic-bezier(.32,.72,0,1)}
+  .anim-fade{animation:funde .15s ease-out}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+
+<body class="font-sans antialiased bg-neutral-200/70 text-foreground">
+
+<!-- ===== Barra del mockup (no es parte de la app) ===== -->
+<div class="mk-bar border-b border-neutral-700 bg-neutral-900 text-neutral-100">
+  <div class="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2.5">
+    <div class="text-[12.5px] font-semibold">REQ-QUINTA-064 · Responsables de bodega</div>
+    <div class="flex items-center gap-1.5 text-[11.5px] text-neutral-400">Rol <div id="mk-rol" class="flex gap-1 rounded-md bg-neutral-800 p-0.5"></div></div>
+  </div>
+  <div class="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-neutral-800 px-5 py-2">
+    <div class="text-[11.5px] text-neutral-400">Estado:</div>
+    <div id="mk-estados" class="flex flex-wrap gap-1.5"></div>
+    <div id="mk-nota" class="ml-auto text-[11.5px] text-neutral-400"></div>
+  </div>
+</div>
+
+<div id="stage"></div>
+
+<!-- ===== Notas del mockup (no es parte de la app) ===== -->
+<footer class="border-t border-neutral-700 bg-neutral-900 text-neutral-300">
+  <div class="mx-auto max-w-[1440px] px-5 py-5 text-[12.5px] leading-relaxed">
+    <p class="font-semibold text-neutral-100">Notas para el revisor</p>
+    <ul class="mt-2 list-disc space-y-1 pl-5">
+      <li><b class="text-neutral-100">Bodegas reales, personas de ejemplo.</b> Las 7 bodegas activas de <code>pos_centros_inventarios</code> (D7); la 9 Almacén Tintipán está inactiva y no sale. Los nombres de usuario son inventados, salvo Luzete (Planeación, usuario 132). El rol bajo cada nombre sale de <code>app_usuarios.rol_id</code>; los nombres de rol son de ejemplo.</li>
+      <li><b class="text-neutral-100">Calcado de quinta-admin-laravel <code>origin/main</code> (a59b9):</b> panel lateral = <code>components/ui/sheet</code> con la clase de <code>dashboard/PanelDetalleCelda.vue</code> (<code>sm:max-w-xl</code>); botones = <code>ui/button</code>; buscador = <code>ui/input</code>; lista desplegable = clases de <code>ui/dropdown-menu</code>; tooltip = <code>ui/tooltip</code>; carga = <code>ui/skeleton</code>; chips = <code>stock/ChipSenal.vue</code>; tabla = patrón de <code>stock/TablaBodega.vue</code> y <code>catalogo/MatrizAreasSedes.vue</code>; aviso de guardado = <code>catalogo/AvisoGuardado.vue</code>; error al guardar = <code>catalogo/AvisoFalloGuardado.vue</code>; confirmación = <code>catalogo/ConfirmarActivo.vue</code> (<code>ui/dialog</code>).</li>
+      <li><b class="text-neutral-100">No existe en el admin y entra al plan:</b> <i>componente nuevo: selector de usuario con búsqueda</i> (no hay combobox, command ni select en <code>components/ui</code>; radix-vue 1.9 trae <code>Combobox</code>); <i>componente nuevo: radio «Principal»</i> (no hay <code>ui/radio-group</code>). Tampoco hay <code>ui/badge</code>, <code>ui/table</code> ni librería de toasts: se usan las clases en línea y los avisos del checklist, como hace Stock.</li>
+      <li><b class="text-neutral-100">Reglas del panel:</b> el primero que se agrega queda principal; al principal no se le puede quitar mientras haya otros (marca otro antes); quitar al único pide confirmación y la bodega queda «Sin responsable» (D6). Un usuario inactivo no se puede marcar principal ni aparece en el buscador (D9). Nada se guarda hasta pulsar Guardar.</li>
+      <li><b class="text-neutral-100">«Asignado por … · fecha»</b> es la fila vigente (D8): al quitar se borra, sin historial. Si cambiar de principal reescribe ese pie o no, lo decide el plan; el mockup lo conserva.</li>
+      <li><b class="text-neutral-100">Menú:</b> «Bodegas» entra como hijo de Productos, junto a Stock (D10). Lo ve quien tiene «ver» de Stock; el botón Editar y el panel, solo quien tiene «editar» (roles 1 y 16, D5).</li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+const ISO_LOGO = 'data:image/png;base64,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';
+
+/* =====================================================================
+   Utilidades (las del 063)
+   ===================================================================== */
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const fFecha = iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)} ${iso.slice(11, 16)}`;
+const HOY = '2026-10-28';
+const ahora = () => { const d = new Date(); return `${HOY} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+
+/* Íconos Lucide (los del admin) */
+const LU = {
+  chevR: '<path d="m9 18 6-6-6-6"/>', chevD: '<path d="m6 9 6 6 6-6"/>', x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  panel: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>',
+  updown: '<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>',
+  alert: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  pencil: '<path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6M14 11v6"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/>',
+  userPlus: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
+  warehouse: '<path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12"/><path d="M6 14h12"/><rect width="12" height="12" x="6" y="10"/>',
+  // menú (058, iconosModulos.ts)
+  chartBar: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16h8M7 11h12M7 6h3"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  clipboard: '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/>',
+  bell: '<path d="M3 20a1 1 0 0 1-1-1v-1a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1Z"/><path d="M20 16a8 8 0 1 0-16 0"/><path d="M12 4v4M10 4h4"/>',
+  dollar: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  anchor: '<circle cx="12" cy="5" r="3"/><path d="M12 22V8M5 12H2a10 10 0 0 0 20 0h-3"/>',
+  cart: '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
+  calPlus: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/>',
+  calDays: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  utensils: '<path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8"/><path d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7"/><path d="m2.1 21.8 6.4-6.3"/><path d="m19 5-7 7"/>',
+  calc: '<rect width="16" height="20" x="4" y="2" rx="2"/><path d="M8 6h8M16 14v4M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/>',
+  cog: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  fileText: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/>',
+  pkg: '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12M3.3 7 12 12l8.7-5"/>',
+  chartLine: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/>',
+  banknote: '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+  handCoins: '<path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"/><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 16 6 6"/><circle cx="16" cy="9" r="2.9"/><circle cx="6" cy="5" r="3"/>',
+  badgeDollar: '<path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/>',
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+};
+const ic = (k, cls = 'mk-ic') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${LU[k]}</svg>`;
+const sk = cls => `<div class="animate-pulse rounded-md bg-muted ${cls}"></div>`;
+
+/* Chips: stock/ChipSenal.vue. Gris neutro, esmeralda positivo, negro en curso, rosa bloqueante. Ámbar prohibido. */
+const CHIP = {
+  rosa: 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200',
+  negro: 'bg-neutral-900 text-white',
+  gris: 'bg-neutral-100 text-neutral-600',
+  verde: 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200',
+};
+const chip = (t, c, tip = '', extra = '') => `<span class="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${CHIP[c]} ${extra}" ${tip ? `title="${esc(tip)}"` : ''}>${t}</span>`;
+
+/* ui/button (buttonVariants) */
+const BTN = 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0';
+const BTN_DEF = `${BTN} h-9 px-4 py-2 bg-primary text-primary-foreground shadow hover:bg-primary/90`;
+const BTN_OUT = `${BTN} h-9 px-4 py-2 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground`;
+const BTN_GHOST_ICON = `${BTN} h-8 w-8 hover:bg-accent hover:text-accent-foreground`;
+/* stock/TablaBodega.vue */
+const TH = 'whitespace-nowrap px-2 py-2.5 font-semibold uppercase tracking-wide';
+/* ui/tooltip TooltipContent */
+const TIP = 'z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md';
+
+/* =====================================================================
+   Datos: bodegas activas reales (pos_centros_inventarios.activo = 1, D7); usuarios de ejemplo.
+   U[id] = [nombre, rol, activo]
+   ===================================================================== */
+const BOD = [
+  { id: 1, n: 'Tintipán', sede: 'Tintipán' },
+  { id: 2, n: 'Sunset', sede: 'Sunset' },
+  { id: 3, n: 'El Paraíso', sede: 'El Paraíso' },
+  { id: 4, n: 'La Joya', sede: 'La Joya' },
+  { id: 6, n: 'El Francés', sede: 'El Francés' },
+  { id: 7, n: 'Crystal Beach', sede: 'Crystal Beach' },
+  { id: 8, n: 'Almacén Tolú', sede: null },
+];
+const BODM = Object.fromEntries(BOD.map(b => [b.id, b]));
+const U = {
+  132: ['Luzete', 'Planeación', 1],
+  201: ['Yeison Barrios Julio', 'Administración de sede', 1],
+  202: ['Katherine Pérez Montes', 'Cocina', 1],
+  203: ['Dairo Arrieta Meléndez', 'Administración de sede', 1],
+  204: ['Mónica Cassiani Rivas', 'Bar', 1],
+  205: ['Éver Salgado Correa', 'Bar', 0],
+  206: ['Wilmer Torres Padilla', 'Administración de sede', 0],
+  207: ['Yuleidis Mercado Pájaro', 'Cocina', 1],
+  208: ['Andrés Caraballo Teherán', 'Administración de sede', 1],
+  209: ['Jhon Fredy Ospina', 'Almacén', 1],
+  210: ['Kelly Johana Pájaro', 'Almacén', 1],
+  211: ['Carolina Díaz Herazo', 'Administrador', 1],
+  212: ['Elkin Vásquez Ortega', 'Mantenimiento', 1],
+  213: ['Yuranis Ortega Batista', 'Recepción', 1],
+  214: ['Luis Ángel Mendoza', 'Cocina', 1],
+  215: ['Ana Milena Romero', 'Ama de llaves', 1],
+  216: ['Deivis Herrera Blanco', 'Mantenimiento', 1],
+  217: ['Sandra Patricia Villalba', 'Recepción', 1],
+  218: ['Jesús David Olivera', 'Bar', 1],
+  219: ['Marlon Guerrero Atencia', 'Almacén', 0],
+  220: ['Leidy Tatiana Puello', 'Ventas', 1],
+  221: ['Óscar Iván Montes', 'Cocina', 1],
+};
+const activo = u => U[u][2] === 1;
+/* Responsables vigentes (una fila por responsable, D8): u, principal, asignado por, cuándo */
+const ASIG0 = {
+  1: [{ u: 201, p: true, por: 132, f: '2026-10-14 10:02' }, { u: 202, p: false, por: 132, f: '2026-10-14 10:03' }],
+  2: [],
+  3: [{ u: 203, p: true, por: 132, f: '2026-10-15 08:40' }, { u: 204, p: false, por: 132, f: '2026-10-15 08:41' }, { u: 205, p: false, por: 211, f: '2026-09-02 16:22' }],
+  4: [{ u: 206, p: true, por: 211, f: '2026-09-02 16:30' }, { u: 207, p: false, por: 132, f: '2026-10-15 08:52' }],
+  6: [],
+  7: [{ u: 208, p: true, por: 132, f: '2026-10-21 11:05' }],
+  8: [{ u: 132, p: true, por: 132, f: '2026-10-28 09:14' }, { u: 209, p: false, por: 132, f: '2026-10-28 09:14' }, { u: 210, p: false, por: 132, f: '2026-10-28 09:15' }],
+};
+const copiar = a => JSON.parse(JSON.stringify(a));
+let ASIG = copiar(ASIG0);
+
+/* Estado de la fila (D3, D6, D9) */
+function estadoBodega(lista) {
+  if (!lista.length) return { k: 'sin', chip: chip('Sin responsable', 'rosa', 'Nadie responde por esta bodega todavía') };
+  const pr = lista.find(r => r.p);
+  if (!pr || !activo(pr.u)) return { k: 'sinp', chip: chip('Sin principal activo', 'rosa', pr ? `${U[pr.u][0]} tiene el usuario inactivo` : 'Ningún responsable está marcado como principal') };
+  return { k: 'ok', chip: chip('Con principal', 'verde') };
+}
+
+/* =====================================================================
+   Estado del mockup (también por URL: ?rol=recep&estado=vacio)
+   ===================================================================== */
+const Q = new URLSearchParams(location.search);
+const S = {
+  rol: Q.get('rol') === 'recep' ? 'recep' : 'plan', estado: Q.get('estado') || 'normal',
+  panel: null, draft: [], q: '', dd: false, confirmar: null, fallo: false, simularFallo: false, guardando: false,
+  aviso: null, cargando: false, animPanel: false, animDialogo: false,
+};
+const yo = () => S.rol === 'plan' ? 132 : 213;
+const puedeEditar = () => S.rol === 'plan';
+
+/* =====================================================================
+   Barra del mockup
+   ===================================================================== */
+function seg(items, activo, act) {
+  return items.map(([v, t]) => `<button data-act="${act}" data-v="${v}" class="rounded px-2.5 py-1 text-[11.5px] font-medium ${String(v) === String(activo) ? 'bg-white text-neutral-900' : 'text-neutral-300 hover:text-white'}">${t}</button>`).join('');
+}
+const ESTADOS = [['normal', 'Normal'], ['carga', 'Cargando'], ['error', 'Error al cargar'], ['panel', 'Panel de edición', 1], ['vacio', 'Buscador sin resultados', 1],
+  ['ok', 'Guardado', 1], ['fallo', 'Error al guardar', 1], ['confirmar', 'Quitar al único responsable', 1]];
+function pintarBarra() {
+  document.getElementById('mk-rol').innerHTML = seg([['plan', 'Planeación (editar)'], ['recep', 'Recepción (solo ver)']], S.rol, 'mk-rol');
+  document.getElementById('mk-estados').innerHTML = ESTADOS.map(([v, t, ed]) => {
+    const off = ed && !puedeEditar();
+    return `<button data-act="mk-est" data-v="${v}" ${off ? 'disabled title="Recepción no tiene «editar» de Stock"' : ''} class="rounded-full border px-2.5 py-0.5 text-[11.5px] disabled:opacity-35 ${S.estado === v ? 'border-white bg-white text-neutral-900' : 'border-neutral-600 text-neutral-300 hover:border-neutral-400'}">${t}</button>`;
+  }).join('');
+  document.getElementById('mk-nota').textContent = puedeEditar()
+    ? 'Hoy: miércoles 28 de octubre de 2026 · Luzete, Planeación (rol 16): «ver» y «editar» de Stock'
+    : 'Recepción: «ver» de Stock sin «editar». Consulta los responsables; no ve Editar ni el panel (D5)';
+}
+
+/* =====================================================================
+   Marco: sidebar inset del 058 y encabezado con migas (calcado del 063)
+   ===================================================================== */
+const MENU = [
+  ['Dashboard Ocupación', 'chartBar', 'propio'], ['Sin gestionar', 'clock'], ['Checklist', 'clipboard', 'padre'],
+  ['Gestión de Reservas', 'bell', 'padre'], ['Cotización', 'dollar'], ['Botes', 'anchor', 'padre'], ['Proyeccion de compras', 'cart'],
+  ['Ver disponibilidad', 'calPlus'], ['Calendario disponibilidad', 'calDays'], ['Asignar personal', 'userPlus'], ['Registro de huéspedes', 'users'],
+  ['Gestión de productos', 'utensils', 'padre'], ['Consumos y servicios', 'calc', 'padre'], ['Mantenimiento', 'cog', 'padre'], ['Informes', 'fileText', 'padre'],
+  ['Productos', 'pkg', 'abierto'], ['Indicadores', 'chartLine', 'padre'], ['Presupuesto', 'banknote', 'padre'], ['Comisiones', 'handCoins'], ['Pagos', 'badgeDollar', 'padre'], ['Proveedores', 'wrench'],
+];
+/* Hijos del módulo 73. Stock (063) y Bodegas (064, D10) son del admin nuevo; los grises abren el admin viejo. */
+const HIJOS_PRODUCTOS = [['Stock', 'nuevo'], ['Bodegas', 'activo'], ['Control stock'], ['Gestión compras'], ['Productos'], ['Inventario Físico'], ['Productos similares'], ['Auditoría de costos']];
+const GRIS = 'text-[hsl(240_4%_66%)] hover:text-[hsl(240_4%_52%)]';
+function menuHtml() {
+  return MENU.map(([t, i, tipo]) => {
+    if (tipo === 'padre') return `<li><button class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">${ic(i)}<span class="truncate">${t}</span>${ic('chevR', 'mk-ic ml-auto')}</button></li>`;
+    if (tipo === 'propio') return `<li><a class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">${ic(i)}<span class="truncate">${t}</span></a></li>`;
+    if (tipo === 'abierto') {
+      const hijos = HIJOS_PRODUCTOS.map(([h, a]) => a === 'activo'
+        ? `<li><a class="flex h-7 min-w-0 -translate-x-px cursor-pointer items-center gap-2 overflow-hidden rounded-md bg-sidebar-accent px-2 text-sm font-medium text-sidebar-accent-foreground" aria-current="page"><span class="truncate">${h}</span></a></li>`
+        : a === 'nuevo'
+          ? `<li><a class="flex h-7 min-w-0 -translate-x-px cursor-pointer items-center gap-2 overflow-hidden rounded-md px-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"><span class="truncate">${h}</span></a></li>`
+          : `<li><a class="flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sm hover:bg-sidebar-accent ${GRIS}" title="Abre en el admin viejo (pestaña nueva)"><span class="truncate">${h}</span></a></li>`).join('');
+      return `<li><button class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">${ic(i)}<span class="truncate">${t}</span>${ic('chevR', 'mk-ic ml-auto rotate-90')}</button>
+        <ul class="mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-2.5 py-0.5">${hijos}</ul></li>`;
+    }
+    return `<li><a class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-sm ${GRIS}" title="Abre en el admin viejo (pestaña nueva)">${ic(i)}<span class="truncate">${t}</span></a></li>`;
+  }).join('');
+}
+function sidebarHtml() {
+  const [nom, ini] = puedeEditar() ? ['Luzete', 'LU'] : ['Yuranis Ortega Batista', 'YO'];
+  return `<aside id="aside" class="sticky flex w-64 flex-none flex-col text-sidebar-foreground">
+    <div class="flex flex-col gap-2 p-2">
+      <a class="flex h-12 items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent">
+        <img src="${ISO_LOGO}" alt="Quinta del Mar" class="size-7 shrink-0">
+        <span class="grid flex-1 text-left leading-tight"><span class="truncate font-semibold">SIREQ</span><span class="truncate text-xs text-muted-foreground">Quinta del Mar</span></span>
+      </a>
+    </div>
+    <div class="no-scrollbar flex min-h-0 flex-1 flex-col overflow-auto">
+      <div class="relative flex w-full min-w-0 flex-col p-2">
+        <div class="flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70">Módulos</div>
+        <ul class="flex w-full min-w-0 flex-col gap-1">${menuHtml()}</ul>
+      </div>
+    </div>
+    <div class="flex flex-col gap-2 p-2">
+      <button class="flex h-12 w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-sidebar-accent">
+        <span class="grid h-8 w-8 place-items-center rounded-lg bg-muted text-xs font-medium text-black">${ini}</span>
+        <span class="grid flex-1 text-left text-sm leading-tight"><span class="truncate font-medium">${nom}</span></span>${ic('updown', 'ml-auto size-4')}
+      </button>
+    </div>
+  </aside>`;
+}
+function headerHtml(migas) {
+  const sep = `<li role="presentation" aria-hidden="true" class="[&>svg]:h-3.5 [&>svg]:w-3.5">${ic('chevR')}</li>`;
+  const items = migas.map((t, i) => i === migas.length - 1
+    ? `<li class="inline-flex items-center gap-1.5"><span aria-current="page" class="font-normal text-foreground">${t}</span></li>`
+    : `<li class="inline-flex items-center gap-1.5"><a class="cursor-pointer transition-colors hover:text-foreground">${t}</a></li>${sep}`).join('');
+  return `<header class="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/70 px-4">
+    <div class="flex items-center gap-2">
+      <button class="-ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground" aria-label="Mostrar u ocultar el menú">${ic('panel')}</button>
+      <nav aria-label="breadcrumb"><ol class="flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground">${items}</ol></nav>
+    </div>
+  </header>`;
+}
+
+/* =====================================================================
+   Página «Bodegas»
+   ===================================================================== */
+function encabezado() {
+  return `<div>
+    <h1 class="text-2xl font-bold tracking-tight">Bodegas</h1>
+    <p class="mt-0.5 text-muted-foreground">Quién responde por cada bodega. El principal recibe por defecto los traslados, los conteos y los avisos; cualquier responsable puede actuar.</p>
+  </div>`;
+}
+function contador() {
+  const e = BOD.map(b => estadoBodega(ASIG[b.id]).k);
+  const sin = e.filter(k => k === 'sin').length, sinp = e.filter(k => k === 'sinp').length;
+  const n = (v, t, rosa) => `<span class="${rosa && v ? 'font-semibold text-rose-700' : ''}"><span class="tabular-nums">${v}</span> ${t}</span>`;
+  return `<p class="text-sm text-muted-foreground">${n(BOD.length, 'bodegas activas')} · ${n(sin, 'sin responsable', 1)} · ${n(sinp, 'sin principal activo', 1)}</p>`;
+}
+function persona(u, { sub = true } = {}) {
+  const inac = !activo(u);
+  return `<div class="flex flex-wrap items-center gap-x-2 gap-y-1"><span class="font-medium leading-snug ${inac ? 'text-muted-foreground line-through' : ''}">${esc(U[u][0])}</span>${inac ? chip('Usuario inactivo', 'gris') : ''}</div>
+    ${sub ? `<p class="text-xs text-muted-foreground">${esc(U[u][1])}</p>` : ''}`;
+}
+function chipPersona(u) {
+  return activo(u)
+    ? chip(esc(U[u][0]), 'gris', U[u][1])
+    : chip(`<span class="line-through">${esc(U[u][0])}</span><span class="ml-1 font-normal">· Usuario inactivo</span>`, 'gris', 'No cuenta como responsable mientras su usuario esté inactivo', 'text-neutral-400');
+}
+function tabla() {
+  const ed = puedeEditar();
+  const filas = BOD.map(b => {
+    const l = ASIG[b.id];
+    const pr = l.find(r => r.p);
+    const otros = l.filter(r => !r.p);
+    const st = estadoBodega(l);
+    return `<tr class="hover:bg-muted/40">
+      <td class="px-3 py-2.5"><p class="font-semibold leading-snug">${b.n}</p><p class="text-xs tabular-nums text-muted-foreground">Bodega ${b.id}</p></td>
+      <td class="px-2 py-2.5 text-[13px] ${b.sede ? '' : 'text-muted-foreground'}">${b.sede ?? 'Sin sede'}</td>
+      <td class="px-2 py-2.5">${pr ? persona(pr.u) : '<span class="text-muted-foreground">—</span>'}</td>
+      <td class="px-2 py-2.5"><div class="flex flex-wrap gap-1">${otros.length ? otros.map(r => chipPersona(r.u)).join('') : '<span class="text-muted-foreground">—</span>'}</div></td>
+      <td class="px-2 py-2.5">${st.chip}</td>
+      ${ed ? `<td class="px-3 py-2.5 text-right"><button type="button" data-act="editar" data-v="${b.id}" class="${BTN} h-8 border border-input bg-background px-3 text-xs shadow-sm hover:bg-accent hover:text-accent-foreground" aria-label="Editar responsables de ${b.n}">${ic('pencil', 'size-3.5')}Editar</button></td>` : ''}
+    </tr>`;
+  }).join('');
+  return `<div class="overflow-hidden rounded-xl border bg-card">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead class="border-b bg-muted/40 text-xs text-muted-foreground"><tr>
+          <th scope="col" class="${TH} w-[200px] px-3">Bodega</th>
+          <th scope="col" class="${TH} w-[150px]">Sede</th>
+          <th scope="col" class="${TH} w-[250px]" title="Destinatario por defecto de traslados, conteos y avisos (D3)">Responsable principal</th>
+          <th scope="col" class="${TH}">Otros responsables</th>
+          <th scope="col" class="${TH} w-[170px]">Estado</th>
+          ${ed ? `<th scope="col" class="${TH} w-[100px] px-3"><span class="sr-only">Acciones</span></th>` : ''}
+        </tr></thead>
+        <tbody class="divide-y">${filas}</tbody>
+      </table>
+    </div>
+  </div>
+  <p class="text-sm text-muted-foreground">Solo salen las bodegas activas. Si una bodega se desactiva, sus responsables se conservan y vuelven a verse al reactivarla. Un responsable con el usuario inactivo no cuenta: no recibe traslados ni conteos.</p>`;
+}
+function cargaTabla() {
+  return `<div class="overflow-hidden rounded-xl border bg-card" aria-busy="true" aria-label="Cargando las bodegas">
+    <div class="flex gap-4 border-b bg-muted/40 px-4 py-3">${sk('h-3 w-40')}${sk('h-3 w-28')}${sk('h-3 w-48')}${sk('h-3 flex-1')}${sk('h-3 w-28')}${puedeEditar() ? sk('h-3 w-16') : ''}</div>
+    ${Array.from({ length: 7 }, () => `<div class="flex items-center gap-4 border-b px-4 py-4 last:border-0">${sk('h-4 w-40')}${sk('h-4 w-28')}${sk('h-4 w-48')}<div class="flex flex-1 gap-1">${sk('h-5 w-28 rounded-full')}${sk('h-5 w-32 rounded-full')}</div>${sk('h-5 w-28 rounded-full')}${puedeEditar() ? sk('h-8 w-16') : ''}</div>`).join('')}
+  </div>`;
+}
+function errorHtml() {
+  return `<section role="alert" class="flex flex-1 flex-col items-center justify-center rounded-xl border border-rose-200 bg-card px-6 py-16 text-center">
+    <span class="grid size-12 place-items-center rounded-full bg-rose-50 text-rose-600">${ic('alert', 'size-6')}</span>
+    <h2 class="mt-4 text-base font-semibold">No se pudieron cargar las bodegas</h2>
+    <p class="mt-1 max-w-md text-sm text-muted-foreground">El servidor respondió con un error (500). Intenta de nuevo; si vuelve a fallar, avisa a soporte.</p>
+    <button type="button" data-act="reintentar" class="mt-5 ${BTN_OUT}">${ic('refresh')}Reintentar</button>
+  </section>`;
+}
+function pagina() {
+  if (S.estado === 'carga' || S.cargando) return `${encabezado()}${sk('h-4 w-96')}${cargaTabla()}`;
+  if (S.estado === 'error') return `${encabezado()}${errorHtml()}`;
+  return `${encabezado()}${contador()}${tabla()}`;
+}
+
+/* =====================================================================
+   Panel lateral (ui/sheet, side right, como PanelDetalleCelda: flex w-full flex-col sm:max-w-xl)
+   ===================================================================== */
+const vivos = () => S.draft.filter(r => !r.quitado);
+function cambios() {
+  const orig = ASIG[S.panel];
+  const om = new Map(orig.map(r => [r.u, r.p]));
+  const v = vivos();
+  let n = 0;
+  for (const r of v) if (!om.has(r.u)) n++; else if (om.get(r.u) !== r.p) n++;
+  for (const r of orig) if (!v.some(x => x.u === r.u)) n++;
+  return n;
+}
+function radioPrincipal(r) {
+  const off = !activo(r.u) || r.quitado;
+  /* componente nuevo: radio «Principal» (no hay ui/radio-group); clases de RadioGroupItem de shadcn-vue */
+  return `<button type="button" role="radio" aria-checked="${r.p}" ${off ? 'disabled' : ''} data-act="principal" data-v="${r.u}"
+    aria-label="Marcar a ${esc(U[r.u][0])} como principal" title="${!activo(r.u) ? 'Un usuario inactivo no puede ser principal' : r.p ? 'Principal' : 'Marcar como principal'}"
+    class="grid aspect-square size-4 place-items-center rounded-full border border-primary text-primary shadow focus:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50">
+    ${r.p ? '<span class="block size-2 rounded-full bg-current"></span>' : ''}</button>`;
+}
+function botonQuitar(r, v) {
+  if (r.quitado) return `<button type="button" data-act="deshacer" data-v="${r.u}" class="${BTN} h-8 px-2 text-xs text-primary hover:bg-accent">${ic('undo', 'size-3.5')}Deshacer</button>`;
+  const bloqueado = r.p && v.length > 1;
+  const btn = `<button type="button" data-act="quitar" data-v="${r.u}" ${bloqueado ? 'disabled' : ''} class="${BTN_GHOST_ICON} text-muted-foreground hover:text-rose-700" aria-label="Quitar a ${esc(U[r.u][0])}">${ic('trash')}</button>`;
+  if (!bloqueado) return btn;
+  return `<span class="group relative inline-flex" tabindex="0" aria-label="Marca otro principal antes de quitarlo">${btn}
+    <span role="tooltip" class="${TIP} pointer-events-none absolute bottom-full right-0 mb-1 hidden whitespace-nowrap group-hover:block group-focus:block">Marca otro principal antes de quitarlo</span></span>`;
+}
+function filaResponsable(r, v) {
+  const pie = r.quitado ? 'Se quita al guardar'
+    : r.nuevo ? 'Se asigna al guardar'
+    : `Asignado por ${esc(U[r.por][0])} · ${fFecha(r.f)}`;
+  return `<tr class="${r.nuevo ? 'bg-primary/5' : ''} ${r.quitado ? 'bg-muted/40' : ''}">
+    <td class="px-3 py-3 align-top"><div class="flex h-5 items-center justify-center">${radioPrincipal(r)}</div></td>
+    <td class="px-2 py-3 ${r.quitado ? 'opacity-60' : ''}">
+      ${r.quitado ? `<span class="font-medium line-through">${esc(U[r.u][0])}</span>` : persona(r.u, { sub: false })}
+      <p class="text-xs text-muted-foreground">${esc(U[r.u][1])}</p>
+      <p class="mt-1 text-xs ${r.nuevo ? 'font-medium text-primary' : r.quitado ? 'font-medium text-rose-700' : 'text-muted-foreground'}">${pie}</p>
+    </td>
+    <td class="px-3 py-3 text-right align-top">${botonQuitar(r, v)}</td>
+  </tr>`;
+}
+function candidatos() {
+  const ya = new Set(vivos().map(r => r.u));
+  const q = norm(S.q.trim());
+  return Object.keys(U).map(Number).filter(u => activo(u) && !ya.has(u) && (!q || norm(U[u][0]).includes(q) || norm(U[u][1]).includes(q)))
+    .sort((a, b) => U[a][0].localeCompare(U[b][0], 'es'));
+}
+function selectorUsuario() {
+  /* componente nuevo: selector de usuario con búsqueda (no hay combobox en components/ui). Input = ui/input; lista = clases de ui/dropdown-menu. */
+  const c = candidatos();
+  const lista = !S.dd ? '' : `<div role="listbox" id="dd" class="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 min-w-32 overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
+    ${c.length ? c.slice(0, 8).map((u, i) => `<div role="option" data-dd data-act="agregar" data-v="${u}" class="relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground ${i === 0 && S.q ? 'bg-accent' : ''}">
+        <span class="min-w-0 flex-1 truncate">${esc(U[u][0])}</span><span class="text-xs text-muted-foreground">${esc(U[u][1])}</span></div>`).join('')
+      + (c.length > 8 ? `<p class="px-2 py-1.5 text-xs text-muted-foreground">${c.length - 8} más: sigue escribiendo para acotar.</p>` : '')
+    : `<p class="px-2 py-6 text-center text-sm text-muted-foreground">Ningún usuario activo coincide con “${esc(S.q.trim())}”.</p>`}
+  </div>`;
+  return `<div>
+    <label for="buscar-usuario" class="text-sm font-medium">Agregar responsable</label>
+    <div class="relative mt-1.5">
+      ${ic('search', 'pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground')}
+      <input id="buscar-usuario" data-inp="q" type="text" role="combobox" aria-expanded="${S.dd}" aria-controls="dd" autocomplete="off" value="${esc(S.q)}" placeholder="Buscar usuario por nombre…"
+        class="flex h-10 w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:text-sm">
+      ${lista}
+    </div>
+    <p class="mt-1.5 text-xs text-muted-foreground">Cualquier usuario activo, tenga o no acceso a la sede.</p>
+  </div>`;
+}
+function panelHtml() {
+  const b = BODM[S.panel];
+  const v = vivos();
+  const pr = v.find(r => r.p);
+  const n = cambios();
+  const sub = b.sede ? `Sede ${b.sede} · bodega ${b.id}` : `Sin sede · bodega ${b.id}`;
+  const avisoPrincipal = pr && !activo(pr.u)
+    ? `<div role="alert" class="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-sm text-rose-900">${ic('alert', 'mt-0.5 size-4 shrink-0')}<p><span class="font-semibold">${esc(U[pr.u][0])} tiene el usuario inactivo.</span> Marca otro principal para que la bodega tenga a quién asignar traslados y conteos.</p></div>` : '';
+  const fallo = S.fallo
+    ? `<div role="alert" class="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-sm text-rose-900">${ic('alert', 'mt-0.5 size-4 shrink-0')}<p><span class="font-semibold">No se guardó: el servidor respondió con un error.</span> Lo que cambiaste sigue aquí. Vuelve a guardar; si falla otra vez, avisa a soporte.</p></div>` : '';
+  const lista = S.draft.length
+    ? `<div class="overflow-hidden rounded-xl border bg-card"><table class="w-full text-left text-sm">
+        <thead class="border-b bg-muted/40 text-xs text-muted-foreground"><tr>
+          <th scope="col" class="${TH} w-[84px] px-3 text-center">Principal</th><th scope="col" class="${TH}">Responsable</th><th scope="col" class="${TH} w-[100px] px-3"><span class="sr-only">Quitar</span></th></tr></thead>
+        <tbody class="divide-y" role="radiogroup" aria-label="Responsable principal">${S.draft.map(r => filaResponsable(r, v)).join('')}</tbody></table></div>`
+    : `<div class="rounded-xl border border-dashed px-4 py-8 text-center">
+        <span class="mx-auto grid size-10 place-items-center rounded-full bg-muted text-muted-foreground">${ic('warehouse', 'size-5')}</span>
+        <p class="mt-3 text-sm font-medium">${b.n} no tiene responsables</p>
+        <p class="mt-0.5 text-sm text-muted-foreground">Busca abajo a quien responde por ella. El primero que agregues queda como principal.</p></div>`;
+  return `<div class="bajo-barra fixed inset-0 z-50 bg-black/80 ${S.animPanel ? 'anim-fade' : ''}" data-act="cerrar"></div>
+    <div role="dialog" aria-modal="true" aria-labelledby="sh-t" class="bajo-barra ${S.animPanel ? 'anim-sheet' : ''} fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-xl flex-col gap-4 border-l bg-background p-6 shadow-lg">
+      <div class="flex flex-col gap-y-2 pr-6 text-left">
+        <div class="flex flex-wrap items-center gap-2"><h2 id="sh-t" class="text-lg font-semibold text-foreground">Responsables de ${b.n}</h2>${estadoBodega(v).chip}</div>
+        <p class="text-sm text-muted-foreground">${sub}. El principal recibe por defecto los traslados, los conteos y los avisos.</p>
+      </div>
+      <div class="-mx-6 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-2">
+        ${fallo}${avisoPrincipal}${lista}${selectorUsuario()}
+      </div>
+      <div class="flex items-center justify-between gap-3 border-t pt-4">
+        <span class="text-sm ${n ? 'font-semibold' : 'text-muted-foreground'}">${n ? `${n} ${n === 1 ? 'cambio sin guardar' : 'cambios sin guardar'}` : 'Sin cambios'}</span>
+        <div class="flex gap-2">
+          <button type="button" data-act="cerrar" class="${BTN_OUT}">Cancelar</button>
+          <button type="button" data-act="guardar" ${!n || S.guardando ? 'disabled' : ''} class="${BTN_DEF}">${S.guardando ? 'Guardando…' : 'Guardar'}</button>
+        </div>
+      </div>
+      <button data-act="cerrar" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" aria-label="Cerrar">${ic('x', 'size-4 text-muted-foreground')}</button>
+    </div>`;
+}
+/* catalogo/ConfirmarActivo.vue sobre ui/dialog */
+function dialogoHtml() {
+  const b = BODM[S.panel], u = S.confirmar;
+  return `<div class="bajo-barra fixed inset-0 z-[70] bg-black/80 ${S.animDialogo ? 'anim-fade' : ''}" data-act="no-quitar"></div>
+    <div role="alertdialog" aria-modal="true" aria-labelledby="dl-t" aria-describedby="dl-d" class="${S.animDialogo ? 'anim-fade' : ''} fixed left-1/2 top-1/2 z-[70] grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border bg-background p-6 shadow-lg sm:rounded-lg">
+      <div class="flex flex-col gap-y-1.5 text-center sm:text-left">
+        <h2 id="dl-t" class="text-lg font-semibold leading-none tracking-tight">¿Quitar a ${esc(U[u][0])} de ${b.n}?</h2>
+        <p id="dl-d" class="text-sm leading-relaxed text-muted-foreground">Es su único responsable. Al guardar, ${b.n} queda «Sin responsable» y sus traslados y conteos no tendrán a quién asignarse por defecto.</p>
+      </div>
+      <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button type="button" data-act="no-quitar" class="${BTN_OUT}">Cancelar</button>
+        <button type="button" data-act="si-quitar" class="${BTN} h-9 bg-rose-600 px-4 py-2 text-white shadow hover:bg-rose-700">Quitar</button>
+      </div>
+      <button data-act="no-quitar" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" aria-label="Cerrar">${ic('x', 'size-4')}</button>
+    </div>`;
+}
+/* catalogo/AvisoGuardado.vue */
+const avisoHtml = () => S.aviso ? `<div role="status" class="anim-fade fixed bottom-6 right-6 z-50 flex max-w-sm items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-lg">${ic('check', 'mt-0.5 size-4 shrink-0')}<span>${S.aviso}</span></div>` : '';
+
+/* =====================================================================
+   Render
+   ===================================================================== */
+function render() {
+  pintarBarra();
+  const stage = document.getElementById('stage');
+  const sc = window.scrollY;
+  const enfoque = document.activeElement?.id;
+  const selIni = document.activeElement?.selectionStart;
+  const panelScroll = document.querySelector('[role="dialog"] .overflow-y-auto')?.scrollTop;
+  stage.innerHTML = `<div class="mx-auto flex min-h-screen max-w-[1440px] bg-sidebar">${sidebarHtml()}
+      <main class="relative my-2 mr-2 flex min-h-[calc(100vh-102px)] min-w-0 flex-1 flex-col rounded-xl bg-background shadow">${headerHtml(['Productos', 'Bodegas'])}
+        <div class="flex flex-1 flex-col gap-4 p-6">${pagina()}</div></main></div>
+    <div id="ov">${S.panel ? panelHtml() : ''}${S.confirmar ? dialogoHtml() : ''}</div>${avisoHtml()}`;
+  S.animPanel = false; S.animDialogo = false;
+  ajustarAside();
+  window.scrollTo(0, sc);
+  if (panelScroll != null) { const p = document.querySelector('[role="dialog"] .overflow-y-auto'); if (p) p.scrollTop = panelScroll; }
+  if (enfoque) { const el = document.getElementById(enfoque); if (el) { el.focus(); if (selIni != null && el.setSelectionRange) try { el.setSelectionRange(selIni, selIni); } catch (e) {} } }
+  document.body.style.overflow = S.panel ? 'hidden' : '';
+}
+function ajustarAside() {
+  const a = document.getElementById('aside');
+  if (!a) return;
+  const h = document.querySelector('.mk-bar').offsetHeight;
+  a.style.top = h + 'px'; document.querySelectorAll('.bajo-barra').forEach(el => el.style.top = h + 'px'); a.style.height = `calc(100vh - ${h}px)`; a.style.alignSelf = 'flex-start';
+}
+let avisoT;
+function avisar(t, fijo = false) { S.aviso = t; clearTimeout(avisoT); if (!fijo) avisoT = setTimeout(() => { S.aviso = null; render(); }, 3400); }
+function recargar() { S.cargando = true; render(); setTimeout(() => { S.cargando = false; render(); }, 650); }
+
+/* =====================================================================
+   Acciones del panel
+   ===================================================================== */
+function abrir(id) { S.panel = id; S.draft = copiar(ASIG[id]); S.q = ''; S.dd = false; S.fallo = false; S.confirmar = null; S.guardando = false; S.animPanel = true; }
+function cerrar() { S.panel = null; S.draft = []; S.q = ''; S.dd = false; S.fallo = false; S.confirmar = null; }
+function agregar(u) {
+  const ex = S.draft.find(r => r.u === u);
+  const sinPrincipal = !vivos().length;
+  if (ex) { ex.quitado = false; if (sinPrincipal) ex.p = true; }
+  else S.draft.push({ u, p: sinPrincipal, nuevo: true });
+  S.q = ''; S.dd = false;
+}
+function marcarPrincipal(u) { if (!activo(u)) return; S.draft.forEach(r => r.p = r.u === u && !r.quitado); }
+function quitar(u) {
+  const v = vivos(), r = S.draft.find(x => x.u === u);
+  if (r.p && v.length > 1) return;
+  if (v.length === 1) { S.confirmar = u; S.animDialogo = true; return; }
+  if (r.nuevo) S.draft = S.draft.filter(x => x.u !== u); else { r.quitado = true; r.p = false; }
+}
+function confirmarQuitar() {
+  const r = S.draft.find(x => x.u === S.confirmar);
+  if (r.nuevo) S.draft = S.draft.filter(x => x.u !== r.u); else { r.quitado = true; r.p = false; }
+  S.confirmar = null;
+}
+function deshacer(u) {
+  const r = S.draft.find(x => x.u === u);
+  r.quitado = false;
+  const orig = ASIG[S.panel].find(x => x.u === u);
+  if (!vivos().some(x => x.p && x.u !== u)) r.p = true; else r.p = false;
+  if (orig && orig.p && !vivos().some(x => x.p && x.u !== u)) r.p = true;
+}
+function guardar() {
+  S.guardando = true; render();
+  setTimeout(() => {
+    S.guardando = false;
+    if (S.simularFallo) { S.simularFallo = false; S.fallo = true; render(); return; }
+    const b = BODM[S.panel];
+    const f = ahora();
+    ASIG[S.panel] = vivos().map(r => r.nuevo ? { u: r.u, p: r.p, por: yo(), f } : { u: r.u, p: r.p, por: r.por, f: r.f });
+    cerrar(); S.estado = 'normal';
+    avisar(`Responsables de ${b.n} guardados`);
+    render();
+  }, 700);
+}
+
+/* Escenarios de la barra */
+function escenario(v) {
+  ASIG = copiar(ASIG0); cerrar(); S.aviso = null; clearTimeout(avisoT); S.simularFallo = false;
+  S.estado = v;
+  if (v === 'panel') abrir(8);
+  if (v === 'vacio') { abrir(8); S.q = 'xyz'; S.dd = true; }
+  if (v === 'ok') { ASIG[8].push({ u: 212, p: false, por: 132, f: '2026-10-28 09:31' }); avisar('Responsables de Almacén Tolú guardados', true); }
+  if (v === 'fallo') { abrir(8); S.draft.push({ u: 212, p: false, nuevo: true }); S.fallo = true; }
+  if (v === 'confirmar') { abrir(7); S.confirmar = 208; S.animDialogo = true; }
+}
+
+/* =====================================================================
+   Eventos
+   ===================================================================== */
+document.addEventListener('mousedown', e => { if (e.target.closest('[data-dd]')) e.preventDefault(); });
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el) {
+    if (e.target.closest('#buscar-usuario')) { if (!S.dd) { S.dd = true; render(); } return; }
+    if (S.dd) { S.dd = false; render(); }
+    return;
+  }
+  if (el.disabled) return;
+  const v = el.dataset.v;
+  switch (el.dataset.act) {
+    case 'mk-rol': S.rol = v; if (!puedeEditar()) { cerrar(); if (!['normal', 'carga', 'error'].includes(S.estado)) S.estado = 'normal'; S.aviso = null; } break;
+    case 'mk-est': escenario(v); break;
+    case 'reintentar': S.estado = 'normal'; return recargar();
+    case 'editar': if (puedeEditar()) abrir(+v); break;
+    case 'cerrar': cerrar(); if (S.estado !== 'ok') S.estado = 'normal'; break;
+    case 'principal': marcarPrincipal(+v); break;
+    case 'quitar': quitar(+v); break;
+    case 'deshacer': deshacer(+v); break;
+    case 'no-quitar': S.confirmar = null; break;
+    case 'si-quitar': confirmarQuitar(); break;
+    case 'agregar': agregar(+v); document.getElementById('buscar-usuario')?.blur(); break;
+    case 'guardar': S.fallo = false; return guardar();
+    default: return;
+  }
+  render();
+});
+document.addEventListener('focusin', e => { if (e.target.id === 'buscar-usuario' && !S.dd) { S.dd = true; render(); } });
+let tq;
+document.addEventListener('input', e => {
+  if (e.target.dataset.inp !== 'q') return;
+  S.q = e.target.value; S.dd = true;
+  clearTimeout(tq); tq = setTimeout(render, 120);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (S.confirmar) { S.confirmar = null; return render(); }
+    if (S.dd) { S.dd = false; document.getElementById('buscar-usuario')?.blur(); return render(); }
+    if (S.panel) { cerrar(); S.estado = 'normal'; return render(); }
+  }
+  if (e.key === 'Enter' && e.target.id === 'buscar-usuario') {
+    const c = candidatos(); if (S.q.trim() && c.length) { agregar(c[0]); S.dd = true; render(); }
+  }
+});
+window.addEventListener('resize', ajustarAside);
+
+escenario(['normal', 'carga', 'error', 'panel', 'vacio', 'ok', 'fallo', 'confirmar'].includes(S.estado) ? (puedeEditar() || ['normal', 'carga', 'error'].includes(S.estado) ? S.estado : 'normal') : 'normal');
+render();
+</script>
+</body>
+</html>
