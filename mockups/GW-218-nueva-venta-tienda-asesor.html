@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-218 · Nueva venta: la venta se crea en la tienda elegida y con asesores de esa tienda</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, sans-serif; }
+  .chip-on { background:#111827; color:#fff; border-color:#111827; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+<!-- Barra del mockup (no es parte de la pantalla) -->
+<div class="sticky top-0 z-20 border-b border-gray-300 bg-white px-4 py-3 text-sm">
+  <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+    <span class="font-semibold">GW-218 · mockup</span>
+    <div class="flex items-center gap-2">
+      <span class="text-gray-500">Quien inicia sesión:</span>
+      <button data-user="erika" class="u-btn rounded-full border px-3 py-1">Erika Gómez · Directora QEC (4 tiendas)</button>
+      <button data-user="ana" class="u-btn rounded-full border px-3 py-1">Ana Maria Serna · asesora (solo Derek)</button>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="text-gray-500">Estado:</span>
+      <button data-st="normal" class="s-btn rounded-full border px-3 py-1">Normal</button>
+      <button data-st="cargando" class="s-btn rounded-full border px-3 py-1">Creando venta</button>
+      <button data-st="error-asesor" class="s-btn rounded-full border px-3 py-1">Rechazo: asesor de otra tienda</button>
+      <button data-st="error-tienda" class="s-btn rounded-full border px-3 py-1">Rechazo: tienda sin acceso</button>
+    </div>
+  </div>
+  <p id="nota" class="mt-2 text-gray-600"></p>
+</div>
+
+<div class="flex min-h-screen">
+  <!-- Menú lateral (calcado del AppLayout) -->
+  <aside class="hidden w-64 shrink-0 bg-neutral-950 text-neutral-300 md:block">
+    <div class="px-5 py-4 text-lg font-semibold text-white">get</div>
+    <nav class="space-y-1 px-3 text-sm">
+      <div class="rounded-md px-3 py-2">Dashboard</div>
+      <div class="rounded-md px-3 py-2">Pedidos</div>
+      <div class="px-3 pt-3 pb-1 text-white">Venta Asistida</div>
+      <div class="rounded-md bg-neutral-800 px-3 py-2 text-white">Nueva venta</div>
+      <div class="rounded-md px-3 py-2">Mis ventas</div>
+      <div class="rounded-md px-3 py-2">Gestión de ventas</div>
+      <div class="rounded-md px-3 py-2">Asignar clientes</div>
+    </nav>
+  </aside>
+
+  <main class="flex-1 bg-white">
+    <div class="border-b px-6 py-3 text-sm text-gray-500">Dashboard › Venta Asistida › Nueva Venta</div>
+    <div class="border-b px-6 py-5">
+      <h1 class="text-xl font-semibold">Iniciar Venta</h1>
+      <p class="text-sm text-gray-500">Crea un pedido para tu cliente y genera el link de pago</p>
+    </div>
+    <div class="px-6 pt-4">
+      <div class="flex gap-1 border-b">
+        <button class="-mb-px border-b-2 border-gray-900 px-4 py-2 text-sm font-medium text-gray-900">Buscar Cliente</button>
+        <button class="-mb-px border-b-2 border-transparent px-4 py-2 text-sm font-medium text-gray-500">Carrito Web</button>
+      </div>
+    </div>
+
+    <!-- Paso 1: búsqueda (BusquedaCliente.vue) -->
+    <section id="paso1" class="flex items-center justify-center px-4 py-16">
+      <div class="w-full max-w-md">
+        <div class="mb-8">
+          <label class="mb-2 block text-sm text-gray-500">Seleccionar tienda</label>
+          <select id="tienda" class="h-11 w-full rounded-md border border-gray-300 bg-white px-3 text-base"></select>
+        </div>
+        <div class="mb-8 rounded-xl border-2 border-gray-200 bg-white p-4">
+          <div class="flex items-center gap-3">
+            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input id="q" value="1098765432" class="w-full bg-transparent text-lg outline-none" placeholder="Buscar cliente...">
+          </div>
+          <p class="mt-2 text-sm text-gray-500">Cédula, celular o email • Enter para buscar</p>
+        </div>
+        <button id="buscar" class="w-full rounded-md bg-gray-900 py-2.5 text-sm font-medium text-white">Buscar (simula Enter)</button>
+      </div>
+    </section>
+
+    <!-- Paso 2: tarjeta del cliente (TarjetaCliente.vue) -->
+    <section id="paso2" class="hidden px-6 py-4">
+      <div class="mx-auto max-w-2xl rounded-lg border bg-white">
+        <div class="flex items-center justify-between border-b px-4 py-3">
+          <span class="text-sm font-medium text-gray-500">CLIENTE</span>
+          <button id="cambiar" class="rounded-md border px-3 py-1 text-sm">Cambiar cliente</button>
+        </div>
+        <div class="p-4">
+          <div class="space-y-3">
+            <h3 class="text-lg font-semibold">Leidy Johana Carreño</h3>
+            <p class="text-sm text-gray-500">CC 1098765432 · 3157724410 · leidy.carreno@gmail.com</p>
+          </div>
+
+          <p id="perror" class="mt-4 hidden text-center text-sm text-red-500"></p>
+
+          <div id="bloque-asesor" class="mt-4">
+            <label class="mb-1.5 block text-sm font-medium text-gray-700">Asesor de ventas <span class="text-red-500">*</span></label>
+            <select id="asesor" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm"></select>
+            <p id="ayuda-asesor" class="mt-1.5 text-xs text-gray-500"></p>
+          </div>
+
+          <div class="mt-6">
+            <button id="iniciar" class="flex w-full items-center justify-center gap-2 rounded-md bg-gray-900 py-3 text-sm font-semibold text-white disabled:opacity-50">INICIAR VENTA</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const TIENDAS = { 0:'stirpe', 1:'derek', 31:'u82', 32:'typer' };
+const ASESORES = {
+  0: ['Carlos Yesid Cordoba Mendez','Jorge Luis Ruiz Pardo','Karen Lorena Rangel Leon','Nicol Daniela Pinzon Pabon','Paula Andrea Oliveros Arias','Silvia Alejandra Camacho','Valentina Nuñez Castro'],
+  1: ['Ana Maria Serna Vargas','Ingrid Tatiana Contreras Zapata','Karen Julieth Riaño Gomez','Paola Andrea Soto Gil','Sheyla Marcela Jimenez Prada'],
+  31: ['Nicol Daniela Pinzon Pabon','Paula Andrea Oliveros Arias'],
+  32: [],
+};
+const USUARIOS = { erika:{ tiendas:[0,1,31,32], esAsesor:false }, ana:{ tiendas:[1], esAsesor:true } };
+let user='erika', st='normal', tienda=null, asesor='';
+
+const $=id=>document.getElementById(id);
+function pintarBotones(){
+  document.querySelectorAll('.u-btn').forEach(b=>b.classList.toggle('chip-on', b.dataset.user===user));
+  document.querySelectorAll('.s-btn').forEach(b=>b.classList.toggle('chip-on', b.dataset.st===st));
+}
+function pintarTiendas(){
+  const ts=USUARIOS[user].tiendas;
+  if(tienda===null || !ts.includes(tienda)) tienda=ts[0]; // arranca con la primera de su lista
+  $('tienda').innerHTML=ts.map(t=>`<option value="${t}" ${t===tienda?'selected':''}>${TIENDAS[t]}</option>`).join('');
+}
+function pintarAsesores(){
+  const u=USUARIOS[user];
+  $('bloque-asesor').classList.toggle('hidden', u.esAsesor);
+  const lista=ASESORES[tienda];
+  $('asesor').innerHTML=`<option value="">Seleccionar asesor...</option><option value="NINGUNO">Ningún asesor (sin comisión)</option>`+
+    lista.map(n=>`<option value="${n}">${n}</option>`).join('');
+  $('asesor').value=asesor;
+  const nombre=TIENDAS[tienda].charAt(0).toUpperCase()+TIENDAS[tienda].slice(1);
+  $('ayuda-asesor').textContent = lista.length
+    ? `Asesores asignados a ${nombre}.`
+    : `${nombre} no tiene asesores asignados: solo puedes elegir «Ningún asesor».`;
+  $('iniciar').disabled = !u.esAsesor && !asesor;
+}
+function pintarEstado(){
+  const nombre=TIENDAS[tienda].charAt(0).toUpperCase()+TIENDAS[tienda].slice(1);
+  const pe=$('perror'); pe.classList.add('hidden');
+  $('iniciar').innerHTML='INICIAR VENTA';
+  if(st==='cargando'){ $('iniciar').innerHTML='<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg> Creando venta...'; $('iniciar').disabled=true; }
+  if(st==='error-asesor'){ pe.textContent=`Ana Maria Serna Vargas no tiene asignada la tienda ${nombre}. Elige un asesor de ${nombre} o «Ningún asesor».`; pe.classList.remove('hidden'); }
+  if(st==='error-tienda'){ pe.textContent=`No tienes acceso a la tienda Stirpe. Vuelve a elegir la tienda.`; pe.classList.remove('hidden'); }
+  const notas={
+    normal: user==='erika'
+      ? 'Erika arranca en Stirpe, la primera de su lista. Al buscar el cliente, la lista de asesores trae solo los de Stirpe: Ana no aparece. Con «Cambiar cliente» y otra tienda, el asesor elegido se borra y la lista cambia.'
+      : 'Ana arranca en Derek, que es lo que ve y lo que se guarda (antes se guardaba Stirpe sin que se viera). Como es asesora, no elige vendedor: la venta queda a su nombre.',
+    cargando:'Mientras se crea la venta, el botón queda deshabilitado (comportamiento actual).',
+    'error-asesor':'Solo pasa si la pantalla quedó desactualizada o alguien llama directo al servidor: el servidor rechaza un asesor que no es de la tienda. Mensaje en rojo, donde hoy salen los errores al iniciar la venta.',
+    'error-tienda':'El servidor rechaza una tienda que no es del usuario que inició sesión (p. ej. una pestaña abierta antes de que le quitaran Stirpe).',
+  };
+  $('nota').textContent=notas[st];
+}
+function render(){ pintarBotones(); pintarTiendas(); pintarAsesores(); pintarEstado(); }
+
+document.querySelectorAll('.u-btn').forEach(b=>b.onclick=()=>{ user=b.dataset.user; tienda=null; asesor=''; st='normal'; mostrar(1); render(); });
+document.querySelectorAll('.s-btn').forEach(b=>b.onclick=()=>{ st=b.dataset.st; if(st!=='normal'){ mostrar(2); if(user==='erika' && st==='error-asesor'){ asesor=''; } } render(); });
+$('tienda').onchange=e=>{ tienda=+e.target.value; asesor=''; render(); };
+$('asesor').onchange=e=>{ asesor=e.target.value; render(); };
+$('buscar').onclick=()=>{ mostrar(2); render(); };
+$('cambiar').onclick=()=>{ asesor=''; st='normal'; mostrar(1); render(); };
+function mostrar(n){ $('paso1').classList.toggle('hidden', n!==1); $('paso2').classList.toggle('hidden', n!==2); }
+render();
+</script>
+</body>
+</html>
