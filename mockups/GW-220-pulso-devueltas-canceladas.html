@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-220 · Pulso de hoy con devueltas y canceladas</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"; }
+  .nuevo { outline: 2px dashed #db2777; outline-offset: 3px; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+<!-- Barra del mockup (no es parte de la pantalla) -->
+<div class="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-gray-300 bg-[#171717] px-4 py-2 text-xs text-white">
+  <span class="font-semibold">GW-220 mockup</span>
+  <span class="text-gray-400">Estado:</span>
+  <button data-estado="dia" class="est rounded px-2 py-1">Fin del día 29-oct</button>
+  <button data-estado="mensajero" class="est rounded px-2 py-1">Filtro mensajero 12</button>
+  <button data-estado="vacio" class="est rounded px-2 py-1">Sin agendadas</button>
+  <button data-estado="carga" class="est rounded px-2 py-1">Cargando</button>
+  <button data-estado="error" class="est rounded px-2 py-1">Error</button>
+  <label class="ml-auto flex items-center gap-1 text-gray-300"><input id="marcar" type="checkbox" checked> marcar lo nuevo</label>
+</div>
+
+<div class="flex">
+  <!-- Menú lateral (resumido) -->
+  <aside class="hidden w-64 shrink-0 border-r border-gray-200 bg-white lg:block" style="min-height:100vh">
+    <div class="px-4 py-4 text-sm font-bold">GET</div>
+    <nav class="space-y-1 px-2 text-sm text-gray-600">
+      <div class="rounded px-3 py-2">Venta asistida</div>
+      <div class="rounded bg-gray-100 px-3 py-2 font-medium text-gray-900">Gestión de Entregas</div>
+      <div class="rounded px-3 py-2">Mis Entregas</div>
+      <div class="rounded px-3 py-2">Pedidos</div>
+    </nav>
+  </aside>
+
+  <main class="min-w-0 flex-1 bg-white">
+    <div class="border-b border-gray-200 px-6 py-4">
+      <h1 class="text-xl font-bold">Gestión de Entregas</h1>
+      <p class="text-sm text-gray-500">Administra y agenda las entregas de venta asistida</p>
+    </div>
+
+    <div class="space-y-4 px-6 py-4">
+      <!-- Filtros (sin cambios, como hoy) -->
+      <div class="rounded-lg border bg-white p-4">
+        <div class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div class="space-y-1.5"><label class="text-sm">Fecha de creación desde</label><input type="date" disabled class="h-9 w-full rounded-md border px-3 text-sm opacity-50"></div>
+          <div class="space-y-1.5"><label class="text-sm">Fecha de creación hasta</label><input type="date" disabled class="h-9 w-full rounded-md border px-3 text-sm opacity-50"></div>
+          <div class="space-y-1.5"><label class="text-sm">Tipo de cobro</label>
+            <select class="h-9 w-full rounded-md border px-3 text-sm"><option>Todos</option><option>Pago anticipado</option><option>Contra entrega</option></select></div>
+          <div class="space-y-1.5"><label class="text-sm">Mensajero</label>
+            <select id="selMensajero" class="h-9 w-full rounded-md border px-3 text-sm"><option value="todos">Todos</option><option value="12">Mensajero 12</option></select></div>
+          <div class="space-y-1.5 lg:col-span-2"><label class="text-sm">Buscar</label><input type="text" placeholder="Doc, nombre o #VA" class="h-9 w-full rounded-md border px-3 text-sm"></div>
+        </div>
+      </div>
+
+      <!-- Pestañas de vista (sin cambios) -->
+      <div class="flex gap-1 border-b border-gray-200 text-sm">
+        <span class="px-3 py-2 text-gray-500">Agenda</span>
+        <span class="px-3 py-2 text-gray-500">Tabla</span>
+        <span class="px-3 py-2 text-gray-500">Alistamiento</span>
+        <span class="border-b-2 border-gray-900 px-3 py-2 font-medium">Dashboard</span>
+        <span class="px-3 py-2 text-gray-500">Devoluciones</span>
+      </div>
+
+      <!-- PULSO DE HOY -->
+      <div id="pulso"></div>
+
+      <div class="rounded-lg border border-dashed border-gray-300 p-6 text-center text-xs text-gray-400">
+        Cumplimiento, Ocupación por franja, Requiere acción y Mensajeros siguen igual que hoy (GW-79).
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const DATOS = {
+  dia: {
+    embudo: { total: 24, sin_asignar: 0, asignada: 0, recogida: 0, en_ruta: 0, entregada: 16, devuelta: 7, cancelada: 1 },
+    parciales: 2,
+    franjas: [[1,'10:00 a. m.','11:00 a. m.',2],[1,'11:00 a. m.','12:00 p. m.',3],[2,'12:00 p. m.','1:00 p. m.',4],[0,'1:00 p. m.','2:00 p. m.',3],[1,'2:00 p. m.','3:00 p. m.',4],[4,'3:00 p. m.','4:00 p. m.',4],[3,'4:00 p. m.','5:00 p. m.',4],[3,'5:00 p. m.','6:00 p. m.',4],[1,'6:00 p. m.','7:00 p. m.',4]],
+  },
+  mensajero: {
+    embudo: { total: 7, sin_asignar: 0, asignada: 0, recogida: 0, en_ruta: 0, entregada: 4, devuelta: 3, cancelada: 0 },
+    parciales: 1,
+    franjas: [[1,'10:00 a. m.','11:00 a. m.',2],[0,'11:00 a. m.','12:00 p. m.',3],[0,'12:00 p. m.','1:00 p. m.',4],[0,'1:00 p. m.','2:00 p. m.',3],[0,'2:00 p. m.','3:00 p. m.',4],[1,'3:00 p. m.','4:00 p. m.',4],[1,'4:00 p. m.','5:00 p. m.',4],[1,'5:00 p. m.','6:00 p. m.',4],[0,'6:00 p. m.','7:00 p. m.',4]],
+  },
+  vacio: {
+    embudo: { total: 0, sin_asignar: 0, asignada: 0, recogida: 0, en_ruta: 0, entregada: 0, devuelta: 0, cancelada: 0 },
+    parciales: 0,
+    franjas: [[0,'10:00 a. m.','11:00 a. m.',2],[0,'11:00 a. m.','12:00 p. m.',3],[0,'12:00 p. m.','1:00 p. m.',4],[0,'1:00 p. m.','2:00 p. m.',3],[0,'2:00 p. m.','3:00 p. m.',4],[0,'3:00 p. m.','4:00 p. m.',4],[0,'4:00 p. m.','5:00 p. m.',4],[0,'5:00 p. m.','6:00 p. m.',4],[0,'6:00 p. m.','7:00 p. m.',4]],
+  },
+};
+
+// Colores de estadoEntregaConfig (constants.ts); «Cancelada» nueva en gris neutro.
+const TARJETAS = [
+  { key: 'total', label: 'Agendadas hoy', bg: 'bg-white', color: 'text-gray-900' },
+  { key: 'sin_asignar', label: 'Sin asignar', bg: 'bg-amber-100', color: 'text-amber-600' },
+  { key: 'asignada', label: 'Asignada', bg: 'bg-blue-100', color: 'text-blue-700' },
+  { key: 'recogida', label: 'Recogida', bg: 'bg-blue-100', color: 'text-blue-700' },
+  { key: 'en_ruta', label: 'En ruta', bg: 'bg-blue-100', color: 'text-blue-700' },
+  { key: 'entregada', label: 'Entregada', bg: 'bg-green-100', color: 'text-green-700' },
+  { key: 'devuelta', label: 'Devuelta', bg: 'bg-[#FEEBEB]', color: 'text-[#C53030]', nuevo: true, ayuda: 'la cliente no recibió ninguna prenda' },
+  { key: 'cancelada', label: 'Cancelada', bg: 'bg-gray-100', color: 'text-gray-600', nuevo: true, ayuda: 'pedido cancelado, salió o no' },
+];
+
+const HOY = 'jueves, 29 oct';
+const pulso = document.getElementById('pulso');
+
+function titulo() {
+  return `<h2 class="mb-2 flex items-center gap-2 text-base font-bold text-gray-900">
+    <span class="inline-block h-4 w-1 rounded bg-indigo-600"></span>Pulso de hoy
+    <span class="text-sm font-normal capitalize text-gray-400">${HOY}</span></h2>`;
+}
+
+function render(estado) {
+  const marcar = document.getElementById('marcar').checked;
+  if (estado === 'carga') {
+    pulso.innerHTML = titulo() + `<div class="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">${
+      TARJETAS.map(() => `<div class="h-[66px] animate-pulse rounded-lg border border-gray-200 bg-gray-100"></div>`).join('')}</div>
+      <div class="h-[84px] animate-pulse rounded-lg border border-gray-200 bg-gray-100"></div>`;
+    return;
+  }
+  if (estado === 'error') {
+    pulso.innerHTML = titulo() + `<div class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+      No se pudo cargar el dashboard. Recarga la página; si sigue fallando, avisa a soporte.</div>`;
+    return;
+  }
+  const d = DATOS[estado];
+  const tarjetas = TARJETAS.map(t => {
+    const extra = t.key === 'entregada' && d.parciales > 0
+      ? `<div class="mt-1 text-[11px] text-gray-500 ${marcar ? 'nuevo rounded' : ''}">${d.parciales} con prendas devueltas</div>` : '';
+    return `<div class="rounded-lg border border-gray-200 p-3 shadow-sm ${t.bg} ${t.nuevo && marcar ? 'nuevo' : ''}" title="${t.ayuda ?? ''}">
+      <div class="tabular-nums text-2xl font-bold ${t.color}">${d.embudo[t.key]}</div>
+      <div class="mt-0.5 text-xs font-medium text-gray-600">${t.label}</div>${extra}</div>`;
+  }).join('');
+  const franjas = d.franjas.map(([o, a, b, cap]) => {
+    const sobre = o > cap;
+    return `<div class="tabular-nums flex flex-col items-center rounded-md border px-2.5 py-1.5 text-center ${sobre ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'}">
+      <span class="text-[11px] font-medium text-gray-500">${a} - ${b}</span>
+      <span class="text-sm font-bold ${sobre ? 'text-red-700' : o === cap ? 'text-amber-600' : 'text-gray-800'}">${o}/${cap}</span></div>`;
+  }).join('');
+  const sobreN = d.franjas.filter(([o,,,c]) => o > c).length;
+  pulso.innerHTML = titulo() + `
+    <div class="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8 ${marcar ? '' : ''}">${tarjetas}</div>
+    <div class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <div class="mb-2 flex items-center justify-between">
+        <span class="text-xs font-medium uppercase tracking-wider text-gray-500">Franjas de hoy · ocupación / capacidad</span>
+        <span class="text-xs text-gray-400">${sobreN} franjas sobre capacidad</span>
+      </div>
+      <div class="flex flex-wrap gap-2">${franjas}</div>
+    </div>
+    ${marcar ? `<p class="mt-2 text-xs text-pink-700">Nuevo: tarjetas «Devuelta» y «Cancelada», la línea bajo «Entregada», y «Agendadas hoy» que ahora las suma (24 = 16 + 7 + 1, igual que la agenda). La fila pasa de 6 a 8 tarjetas. Las franjas no cambian.</p>` : ''}`;
+}
+
+let actual = 'dia';
+function pintarBotones() {
+  document.querySelectorAll('.est').forEach(b => {
+    b.className = 'est rounded px-2 py-1 ' + (b.dataset.estado === actual ? 'bg-white text-gray-900' : 'bg-gray-700 text-white');
+  });
+  document.getElementById('selMensajero').value = actual === 'mensajero' ? '12' : 'todos';
+}
+document.querySelectorAll('.est').forEach(b => b.addEventListener('click', () => { actual = b.dataset.estado; pintarBotones(); render(actual); }));
+document.getElementById('selMensajero').addEventListener('change', e => { actual = e.target.value === '12' ? 'mensajero' : 'dia'; pintarBotones(); render(actual); });
+document.getElementById('marcar').addEventListener('change', () => render(actual));
+pintarBotones(); render(actual);
+</script>
+</body>
+</html>

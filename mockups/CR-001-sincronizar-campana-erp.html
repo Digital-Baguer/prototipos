@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>CR-001 · Promociones get: sincronizar una campaña del ERP por su ID (mockup)</title>
+<meta name="viewport" content="width=1440" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: {
+      sans: ['ui-sans-serif', 'system-ui', 'sans-serif', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'],
+    },
+    colors: {
+      primary: 'hsl(0 0% 9%)', 'primary-foreground': 'hsl(0 0% 98%)', secondary: 'hsl(161.38 93.55% 30.39%)',
+      muted: 'hsl(0 0% 96.1%)', 'muted-foreground': 'hsl(0 0% 45.1%)', accent: 'hsl(0 0% 96.1%)',
+      input: 'hsl(0 0% 89.8%)', border: 'hsl(0 0% 92.8%)',
+    },
+  } } };
+</script>
+<style>
+  body { background: #e5e7eb; }
+  h1, h2, h3 { font-family: ui-sans-serif, system-ui, sans-serif; color: #0f172a; }
+  .menu-pop { display: none; }
+  .menu.open .menu-pop { display: block; }
+  .spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body class="font-sans text-[16px] antialiased">
+
+<!-- ========== Barra de control del mockup (no es parte de la pantalla) ========== -->
+<div class="mx-auto w-[1440px] bg-neutral-800 px-6 py-2.5 text-xs text-neutral-200 flex flex-wrap items-center gap-x-4 gap-y-1">
+  <span class="font-semibold text-white">Mockup CR-001 · sincronizar campaña del ERP</span>
+  <span class="text-neutral-400">Prueba con los ID 55210 (sin bodegas web), 55302 (bodega 315, WhatsApp), 55288 (ya existe en Derek), 55180 (sin Instant Rebate), 99999 (no existe). Resincronizar: menú ⋮ de #1365 (con cambios) y #1360 (sin cambios).</span>
+  <label class="ml-auto flex items-center gap-1.5"><input id="demo-caido" type="checkbox"> ERP sin conexión</label>
+  <label class="flex items-center gap-1.5"><input id="demo-permiso" type="checkbox" checked> Usuario con permiso «Sincronizar campaña ERP»</label>
+</div>
+
+<div class="mx-auto w-[1440px] flex min-h-[900px] bg-white relative overflow-hidden">
+  <aside class="w-[220px] shrink-0 bg-[#18181b] text-neutral-200 flex flex-col">
+    <div class="flex h-14 items-center justify-between px-4 border-b border-neutral-800">
+      <div class="flex items-center gap-2">
+        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-neutral-900 text-xs font-bold">g</span>
+        <span class="text-white font-bold text-lg tracking-tight">get</span>
+      </div>
+      <svg class="h-4 w-4 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
+    </div>
+    <nav class="mt-5 flex flex-col text-[13px]">
+      <a class="flex items-center justify-between px-4 py-2.5 hover:bg-neutral-800"><span class="flex items-center gap-2.5"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</span></a>
+      <a class="flex items-center justify-between px-4 py-2.5 hover:bg-neutral-800"><span class="flex items-center gap-2.5"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>Pedidos</span><svg class="h-3.5 w-3.5 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>
+      <a class="flex items-center justify-between px-4 py-2.5 bg-neutral-800 text-white"><span class="flex items-center gap-2.5"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 5 5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>Descuentos</span><svg class="h-3.5 w-3.5 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>
+      <a class="flex items-center justify-between px-4 py-2.5 hover:bg-neutral-800"><span class="flex items-center gap-2.5"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Clientes</span><svg class="h-3.5 w-3.5 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>
+      <a class="flex items-center justify-between px-4 py-2.5 hover:bg-neutral-800"><span class="flex items-center gap-2.5"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>Venta asistida</span><svg class="h-3.5 w-3.5 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>
+      <a class="flex items-center justify-between px-4 py-2.5 hover:bg-neutral-800"><span class="flex items-center gap-2.5"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>Devoluciones</span><svg class="h-3.5 w-3.5 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>
+      <a class="flex items-center justify-between px-4 py-2.5 hover:bg-neutral-800"><span class="flex items-center gap-2.5"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>QUAC</span><svg class="h-3.5 w-3.5 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>
+      <a class="flex items-center justify-between px-4 py-2.5 hover:bg-neutral-800"><span class="flex items-center gap-2.5"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configuración</span><svg class="h-3.5 w-3.5 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></a>
+    </nav>
+  </aside>
+  <main class="flex-1 min-w-0 bg-gray-50">
+    <div class="px-8 py-2 border-b border-gray-200 bg-white flex items-center gap-2 text-sm text-gray-500">
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>
+      <svg class="h-3.5 w-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+      <span class="text-gray-700">Promociones</span>
+    </div>
+
+    <section class="px-8 py-6 bg-white border-b border-gray-200">
+      <header class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-slate-900">Promociones de descuento</h1>
+          <p class="text-base text-gray-600">Gestiona ofertas, códigos y beneficios para tus tiendas</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <!-- NUEVO: solo con el permiso «Sincronizar campaña ERP» -->
+          <button id="btn-sync" class="inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-md border bg-white px-4 text-sm font-medium shadow-sm hover:bg-accent">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+            Sincronizar campaña del ERP
+          </button>
+          <button class="inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            Crear promoción
+          </button>
+        </div>
+      </header>
+    </section>
+
+    <div class="space-y-6 px-8 py-6">
+      <div>
+        <div id="tabs" class="flex border-b border-gray-200"></div>
+        <p id="tab-desc" class="mt-3 text-sm text-gray-500"></p>
+      </div>
+
+      <div class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[180px] flex-1">
+          <!-- CAMBIA: el placeholder suma «ID de campaña» -->
+          <input id="q" class="flex h-12 w-full rounded-md border border-input bg-white px-3 py-1 text-sm shadow-sm outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/50" placeholder="Buscar por nombre, código o ID de campaña..." />
+        </div>
+        <div class="min-w-[160px]">
+          <label class="mb-1 block text-xs font-medium text-gray-600">Tienda</label>
+          <select id="f-tienda" class="h-12 w-full rounded-md border border-input bg-white px-3 text-sm shadow-sm"><option value="">Todas las tiendas</option><option>Stirpe</option><option>Derek</option><option>U82</option><option>Typer</option><option>Factory</option></select>
+        </div>
+        <div class="min-w-[160px]">
+          <label class="mb-1 block text-xs font-medium text-gray-600">Estado</label>
+          <select id="f-estado" class="h-12 w-full rounded-md border border-input bg-white px-3 text-sm shadow-sm"><option value="">Todos</option><option value="borrador">Borrador</option><option value="programada">Programada</option><option value="activa">Activa</option><option value="vencida">Vencida</option><option value="archivada">Archivada</option></select>
+        </div>
+        <button id="btn-buscar" class="inline-flex h-12 items-center gap-2 rounded-md border bg-white px-4 text-sm font-medium shadow-sm hover:bg-accent">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>Buscar
+        </button>
+      </div>
+
+      <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-100 bg-gray-50">
+              <th class="w-[72px] px-4 py-3 text-left align-top font-medium text-gray-600">ID</th>
+              <th class="px-4 py-3 text-left align-top font-medium text-gray-600">Promoción</th>
+              <th class="px-4 py-3 text-left align-top font-medium text-gray-600">Beneficio</th>
+              <th class="px-4 py-3 text-left align-top font-medium text-gray-600">Tienda</th>
+              <th class="px-4 py-3 text-left align-top font-medium text-gray-600">Vigencia</th>
+              <th class="px-4 py-3 text-left align-top font-medium text-gray-600">Estado</th>
+              <th class="px-4 py-3 text-right align-top font-medium text-gray-600">Redimidos<div class="text-[11px] font-normal text-gray-400">Pedidos pagados y no cancelados</div></th>
+              <th class="px-4 py-3 text-right align-top font-medium text-gray-600">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <p class="text-xs text-gray-400">Las tarjetas de métricas de la pantalla real siguen igual; aquí se omiten para dejar a la vista lo que cambia.</p>
+    </div>
+  </main>
+
+  <!-- ========== Diálogo: Sincronizar campaña ========== -->
+  <div id="dlg-sync" class="hidden absolute inset-0 z-40 bg-black/50">
+    <div class="absolute left-1/2 top-10 w-[720px] -translate-x-1/2 rounded-lg border bg-white p-6 shadow-lg max-h-[calc(100%-5rem)] overflow-y-auto">
+      <button class="cerrar absolute right-4 top-4 text-gray-500 hover:text-gray-900" title="Cerrar">✕</button>
+      <h2 class="text-lg font-semibold text-neutral-900">Sincronizar campaña del ERP</h2>
+      <p class="mt-1 text-sm text-gray-500">get lee la campaña y su Instant Rebate en el ERP y crea la promoción en borrador. En el ERP no se cambia nada.</p>
+
+      <div class="mt-5 flex items-end gap-3">
+        <div class="w-56">
+          <label class="mb-1 block text-xs font-medium text-gray-600">ID de campaña</label>
+          <input id="sync-id" inputmode="numeric" class="flex h-12 w-full rounded-md border border-input px-3 text-sm shadow-sm outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/50" placeholder="Ej. 55210" />
+        </div>
+        <button id="sync-leer" class="inline-flex h-12 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90">Leer del ERP</button>
+      </div>
+
+      <div id="sync-estado" class="mt-5"></div>
+    </div>
+  </div>
+
+  <!-- ========== Diálogo: Resincronizar ========== -->
+  <div id="dlg-resync" class="hidden absolute inset-0 z-40 bg-black/50">
+    <div class="absolute left-1/2 top-16 w-[640px] -translate-x-1/2 rounded-lg border bg-white p-6 shadow-lg">
+      <button class="cerrar absolute right-4 top-4 text-gray-500 hover:text-gray-900" title="Cerrar">✕</button>
+      <h2 class="text-lg font-semibold text-neutral-900">Resincronizar con el ERP</h2>
+      <div id="resync-cuerpo" class="mt-4"></div>
+    </div>
+  </div>
+
+  <!-- Toast (PrimeVue) -->
+  <div id="toast" class="hidden absolute right-6 top-6 z-50 w-[380px] rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm shadow-lg"></div>
+</div>
+
+<!-- ========== Notas del mockup ========== -->
+<div class="mx-auto w-[1440px] bg-white border-t border-gray-200 px-8 py-6 text-sm text-gray-700">
+  <h3 class="text-base font-semibold text-neutral-900">Qué cambia en la pantalla</h3>
+  <ul class="mt-2 list-disc space-y-1 pl-5">
+    <li>Botón «Sincronizar campaña del ERP» junto a «Crear promoción». Solo lo ve quien tiene el permiso «Sincronizar campaña ERP».</li>
+    <li>El buscador también encuentra por ID de campaña: escribe 55210 y salen las promociones enlazadas a esa campaña, en cualquier pestaña.</li>
+    <li>Debajo del nombre, las promociones enlazadas muestran «Campaña ERP 55210» y su estrategia.</li>
+    <li>El menú ⋮ de una promoción enlazada suma «Resincronizar con el ERP» (en borrador, programada o activa).</li>
+    <li>Pestañas, filtros, columnas y métricas siguen como hoy.</li>
+  </ul>
+  <h3 class="mt-4 text-base font-semibold text-neutral-900">Fuera del mockup</h3>
+  <ul class="mt-2 list-disc space-y-1 pl-5">
+    <li>El wizard de edición, que no cambia salvo por las dimensiones nuevas «Tipo 8» y «Tipo 9», que se eligen como hoy se eligen Marca o Género.</li>
+    <li>Los clientes de la campaña y el código por cédula (CR-002).</li>
+  </ul>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const pesos = v => '$' + new Intl.NumberFormat('es-CO').format(v);
+const fecha = f => f ? new Date(f + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+const badgeClase = { activa: 'bg-emerald-100 text-emerald-700 border border-emerald-200', programada: 'bg-neutral-900 text-white border border-neutral-900', borrador: 'bg-white text-neutral-500 border border-neutral-300', vencida: 'bg-gray-100 text-gray-600 border border-gray-200', archivada: 'bg-neutral-100 text-neutral-400 border border-neutral-200 line-through' };
+const estadoLabel = { activa: 'Activa', programada: 'Programada', borrador: 'Borrador', vencida: 'Vencida', archivada: 'Archivada' };
+const chip = 'mt-1 inline-flex w-fit items-center rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-gray-600';
+
+const pestanas = [
+  { key: 'ESTRATEGIAS', label: 'Estrategias', desc: 'Promociones automáticas: aplican solas cuando el carrito cumple las condiciones (antes módulo Estrategias).' },
+  { key: 'CODIGO', label: 'Cupones (un código)', desc: 'Un mismo código para todos los clientes (antes módulo Cupones).' },
+  { key: 'CODIGO_UNICO', label: 'Cupones (códigos únicos)', desc: 'Un código distinto por cliente, generado en lote (antes cupones masivos).' },
+  { key: 'SUSCRIPCION', label: 'Suscripción', desc: 'Beneficio que se entrega al suscribirse al newsletter.' },
+];
+
+let siguienteId = 1372;
+const promociones = [
+  { id: 1365, nombre: 'Derek Leales Bono 50x300 Oct', tab: 'CODIGO', beneficio: 'Descuento $', tienda: 'Derek', canal: 'WHATSAPP', inicio: '2026-10-20', fin: '2026-10-31', estado: 'activa', redimidos: 41, descuento: 2050000, campana: 55288, estrategia: 'CRM Retención' },
+  { id: 1360, nombre: 'Stirpe Próximos Inactivos 15%', tab: 'CODIGO', beneficio: 'Descuento %', tienda: 'Stirpe', canal: 'AMBOS', inicio: '2026-11-01', fin: '2026-11-07', estado: 'programada', redimidos: 0, descuento: 0, campana: 55240, estrategia: 'CRM Próximos Inactivos' },
+  { id: 1246, nombre: 'ENVIOGRATIS', tab: 'CODIGO', beneficio: 'Envío gratis', tienda: 'Stirpe', canal: 'AMBOS', inicio: '2026-08-15', fin: '2026-12-31', estado: 'activa', redimidos: 25, descuento: 400000 },
+  { id: 1187, nombre: 'BIENVENIDO10', tab: 'CODIGO', beneficio: 'Descuento %', tienda: 'Typer', canal: 'AMBOS', inicio: '2026-06-01', fin: null, estado: 'activa', redimidos: 38, descuento: 1455300 },
+  { id: 1291, nombre: 'Perfume por $29.900', tab: 'ESTRATEGIAS', beneficio: 'Regalo', tienda: 'Stirpe', canal: 'AMBOS', inicio: '2026-10-19', fin: '2026-10-26', estado: 'vencida', redimidos: 14, descuento: 2798600 },
+  { id: 1300, nombre: 'Hot Days', tab: 'ESTRATEGIAS', beneficio: 'Descuento %', tienda: null, canal: 'AMBOS', inicio: '2026-10-17', fin: '2026-10-20', estado: 'vencida', redimidos: 83, descuento: 4210500 },
+  { id: 1254, nombre: 'Bienvenida app · 10 %', tab: 'CODIGO_UNICO', beneficio: 'Descuento %', tienda: null, canal: 'AMBOS', inicio: '2026-09-01', fin: '2026-12-31', estado: 'activa', redimidos: 96, descuento: 3102400 },
+  { id: 1120, nombre: 'Newsletter · 10 % primera compra', tab: 'SUSCRIPCION', beneficio: 'Descuento %', tienda: 'Stirpe', canal: 'AMBOS', inicio: null, fin: null, estado: 'activa', redimidos: 5, descuento: 612238 },
+];
+
+// Campañas de ejemplo tal como las devuelve la lectura del ERP
+const erp = {
+  55210: { clientes: 14475, nombre: 'Stirpe Leales Bono 100x800 Jul-17', inicio: '2026-07-14', fin: '2026-07-17', beneficio: 'Descuento $', valor: '$100.000', minimo: '$800.000',
+    condiciones: [['Género', '001, 002, 003'], ['Marca', 'lista del rebate (011, 127, …)'], ['Tipo de prenda', 'lista del rebate'], ['Prendas en promoción', 'no aplica (solo precio full)']],
+    pago: 'Cualquier medio de pago (la campaña no tiene convenios)',
+    noTraslada: ['64 bodegas físicas: get no vende en tiendas físicas'],
+    tiendas: [], canal: 'AMBOS', detalle: 'Bono de $100.000 por compras desde $800.000. Válido del 14 al 17 de julio.' },
+  55302: { clientes: 3210, nombre: 'Stirpe QEC Activos 20%', inicio: '2026-11-03', fin: '2026-11-09', beneficio: 'Descuento %', valor: '20 %', minimo: '$200.000',
+    condiciones: [['Género', '001, 002'], ['Tipo 8', '7 «NO APLICA»']],
+    pago: 'Solo QUAC (convenio QUAC de la campaña)',
+    noTraslada: ['Crédito / contado: la campaña pide «crédito»; ya queda cubierto por el medio de pago QUAC', '12 bodegas físicas: get no vende en tiendas físicas'],
+    tiendas: ['Stirpe'], canal: 'WHATSAPP', origen: 'bodega 315 (venta asistida Stirpe)', detalle: '' },
+  55288: { clientes: 5862, nombre: 'Derek Leales Bono 50x300 Oct', inicio: '2026-10-20', fin: '2026-11-03', beneficio: 'Descuento $', valor: '$50.000', minimo: '$250.000',
+    condiciones: [['Género', '001']], pago: 'Cualquier medio de pago (la campaña no tiene convenios)', noTraslada: ['40 bodegas físicas: get no vende en tiendas físicas'],
+    tiendas: ['Derek'], canal: 'WHATSAPP', origen: 'bodega 316 (venta asistida Derek)', detalle: '' },
+  55240: { clientes: 8904, nombre: 'Stirpe Próximos Inactivos 15%', inicio: '2026-11-01', fin: '2026-11-07', beneficio: 'Descuento %', valor: '15 %', minimo: '$150.000', condiciones: [], pago: 'Cualquier medio de pago', noTraslada: [], tiendas: ['Stirpe'], canal: 'AMBOS', detalle: '' },
+};
+const sinRebate = { 55180: 'Stirpe Cumpleaños Oct' };
+const TIENDAS = ['Stirpe', 'Derek', 'U82', 'Typer', 'Factory'];
+const CON_VA = ['Stirpe', 'Derek'];
+const ESTRATEGIAS = ['Newsletter', 'Cupo no aprobado', 'Estrategia de reventa (abono de cupo)', 'Cumpleaños', 'Descuentos especiales', 'CRM Retención', 'CRM Alerta Activos', 'CRM Próximos Inactivos', 'CRM Venta Cruzada', 'CRM Compra Única'];
+
+const filtros = { tab: 'CODIGO', q: '', tienda: '', estado: '' };
+
+// ---------- Listado ----------
+function filaHtml(p) {
+  const canal = p.canal && p.canal !== 'AMBOS' ? `<div class="${chip}">${p.canal === 'WEB' ? 'solo Web' : 'solo WhatsApp'}</div>` : '';
+  const enlace = p.campana ? `<div class="mt-1 flex flex-wrap items-center gap-1.5"><span class="inline-flex items-center gap-1 rounded-full border border-neutral-300 bg-white px-2 py-0.5 text-[11px] font-medium text-neutral-700"><svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Campaña ERP ${p.campana}</span><span class="text-xs text-gray-500">${p.estrategia}</span></div>` : '';
+  const vig = (p.inicio || p.fin) ? `${fecha(p.inicio)} → ${p.fin ? fecha(p.fin) : 'sin fin'}` : '<span class="text-gray-400">Sin vigencia</span>';
+  const item = (t, extra = '', on = '') => `<button class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent ${extra}" ${on}>${t}</button>`;
+  const items = [];
+  if (!['vencida', 'archivada'].includes(p.estado)) items.push(item('✎ Editar'));
+  if (p.campana && !['vencida', 'archivada'].includes(p.estado) && $('demo-permiso').checked) items.push(item('↻ Resincronizar con el ERP', 'font-medium', `onclick="abrirResync(${p.id})"`));
+  items.push(item('⧉ Duplicar'));
+  items.push('<div class="my-1 h-px bg-gray-100"></div>' + item('▣ Archivar', 'text-pink-600 hover:bg-pink-50'));
+  return `<tr class="border-b border-gray-50 transition-colors hover:bg-gray-50 ${p.nuevo ? 'bg-emerald-50/40' : ''}">
+    <td class="px-4 py-3 align-top font-mono text-xs text-gray-500">#${p.id}</td>
+    <td class="px-4 py-3 align-top"><a class="font-medium text-neutral-900 hover:underline" href="#">${p.nombre}</a>${enlace}</td>
+    <td class="px-4 py-3 align-top text-gray-600">${p.beneficio}</td>
+    <td class="px-4 py-3 align-top"><div class="flex flex-col">${p.tienda ?? 'Todas'}${canal}</div></td>
+    <td class="px-4 py-3 align-top text-xs">${vig}</td>
+    <td class="px-4 py-3 align-top"><span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClase[p.estado]}">${estadoLabel[p.estado]}</span></td>
+    <td class="px-4 py-3 align-top text-right"><div class="font-medium">${p.redimidos}</div><div class="text-xs text-gray-400">${pesos(p.descuento)}</div></td>
+    <td class="px-4 py-3 align-top text-right"><div class="menu relative inline-block"><button class="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent" onclick="this.parentNode.classList.toggle('open');event.stopPropagation()">⋮</button>
+      <div class="menu-pop absolute right-0 z-30 mt-1 min-w-[14rem] rounded-md border bg-white p-1 text-left shadow-md">${items.join('')}</div></div></td>
+  </tr>`;
+}
+
+function render() {
+  const lista = promociones.filter(p => p.tab === filtros.tab
+    && (!filtros.tienda || p.tienda === filtros.tienda)
+    && (!filtros.estado || p.estado === filtros.estado)
+    && (!filtros.q || p.nombre.toLowerCase().includes(filtros.q.toLowerCase()) || String(p.campana ?? '') === filtros.q.trim()));
+  $('tabs').innerHTML = pestanas.map(t => {
+    const on = t.key === filtros.tab, n = promociones.filter(p => p.tab === t.key).length;
+    return `<button data-tab="${t.key}" class="-mb-px h-12 border-b-[3px] px-5 text-base font-semibold ${on ? 'border-neutral-900 text-neutral-900' : 'border-transparent text-gray-500 hover:text-gray-800'}">${t.label} <span class="ml-1 inline-flex min-w-[1.5rem] items-center justify-center rounded-full px-2 py-0.5 text-xs font-medium ${on ? 'bg-neutral-900 text-white' : 'bg-gray-100 text-gray-600'}">${n}</span></button>`;
+  }).join('');
+  $('tab-desc').textContent = pestanas.find(t => t.key === filtros.tab).desc;
+  $('tbody').innerHTML = lista.length ? lista.map(filaHtml).join('')
+    : `<tr><td colspan="8" class="px-4 py-12 text-center text-gray-400">No hay promociones con estos filtros.</td></tr>`;
+  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { filtros.tab = b.dataset.tab; render(); });
+  $('btn-sync').style.display = $('demo-permiso').checked ? '' : 'none';
+}
+document.addEventListener('click', () => document.querySelectorAll('.menu.open').forEach(m => m.classList.remove('open')));
+$('btn-buscar').onclick = () => { filtros.q = $('q').value; filtros.tienda = $('f-tienda').value; filtros.estado = $('f-estado').value; render(); };
+$('q').onkeydown = e => { if (e.key === 'Enter') $('btn-buscar').click(); };
+$('demo-permiso').onchange = render;
+document.querySelectorAll('.cerrar').forEach(b => b.onclick = () => b.closest('.absolute.inset-0').classList.add('hidden'));
+
+// ---------- Sincronizar ----------
+const aviso = (titulo, texto, rosa = false) => `<div class="rounded-lg border ${rosa ? 'border-pink-200 bg-pink-50 text-pink-800' : 'border-gray-200 bg-gray-50 text-gray-700'} p-4 text-sm"><p class="font-medium">${titulo}</p><p class="mt-1">${texto}</p></div>`;
+const cargando = t => `<div class="flex items-center gap-3 rounded-lg border border-gray-200 p-4 text-sm text-gray-600"><svg class="spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>${t}</div>`;
+
+$('btn-sync').onclick = () => { $('sync-id').value = ''; $('sync-estado').innerHTML = ''; $('dlg-sync').classList.remove('hidden'); $('sync-id').focus(); };
+$('sync-id').onkeydown = e => { if (e.key === 'Enter') $('sync-leer').click(); };
+$('sync-leer').onclick = () => {
+  const id = $('sync-id').value.trim();
+  if (!/^\d+$/.test(id)) { $('sync-estado').innerHTML = aviso('Escribe el número de la campaña', 'El ID de campaña es el número que muestra el ERP en Customer Retention, por ejemplo 55210.', true); return; }
+  $('sync-estado').innerHTML = cargando(`Leyendo la campaña ${id} en el ERP…`);
+  setTimeout(() => {
+    if ($('demo-caido').checked) { $('sync-estado').innerHTML = aviso('No se pudo leer el ERP', 'get no logró conectarse con el ERP. No se creó nada. Intenta de nuevo en unos minutos; si sigue, avisa a soporte.', true); return; }
+    if (sinRebate[id]) { $('sync-estado').innerHTML = aviso(`La campaña ${id} no tiene Instant Rebate`, `«${sinRebate[id]}» existe en el ERP, pero sin beneficio configurado no hay qué crear en get. Configura el Instant Rebate en el ERP y vuelve a sincronizar.`, true); return; }
+    if (!erp[id]) { $('sync-estado').innerHTML = aviso(`No existe la campaña ${id} en el ERP`, 'Revisa el número en Customer Retention.', true); return; }
+    pintarVista(Number(id));
+  }, 900);
+};
+
+function pintarVista(id) {
+  const c = erp[id];
+  const ya = Object.fromEntries(promociones.filter(p => p.campana === id && p.estado !== 'archivada').map(p => [p.tienda, p.id]));
+  const fila = (k, v) => `<div class="flex gap-3 py-1.5"><dt class="w-44 shrink-0 text-gray-500">${k}</dt><dd class="text-neutral-900">${v}</dd></div>`;
+  const tiendas = TIENDAS.map(t => {
+    const existe = ya[t];
+    return `<label class="flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${existe ? 'border-gray-200 bg-gray-50 text-gray-400' : 'border-gray-200 hover:border-gray-300'}">
+      <input type="checkbox" name="tienda" value="${t}" ${existe ? 'disabled' : ''} ${c.tiendas.includes(t) && !existe ? 'checked' : ''}> ${t}
+      ${existe ? `<span class="ml-auto text-[11px]">ya existe #${existe}</span>` : ''}</label>`;
+  }).join('');
+  const canalBtn = (v, l) => `<button type="button" data-canal="${v}" class="flex-1 rounded border-2 px-3 py-1.5 text-xs font-medium">${l}</button>`;
+  $('sync-estado').innerHTML = `
+    <div class="rounded-lg border border-gray-200">
+      <div class="border-b border-gray-100 bg-gray-50 px-4 py-3">
+        <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Campaña ${id} en el ERP</p>
+        <p class="mt-0.5 font-semibold text-neutral-900">${c.nombre}</p>
+        <p class="text-xs text-gray-500">${fecha(c.inicio)} → ${fecha(c.fin)}</p>
+        <p class="mt-1 text-xs text-gray-600">Clientes de la campaña: <b class="text-neutral-900">${new Intl.NumberFormat('es-CO').format(c.clientes)}</b> · get todavía no los usa; llegan con el código por cédula.</p>
+      </div>
+      <dl class="px-4 py-2 text-sm">
+        <p class="pt-1 text-xs font-medium uppercase tracking-wide text-gray-500">Se trae a la promoción</p>
+        ${fila('Beneficio', `${c.beneficio} · ${c.valor}`)}
+        ${fila('Compra mínima', c.minimo)}
+        ${c.condiciones.map(([k, v]) => fila(k, v)).join('')}
+        ${fila('Medio de pago', c.pago)}
+      </dl>
+      ${c.noTraslada.length ? `<div class="border-t border-gray-100 px-4 py-3 text-sm"><p class="text-xs font-medium uppercase tracking-wide text-gray-500">No se trae</p><ul class="mt-1 list-disc space-y-0.5 pl-5 text-gray-600">${c.noTraslada.map(x => `<li>${x}</li>`).join('')}</ul></div>` : ''}
+    </div>
+
+    <div class="mt-5 space-y-5">
+      <div>
+        <p class="text-sm font-medium text-neutral-800">Tiendas</p>
+        <p class="mb-2 text-xs text-gray-500">${c.tiendas.length ? `Precargada por la ${c.origen}. Se crea una promoción por cada tienda marcada.` : 'La campaña no trae bodegas de tiendas online: marca dónde aplica. Se crea una promoción por cada tienda marcada.'}</p>
+        <div class="grid grid-cols-3 gap-2">${tiendas}</div>
+      </div>
+      <div id="bloque-canal" class="space-y-2">
+        <p class="text-sm font-medium text-neutral-800">Canal de venta</p>
+        <div class="flex gap-2">${canalBtn('WEB', 'Web')}${canalBtn('WHATSAPP', 'WhatsApp')}${canalBtn('AMBOS', 'Ambos')}</div>
+        <p id="canal-ayuda" class="text-xs text-gray-500"></p>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="mb-1 block text-sm font-medium text-neutral-800">Estrategia de cupón</label>
+          <select id="sync-estrategia" class="h-12 w-full rounded-md border border-input bg-white px-3 text-sm shadow-sm">${ESTRATEGIAS.map(e => `<option ${e === 'CRM Retención' ? 'selected' : ''}>${e}</option>`).join('')}</select>
+        </div>
+        <div>
+          <p class="mb-1 text-sm font-medium text-neutral-800">Tipo de activación</p>
+          <p class="flex h-12 items-center rounded-md border border-gray-200 bg-gray-50 px-3 text-sm text-gray-600">Un código para todos</p>
+        </div>
+      </div>
+      <div>
+        <label class="mb-1 block text-sm font-medium text-neutral-800">Mensaje para el cliente</label>
+        <textarea id="sync-detalle" rows="2" class="w-full rounded-md border border-input px-3 py-2 text-sm shadow-sm" placeholder="La campaña no trae «Detalle» en el ERP. Puedes escribirlo aquí o después en la promoción.">${c.detalle}</textarea>
+        <p class="text-xs text-gray-500">Viene del campo «Detalle» del rebate. Se puede editar.</p>
+      </div>
+      <div class="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">La promoción queda en <b>borrador</b>. Para publicarla, ábrela, escribe el código que se entrega a los clientes y publica.</div>
+      <div id="sync-error"></div>
+      <div class="flex justify-end gap-3">
+        <button class="cerrar2 inline-flex h-12 items-center rounded-md border bg-white px-4 text-sm font-medium shadow-sm hover:bg-accent">Cancelar</button>
+        <button id="sync-crear" class="inline-flex h-12 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90"></button>
+      </div>
+    </div>`;
+  let canal = c.canal;
+  const ayuda = { WEB: 'Solo compras que el cliente hace en la tienda en línea.', WHATSAPP: 'Solo carritos que arma un asesor de venta asistida en GET, aunque el cliente pague con el link.', AMBOS: 'Aplica en la tienda en línea y en venta asistida.' };
+  const pintarCanal = () => {
+    document.querySelectorAll('[data-canal]').forEach(b => b.className = 'flex-1 rounded border-2 px-3 py-1.5 text-xs font-medium ' + (b.dataset.canal === canal ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'));
+    $('canal-ayuda').textContent = ayuda[canal] + (c.canal !== 'AMBOS' && canal === c.canal ? ` Precargado por la ${c.origen}.` : '');
+  };
+  const marcadas = () => [...document.querySelectorAll('[name=tienda]:checked')].map(i => i.value);
+  const refrescar = () => {
+    const m = marcadas();
+    $('bloque-canal').style.display = m.some(t => CON_VA.includes(t)) ? '' : 'none';
+    $('sync-crear').textContent = m.length === 1 ? 'Crear 1 promoción en borrador' : `Crear ${m.length} promociones en borrador`;
+    $('sync-crear').disabled = !m.length; $('sync-crear').classList.toggle('opacity-50', !m.length);
+  };
+  document.querySelectorAll('[data-canal]').forEach(b => b.onclick = () => { canal = b.dataset.canal; pintarCanal(); });
+  document.querySelectorAll('[name=tienda]').forEach(i => i.onchange = refrescar);
+  document.querySelector('.cerrar2').onclick = () => $('dlg-sync').classList.add('hidden');
+  pintarCanal(); refrescar();
+  $('sync-crear').onclick = () => {
+    const m = marcadas(); if (!m.length) return;
+    $('sync-crear').innerHTML = 'Creando…';
+    setTimeout(() => {
+      const creadas = m.map(t => {
+        const p = { id: siguienteId++, nombre: c.nombre, tab: 'CODIGO', beneficio: c.beneficio, tienda: t, canal: CON_VA.includes(t) ? canal : 'AMBOS', inicio: c.inicio, fin: c.fin, estado: 'borrador', redimidos: 0, descuento: 0, campana: id, estrategia: $('sync-estrategia').value, nuevo: true };
+        promociones.unshift(p); return p;
+      });
+      $('dlg-sync').classList.add('hidden');
+      filtros.tab = 'CODIGO'; filtros.q = String(id); $('q').value = String(id); render();
+      toast(`${creadas.length === 1 ? 'Se creó la promoción' : 'Se crearon las promociones'} ${creadas.map(p => '#' + p.id).join(', ')} en borrador`, 'Ábrela, escribe el código y publícala.');
+    }, 900);
+  };
+}
+
+function toast(titulo, sub) {
+  $('toast').innerHTML = `<p class="font-medium text-emerald-800">${titulo}</p><p class="mt-0.5 text-emerald-700">${sub}</p>`;
+  $('toast').classList.remove('hidden'); clearTimeout(window._t); window._t = setTimeout(() => $('toast').classList.add('hidden'), 5000);
+}
+
+// ---------- Resincronizar ----------
+const cambios = {
+  1365: [['Fecha fin', '31 oct 2026', '03 nov 2026'], ['Compra mínima', '$300.000', '$250.000']],
+  1360: [],
+};
+function abrirResync(pid) {
+  const p = promociones.find(x => x.id === pid);
+  $('dlg-resync').classList.remove('hidden');
+  $('resync-cuerpo').innerHTML = cargando(`Leyendo la campaña ${p.campana} en el ERP…`);
+  setTimeout(() => {
+    if ($('demo-caido').checked) { $('resync-cuerpo').innerHTML = aviso('No se pudo leer el ERP', 'No se cambió nada en la promoción. Intenta de nuevo en unos minutos.', true) + botonesCerrar(); return; }
+    const lista = cambios[pid] ?? [];
+    const cab = `<p class="text-sm text-gray-600">Promoción <b class="text-neutral-900">#${p.id} ${p.nombre}</b> · ${p.tienda} · <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badgeClase[p.estado]}">${estadoLabel[p.estado]}</span></p>`;
+    if (!lista.length) { $('resync-cuerpo').innerHTML = cab + `<div class="mt-4">${aviso('Sin cambios', `La promoción ya coincide con la campaña ${p.campana} del ERP.`)}</div>` + botonesCerrar(); return; }
+    $('resync-cuerpo').innerHTML = cab + `
+      <table class="mt-4 w-full overflow-hidden rounded-lg border border-gray-200 text-sm">
+        <thead><tr class="border-b border-gray-100 bg-gray-50"><th class="px-4 py-2 text-left font-medium text-gray-600">Campo</th><th class="px-4 py-2 text-left font-medium text-gray-600">Hoy en get</th><th class="px-4 py-2 text-left font-medium text-gray-600">En el ERP</th></tr></thead>
+        <tbody>${lista.map(([k, a, b]) => `<tr class="border-b border-gray-50"><td class="px-4 py-2 text-gray-600">${k}</td><td class="px-4 py-2 text-gray-500 line-through">${a}</td><td class="px-4 py-2 font-medium text-neutral-900">${b}</td></tr>`).join('')}</tbody>
+      </table>
+      <p class="mt-3 text-xs text-gray-500">No cambian: el código, la tienda, el canal ni el tipo de activación.</p>
+      ${['activa', 'programada'].includes(p.estado) ? `<div class="mt-3 rounded-md border border-neutral-900 bg-neutral-900 px-3 py-2 text-xs text-white">Esta promoción está ${estadoLabel[p.estado].toLowerCase()}: los cambios se aplican en cuanto confirmes.</div>` : ''}
+      <div class="mt-5 flex justify-end gap-3">
+        <button onclick="$('dlg-resync').classList.add('hidden')" class="inline-flex h-12 items-center rounded-md border bg-white px-4 text-sm font-medium shadow-sm hover:bg-accent">Cancelar</button>
+        <button id="resync-aplicar" class="inline-flex h-12 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90">Aplicar ${lista.length} cambios</button>
+      </div>`;
+    $('resync-aplicar').onclick = () => {
+      p.fin = '2026-11-03'; cambios[pid] = [];
+      $('dlg-resync').classList.add('hidden'); render();
+      toast(`Promoción #${p.id} actualizada`, `${lista.length} cambios traídos de la campaña ${p.campana}.`);
+    };
+  }, 900);
+}
+const botonesCerrar = () => `<div class="mt-5 flex justify-end"><button onclick="$('dlg-resync').classList.add('hidden')" class="inline-flex h-12 items-center rounded-md border bg-white px-4 text-sm font-medium shadow-sm hover:bg-accent">Cerrar</button></div>`;
+
+render();
+</script>
+</body>
+</html>

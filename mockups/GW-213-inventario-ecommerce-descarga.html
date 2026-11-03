@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1440">
+<title>GW-213 · Inventario e-commerce: descargar el informe por tienda</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          primary: 'hsl(0 0% 9%)',
+          'primary-foreground': 'hsl(0 0% 98%)',
+          secondary: 'hsl(161.38 93.55% 30.39%)',
+          muted: 'hsl(0 0% 96.1%)',
+          'muted-foreground': 'hsl(0 0% 45.1%)',
+          accent: 'hsl(0 0% 96.1%)',
+          input: 'hsl(0 0% 89.8%)',
+          border: 'hsl(0 0% 92.8%)',
+          background: 'hsl(0 0% 100%)',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  /*
+  ===========================================================================
+  CHROME calcado de get-web (origin/master @ a8d44df, 2026-10-28) para el
+  mockup "Inventario e-commerce" (elegir tienda Stirpe/Derek/U82/Factory +
+  descargar CSV).
+
+  Fuentes leídas (solo lectura, sin cambiar de rama):
+    - resources/js/layouts/app/AppSidebarLayout.vue  (AppShell + AppSidebar +
+      AppContent + AppSidebarHeader + Breadcrumbs; franja de impersonación)
+    - resources/js/layouts/AppLayout.vue              (fondo bg-gray-50, Toast)
+    - resources/js/pages/devoluciones/gestion/Index.vue + components/
+      FiltrosDevoluciones.vue  (tarjeta contenedora, header de página,
+      botón "Exportar" con axios + blob + estado exportando, Select nativo
+      de shadcn-vue, estados de error/carga)
+    - resources/js/components/ui/button/index.ts      (buttonVariants, cva)
+    - resources/js/components/ui/select/SelectTrigger.vue
+
+  El bloque de sidebar + header + breadcrumb + tarjeta de abajo está tomado
+  (adaptando el ítem activo del menú) del mockup ya calibrado contra
+  get-web docs/mockups/SOP-002-generar-enlace-activacion.html (sidebar
+  #18181b, header con buscador "Filtrar menú..." + avatar, breadcrumb con
+  casita) y docs/mockups/GW-214-compra-minima-lista-propia.html (versión
+  estática más simple del mismo sidebar, sin JS de grupos).
+
+  CLASES EXACTAS A REUSAR EN EL MOCKUP FINAL
+  ---------------------------------------------------------------------------
+  Select (shadcn-vue SelectTrigger.vue, canónico):
+    "flex h-10 w-full items-center justify-between rounded-md border
+     border-input bg-background px-3 py-2 text-sm ring-offset-background
+     data-[placeholder]:text-muted-foreground focus:outline-none
+     focus:ring-2 focus:ring-ring focus:ring-offset-2
+     disabled:cursor-not-allowed disabled:opacity-50 [&>span]:truncate
+     text-start"
+    — en FiltrosDevoluciones.vue el trigger real de pantalla usa además
+    "h-9 w-full text-sm" (tamaño compacto de filtros).
+  Select nativo (<select> plano, patrón SOP-002 cuando no se usa
+    shadcn-vue): clase ".sel-nativo" (ver abajo) + mismas clases del Input
+    de abajo + "pr-8 bg-white".
+  Input (altura de filtro): "h-9 text-sm" sobre el Input de shadcn
+    (bordes/radio igual al select: rounded-md border border-input).
+  Input (altura de formulario, SOP-002): "flex h-12 w-full rounded-md
+     border border-input bg-transparent px-3 text-sm shadow-sm outline-none
+     placeholder:text-muted-foreground"
+
+  Botón primario (buttonVariants variant=default size=sm — es el que usa
+    gestion/Index.vue para "Exportar"):
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap
+     rounded-md text-sm font-medium transition-all
+     disabled:pointer-events-none disabled:opacity-50 outline-none
+     cursor-pointer bg-primary text-primary-foreground shadow-xs
+     hover:bg-primary/90 h-8 gap-1.5 px-3"
+  Botón primario, tamaño formulario (SOP-002, h-11 ancho completo):
+    "inline-flex h-11 w-full items-center justify-center gap-2
+     whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium
+     text-primary-foreground shadow-sm hover:bg-primary/90
+     disabled:opacity-50"
+  Botón secundario/outline (variant=outline size=sm, "Depurar represadas"
+    y botones "Limpiar"/"Cancelar"):
+    "inline-flex items-center justify-center gap-1.5 rounded-md border
+     bg-background shadow-xs hover:bg-accent hover:text-accent-foreground
+     text-sm font-medium h-8 px-3" (en SOP-002, sobre fondo blanco:
+     "inline-flex h-9 items-center rounded-md border border-gray-300
+     bg-white px-3 text-sm text-gray-700 hover:bg-gray-50")
+
+  Tarjeta contenedora (filtros / bloque de contenido):
+    "rounded-lg border border-gray-200 bg-white p-3"  (filtros, p-3)
+    "rounded-lg border border-gray-200 bg-white p-4"  (bloques de detalle)
+    Encabezado de página (gestion/Index.vue):
+    h1 -> "text-xl font-semibold text-gray-900"
+    subtítulo -> "mt-0.5 text-sm text-gray-500"
+
+  Toast de error/éxito (patrón SOP-002, inyectado por JS en
+    #toasts = "fixed right-4 top-4 z-[80] flex w-[360px] flex-col gap-2"):
+    éxito -> "toast-in rounded-md border p-3 text-sm shadow-md
+              border-emerald-200 bg-emerald-50 text-emerald-900"
+    error -> "toast-in rounded-md border p-3 text-sm shadow-md
+              border-rose-200 bg-rose-50 text-rose-900"
+    Alternativa inline (gestion/Index.vue, sin JS de toast):
+    error -> "rounded-lg border border-rose-200 bg-rose-50 px-4 py-3"
+             con texto "text-sm font-medium text-rose-900"
+    aviso  -> "rounded-lg border border-amber-200 bg-amber-50 px-4 py-3"
+
+  Spinner / estado de carga en botón (icono lucide "loader" + clase
+    ".girar", patrón SOP-002; equivalente textual en gestion/Index.vue:
+    el botón de Exportar solo cambia el texto a "Exportando…" con
+    :disabled="exportando", sin icono girando):
+    icono -> clase "girar h-4 w-4"  (keyframes abajo)
+    botón durante carga -> agrega "disabled:opacity-50" + atributo disabled
+
+  Fuente (igual en todos los mockups calibrados y en el CSS real de
+    get-web): ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; 16px base.
+  ===========================================================================
+  */
+  html, body { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; font-size: 16px; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .sel-nativo {
+    appearance: none; -webkit-appearance: none; background-repeat: no-repeat; background-position: right 8px center;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23737373' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  @keyframes girar { to { transform: rotate(360deg); } }
+  .girar { animation: girar .8s linear infinite; }
+  @keyframes entrar { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  .toast-in { animation: entrar .2s ease; }
+</style>
+</head>
+<body class="bg-neutral-200 text-[hsl(0_0%_3.9%)] antialiased">
+
+
+<!-- ══ Solo del mockup: conmutador de estados ══ -->
+<div class="mx-auto mb-3 mt-3 flex w-[1440px] flex-wrap items-center gap-2 rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm">
+  <span class="font-medium text-neutral-700">GW-213 · Estado del mockup:</span>
+  <button data-e="normal" class="est rounded-md border px-2.5 py-1">Normal</button>
+  <button data-e="descargando" class="est rounded-md border px-2.5 py-1">Descargando</button>
+  <button data-e="atrasada" class="est rounded-md border px-2.5 py-1">Sincronización atrasada</button>
+  <button data-e="error" class="est rounded-md border px-2.5 py-1">Error al generar</button>
+  <button data-e="vacio" class="est rounded-md border px-2.5 py-1">Tienda sin filas</button>
+  <span class="ml-auto text-xs text-neutral-500">El botón Descargar también se puede probar en Normal</span>
+</div>
+<!-- ══ Pantalla 1440 px ══ -->
+<div class="mx-auto w-[1440px] bg-white">
+
+  <div class="flex min-h-[1000px]">
+    <!-- ══ AppSidebar (resources/js/components/AppSidebar.vue, fondo #18181b) ══ -->
+    <aside class="relative flex w-[272px] shrink-0 flex-col bg-[#18181b]">
+      <div class="flex h-14 shrink-0 items-center justify-between border-b border-[#27272a] px-4">
+        <div class="flex min-w-0 items-center gap-2">
+          <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#fafafa] text-[13px] font-black text-neutral-900">g</span>
+          <span class="text-lg font-bold tracking-tight text-white">get</span>
+        </div>
+        <svg class="h-[18px] w-[18px] text-[#a1a1aa]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3v18"/><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      </div>
+
+      <nav class="flex flex-col gap-1 p-2 pt-3 text-sm">
+        <a class="relative mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-[#a1a1aa] hover:bg-white/5">
+          <svg class="h-4 w-4 text-[#71717a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+          Dashboard
+        </a>
+        <a class="relative mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-[#a1a1aa] hover:bg-white/5">
+          <svg class="h-4 w-4 text-[#71717a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+          Pedidos
+        </a>
+        <a class="relative mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-[#a1a1aa] hover:bg-white/5">
+          <svg class="h-4 w-4 text-[#71717a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+          Descuentos
+        </a>
+        <a class="relative mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-[#a1a1aa] hover:bg-white/5">
+          <svg class="h-4 w-4 text-[#71717a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Clientes
+        </a>
+        <a class="relative mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-[#a1a1aa] hover:bg-white/5">
+          <svg class="h-4 w-4 text-[#71717a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          Venta asistida
+        </a>
+        <a class="relative mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-[#a1a1aa] hover:bg-white/5">
+          <svg class="h-4 w-4 text-[#71717a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 8"/></svg>
+          Devoluciones
+        </a>
+        <a class="relative mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-[#a1a1aa] hover:bg-white/5">
+          <svg class="h-4 w-4 text-[#71717a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          QUAC
+        </a>
+
+        <!-- Ítem activo: módulo nuevo "Inventario e-commerce" (reemplaza al
+             resaltado de ejemplo que en GW-214/SOP-002 cae sobre
+             Descuentos/QUAC; mismo patrón bg-white/10 + borde verde
+             izquierdo que usa get-web para el ítem actual). -->
+        <a class="relative mx-2 flex h-8 items-center gap-2 rounded-md bg-white/10 px-2 font-medium text-white border-l-2 border-[#34d399]">
+          <svg class="h-4 w-4 text-[#34d399]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7h-9m9 5h-9m9 5h-9M3 7h1m-1 5h1m-1 5h1"/></svg>
+          Inventario e-commerce
+        </a>
+
+        <a class="relative mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-[#a1a1aa] hover:bg-white/5">
+          <svg class="h-4 w-4 text-[#71717a]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+          Configuración
+        </a>
+      </nav>
+    </aside>
+
+    <!-- ══ SidebarInset: AppContent + AppSidebarHeader + Breadcrumbs ══ -->
+    <main class="relative flex min-w-0 flex-1 flex-col bg-white">
+
+      <header class="flex min-h-16 shrink-0 items-center gap-2 border-b border-[hsl(0_0%_91%)] px-8 py-4">
+        <div class="flex w-full items-center justify-between gap-4">
+          <div class="relative w-[448px] text-muted-foreground">
+            <span class="absolute left-0 top-0 flex h-12 w-12 items-center justify-center">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </span>
+            <input type="search" placeholder="Filtrar menú..." class="flex h-12 w-full rounded-md border border-input bg-transparent pl-12 pr-3 text-sm shadow-sm outline-none placeholder:text-muted-foreground">
+          </div>
+          <div class="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent">
+            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold text-neutral-700">AC</span>
+            <div class="text-left text-sm leading-tight">
+              <div class="font-medium">Administradora CRM</div>
+              <div class="text-xs text-muted-foreground">admin@empresa-ejemplo.co</div>
+            </div>
+            <svg class="ml-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+      </header>
+
+      <!-- Breadcrumbs.vue (sticky top-0, fixedBreadcrumb en páginas de listado) -->
+      <div class="sticky top-0 z-[1] border-b border-border bg-white px-8 py-2">
+        <ol class="flex items-center gap-2.5 text-sm text-muted-foreground">
+          <li><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9.5 12 3l9 6.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></svg></li>
+          <li><svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></li>
+          <li class="font-normal text-foreground">Inventario e-commerce</li>
+        </ol>
+      </div>
+
+      <!-- Fondo de página (AppLayout.vue: <div class="bg-gray-50"><slot/></div>) -->
+      <div class="flex-1 bg-gray-50">
+        <div class="space-y-5 p-6">
+
+          <!-- Encabezado de página (patrón exacto de gestion/Index.vue) -->
+          <div class="flex flex-wrap items-end gap-3">
+            <div>
+              <h1 class="text-xl font-semibold text-gray-900">Inventario e-commerce</h1>
+              <p class="mt-0.5 text-sm text-gray-500">Inventario por SKU, color y talla de una tienda online, con ventas, contribución y fechas de publicación y de stock 0</p>
+            </div>
+          </div>
+
+          <!-- ===== Punto de montaje del contenido real del mockup ===== -->
+          <main id="contenido" class="space-y-5">
+
+  <!-- Tarjeta de descarga -->
+  <div class="rounded-lg border border-gray-200 bg-white p-4">
+    <div class="flex flex-wrap items-end gap-4">
+      <label class="block w-64">
+        <span class="mb-1 block text-xs font-medium text-gray-600">Tienda</span>
+        <select id="tienda" class="sel-nativo flex h-9 w-full rounded-md border border-input bg-white px-3 pr-8 text-sm shadow-xs outline-none">
+          <option value="Stirpe" data-filas="38.264" data-ref="11.902">Stirpe</option>
+          <option value="Derek" data-filas="34.522" data-ref="10.377">Derek</option>
+          <option value="U82" data-filas="9.410" data-ref="2.986">U82</option>
+          <option value="Factory" data-filas="21.875" data-ref="6.540">Factory</option>
+        </select>
+      </label>
+      <button id="btnDescargar" class="inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50">
+        <svg id="icoDesc" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        <svg id="icoCarga" class="girar hidden h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>
+        <span id="txtDesc">Descargar CSV</span>
+      </button>
+    </div>
+
+    <dl class="mt-4 grid grid-cols-3 gap-4 border-t border-gray-100 pt-4 text-sm">
+      <div>
+        <dt class="text-xs text-gray-500">Stock tomado de la sincronización de</dt>
+        <dd class="mt-0.5 flex items-center gap-2 font-medium text-gray-900 tabular-nums">
+          <span id="sync">hoy 09:22</span>
+          <span id="chipSync" class="hidden rounded-full bg-neutral-900 px-2 py-0.5 text-xs font-medium text-white">hace 2 h 10 min</span>
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs text-gray-500">Filas del archivo (aprox.)</dt>
+        <dd class="mt-0.5 font-medium text-gray-900 tabular-nums"><span id="filas">38.264</span> <span class="font-normal text-gray-500">· <span id="refs">11.902</span> SKU + color</span></dd>
+      </div>
+      <div>
+        <dt class="text-xs text-gray-500">Ventas U30 / U60 / U90 hasta</dt>
+        <dd class="mt-0.5 font-medium text-gray-900 tabular-nums">el momento de la descarga</dd>
+      </div>
+    </dl>
+
+    <p id="avisoSync" class="mt-3 hidden rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+      La última sincronización de stock terminada sin error es de hace más de una hora. El archivo se puede descargar, pero el stock y las fechas de stock 0 son de ese momento.
+    </p>
+    <div id="errorBox" class="mt-3 hidden rounded-lg border border-rose-200 bg-rose-50 px-4 py-3">
+      <p class="text-sm font-medium text-rose-900">No se pudo generar el archivo de Stirpe.</p>
+      <p class="mt-0.5 text-sm text-rose-800">La consulta tardó demasiado o la base no respondió. Intenta de nuevo en unos minutos; si sigue fallando, avisa a soporte con la hora: 29-oct 09:41.</p>
+    </div>
+    <div id="vacioBox" class="mt-3 hidden rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center">
+      <p class="text-sm font-medium text-gray-900">U82 no tiene filas para descargar</p>
+      <p class="mt-0.5 text-sm text-gray-500">Ninguna referencia tiene stock, ventas en 90 días ni quedó en 0 en los últimos 90 días en sus bodegas.</p>
+    </div>
+  </div>
+
+  <!-- Qué trae el archivo -->
+  <div class="rounded-lg border border-gray-200 bg-white p-4">
+    <h2 class="text-sm font-semibold text-gray-900">Qué trae el archivo</h2>
+    <p class="mt-0.5 text-sm text-gray-500">Una fila por SKU + color + talla. Entran los SKU + color con stock en la tienda, con ventas en 90 días o que quedaron en 0 en los últimos 90 días, con todas las tallas de su curva.</p>
+    <div class="mt-3 grid grid-cols-4 gap-4 text-xs">
+      <div><div class="mb-1 font-medium text-gray-700">Producto</div><div class="flex flex-wrap gap-1" data-cols="FECHA_ACTUALIZACION SKU SKU_TALLA_COLOR MARCA CATEGORIA TALLA COLOR PRECIO_VENTA COSTO"></div></div>
+      <div><div class="mb-1 font-medium text-gray-700">Stock y ventas</div><div class="flex flex-wrap gap-1" data-cols="STOCK_FISICO STOCK_MINIMO STOCK_ECOMMERCE VENTAS_U30 VENTAS_U60 VENTAS_U90"></div></div>
+      <div><div class="mb-1 font-medium text-gray-700">Contribución y curva</div><div class="flex flex-wrap gap-1" data-cols="CONTRIBUCION_UNITARIA MARGEN_CONTRIBUCION_PCT CONTRIBUCION_U30 CONTRIBUCION_U60 CONTRIBUCION_U90 TOTAL_TALLAS_POSIBLES CALIDAD_TALLA_PCT CALIDAD_SKU_COLOR_PCT"></div></div>
+      <div><div class="mb-1 font-medium text-gray-700">Fechas <span class="rounded-full bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700">nuevo</span></div><div class="flex flex-wrap gap-1" data-cols="FECHA_PUBLICACION FECHA_STOCK_0 FECHAS_ESTIMADAS" data-nuevo="1"></div></div>
+    </div>
+    <ul class="mt-4 space-y-1 border-t border-gray-100 pt-3 text-sm text-gray-600">
+      <li><b class="font-medium text-gray-800">FECHA_PUBLICACION:</b> desde cuándo el SKU está publicado y visible en esta tienda; si hoy está despublicado, la de su última publicación. Es la misma en todas las tallas del SKU.</li>
+      <li><b class="font-medium text-gray-800">FECHA_STOCK_0:</b> cuándo la talla quedó sin stock vendible en esta tienda. Vacía si hoy tiene stock.</li>
+      <li><b class="font-medium text-gray-800">FECHAS_ESTIMADAS:</b> «Sí» cuando la fecha viene de antes de que empezara el registro y es aproximada; pasa a «No» con el primer cambio real.</li>
+    </ul>
+  </div>
+
+  <!-- Ejemplo de filas (solo para entender el archivo) -->
+  <div class="rounded-lg border border-gray-200 bg-white p-4">
+    <h2 class="text-sm font-semibold text-gray-900">Ejemplo de filas del CSV</h2>
+    <div class="mt-3 overflow-hidden rounded-md border border-gray-200">
+      <table class="w-full text-left text-xs tabular-nums">
+        <thead class="bg-gray-50 text-gray-500"><tr>
+          <th class="px-3 py-2 font-medium">SKU_TALLA_COLOR</th><th class="px-3 py-2 font-medium">MARCA</th><th class="px-3 py-2 font-medium">CATEGORIA</th><th class="px-3 py-2 font-medium text-right">STOCK_ECOMMERCE</th><th class="px-3 py-2 font-medium text-right">VENTAS_U30</th><th class="px-3 py-2 font-medium text-right">CALIDAD_SKU_COLOR_PCT</th><th class="px-3 py-2 font-medium">FECHA_PUBLICACION</th><th class="px-3 py-2 font-medium">FECHA_STOCK_0</th><th class="px-3 py-2 font-medium">FECHAS_ESTIMADAS</th>
+        </tr></thead>
+        <tbody class="divide-y divide-gray-100 text-gray-800">
+          <tr><td class="px-3 py-2">070334BLSS</td><td class="px-3 py-2">Único</td><td class="px-3 py-2">BOXER</td><td class="px-3 py-2 text-right">1</td><td class="px-3 py-2 text-right">0</td><td class="px-3 py-2 text-right">25,00 %</td><td class="px-3 py-2">2025-06-16 12:09</td><td class="px-3 py-2 text-gray-400">—</td><td class="px-3 py-2">Sí</td></tr>
+          <tr><td class="px-3 py-2">070334BLMM</td><td class="px-3 py-2">Único</td><td class="px-3 py-2">BOXER</td><td class="px-3 py-2 text-right">0</td><td class="px-3 py-2 text-right">0</td><td class="px-3 py-2 text-right">25,00 %</td><td class="px-3 py-2">2025-06-16 12:09</td><td class="px-3 py-2">2026-10-29 08:20</td><td class="px-3 py-2">No</td></tr>
+          <tr><td class="px-3 py-2">069046RSUN</td><td class="px-3 py-2">Ray-Ban</td><td class="px-3 py-2">GAFAS</td><td class="px-3 py-2 text-right">4</td><td class="px-3 py-2 text-right">0</td><td class="px-3 py-2 text-right">100,00 %</td><td class="px-3 py-2">2026-09-20 08:05</td><td class="px-3 py-2 text-gray-400">—</td><td class="px-3 py-2">No</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-2 text-xs text-gray-500">Esta tabla es solo del mockup para mostrar las columnas nuevas; la pantalla real no tiene vista previa.</p>
+  </div>
+</main>
+
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Toast de error/éxito (patrón SOP-002: inyectar aquí con JS) -->
+<div id="toasts" class="fixed right-4 top-4 z-[80] flex w-[360px] flex-col gap-2"></div>
+
+
+<script>
+document.querySelectorAll('[data-cols]').forEach(d=>{d.dataset.cols.split(' ').forEach(c=>{const s=document.createElement('span');s.textContent=c;s.className='rounded px-1.5 py-0.5 font-mono text-[11px] '+(d.dataset.nuevo?'bg-emerald-50 text-emerald-800':'bg-gray-100 text-gray-700');d.appendChild(s);});});
+const $=id=>document.getElementById(id);
+const tienda=$('tienda');
+function datos(){const o=tienda.selectedOptions[0];$('filas').textContent=o.dataset.filas;$('refs').textContent=o.dataset.ref;}
+tienda.onchange=()=>{datos();if(estado!=='vacio')ocultar();};
+function ocultar(){['errorBox','vacioBox'].forEach(i=>$(i).classList.add('hidden'));}
+function cargando(on){$('btnDescargar').disabled=on;$('icoCarga').classList.toggle('hidden',!on);$('icoDesc').classList.toggle('hidden',on);$('txtDesc').textContent=on?'Generando archivo…':'Descargar CSV';tienda.disabled=on;}
+function toast(t,ok=true){const d=document.createElement('div');d.className='toast-in rounded-md border p-3 text-sm shadow-md '+(ok?'border-emerald-200 bg-emerald-50 text-emerald-900':'border-rose-200 bg-rose-50 text-rose-900');d.textContent=t;$('toasts').appendChild(d);setTimeout(()=>d.remove(),4000);}
+let estado='normal';
+function poner(e){estado=e;document.querySelectorAll('.est').forEach(b=>{const a=b.dataset.e===e;b.className='est rounded-md border px-2.5 py-1 '+(a?'border-neutral-900 bg-neutral-900 text-white':'border-neutral-300 text-neutral-700 hover:bg-neutral-50');});
+ ocultar();cargando(false);$('avisoSync').classList.add('hidden');$('chipSync').classList.add('hidden');$('sync').textContent='hoy 09:22';$('btnDescargar').classList.remove('hidden');
+ if(e==='normal'||e==='atrasada'){tienda.value='Stirpe';datos();}
+ if(e==='descargando'){tienda.value='Stirpe';datos();cargando(true);}
+ if(e==='atrasada'){$('sync').textContent='hoy 07:12';$('chipSync').classList.remove('hidden');$('avisoSync').classList.remove('hidden');}
+ if(e==='error'){tienda.value='Stirpe';datos();$('errorBox').classList.remove('hidden');}
+ if(e==='vacio'){tienda.value='U82';$('filas').textContent='0';$('refs').textContent='0';$('vacioBox').classList.remove('hidden');$('btnDescargar').disabled=true;}
+}
+document.querySelectorAll('.est').forEach(b=>b.onclick=()=>poner(b.dataset.e));
+$('btnDescargar').onclick=()=>{ocultar();cargando(true);setTimeout(()=>{cargando(false);const t=tienda.value;toast('Se descargó inventario_ecommerce_'+t+'_2026-10-29_094105.csv');},1800);};
+poner('normal');
+</script>
+</body>
+</html>

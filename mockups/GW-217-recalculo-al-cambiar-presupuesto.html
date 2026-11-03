@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>GW-217 · Cambiar el presupuesto actualiza la liquidación</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  * { font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", Segoe UI Symbol, "Noto Color Emoji"; }
+  body { background:#f5f5f5; }
+  td, input, .tabular-nums { font-variant-numeric: tabular-nums; }
+  .sb{background:#18181b;border-color:#27272a;color:#a1a1aa}
+  .sb .act{background:rgba(255,255,255,.10);color:#fff}
+  .sb .act svg{color:#34d399}
+  .nuevo{outline:2px dashed #db2777;outline-offset:3px;border-radius:.5rem}
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+<!-- Barra del paso a paso -->
+<div class="sticky top-0 z-50 border-b border-gray-300 bg-white px-6 py-3">
+  <div class="flex flex-wrap items-center gap-2">
+    <span class="mr-2 text-sm font-semibold">GW-217 · paso a paso</span>
+    <button class="hist rounded-md border px-3 py-1.5 text-sm font-medium" data-h="0">1 · Ajustar la meta de un día</button>
+    <button class="hist rounded-md border px-3 py-1.5 text-sm font-medium" data-h="1">2 · Intentar ajustar un día viejo</button>
+    <button class="hist rounded-md border px-3 py-1.5 text-sm font-medium" data-h="2">3 · Cambiar las métricas del mes</button>
+    <span class="ml-auto text-xs text-gray-500"><span class="nuevo px-1">borde rosa punteado</span> = lo nuevo</span>
+  </div>
+  <div class="mt-3 flex items-center gap-3">
+    <button id="ant" class="rounded-md border px-3 py-1.5 text-sm">‹ Anterior</button>
+    <div class="flex-1 rounded-lg bg-gray-900 px-4 py-2 text-sm text-white"><b id="num"></b> <span id="texto"></span></div>
+    <button id="sig" class="rounded-md bg-gray-900 px-3 py-1.5 text-sm text-white">Siguiente ›</button>
+  </div>
+</div>
+
+<div class="flex min-h-[calc(100vh-41px)]">
+  <!-- Sidebar real de get-web (17rem, #18181b) -->
+  <aside class="sb w-[17rem] shrink-0 border-r p-3 text-sm">
+    <div class="mb-3 flex h-14 items-center gap-2 px-2 text-white"><div class="h-7 w-7 rounded bg-white/90"></div><span class="font-semibold">get</span></div>
+    <input class="mb-4 w-full rounded-md border border-[#27272a] bg-transparent px-2 py-1.5 text-xs" placeholder="Filtrar menú...">
+    <div class="px-2 pb-1 text-[11px] uppercase tracking-wide text-[#fafafa]">Venta asistida</div>
+    <a id="nav-pres" class="flex items-center gap-2 rounded-md px-2 py-1.5"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>Presupuesto</a>
+    <a id="nav-conf" class="flex items-center gap-2 rounded-md px-2 py-1.5"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M1 12h4M19 12h4"/></svg>Configuración de comisiones</a>
+    <a class="flex items-center gap-2 rounded-md px-2 py-1.5"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg>Liquidación</a>
+    <a class="flex items-center gap-2 rounded-md px-2 py-1.5"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>Mis ventas</a>
+  </aside>
+
+  <main class="relative flex-1 bg-gray-50" id="main"></main>
+</div>
+
+<!-- Toast PrimeVue (pantalla 2) -->
+<div id="toast" class="fixed right-6 top-32 z-50 hidden w-[25rem]"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const pesos = n => '$' + n.toLocaleString('es-CO');
+
+const ESTADOS = {
+  p1: [['editar','Editar reparto (quincena anterior abierta)'],['guardando','Guardando…'],['exito','Éxito'],['error','Error del servidor'],['fuera','Día fuera de la ventana de ajuste'],['cerrada','Quincena cerrada (hoy, sin cambio)']],
+  p2: [['editar','Editar (día en la ventana)'],['confirmar','Confirmación'],['exito','Éxito (toast)'],['fuera','Fecha fuera de la ventana'],['errorsrv','Rechazo del servidor (toast)']],
+  p3: [['editar','Editar (mes de la ventana)'],['guardando','Guardando…'],['exito','Éxito'],['fuera','Mes fuera de la ventana']],
+  p4: [['A','Opción A · en el Historial de cambios'],['B','Opción B · dentro del reparto del día'],['vacio','Vacío']],
+};
+
+const ASESORAS = [
+  {n:'Sheyla Mariyuri Jimenez Pinto', i:'SJ', c:'bg-emerald-600', v:1069195},
+  {n:'Ingrid Tatiana Contreras Zúñiga', i:'IC', c:'bg-sky-600', v:1474430},
+  {n:'Ana Maria Serna Vargas', i:'AS', c:'bg-pink-600', v:1110000},
+  {n:'Laura Daniela Rojas Mesa', i:'LR', c:'bg-violet-600', v:1050000},
+];
+const META = ASESORAS.reduce((a,b)=>a+b.v,0);
+
+function header(t, s){
+  return `<section class="border-b border-gray-200 bg-white px-8 py-6"><h1 class="text-xl font-semibold">${t}</h1><p class="text-base text-gray-600">${s}</p></section>`;
+}
+function tabsConfig(act){
+  const t=[['Métricas de cumplimiento'],['Presupuesto de ventas'],['Métricas del mes']];
+  return `<div class="inline-flex gap-1 rounded-lg bg-gray-100 p-1 text-sm">${t.map(([x])=>`<span class="rounded-md px-3 py-1.5 ${x===act?'bg-white font-medium shadow-sm':'text-gray-600'}">${x}</span>`).join('')}</div>`;
+}
+function bannerExito(txt){
+  return `<div class="nuevo flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>${txt}</div>`;
+}
+const VENTANA = 'Solo se ajusta el reparto de la quincena actual (16–31 oct) y de la anterior (1–15 oct), si no está cerrada.';
+function avisoFuera(txt){
+  return `<div class="nuevo flex gap-2 rounded-lg bg-pink-50 px-3 py-2 text-xs text-pink-800">
+   <svg class="mt-0.5 h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+   <span>${txt}</span></div>`;
+}
+
+/* ---------- Pantalla 1: Configuración › Presupuesto de ventas + modal ---------- */
+function tablaDias(estado){
+  const filas=[['28 sep',1020000],['29 sep',1060000],['12 oct',0],['13 oct',4703625],['14 oct',4358972],['27 oct',4410000]];
+  return `<div class="overflow-hidden rounded-xl border bg-white">
+   <table class="w-full text-sm"><thead class="bg-gray-50 text-xs text-gray-500"><tr><th class="px-4 py-2 text-left">Día</th><th class="px-4 py-2 text-right">Meta del día</th><th class="px-4 py-2 text-right">Asignado a asesores</th><th class="px-4 py-2 text-center">Acciones</th></tr></thead>
+   <tbody class="divide-y">${filas.map(([d,v])=>{
+     const fuera = d.includes('sep');
+     return `<tr><td class="px-4 py-2">${d}</td><td class="px-4 py-2 text-right">${pesos(v)}</td><td class="px-4 py-2 text-right">${pesos(v)}</td>
+     <td class="px-4 py-2 text-center text-gray-500"><span class="inline-flex items-center gap-2">
+       <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.5"/></svg>
+       ${fuera?`<span class="nuevo text-pink-600" title="Fuera de la ventana de ajuste — solo quincena actual y anterior"><svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></span>`:''}
+     </span></td></tr>`}).join('')}</tbody></table></div>`;
+}
+function modalReparto(estado){
+  const lectura = estado==='fuera'||estado==='cerrada';
+  const fecha = estado==='fuera' ? '28 sep' : '13 oct';
+  const lista = (estado==='fuera'
+      ? [{...ASESORAS[0],v:255000},{...ASESORAS[1],v:255000},{...ASESORAS[2],v:255000},{...ASESORAS[3],v:255000}]
+      : ASESORAS);
+  const meta = lista.reduce((a,b)=>a+b.v,0);
+  return `<div class="absolute inset-0 z-40 flex items-start justify-center bg-black/50 pt-16">
+  <div class="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border bg-white p-6 shadow-lg">
+    <h2 class="text-lg font-semibold">${lectura?'Presupuesto del día':'Asignar presupuesto del día'} · ${fecha} · DEREK</h2>
+    <p class="mb-4 text-sm text-gray-500">${lectura?'Reparto de la meta del día entre los asesores de la tienda.':'Distribuya la meta del día entre los asesores de la tienda.'}</p>
+    <div class="mb-3 grid grid-cols-3 gap-2">
+      <div class="rounded-lg bg-gray-50 p-2 text-center"><div class="text-[10px] uppercase text-gray-400">Meta del día</div><div class="text-sm font-semibold text-gray-800">${pesos(meta)}</div></div>
+      <div class="rounded-lg bg-gray-50 p-2 text-center"><div class="text-[10px] uppercase text-gray-400">Asignado</div><div class="text-sm font-semibold text-emerald-700">${pesos(meta)}</div></div>
+      <div class="rounded-lg bg-emerald-50 p-2 text-center"><div class="text-[10px] uppercase text-emerald-700/70">Saldo por asignar</div><div class="text-sm font-semibold text-emerald-700">$0</div></div>
+    </div>
+    ${estado==='fuera'?`<div class="mb-3">${avisoFuera('<b>Fuera de la ventana de ajuste.</b> '+VENTANA)}</div>`:''}
+    ${estado==='cerrada'?`<div class="mb-3 flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800"><b>Quincena cerrada.</b> La quincena ya fue liquidada; su reparto no se puede modificar.</div>`:''}
+    ${!lectura?`<div class="mb-1 text-right"><a class="text-xs font-medium text-blue-600 hover:underline">Repartir equitativo</a></div>`:''}
+    <div class="divide-y overflow-y-auto">${lista.map(a=>`<div class="flex items-center gap-3 px-1 py-2.5">
+       <span class="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-semibold text-white ${a.c}">${a.i}</span>
+       <span class="flex-1 truncate text-sm text-gray-800">${a.n}</span>
+       <span class="text-sm text-gray-400">$</span>
+       <input ${lectura?'disabled':''} value="${a.v}" class="w-32 rounded-lg border px-2 py-1.5 text-right text-sm ${lectura?'bg-gray-50 text-gray-500':''}">
+     </div>`).join('')}</div>
+    ${estado==='error'?`<div class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700">La suma asignada ($7.703.625) debe igualar la meta del día ($4.703.625).</div>`:''}
+    <div class="mt-4 flex justify-end gap-2">
+      ${lectura?`<button class="rounded-md border px-4 py-2 text-sm">Cerrar</button>`:
+       `<button class="rounded-md border px-4 py-2 text-sm">Cancelar</button>
+        <button class="rounded-md bg-gray-900 px-4 py-2 text-sm text-white ${estado==='guardando'?'opacity-60':''}">${estado==='guardando'?'Guardando…':'Guardar reparto'}</button>`}
+    </div>
+  </div></div>`;
+}
+function p1(estado){
+  const modal = ['editar','guardando','error','fuera','cerrada'].includes(estado);
+  return header('Configuración de comisiones','Escalas, bono diario y presupuesto · DEREK') +
+  `<div class="space-y-4 p-8">
+    ${tabsConfig('Presupuesto de ventas')}
+    ${estado==='exito'?bannerExito('Reparto del día guardado. La liquidación se actualiza en unos minutos.'):''}
+    ${tablaDias(estado)}
+    <p class="text-xs text-gray-500">Hoy: 29 oct. El candado rosa marca los días fuera de la ventana de ajuste (antes del 1 oct).</p>
+  </div>` + (modal?modalReparto(estado):'');
+}
+
+/* ---------- Pantalla 2: Asignar presupuesto por asesor ---------- */
+function p2(estado){
+  const fuera = estado==='fuera';
+  const fecha = fuera ? '2026-09-28' : '2026-10-13';
+  return header('Asignar presupuesto por asesor','Distribuir la meta entre los asesores') +
+  `<div class="space-y-4 px-6 py-4">
+    <div class="flex flex-wrap items-center gap-3 text-sm">
+      <select class="h-8 w-[200px] rounded-md border bg-white px-2"><option>DEREK</option></select>
+      <div class="inline-flex gap-0.5 rounded-lg bg-gray-100 p-1"><span class="rounded-md px-3 py-1 text-gray-600">Ayer</span><span class="rounded-md px-3 py-1 text-gray-600">Hoy</span><span class="rounded-md px-3 py-1 text-gray-600">Manana</span></div>
+      <span class="text-gray-600">Seleccionar fecha:</span><input type="date" value="${fecha}" class="h-8 w-[180px] rounded-md border bg-white px-2">
+    </div>
+    ${fuera?avisoFuera('<b>Fuera de la ventana de ajuste.</b> '+VENTANA+' El reparto del 28 sep se ve, pero no se puede guardar.'):''}
+    <div class="grid grid-cols-5 gap-6 rounded-lg bg-gray-900 px-5 py-4 text-white">
+      <div><div class="text-xs text-gray-400">Meta venta dia</div><div class="font-semibold">${pesos(fuera?1020000:META)}</div></div>
+      <div><div class="text-xs text-gray-400">Pedidos dia</div><div class="font-semibold">${fuera?6:24}</div></div>
+      <div><div class="text-xs text-gray-400">Distribuido</div><div class="font-semibold text-green-400">${pesos(fuera?1020000:META)}</div></div>
+      <div><div class="text-xs text-gray-400">Pendiente</div><div class="font-semibold">$0</div></div>
+      <div><div class="text-xs text-gray-400">Progreso</div><div class="mt-2 h-1.5 rounded bg-gray-700"><div class="h-1.5 w-full rounded bg-green-400"></div></div><div class="text-xs">100%</div></div>
+    </div>
+    <div class="overflow-hidden rounded-xl border bg-white">
+      <table class="w-full text-sm"><thead class="text-xs text-gray-500"><tr class="border-b"><th class="px-4 py-2 text-left">Asesor</th><th class="px-4 py-2 text-left">Valor presupuesto</th><th class="px-4 py-2 text-left">Nro pedidos</th><th class="px-4 py-2 text-left">VPT</th><th class="px-4 py-2 text-left">UPT</th><th class="px-4 py-2 text-right">% del dia</th></tr></thead>
+      <tbody class="divide-y">${ASESORAS.map(a=>{const v=fuera?255000:a.v;const tot=fuera?1020000:META;return `<tr>
+        <td class="px-4 py-2">${a.n}</td>
+        <td class="px-4 py-2"><input ${fuera?'disabled':''} value="${v}" class="h-8 w-full rounded-md border px-2 ${fuera?'bg-gray-50 text-gray-500':''}"></td>
+        <td class="px-4 py-2"><input ${fuera?'disabled':''} value="${fuera?2:6}" class="h-8 w-16 rounded-md border px-2 ${fuera?'bg-gray-50 text-gray-500':''}"></td>
+        <td class="px-4 py-2"><input ${fuera?'disabled':''} value="190000" class="h-8 w-24 rounded-md border px-2 ${fuera?'bg-gray-50 text-gray-500':''}"></td>
+        <td class="px-4 py-2"><input ${fuera?'disabled':''} value="1.4" class="h-8 w-20 rounded-md border px-2 ${fuera?'bg-gray-50 text-gray-500':''}"></td>
+        <td class="px-4 py-2 text-right">${(v*100/tot).toFixed(1)}%</td></tr>`}).join('')}
+        <tr class="bg-gray-50 font-semibold"><td class="px-4 py-2">TOTAL</td><td class="px-4 py-2">${pesos(fuera?1020000:META)}</td><td class="px-4 py-2">${fuera?8:24}</td><td class="px-4 py-2">--</td><td class="px-4 py-2">--</td><td class="px-4 py-2 text-right">100%</td></tr>
+      </tbody></table>
+    </div>
+    <div class="flex justify-end gap-2">
+      <button class="rounded-md border bg-white px-4 py-2 text-sm">Cancelar</button>
+      <button ${fuera?'disabled title="Fuera de la ventana de ajuste"':''} class="rounded-md bg-gray-900 px-4 py-2 text-sm text-white ${fuera?'nuevo opacity-40':''}">Guardar asignacion</button>
+    </div>
+  </div>` + (estado==='confirmar'?`<div class="absolute inset-0 z-40 flex items-start justify-center bg-black/50 pt-24"><div class="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+      <h2 class="text-lg font-semibold">¿Confirmar guardar cambios?</h2>
+      <p class="mt-1 text-sm text-gray-500">¿Estás seguro de que deseas guardar la asignación actual para los asesores? Esta acción actualizará los valores en la base de datos.</p>
+      <div class="mt-5 flex justify-end gap-2"><button class="rounded-md border px-4 py-2 text-sm">Cancelar</button><button class="rounded-md bg-gray-900 px-4 py-2 text-sm text-white">Confirmar y Guardar</button></div></div></div>`:'');
+}
+function toast(estado){
+  const t=$('#toast');
+  if($('#pantalla').value==='p2' && (estado==='exito'||estado==='errorsrv')){
+    const ok = estado==='exito';
+    t.innerHTML = `<div class="nuevo flex gap-3 rounded-md border-l-4 ${ok?'border-emerald-500 bg-emerald-50 text-emerald-800':'border-pink-500 bg-pink-50 text-pink-800'} p-4 text-sm shadow-lg">
+      <div><div class="font-semibold">${ok?'Éxito':'No se pudo guardar'}</div>
+      <div>${ok?'Presupuesto de asesores guardado correctamente. La liquidación se actualiza en unos minutos.':VENTANA}</div></div></div>`;
+    t.classList.remove('hidden');
+  } else t.classList.add('hidden');
+}
+
+/* ---------- Pantalla 3: Métricas del mes ---------- */
+function p3(estado){
+  const fuera = estado==='fuera';
+  const mes = fuera ? 'Septiembre 2026' : 'Octubre 2026';
+  const dis = fuera?'disabled':'';
+  const inp = (v,w)=>`<input ${dis} value="${v}" class="ml-auto block ${w} rounded-md border px-2 py-1 text-right ${fuera?'bg-gray-50 text-gray-500':''}">`;
+  return header('Configuración de comisiones','Escalas, bono diario y presupuesto · DEREK') +
+  `<div class="space-y-4 p-8">
+    <div class="flex items-center gap-4">${tabsConfig('Métricas del mes')}
+      <select class="h-8 rounded-md border bg-white px-2 text-sm"><option>${mes}</option></select></div>
+    ${estado==='exito'?bannerExito('Métricas del mes guardadas. La liquidación se actualiza en unos minutos.'):''}
+    <div class="overflow-hidden rounded-xl border bg-white">
+      <div class="border-b px-5 py-3.5"><div class="text-base font-semibold">Métricas del mes por bodega QEC</div>
+        <div class="text-[11.5px] text-gray-500">Metas mensuales que alimentan el cálculo de comisión. Fuente única — se editan solo aquí. Cada cambio queda en el historial.</div></div>
+      ${fuera?`<div class="px-5 pt-3">${avisoFuera('<b>Fuera de la ventana de ajuste.</b> Solo se editan las métricas del mes de la quincena actual o de la anterior abierta (octubre 2026).')}</div>`:''}
+      <table class="w-full text-sm"><thead class="bg-gray-50 text-xs text-gray-500"><tr><th class="px-5 py-2 text-left">Bodega</th><th class="px-5 py-2 text-right">UPT (unid./pedido)</th><th class="px-5 py-2 text-right">VPT (Ticket promedio)</th><th class="px-5 py-2 text-right">TCV (tasa conv %)</th></tr></thead>
+      <tbody><tr><td class="px-5 py-3">316 · DEREK</td><td class="px-5 py-3">${inp('1.40','w-28')}</td><td class="px-5 py-3">${inp('190000','w-32')}</td><td class="px-5 py-3">${inp('16','w-28')}</td></tr></tbody></table>
+      <div class="flex justify-end border-t px-5 py-3.5"><button ${dis} class="rounded-md bg-gray-900 px-4 py-2 text-sm text-white ${fuera?'opacity-40':''} ${estado==='guardando'?'opacity-60':''}">${estado==='guardando'?'Guardando…':'Guardar cambios'}</button></div>
+    </div>
+    <p class="text-xs text-gray-500">Hoy el aviso de éxito no aparece en esta pestaña: el mensaje del servidor no se pinta. GW-217 lo conecta al mismo banner verde del resto de Configuración.</p>
+  </div>`;
+}
+
+/* ---------- Pantalla 4: Historial ---------- */
+const CAMBIOS = [
+  ['16 oct 2026 · 14:00','coord.derek','Reparto 5 oct · Sheyla Mariyuri Jimenez Pinto: $1.499.400 → $1.495.400'],
+  ['16 oct 2026 · 14:00','coord.derek','Reparto 5 oct · Ana Maria Serna Vargas: $1.499.400 → $1.503.400'],
+  ['16 oct 2026 · 13:57','coord.derek','Reparto 7 oct · Sheyla Mariyuri Jimenez Pinto: $1.424.430 → $1.413.430'],
+  ['16 oct 2026 · 13:57','coord.derek','Reparto 7 oct · Ingrid Tatiana Contreras Zúñiga: $1.119.195 → $1.130.195'],
+  ['16 oct 2026 · 13:55','coord.derek','Reparto 13 oct · Sheyla Mariyuri Jimenez Pinto: $1.119.195 → $1.069.195'],
+  ['16 oct 2026 · 13:55','coord.derek','Reparto 13 oct · Ingrid Tatiana Contreras Zúñiga: $1.424.430 → $1.474.430'],
+  ['24 sep 2026 · 09:12','direccion','Bono diario Asesor · monto: $10.000 → $12.000'],
+];
+function p4(estado){
+  if(estado==='B'){
+    return p1('editar').replace(/<div class="mt-4 flex justify-end gap-2">/, `<div class="nuevo mt-4 rounded-lg border bg-gray-50 p-3 text-xs">
+        <div class="mb-1 font-semibold text-gray-700">Cambios de este día</div>
+        <div class="divide-y">${CAMBIOS.filter(c=>c[2].includes('13 oct')).map(c=>`<div class="flex gap-3 py-1.5"><span class="w-36 text-gray-400">${c[0]}</span><span class="w-24">${c[1]}</span><span class="flex-1">${c[2].split('· ')[1]}</span></div>`).join('')}</div>
+      </div><div class="mt-4 flex justify-end gap-2">`);
+  }
+  const filas = estado==='vacio' ? [] : CAMBIOS;
+  return header('Configuración de comisiones','Escalas, bono diario y presupuesto · DEREK') +
+  `<div class="space-y-4 p-8">${tabsConfig('Métricas de cumplimiento')}
+    <button class="rounded-md border bg-white px-3 py-1.5 text-sm">Historial de cambios <span class="rounded bg-blue-100 px-1.5 text-xs text-blue-600">${filas.length}</span></button></div>
+  <div class="absolute inset-0 z-40 flex items-start justify-center bg-black/50 pt-14">
+   <div class="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-lg">
+    <div class="px-6 pt-6"><h2 class="text-lg font-semibold">Historial de cambios · DEREK</h2>
+      <p class="nuevo inline-block text-sm text-gray-500">Escalas, bono diario, condiciones y reparto del presupuesto por asesor</p></div>
+    <div class="mt-4 flex items-center gap-2 bg-gray-50/60 px-6 py-3 text-sm"><span>Desde</span><input type="date" value="2026-09-29" class="rounded border px-2 py-1"><span>Hasta</span><input type="date" value="2026-10-29" class="rounded border px-2 py-1"><button class="rounded-md border bg-white px-3 py-1">Filtrar</button><span class="text-xs text-gray-400">Por defecto: últimos 30 días</span></div>
+    <div class="flex-1 overflow-y-auto px-6 py-2">
+      ${filas.length? `<table class="w-full text-sm"><tbody class="divide-y">${filas.map(c=>`<tr class="${c[2].startsWith('Reparto')?'nuevo':''}"><td class="w-40 py-2 text-gray-400">${c[0]}</td><td class="w-32 py-2">${c[1]}</td><td class="py-2">${c[2]}</td></tr>`).join('')}</tbody></table>`
+      : `<p class="py-10 text-center text-sm text-gray-500">Sin cambios registrados en el período seleccionado.</p>`}
+    </div>
+    <div class="flex items-center justify-between border-t px-6 py-3 text-xs text-gray-500">
+      <span>${filas.length?`Mostrando 1–${filas.length} de ${filas.length} cambios del período`:''}</span>
+      <span>Los cambios rigen desde su fecha; los períodos cerrados no se recalculan.</span>
+      <button class="rounded-md border px-3 py-1.5 text-sm text-gray-900">Cerrar</button></div>
+   </div></div>`;
+}
+
+function liquidacion(antes){
+  const meta = antes ? 15730314 : 15665314, pct = antes ? '77,81' : '78,14';
+  return header('Liquidación de comisiones','Quincena 1–15 oct 2026 · DEREK') +
+  `<div class="space-y-4 p-8">
+    <div class="flex w-fit gap-1 rounded-lg bg-gray-200/70 p-1 text-sm"><span class="rounded-md bg-white px-3 py-1.5 font-medium shadow-sm">Liquidación</span><span class="rounded-md px-3 py-1.5 text-gray-600">Cargar archivos</span><span class="rounded-md px-3 py-1.5 text-gray-600">Bitácora de cargas</span></div>
+    <div class="overflow-hidden rounded-xl border bg-white"><table class="w-full text-sm">
+      <thead class="bg-gray-50 text-xs text-gray-500"><tr><th class="px-4 py-2 text-left">Asesor</th><th class="px-4 py-2 text-right">Venta neta</th><th class="px-4 py-2 text-right">Meta</th><th class="px-4 py-2 text-right">Cumplimiento</th><th class="px-4 py-2 text-right">Total a pagar</th></tr></thead>
+      <tbody class="divide-y"><tr><td class="px-4 py-2">Sheyla Mariyuri Jimenez Pinto</td><td class="px-4 py-2 text-right">${pesos(12454945)}</td>
+        <td class="px-4 py-2 text-right ${antes?'':'nuevo'}">${pesos(meta)}</td><td class="px-4 py-2 text-right">${pct.split(',')[0]}% <span class="text-xs text-gray-400">(${pct}%)</span></td><td class="px-4 py-2 text-right">$0</td></tr>
+      <tr><td class="px-4 py-2">Ingrid Tatiana Contreras Zúñiga</td><td class="px-4 py-2 text-right">${pesos(10713241)}</td><td class="px-4 py-2 text-right ${antes?'':'nuevo'}">${pesos(antes?15423739:15484739)}</td><td class="px-4 py-2 text-right">69%</td><td class="px-4 py-2 text-right">$0</td></tr></tbody></table></div>
+    <p class="text-xs text-gray-500">Pantalla sin cambios: solo cambia la cifra de la meta. Cifras reales de la quincena 1–15 oct.</p>
+  </div>`;
+}
+
+const HISTORIAS = [
+ [ ['p1','editar','La coordinadora entra a Configuración de comisiones › Presupuesto de ventas y abre el reparto del 13 oct. Cambia la meta: le quita $50.000 a Sheyla y se los pasa a Ingrid.'],
+   ['p1','guardando','Pulsa «Guardar reparto». La pantalla funciona igual que hoy.'],
+   ['p1','exito','Lo nuevo: el mensaje verde de siempre agrega «La liquidación se actualiza en unos minutos». Por dentro, el sistema anota el 13 oct para volver a calcularlo.'],
+   ['liqAntes','','Si alguien abre la Liquidación en ese mismo minuto, todavía ve la meta anterior de la quincena ($15.730.314). Por eso el aviso dice «en unos minutos».'],
+   ['liqDespues','','A lo sumo 10 minutos después, el cálculo automático recalcula el 13 oct solo: la meta de Sheyla pasa a $15.665.314 y el cumplimiento se actualiza. Nadie corre nada a mano.'],
+   ['p4','A','Lo nuevo: el cambio queda en «Historial de cambios»: quién lo hizo, a qué asesora, de cuánto a cuánto y a qué hora.'],
+   ['p4','B','Otra opción para ese historial: verlo dentro de la misma ventana del reparto, en «Cambios de este día». Elige A o B.'] ],
+ [ ['p1','editar','Hoy es 29 oct. La ventana de ajuste es la quincena actual (16–31 oct) y la anterior (1–15 oct), si no está cerrada. En la tabla, los días de septiembre muestran un candado rosa.'],
+   ['p1','fuera','Lo nuevo: si abre el 28 sep, ve el reparto pero no lo puede cambiar, y un aviso rosa explica por qué.'],
+   ['p2','fuera','Lo mismo en Presupuesto › Asignar presupuesto por asesor: si elige una fecha de septiembre, ve el reparto, el botón «Guardar asignacion» queda apagado y aparece el mismo aviso.'],
+   ['p2','exito','Con un día de la ventana (13 oct), guarda como hoy. El aviso de éxito agrega «La liquidación se actualiza en unos minutos».'],
+   ['p1','cerrada','Sin cambio: si la quincena ya se cerró, se ve el aviso de «Quincena cerrada» de siempre.'] ],
+ [ ['p3','editar','En Configuración › Métricas del mes cambia la meta de UPT, VPT o TCV de octubre. Estas metas deciden el bono diario.'],
+   ['p3','exito','Lo nuevo: al guardar sale el mensaje verde (hoy no sale ninguno) y el sistema vuelve a calcular todos los días de octubre que ya tienen cálculo.'],
+   ['p3','fuera','Lo nuevo: los meses fuera de la ventana (aquí septiembre) se ven, pero no se pueden editar.'] ],
+];
+let h=0, i=0;
+function render(){
+  const [pant, est, txt] = HISTORIAS[h][i];
+  $('#nav-pres').classList.toggle('act', pant==='p2');
+  $('#nav-conf').classList.toggle('act', pant==='p1'||pant==='p3'||pant==='p4');
+  $('#main').innerHTML = pant==='liqAntes' ? liquidacion(true) : pant==='liqDespues' ? liquidacion(false) : ({p1,p2,p3,p4})[pant](est);
+  $('#toast').classList.add('hidden');
+  if (pant==='p2') { $('#pantalla').value='p2'; toast(est); }
+  $('#num').textContent = `Paso ${i+1} de ${HISTORIAS[h].length} ·`;
+  $('#texto').textContent = txt;
+  document.querySelectorAll('.hist').forEach(b=>{const a=+b.dataset.h===h; b.className='hist rounded-md border px-3 py-1.5 text-sm font-medium '+(a?'bg-gray-900 text-white border-gray-900':'bg-white text-gray-700');});
+  $('#ant').disabled = i===0; $('#ant').style.opacity = i===0?.4:1;
+  $('#sig').disabled = i===HISTORIAS[h].length-1; $('#sig').style.opacity = i===HISTORIAS[h].length-1?.4:1;
+}
+document.querySelectorAll('.hist').forEach(b=>b.onclick=()=>{h=+b.dataset.h;i=0;render();});
+$('#ant').onclick=()=>{if(i>0){i--;render();}};
+$('#sig').onclick=()=>{if(i<HISTORIAS[h].length-1){i++;render();}};
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')$('#sig').click(); if(e.key==='ArrowLeft')$('#ant').click();});
+render();
+</script>
+<input type="hidden" id="pantalla" value="p1">
+</body>
+</html>
