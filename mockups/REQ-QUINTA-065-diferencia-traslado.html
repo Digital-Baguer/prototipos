@@ -1,0 +1,917 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REQ-QUINTA-065 · Diferencia en traslados: devolver o dar por perdido</title>
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+/* Tokens del admin nuevo: resources/css/app.css de quinta-admin-laravel origin/main (cef34), tema claro. */
+tailwind.config = {
+  theme: { extend: {
+    fontFamily: { sans: ['Instrument Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+    colors: {
+      border: 'hsl(var(--border) / <alpha-value>)', input: 'hsl(var(--input) / <alpha-value>)', ring: 'hsl(var(--ring) / <alpha-value>)',
+      background: 'hsl(var(--background) / <alpha-value>)', foreground: 'hsl(var(--foreground) / <alpha-value>)',
+      primary: { DEFAULT: 'hsl(var(--primary) / <alpha-value>)', foreground: 'hsl(var(--primary-foreground) / <alpha-value>)' },
+      muted: { DEFAULT: 'hsl(var(--muted) / <alpha-value>)', foreground: 'hsl(var(--muted-foreground) / <alpha-value>)' },
+      accent: { DEFAULT: 'hsl(var(--accent) / <alpha-value>)', foreground: 'hsl(var(--accent-foreground) / <alpha-value>)' },
+      card: { DEFAULT: 'hsl(var(--card) / <alpha-value>)', foreground: 'hsl(var(--card-foreground) / <alpha-value>)' },
+      popover: { DEFAULT: 'hsl(var(--popover) / <alpha-value>)', foreground: 'hsl(var(--popover-foreground) / <alpha-value>)' },
+      sidebar: { DEFAULT: 'hsl(var(--sidebar-background) / <alpha-value>)', foreground: 'hsl(var(--sidebar-foreground) / <alpha-value>)',
+        accent: { DEFAULT: 'hsl(var(--sidebar-accent) / <alpha-value>)', foreground: 'hsl(var(--sidebar-accent-foreground) / <alpha-value>)' },
+        border: 'hsl(var(--sidebar-border) / <alpha-value>)' },
+    },
+    borderRadius: { lg: 'var(--radius)', md: 'calc(var(--radius) - 2px)', sm: 'calc(var(--radius) - 4px)' },
+  } },
+};
+</script>
+<style>
+  :root{--background:0 0% 100%;--foreground:0 0% 3.9%;--card:0 0% 100%;--card-foreground:0 0% 3.9%;--popover:0 0% 100%;--popover-foreground:0 0% 3.9%;--primary:218 68% 42%;--primary-foreground:0 0% 98%;--secondary:0 0% 92.1%;--muted:0 0% 96.1%;--muted-foreground:0 0% 45.1%;--accent:0 0% 96.1%;--accent-foreground:0 0% 9%;--border:0 0% 92.8%;--input:0 0% 89.8%;--ring:218 68% 42%;--radius:0.5rem;--sidebar-background:0 0% 98%;--sidebar-foreground:240 5.3% 26.1%;--sidebar-accent:0 0% 94%;--sidebar-accent-foreground:0 0% 30%;--sidebar-border:0 0% 91%}
+  *{border-color:hsl(var(--border))}
+  body{background:hsl(var(--background));color:hsl(var(--foreground))}
+  .mk-bar{position:sticky;top:0;z-index:60}
+  .mk-ic{width:1rem;height:1rem;flex:none}
+  .no-scrollbar::-webkit-scrollbar{display:none}
+  input[type=number]::-webkit-inner-spin-button{opacity:1}
+  @keyframes entra{from{transform:translateX(100%)}to{transform:none}}
+  @keyframes funde{from{opacity:0}to{opacity:1}}
+  .anim-sheet{animation:entra .35s cubic-bezier(.32,.72,0,1)}
+  .anim-fade{animation:funde .15s ease-out}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+
+<body class="font-sans antialiased bg-neutral-200/70 text-foreground">
+
+<!-- ===== Barra del mockup (no es parte de la app) ===== -->
+<div class="mk-bar border-b border-neutral-700 bg-neutral-900 text-neutral-100">
+  <div class="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2">
+    <div class="text-[11.5px] text-neutral-400">mockup · <span class="font-semibold text-neutral-200">REQ-QUINTA-065</span> · opción: <span class="text-neutral-200">devolver o dar por perdido</span></div>
+    <div id="mk-pasos" class="flex flex-wrap gap-1 rounded-md bg-neutral-800 p-0.5"></div>
+    <div class="ml-auto flex gap-1">
+      <button data-act="mk-ant" class="rounded px-2 py-1 text-[11.5px] text-neutral-300 hover:text-white">← Anterior</button>
+      <button data-act="mk-sig" class="rounded px-2 py-1 text-[11.5px] text-neutral-300 hover:text-white">Siguiente →</button>
+    </div>
+  </div>
+  <div class="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-neutral-800 px-5 py-2">
+    <div id="mk-titulo" class="text-[12.5px] font-semibold"></div>
+    <div id="mk-estados" class="flex flex-wrap items-center gap-1.5"></div>
+    <div id="mk-nota" class="ml-auto text-[11.5px] text-neutral-400"></div>
+  </div>
+</div>
+
+<div id="stage"></div>
+
+<!-- ===== Notas del mockup (no es parte de la app) ===== -->
+<footer class="border-t border-neutral-700 bg-neutral-900 text-neutral-300">
+  <div class="mx-auto max-w-[1440px] px-5 py-5 text-[12.5px] leading-relaxed">
+    <p class="font-semibold text-neutral-100">Notas para el revisor</p>
+    <ul class="mt-2 list-disc space-y-1 pl-5">
+      <li><b class="text-neutral-100">Opción que ilustra:</b> una sola recepción por traslado (sin <i>backorder</i>). Lo que no llega queda en la bodega En tránsito (fila 10, D4) como «diferencia por resolver»; quien tiene el permiso del módulo «traslados» la resuelve por línea: devolver al origen, dar por perdido con motivo, o repartir entre las dos.</li>
+      <li><b class="text-neutral-100">Calcado de quinta-admin-laravel <code>origin/main</code> (cef34):</b> marco = <code>layouts/app/AppSidebarLayout.vue</code> + <code>NavModulos.vue</code> (como en el mockup 064); encabezado y texto = <code>pages/bodegas/Index.vue</code>; tablas = <code>bodegas/TablaBodegas.vue</code> (TH en mayúsculas, <code>rounded-xl border bg-card</code>); tabla del kardex y tarjetas de cifras = <code>stock/PanelKardex.vue</code>; panel lateral = <code>bodegas/PanelResponsables.vue</code> sobre <code>ui/sheet</code> (<code>sm:max-w-xl</code>); chips = <code>lib/stock.ts</code> (<code>CHIP</code>, <code>CLASE_CHIP</code>); avisos = <code>catalogo/AvisoGuardado.vue</code> y <code>AvisoFalloGuardado.vue</code>; confirmación = <code>bodegas/ConfirmarQuitar.vue</code> sobre <code>ui/dialog</code>; pestañas = <code>AppearanceTabs.vue</code>; botones = <code>ui/button</code>.</li>
+      <li><b class="text-neutral-100">No existe en el admin y entra al plan:</b> la opción de menú propia «Traslados» (hijo de Productos, tras Bodegas, en <code>OpcionesPropias.php</code>); la página de recepción con cantidades por línea; la línea de tiempo del traslado; la bandeja «Diferencias por resolver»; el panel «Resolver diferencia». No hay <code>ui/tabs</code> ni <code>ui/radio-group</code>: se usan las clases de <code>AppearanceTabs</code> y el radio del 064.</li>
+      <li><b class="text-neutral-100">Datos:</b> bodegas y sedes reales; productos, costos y personas de ejemplo (Luzete es la usuaria 132 de Planeación; Rosa Contreras como principal de El Paraíso es supuesto del caso). Los consecutivos TRA son ilustrativos. El valor sale del <code>costo_promedio</code> de hoy, como en Stock.</li>
+      <li><b class="text-neutral-100">Documento de la pérdida:</b> el mockup lo muestra como «Salida por pérdida · doc. por definir». Qué tipo de <code>pos_documentos</code> lo registra (y si el valor escrito mueve algo contable o solo queda de registro) es decisión abierta.</li>
+      <li><b class="text-neutral-100">Fuera de este mockup:</b> crear el envío (formulario de traslado, validación de negativos D8), la recepción en la app (066), anular un traslado y la vista de la bodega En tránsito en Stock.</li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+const ISO_LOGO = 'data:image/png;base64,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';
+
+/* =====================================================================
+   Utilidades (las del 063/064)
+   ===================================================================== */
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pesos = n => '$' + Math.round(n).toLocaleString('es-CO');
+const num = n => Number(n).toLocaleString('es-CO');
+
+const LU = {
+  chevR: '<path d="m9 18 6-6-6-6"/>', chevD: '<path d="m6 9 6 6 6-6"/>', x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  panel: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>',
+  updown: '<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>',
+  alert: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  arrowR: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/>',
+  truck: '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  pkgCheck: '<path d="m16 16 2 2 4-4"/><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><path d="M3.29 7 12 12l8.71-5"/><path d="M12 22V12"/>',
+  scale: '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  book: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
+  // menú (058, iconosModulos.ts)
+  chartBar: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16h8M7 11h12M7 6h3"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  clipboard: '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/>',
+  bell: '<path d="M3 20a1 1 0 0 1-1-1v-1a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1Z"/><path d="M20 16a8 8 0 1 0-16 0"/><path d="M12 4v4M10 4h4"/>',
+  dollar: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  anchor: '<circle cx="12" cy="5" r="3"/><path d="M12 22V8M5 12H2a10 10 0 0 0 20 0h-3"/>',
+  cart: '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
+  calPlus: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/>',
+  calDays: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>',
+  userPlus: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  utensils: '<path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8"/><path d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7"/><path d="m2.1 21.8 6.4-6.3"/><path d="m19 5-7 7"/>',
+  calc: '<rect width="16" height="20" x="4" y="2" rx="2"/><path d="M8 6h8M16 14v4M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/>',
+  cog: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  fileText: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/>',
+  pkg: '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12M3.3 7 12 12l8.7-5"/>',
+  chartLine: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/>',
+  banknote: '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+  handCoins: '<path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"/><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 16 6 6"/><circle cx="16" cy="9" r="2.9"/><circle cx="6" cy="5" r="3"/>',
+  badgeDollar: '<path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/>',
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+};
+const ic = (k, cls = 'mk-ic') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${LU[k]}</svg>`;
+const sk = cls => `<div class="animate-pulse rounded-md bg-muted ${cls}"></div>`;
+
+/* Chips: lib/stock.ts (CHIP + CLASE_CHIP). Gris neutro, esmeralda positivo, negro en curso, rosa bloqueante. Ámbar prohibido. */
+const CHIPC = {
+  rosa: 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200',
+  negro: 'bg-neutral-900 text-white',
+  gris: 'bg-neutral-100 text-neutral-600',
+  verde: 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200',
+};
+const chip = (t, c, tip = '') => `<span class="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${CHIPC[c]}" ${tip ? `title="${esc(tip)}"` : ''}>${t}</span>`;
+
+/* ui/button (buttonVariants) */
+const BTN = 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0';
+const BTN_DEF = `${BTN} h-9 px-4 py-2 bg-primary text-primary-foreground shadow hover:bg-primary/90`;
+const BTN_OUT = `${BTN} h-9 px-4 py-2 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground`;
+const BTN_SM_OUT = `${BTN} h-8 border border-input bg-background px-3 text-xs shadow-sm hover:bg-accent hover:text-accent-foreground [&_svg]:size-3.5`;
+/* bodegas/TablaBodegas.vue */
+const TH = 'whitespace-nowrap px-2 py-2.5 font-semibold uppercase tracking-wide';
+/* ui/input */
+const INPUT = 'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
+/* catalogo/AvisoFalloGuardado.vue */
+const avisoRosa = html => `<div role="alert" class="flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-sm text-rose-900">${ic('alert', 'mt-0.5 size-4 shrink-0')}<p>${html}</p></div>`;
+/* Aviso neutro (informativo): misma forma, en gris */
+const avisoGris = (html, icono = 'info') => `<div role="note" class="flex items-start gap-2.5 rounded-lg border bg-muted/40 px-4 py-2.5 text-sm">${ic(icono, 'mt-0.5 size-4 shrink-0 text-muted-foreground')}<div>${html}</div></div>`;
+/* stock/PanelKardex.vue: tarjeta de cifra */
+const cifra = (t, v, sub = '', cls = '') => `<div class="rounded-lg border bg-card px-3 py-2">
+  <p class="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">${t}</p>
+  <p class="mt-0.5 text-lg font-bold tabular-nums leading-tight ${cls}">${v}</p>
+  ${sub ? `<p class="text-[11px] text-muted-foreground">${sub}</p>` : ''}</div>`;
+
+/* =====================================================================
+   Datos del caso
+   ===================================================================== */
+const PERS = {
+  luzete: { n: 'Luzete Sierra', rol: 'Planeación', ini: 'LS', permiso: true },
+  rosa: { n: 'Rosa Contreras', rol: 'Administración de sede', ini: 'RC', permiso: false },
+};
+const LINEAS = [
+  { k: 'ron', n: 'Ron Medellín 750 ml', u: 'Botella', us: 'botellas', env: 24, costo: 38500 },
+  { k: 'agua', n: 'Agua Cristal 600 ml', u: 'Unidad', us: 'unidades', env: 48, costo: 1300 },
+  { k: 'serv', n: 'Servilletas x100', u: 'Paquete', us: 'paquetes', env: 6, costo: 4200 },
+];
+const CASO = { ron: '22', agua: '48', serv: '6' };
+const NOTAS_CASO = { ron: 'Llegó una caja golpeada: 2 botellas rotas', agua: '', serv: '' };
+const MOTIVOS = [['rotura', 'Rotura en el viaje'], ['despacho', 'Faltó en el despacho'], ['robo', 'Pérdida o robo'], ['otro', 'Otro']];
+/* Otras diferencias abiertas (bandeja). Días = desde la recepción hasta hoy, 30/10. */
+const OTRAS = [
+  { id: 'TRA-2579', env: '26/10 07:45', ori: 'Almacén Tolú', des: 'Tintipán', prod: 'Huevos AA x30', u: 'panal', us: 'panales', cant: 1, costo: 16800, dias: 4, rec: 'Yeison Barrios Julio', aNombre: false, nota: 'Llegó un panal partido' },
+  { id: 'TRA-2588', env: '27/10 08:10', ori: 'Almacén Tolú', des: 'Crystal Beach', prod: 'Cerveza Águila lata 330 ml', u: 'unidad', us: 'unidades', cant: 6, costo: 2950, dias: 3, rec: 'Andrés Caraballo Teherán', aNombre: false, nota: '' },
+  { id: 'TRA-2594', env: '28/10 08:05', ori: 'Almacén Tolú', des: 'El Francés', prod: 'Papel higiénico x4', u: 'paquete', us: 'paquetes', cant: 2, costo: 9900, dias: 2, rec: 'Luzete Sierra', aNombre: true, nota: 'No venían en la lancha' },
+];
+
+/* =====================================================================
+   Estado del mockup (?paso=3&estado=vacio)
+   ===================================================================== */
+const Q = new URLSearchParams(location.search);
+const S = {
+  paso: Math.min(5, Math.max(1, +Q.get('paso') || 1)),
+  quien: 'rosa', rec: { ...CASO }, notas: { ...NOTAS_CASO }, confirmar1: false, fallo1: false, simularFallo: false, guardando: false,
+  veP2: 'luzete', kardex: false,
+  bandeja: 'con', tab: 'dif',
+  panel: null, dev: '1', per: '1', motivo: 'rotura', otro: '', valor: '38500', valorTocado: false, intento: false, confirmar4: false,
+  final: { dev: 1, per: 1, motivo: 'rotura', otro: '', valor: 38500 },
+  estado: null, aviso: null, anim: false, animDlg: false,
+};
+
+const actor = () => {
+  if (S.paso === 1) return S.quien;
+  if (S.paso === 2) return S.veP2;
+  return 'luzete';
+};
+const recibio = () => S.quien === 'rosa' ? 'Rosa Contreras' : 'Luzete Sierra';
+
+/* Cálculos de la recepción */
+const valorRec = k => { const t = String(S.rec[k]).trim(); return t === '' ? NaN : Number(t); };
+function errLinea(l) {
+  const v = valorRec(l.k);
+  if (Number.isNaN(v) || !Number.isInteger(v) || v < 0) return `Escribe una cantidad entera entre 0 y ${l.env}.`;
+  if (v > l.env) return `No puedes recibir más de lo enviado (${l.env}).`;
+  return '';
+}
+const difLinea = l => errLinea(l) ? 0 : l.env - valorRec(l.k);
+const totEnv = () => LINEAS.reduce((s, l) => s + l.env, 0);
+const totRec = () => LINEAS.reduce((s, l) => s + (errLinea(l) ? 0 : valorRec(l.k)), 0);
+const totDif = () => LINEAS.reduce((s, l) => s + difLinea(l), 0);
+const hayErr1 = () => LINEAS.some(errLinea);
+
+/* =====================================================================
+   Barra del mockup
+   ===================================================================== */
+const PASOS = [
+  [1, 'Recibir traslado TRA-2601'],
+  [2, 'Traslado recibido con diferencia'],
+  [3, 'Diferencias por resolver'],
+  [4, 'Resolver diferencia'],
+  [5, 'Traslado cerrado'],
+];
+function seg(items, activo, act) {
+  return items.map(([v, t]) => `<button data-act="${act}" data-v="${v}" class="rounded px-2.5 py-1 text-[11.5px] font-medium ${String(v) === String(activo) ? 'bg-white text-neutral-900' : 'text-neutral-300 hover:text-white'}">${t}</button>`).join('');
+}
+const pill = (v, t, on) => `<button data-act="mk-est" data-v="${v}" class="rounded-full border px-2.5 py-0.5 text-[11.5px] ${on ? 'border-white bg-white text-neutral-900' : 'border-neutral-600 text-neutral-300 hover:border-neutral-400'}">${t}</button>`;
+const ESTADOS = {
+  1: [['caso', 'Caso: 22 de 24'], ['completo', 'Llegó todo'], ['exceso', 'Error: más de lo enviado'], ['confirmar', 'Confirmación'], ['fallo', 'Error al guardar']],
+  2: [],
+  3: [['con', 'Con diferencias'], ['vacio', 'Sin diferencias'], ['carga', 'Cargando'], ['error', 'Error al cargar']],
+  4: [['uno-uno', 'Repartido 1 y 1'], ['devolver', 'Todo a devolver'], ['nosuma', 'Error: no suma 2'], ['sinmotivo', 'Error: falta el motivo'], ['confirmar', 'Confirmación']],
+  5: [],
+};
+function pintarBarra() {
+  document.getElementById('mk-pasos').innerHTML = seg(PASOS.map(([n, t]) => [n, `${n} · ${t.replace(' TRA-2601', '')}`]), S.paso, 'mk-paso');
+  document.getElementById('mk-titulo').textContent = `Paso ${S.paso} de 5 · ${PASOS[S.paso - 1][1]}`;
+  let h = '';
+  if (S.paso === 1) h += `<span class="text-[11.5px] text-neutral-400">Quien recibe:</span><div class="flex gap-1 rounded-md bg-neutral-800 p-0.5">${seg([['rosa', 'Rosa Contreras · responsable'], ['luzete', 'Luzete · a nombre de El Paraíso']], S.quien, 'mk-quien')}</div><span class="mx-1 h-4 w-px bg-neutral-700"></span>`;
+  if (S.paso === 2) h += `<span class="text-[11.5px] text-neutral-400">Lo ve:</span><div class="flex gap-1 rounded-md bg-neutral-800 p-0.5">${seg([['luzete', 'Luzete · con permiso de traslados'], ['rosa', 'Rosa · sin permiso']], S.veP2, 'mk-ve')}</div>`;
+  h += (ESTADOS[S.paso] || []).map(([v, t]) => pill(v, t, S.estado === v)).join('');
+  document.getElementById('mk-estados').innerHTML = h;
+  const p = PERS[actor()];
+  const dia = S.paso <= 2 ? 'Hoy: jueves 29 de octubre de 2026' : 'Hoy: viernes 30 de octubre de 2026';
+  document.getElementById('mk-nota').textContent = `${dia} · ${p.n}, ${p.rol}${p.permiso ? ' (permiso del módulo «traslados»)' : ''}`;
+}
+
+/* =====================================================================
+   Marco: sidebar inset y encabezado con migas (calcado del 064)
+   ===================================================================== */
+const MENU = [
+  ['Dashboard Ocupación', 'chartBar', 'propio'], ['Sin gestionar', 'clock'], ['Checklist', 'clipboard', 'padre'],
+  ['Gestión de Reservas', 'bell', 'padre'], ['Cotización', 'dollar'], ['Botes', 'anchor', 'padre'], ['Proyeccion de compras', 'cart'],
+  ['Ver disponibilidad', 'calPlus'], ['Calendario disponibilidad', 'calDays'], ['Asignar personal', 'userPlus'], ['Registro de huéspedes', 'users'],
+  ['Gestión de productos', 'utensils', 'padre'], ['Consumos y servicios', 'calc', 'padre'], ['Mantenimiento', 'cog', 'padre'], ['Informes', 'fileText', 'padre'],
+  ['Productos', 'pkg', 'abierto'], ['Indicadores', 'chartLine', 'padre'], ['Presupuesto', 'banknote', 'padre'], ['Comisiones', 'handCoins'], ['Pagos', 'badgeDollar', 'padre'], ['Proveedores', 'wrench'],
+];
+/* Hijos de Productos (73): Stock (063) y Bodegas (064) son del admin nuevo; Traslados es la opción propia nueva del 065. Los grises abren el admin viejo. */
+const HIJOS_PRODUCTOS = [['Stock', 'nuevo'], ['Bodegas', 'nuevo'], ['Traslados', 'activo'], ['Control stock'], ['Gestión compras'], ['Productos'], ['Inventario Físico'], ['Productos similares'], ['Auditoría de costos']];
+const GRIS = 'text-[hsl(240_4%_66%)] hover:text-[hsl(240_4%_52%)]';
+function menuHtml() {
+  return MENU.map(([t, i, tipo]) => {
+    if (tipo === 'padre') return `<li><button class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">${ic(i)}<span class="truncate">${t}</span>${ic('chevR', 'mk-ic ml-auto')}</button></li>`;
+    if (tipo === 'propio') return `<li><a class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">${ic(i)}<span class="truncate">${t}</span></a></li>`;
+    if (tipo === 'abierto') {
+      const hijos = HIJOS_PRODUCTOS.map(([h, a]) => a === 'activo'
+        ? `<li><a data-act="ir-bandeja" class="flex h-7 min-w-0 -translate-x-px cursor-pointer items-center gap-2 overflow-hidden rounded-md bg-sidebar-accent px-2 text-sm font-medium text-sidebar-accent-foreground" aria-current="page"><span class="truncate">${h}</span></a></li>`
+        : a === 'nuevo'
+          ? `<li><a class="flex h-7 min-w-0 -translate-x-px cursor-pointer items-center gap-2 overflow-hidden rounded-md px-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"><span class="truncate">${h}</span></a></li>`
+          : `<li><a class="flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sm hover:bg-sidebar-accent ${GRIS}" title="Abre en el admin viejo (pestaña nueva)"><span class="truncate">${h}</span></a></li>`).join('');
+      return `<li><button class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">${ic(i)}<span class="truncate">${t}</span>${ic('chevR', 'mk-ic ml-auto rotate-90')}</button>
+        <ul class="mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-2.5 py-0.5">${hijos}</ul></li>`;
+    }
+    return `<li><a class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-sm ${GRIS}" title="Abre en el admin viejo (pestaña nueva)">${ic(i)}<span class="truncate">${t}</span></a></li>`;
+  }).join('');
+}
+function sidebarHtml() {
+  const p = PERS[actor()];
+  return `<aside id="aside" class="sticky flex w-64 flex-none flex-col text-sidebar-foreground">
+    <div class="flex flex-col gap-2 p-2">
+      <a class="flex h-12 items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent">
+        <img src="${ISO_LOGO}" alt="Quinta del Mar" class="size-7 shrink-0">
+        <span class="grid flex-1 text-left leading-tight"><span class="truncate font-semibold">SIREQ</span><span class="truncate text-xs text-muted-foreground">Quinta del Mar</span></span>
+      </a>
+    </div>
+    <div class="no-scrollbar flex min-h-0 flex-1 flex-col overflow-auto">
+      <div class="relative flex w-full min-w-0 flex-col p-2">
+        <div class="flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70">Módulos</div>
+        <ul class="flex w-full min-w-0 flex-col gap-1">${menuHtml()}</ul>
+      </div>
+    </div>
+    <div class="flex flex-col gap-2 p-2">
+      <button class="flex h-12 w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-sidebar-accent">
+        <span class="grid h-8 w-8 place-items-center rounded-lg bg-muted text-xs font-medium text-black">${p.ini}</span>
+        <span class="grid flex-1 text-left text-sm leading-tight"><span class="truncate font-medium">${p.n}</span></span>${ic('updown', 'ml-auto size-4')}
+      </button>
+    </div>
+  </aside>`;
+}
+function headerHtml(migas) {
+  const sep = `<li role="presentation" aria-hidden="true" class="[&>svg]:h-3.5 [&>svg]:w-3.5">${ic('chevR')}</li>`;
+  const items = migas.map((t, i) => i === migas.length - 1
+    ? `<li class="inline-flex items-center gap-1.5"><span aria-current="page" class="font-normal text-foreground">${t}</span></li>`
+    : `<li class="inline-flex items-center gap-1.5"><a ${t === 'Traslados' ? 'data-act="ir-bandeja"' : ''} class="cursor-pointer transition-colors hover:text-foreground">${t}</a></li>${sep}`).join('');
+  return `<header class="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/70 px-4">
+    <div class="flex items-center gap-2">
+      <button class="-ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground" aria-label="Mostrar u ocultar el menú">${ic('panel')}</button>
+      <nav aria-label="breadcrumb"><ol class="flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground">${items}</ol></nav>
+    </div>
+  </header>`;
+}
+
+/* =====================================================================
+   Piezas compartidas: ruta, línea de tiempo, kardex
+   ===================================================================== */
+const ruta = (o, d) => `<span class="inline-flex items-center gap-1.5">${o}${ic('arrowR', 'size-3.5 text-muted-foreground')}${d}</span>`;
+
+function hito(icono, titulo, quien, cuando, detalle = '', tono = 'hecho') {
+  const punto = tono === 'hecho' ? 'bg-neutral-900 text-white' : tono === 'ok' ? 'bg-emerald-600 text-white' : 'border border-dashed border-neutral-400 bg-background text-muted-foreground';
+  return `<li class="relative flex gap-3 pb-5 last:pb-0">
+    <span class="relative z-[1] grid size-7 shrink-0 place-items-center rounded-full ${punto}">${ic(icono, 'size-3.5')}</span>
+    <div class="min-w-0 pt-0.5">
+      <p class="text-sm font-semibold leading-snug ${tono === 'pendiente' ? 'text-muted-foreground' : ''}">${titulo}</p>
+      <p class="text-xs text-muted-foreground">${quien}${cuando ? ` · ${cuando}` : ''}</p>
+      ${detalle ? `<div class="mt-1 text-[13px]">${detalle}</div>` : ''}
+    </div>
+  </li>`;
+}
+function lineaTiempo(hitos) {
+  return `<section class="rounded-xl border bg-card p-4">
+    <h2 class="text-sm font-semibold">Historia del traslado</h2>
+    <ol class="relative mt-3 before:absolute before:bottom-3 before:left-[13px] before:top-3 before:w-px before:bg-border">${hitos.join('')}</ol>
+  </section>`;
+}
+
+/* Documentos del kardex: [doc, tipo, fecha, quien, movimientos [bodega, producto, entrada, salida]] */
+function docsKardex(final) {
+  const recs = LINEAS.map(l => [l, Number(S.rec[l.k])]);
+  const docs = [
+    ['TRA-2601', 'Envío', '29/10/2026 08:02', 'Luzete Sierra', LINEAS.flatMap(l => [['Almacén Tolú', l.n, null, l.env], ['En tránsito', l.n, l.env, null]])],
+    ['TRA-2602', 'Recepción', '29/10/2026 15:40', `${recibio()}${S.quien === 'luzete' ? ' (a nombre de El Paraíso)' : ''}`, recs.filter(([, r]) => r > 0).flatMap(([l, r]) => [['En tránsito', l.n, null, r], ['El Paraíso', l.n, r, null]])],
+  ];
+  if (final) {
+    const f = S.final;
+    if (f.dev) docs.push(['TRA-2610', 'Devolución al origen', '30/10/2026 09:10', 'Luzete Sierra', [['En tránsito', 'Ron Medellín 750 ml', null, f.dev], ['Almacén Tolú', 'Ron Medellín 750 ml', f.dev, null]]]);
+    if (f.per) docs.push(['Doc. por definir', 'Salida por pérdida', '30/10/2026 09:10', 'Luzete Sierra', [['En tránsito', 'Ron Medellín 750 ml', null, f.per]]]);
+  }
+  return docs;
+}
+function kardexHtml(final) {
+  const docs = docsKardex(final);
+  const pendiente = final ? 0 : totDif();
+  const filas = docs.map(([doc, tipo, fecha, quien, movs]) => `
+    <tr class="bg-muted/40"><td colspan="5" class="px-3 py-2 text-[13px] font-medium">${doc === 'Doc. por definir' ? `<span class="text-muted-foreground">${doc}</span>` : doc} · ${tipo}<span class="ml-1 font-normal text-muted-foreground">· ${fecha} · ${esc(quien)}</span></td></tr>
+    ${movs.map(([b, p, e, s]) => `<tr>
+      <td class="px-3 py-2 ${b === 'En tránsito' ? 'font-medium' : ''}">${b}${b === 'En tránsito' ? '<span class="ml-1 text-xs font-normal text-muted-foreground">· bodega 10</span>' : ''}</td>
+      <td class="px-3 py-2">${p}</td>
+      <td class="px-3 py-2 text-right tabular-nums">${e != null ? `<span class="text-emerald-700">+${num(e)}</span>` : ''}</td>
+      <td class="px-3 py-2 text-right tabular-nums">${s != null ? `<span class="text-rose-700">−${num(s)}</span>` : ''}</td>
+      <td class="px-3 py-2 text-xs text-muted-foreground">${tipo === 'Salida por pérdida' ? `${motivoTexto(S.final)} · ${pesos(S.final.valor)}` : ''}</td>
+    </tr>`).join('')}`).join('');
+  const resumen = pendiente
+    ? `En tránsito queda con <b>${pendiente}</b> por este traslado: ${LINEAS.filter(difLinea).map(l => `${difLinea(l)} ${l.n}`).join(', ')}.`
+    : 'En tránsito queda en <b>0</b> por este traslado.';
+  return `<section class="overflow-hidden rounded-xl border bg-card">
+    <button type="button" data-act="kardex" aria-expanded="${S.kardex}" class="flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-muted/40">
+      ${ic('book', 'size-4 text-muted-foreground')}
+      <span class="text-sm font-semibold">Qué se grabó en el kardex</span>
+      <span class="text-sm text-muted-foreground">· ${docs.length} documentos · ${resumen.replace(/<[^>]+>/g, '').split(' por este')[0]}</span>
+      ${ic('chevD', `mk-ic ml-auto text-muted-foreground transition-transform ${S.kardex ? 'rotate-180' : ''}`)}
+    </button>
+    ${S.kardex ? `<div class="border-t px-4 pb-4 pt-3">
+      <div class="overflow-x-auto rounded-lg border">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-muted text-xs text-muted-foreground"><tr>
+            <th class="px-3 py-2 font-medium">Bodega</th><th class="px-3 py-2 font-medium">Producto</th>
+            <th class="px-3 py-2 text-right font-medium">Entrada</th><th class="px-3 py-2 text-right font-medium">Salida</th><th class="px-3 py-2 font-medium">Detalle</th>
+          </tr></thead>
+          <tbody class="divide-y">${filas}</tbody>
+        </table>
+      </div>
+      <p class="mt-2 text-sm text-muted-foreground">${resumen} Los traslados no mueven el costo promedio.</p>
+    </div>` : ''}
+  </section>`;
+}
+const motivoTexto = f => f.motivo === 'otro' ? `Otro: ${f.otro || '—'}` : (MOTIVOS.find(m => m[0] === f.motivo) || ['', '—'])[1];
+
+/* =====================================================================
+   Paso 1 · Recibir traslado TRA-2601
+   ===================================================================== */
+function paso1() {
+  const aNombre = S.quien === 'luzete';
+  const dif = totDif(), err = hayErr1();
+  const filas = LINEAS.map(l => {
+    const e = errLinea(l), d = difLinea(l);
+    return `<tr class="${e ? 'bg-rose-50/60' : ''}">
+      <td class="px-3 py-2.5 align-top"><p class="font-semibold leading-snug">${l.n}</p><p class="text-xs text-muted-foreground">${l.u} · costo promedio ${pesos(l.costo)}</p></td>
+      <td class="px-2 py-2.5 text-right align-top text-base font-semibold tabular-nums">${l.env}</td>
+      <td class="px-2 py-2.5 align-top">
+        <input id="rec-${l.k}" data-inp="rec" data-k="${l.k}" type="number" inputmode="numeric" min="0" max="${l.env}" step="1" value="${esc(S.rec[l.k])}"
+          aria-label="Recibido de ${l.n}" aria-invalid="${!!e}" ${e ? `aria-describedby="err-${l.k}"` : ''}
+          class="${INPUT} w-28 text-right tabular-nums ${e ? 'border-rose-500 focus-visible:ring-rose-500' : ''}">
+        ${e ? `<p id="err-${l.k}" class="mt-1 text-xs font-medium text-rose-700">${e}</p>` : ''}
+      </td>
+      <td class="px-2 py-2.5 align-top pt-4 tabular-nums">${e ? '<span class="text-muted-foreground">—</span>' : d ? `<span class="font-semibold">${d}</span> <span class="text-xs text-muted-foreground">quedan en tránsito</span>` : `<span class="inline-flex items-center gap-1 text-emerald-700">${ic('check', 'size-3.5')}Completo</span>`}</td>
+      <td class="px-3 py-2.5 align-top">
+        <input id="nota-${l.k}" data-inp="nota" data-k="${l.k}" type="text" maxlength="200" value="${esc(S.notas[l.k])}" placeholder="Opcional: qué pasó" class="${INPUT}" aria-label="Nota de ${l.n}">
+      </td>
+    </tr>`;
+  }).join('');
+  const resumen = err
+    ? `<p class="text-sm font-semibold text-rose-700">Corrige las cantidades marcadas para confirmar.</p>`
+    : dif
+      ? `<p class="text-sm"><span class="font-semibold tabular-nums">${dif} ${dif === 1 ? 'unidad queda' : 'unidades quedan'} en tránsito como diferencia por resolver.</span> <span class="text-muted-foreground">Entran a El Paraíso ${num(totRec())} de ${num(totEnv())}.</span></p>`
+      : `<p class="text-sm"><span class="font-semibold">Llegó todo: entran a El Paraíso las ${num(totEnv())} unidades.</span> <span class="text-muted-foreground">El traslado queda cerrado al confirmar.</span></p>`;
+  return `
+    <div>
+      <div class="flex flex-wrap items-center gap-2"><h1 class="text-2xl font-bold tracking-tight">Recibir traslado TRA-2601</h1>${chip('En tránsito', 'negro', 'Salió de Almacén Tolú y está en la bodega En tránsito')}</div>
+      <p class="mt-0.5 text-muted-foreground">${ruta('Almacén Tolú', 'El Paraíso')} · enviado hoy 8:02 por Luzete Sierra · responsable principal de El Paraíso: Rosa Contreras</p>
+    </div>
+    ${S.fallo1 ? avisoRosa('<span class="font-semibold">No se guardó: el servidor respondió con un error.</span> Las cantidades que escribiste siguen aquí. Vuelve a confirmar; si falla otra vez, avisa a soporte.') : ''}
+    ${aNombre ? avisoGris('<p><span class="font-semibold">Recibes a nombre de El Paraíso; quedará registrado.</span> No eres responsable de esta bodega: la recepción queda a tu nombre, «Luzete Sierra, a nombre de El Paraíso».</p>', 'info') : ''}
+    <p class="text-sm text-muted-foreground">Escribe lo que llegó de cada producto. Hay una sola recepción por traslado: lo que no llegue queda en En tránsito como diferencia, y Planeación decide si vuelve a Almacén Tolú o se da por perdido.</p>
+    <div class="overflow-hidden rounded-xl border bg-card">
+      <table class="w-full text-left text-sm">
+        <thead class="border-b bg-muted/40 text-xs text-muted-foreground"><tr>
+          <th scope="col" class="${TH} px-3">Producto</th>
+          <th scope="col" class="${TH} w-[110px] text-right">Enviado</th>
+          <th scope="col" class="${TH} w-[200px]">Recibido</th>
+          <th scope="col" class="${TH} w-[220px]">Diferencia</th>
+          <th scope="col" class="${TH} w-[360px] px-3">Nota</th>
+        </tr></thead>
+        <tbody class="divide-y">${filas}</tbody>
+        <tfoot class="border-t bg-muted/40 text-sm"><tr>
+          <td class="px-3 py-2.5 font-semibold">Total · 3 productos</td>
+          <td class="px-2 py-2.5 text-right font-semibold tabular-nums">${num(totEnv())}</td>
+          <td class="px-2 py-2.5 font-semibold tabular-nums"><span class="inline-block w-28 pr-3 text-right">${err ? '—' : num(totRec())}</span></td>
+          <td class="px-2 py-2.5 font-semibold tabular-nums">${err ? '—' : dif}</td><td></td>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3">
+      <div role="status" aria-live="polite">${resumen}</div>
+      <div class="flex gap-2">
+        <button type="button" class="${BTN_OUT}">Cancelar</button>
+        <button type="button" data-act="pedir-confirmar1" ${err || S.guardando ? 'disabled' : ''} class="${BTN_DEF}">${ic('pkgCheck')}${S.guardando ? 'Confirmando…' : 'Confirmar recepción'}</button>
+      </div>
+    </div>`;
+}
+function dialogo1() {
+  const dif = totDif();
+  const aNombre = S.quien === 'luzete';
+  return dialogo('¿Confirmar la recepción de TRA-2601?',
+    `<p>Entran a El Paraíso <b>${num(totRec())}</b> de ${num(totEnv())} unidades${aNombre ? ', recibidas por Luzete Sierra a nombre de El Paraíso' : ''}.</p>
+     ${dif ? `<p class="mt-2">${LINEAS.filter(difLinea).map(l => `<b>${difLinea(l)} ${difLinea(l) === 1 ? l.u.toLowerCase() : l.us}</b> de ${l.n}`).join(', ')} ${dif === 1 ? 'queda' : 'quedan'} en En tránsito como diferencia por resolver.</p>` : '<p class="mt-2">Llegó todo: el traslado queda cerrado.</p>'}
+     <p class="mt-2">Es la única recepción del traslado y no se puede deshacer.</p>`,
+    'si-confirmar1', 'Confirmar recepción', 'no-confirmar1');
+}
+/* bodegas/ConfirmarQuitar.vue sobre ui/dialog */
+function dialogo(titulo, cuerpo, actSi, textoSi, actNo) {
+  return `<div class="bajo-barra fixed inset-0 z-[70] bg-black/80 ${S.animDlg ? 'anim-fade' : ''}" data-act="${actNo}"></div>
+    <div role="alertdialog" aria-modal="true" aria-labelledby="dl-t" class="${S.animDlg ? 'anim-fade' : ''} fixed left-1/2 top-1/2 z-[70] grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border bg-background p-6 shadow-lg sm:rounded-lg">
+      <div class="flex flex-col gap-y-1.5 text-left">
+        <h2 id="dl-t" class="text-lg font-semibold leading-none tracking-tight">${titulo}</h2>
+        <div class="text-sm leading-relaxed text-muted-foreground">${cuerpo}</div>
+      </div>
+      <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button type="button" data-act="${actNo}" class="${BTN_OUT}">Cancelar</button>
+        <button type="button" data-act="${actSi}" class="${BTN_DEF}">${textoSi}</button>
+      </div>
+      <button data-act="${actNo}" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100" aria-label="Cerrar">${ic('x', 'size-4')}</button>
+    </div>`;
+}
+
+/* =====================================================================
+   Paso 2 · Traslado recibido con diferencia
+   ===================================================================== */
+function tablaLineas(modo) {
+  const final = modo === 'final';
+  const filas = LINEAS.map(l => {
+    const r = Number(S.rec[l.k]), d = l.env - r;
+    const ron = l.k === 'ron';
+    let col;
+    if (final) col = ron ? `<td class="px-2 py-2.5 text-right tabular-nums">${S.final.dev || '—'}</td><td class="px-2 py-2.5 text-right tabular-nums">${S.final.per || '—'}</td>`
+      : '<td class="px-2 py-2.5 text-right text-muted-foreground">—</td><td class="px-2 py-2.5 text-right text-muted-foreground">—</td>';
+    else col = `<td class="px-2 py-2.5">${d ? `<div class="flex flex-wrap items-center gap-2"><span class="font-semibold">Diferencia por resolver: <span class="tabular-nums">${d}</span></span>${chip('En tránsito', 'negro')}</div><p class="text-xs text-muted-foreground">${pesos(d * l.costo)} a costo de hoy</p>` : `<span class="inline-flex items-center gap-1 text-emerald-700">${ic('check', 'size-3.5')}Completo</span>`}</td>`;
+    return `<tr class="hover:bg-muted/40">
+      <td class="px-3 py-2.5"><p class="font-semibold leading-snug">${l.n}</p><p class="text-xs text-muted-foreground">${l.u}</p></td>
+      <td class="px-2 py-2.5 text-right tabular-nums">${l.env}</td>
+      <td class="px-2 py-2.5 text-right tabular-nums">${r}</td>
+      ${col}
+      <td class="px-3 py-2.5 text-[13px] ${S.notas[l.k] ? '' : 'text-muted-foreground'}">${esc(S.notas[l.k]) || '—'}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="overflow-hidden rounded-xl border bg-card">
+    <table class="w-full text-left text-sm">
+      <thead class="border-b bg-muted/40 text-xs text-muted-foreground"><tr>
+        <th scope="col" class="${TH} px-3">Producto</th>
+        <th scope="col" class="${TH} w-[110px] text-right">Enviado</th>
+        <th scope="col" class="${TH} w-[110px] text-right">Recibido</th>
+        ${final ? `<th scope="col" class="${TH} w-[150px] text-right">Devuelto a Tolú</th><th scope="col" class="${TH} w-[110px] text-right">Perdido</th>` : `<th scope="col" class="${TH} w-[330px]">Diferencia</th>`}
+        <th scope="col" class="${TH} w-[360px] px-3">Nota de la recepción</th>
+      </tr></thead>
+      <tbody class="divide-y">${filas}</tbody>
+    </table>
+  </div>`;
+}
+function hitosBase() {
+  const aN = S.quien === 'luzete';
+  const lineasDif = LINEAS.filter(difLinea);
+  return [
+    hito('truck', 'Enviado', 'Luzete Sierra', 'jue 29/10 8:02', `${num(totEnv())} unidades en 3 productos salen de Almacén Tolú a En tránsito · TRA-2601`),
+    hito('pkgCheck', lineasDif.length ? 'Recibido con diferencia' : 'Recibido completo', `${recibio()}${aN ? ', a nombre de El Paraíso' : ''}`, 'jue 29/10 15:40',
+      `${num(totRec())} entran a El Paraíso · TRA-2602${lineasDif.length ? ` · ${lineasDif.map(l => `${difLinea(l)} ${l.n}`).join(', ')} quedan en tránsito` : ''}`),
+  ];
+}
+function paso2() {
+  const dif = totDif();
+  const permiso = PERS[S.veP2].permiso;
+  const valor = LINEAS.reduce((s, l) => s + difLinea(l) * l.costo, 0);
+  const estado = dif ? chip('Recibido con diferencia', 'negro', 'Hay unidades en En tránsito por resolver') : chip('Cerrado', 'verde');
+  const llamado = !dif ? '' : avisoGris(`<p><span class="font-semibold">${LINEAS.filter(difLinea).map(l => `${difLinea(l)} ${difLinea(l) === 1 ? l.u.toLowerCase() : l.us} de ${l.n}`).join(', ')} ${dif === 1 ? 'sigue' : 'siguen'} en En tránsito.</span>
+      ${permiso ? 'Resuélvelas: devuélvelas a Almacén Tolú o dalas por perdidas con su motivo.' : 'Las resuelve quien tiene el permiso de traslados (Planeación): las devuelve a Almacén Tolú o las da por perdidas.'}</p>
+      ${permiso ? `<button type="button" data-act="ir-resolver" class="${BTN_SM_OUT} mt-2">${ic('scale')}Resolver diferencia</button>` : ''}`, 'scale');
+  return `
+    <div>
+      <div class="flex flex-wrap items-center gap-2"><h1 class="text-2xl font-bold tracking-tight">Traslado TRA-2601</h1>${estado}</div>
+      <p class="mt-0.5 text-muted-foreground">${ruta('Almacén Tolú', 'El Paraíso')} · enviado hoy 8:02 por Luzete Sierra · recibido hoy 15:40 por ${recibio()}${S.quien === 'luzete' ? ', a nombre de El Paraíso' : ''}</p>
+    </div>
+    <div class="grid grid-cols-4 gap-2">
+      ${cifra('Enviado', num(totEnv()), '3 productos')}
+      ${cifra('Recibido', num(totRec()), 'entraron a El Paraíso')}
+      ${cifra('Diferencia por resolver', dif, dif ? 'en la bodega En tránsito' : 'nada pendiente')}
+      ${cifra('Valor de la diferencia', pesos(valor), 'a costo promedio de hoy')}
+    </div>
+    ${llamado}
+    ${tablaLineas('dif')}
+    <div class="grid grid-cols-[minmax(0,1fr)_360px] items-start gap-4">
+      <div class="flex min-w-0 flex-col gap-4">${kardexHtml(false)}</div>
+      ${lineaTiempo([...hitosBase(), dif ? hito('scale', 'Diferencia por resolver', 'Pendiente de Planeación', '', '', 'pendiente') : ''])}
+    </div>`;
+}
+
+/* =====================================================================
+   Paso 3 · Diferencias por resolver (bandeja)
+   ===================================================================== */
+function filasBandeja() {
+  const l = LINEAS[0];
+  const propia = { id: 'TRA-2601', env: '29/10 08:02', ori: 'Almacén Tolú', des: 'El Paraíso', prod: l.n, u: 'botella', us: 'botellas', cant: 2, costo: l.costo, dias: 1, rec: 'Rosa Contreras', aNombre: false, nota: NOTAS_CASO.ron };
+  return [...OTRAS, propia].sort((a, b) => b.dias - a.dias);
+}
+function pestanas() {
+  /* AppearanceTabs.vue */
+  const n = S.bandeja === 'con' ? filasBandeja().length : 0;
+  const t = (v, txt, extra = '') => `<button data-act="tab" data-v="${v}" class="flex items-center rounded-md px-3.5 py-1.5 text-sm transition-colors ${S.tab === v ? 'bg-white shadow-sm' : 'text-neutral-500 hover:bg-neutral-200/60 hover:text-black'}">${txt}${extra}</button>`;
+  return `<div class="inline-flex gap-1 self-start rounded-lg bg-neutral-100 p-1">${t('lista', 'Traslados')}${t('dif', 'Diferencias por resolver', n ? `<span class="ml-1.5 rounded-full bg-neutral-900 px-1.5 text-[11px] font-semibold tabular-nums text-white">${n}</span>` : '')}</div>`;
+}
+function paso3() {
+  const enc = `<div class="flex items-start justify-between gap-4">
+      <div><h1 class="text-2xl font-bold tracking-tight">Traslados</h1>
+      <p class="mt-0.5 text-muted-foreground">Lo enviado sale del origen, pasa por En tránsito y entra al destino cuando alguien lo recibe.</p></div>
+      <button type="button" class="${BTN_DEF}" title="Fuera de este mockup">${ic('truck')}Nuevo traslado</button>
+    </div>${pestanas()}`;
+  if (S.tab === 'lista') return enc + listaTraslados();
+  if (S.bandeja === 'carga') return `${enc}${sk('h-4 w-96')}<div class="overflow-hidden rounded-xl border bg-card" aria-busy="true" aria-label="Cargando las diferencias">
+      <div class="flex gap-4 border-b bg-muted/40 px-4 py-3">${sk('h-3 w-28')}${sk('h-3 w-48')}${sk('h-3 flex-1')}${sk('h-3 w-20')}${sk('h-3 w-28')}${sk('h-3 w-16')}${sk('h-3 w-40')}${sk('h-3 w-20')}</div>
+      ${Array.from({ length: 4 }, () => `<div class="flex items-center gap-4 border-b px-4 py-4 last:border-0">${sk('h-4 w-28')}${sk('h-4 w-48')}${sk('h-4 flex-1')}${sk('h-4 w-20')}${sk('h-4 w-28')}${sk('h-4 w-16')}${sk('h-4 w-40')}${sk('h-8 w-20')}</div>`).join('')}</div>`;
+  if (S.bandeja === 'error') return `${enc}<section role="alert" class="flex flex-1 flex-col items-center justify-center rounded-xl border border-rose-200 bg-card px-6 py-16 text-center">
+      <span class="grid size-12 place-items-center rounded-full bg-rose-50 text-rose-600">${ic('alert', 'size-6')}</span>
+      <h2 class="mt-4 text-base font-semibold">No se pudieron cargar las diferencias</h2>
+      <p class="mt-1 max-w-md text-sm text-muted-foreground">El servidor respondió con un error (500). Intenta de nuevo; si vuelve a fallar, avisa a soporte.</p>
+      <button type="button" data-act="reintentar" class="mt-5 ${BTN_OUT}">${ic('refresh')}Reintentar</button></section>`;
+  if (S.bandeja === 'vacio') return `${enc}<div class="rounded-xl border border-dashed bg-card px-4 py-14 text-center">
+      <span class="mx-auto grid size-10 place-items-center rounded-full bg-muted text-muted-foreground">${ic('inbox', 'size-5')}</span>
+      <p class="mt-3 text-sm font-medium">No hay diferencias por resolver</p>
+      <p class="mt-0.5 text-sm text-muted-foreground">Todo lo recibido coincidió con lo enviado o ya se resolvió. En tránsito solo tiene lo que va en camino.</p></div>`;
+  const filas = filasBandeja();
+  const total = filas.reduce((s, f) => s + f.cant * f.costo, 0);
+  const vieja = Math.max(...filas.map(f => f.dias));
+  return `${enc}
+    <p class="text-sm text-muted-foreground"><span class="font-semibold text-foreground"><span class="tabular-nums">${filas.length}</span> diferencias por resolver</span> · <span class="tabular-nums">${pesos(total)}</span> a costo de hoy · la más vieja lleva <span class="tabular-nums">${vieja}</span> días</p>
+    <div class="overflow-hidden rounded-xl border bg-card"><div class="overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead class="border-b bg-muted/40 text-xs text-muted-foreground"><tr>
+          <th scope="col" class="${TH} w-[250px] px-3">Traslado · origen → destino</th>
+          <th scope="col" class="${TH}">Producto</th>
+          <th scope="col" class="${TH} w-[90px] text-right">Cantidad</th>
+          <th scope="col" class="${TH} w-[170px] text-right" title="Cantidad × costo promedio de hoy">Valor a costo de hoy</th>
+          <th scope="col" class="${TH} w-[110px] text-right" title="Días desde la recepción">Días abierta</th>
+          <th scope="col" class="${TH} w-[210px]">Recibió</th>
+          <th scope="col" class="${TH} w-[110px] px-3"><span class="sr-only">Acciones</span></th>
+        </tr></thead>
+        <tbody class="divide-y">${filas.map(f => `<tr class="hover:bg-muted/40 ${S.panel === f.id ? 'bg-muted/40' : ''}">
+          <td class="px-3 py-2.5"><p class="font-semibold leading-snug">${f.id}</p><p class="text-[13px]">${ruta(f.ori, f.des)}</p><p class="text-xs tabular-nums text-muted-foreground">Enviado ${f.env}</p></td>
+          <td class="px-2 py-2.5"><p class="font-medium leading-snug">${f.prod}</p>${f.nota ? `<p class="text-xs text-muted-foreground">«${esc(f.nota)}»</p>` : ''}</td>
+          <td class="px-2 py-2.5 text-right tabular-nums"><span class="font-semibold">${f.cant}</span> <span class="text-xs text-muted-foreground">${f.cant === 1 ? f.u : f.us}</span></td>
+          <td class="px-2 py-2.5 text-right tabular-nums"><p class="font-semibold">${pesos(f.cant * f.costo)}</p><p class="text-xs text-muted-foreground">${f.cant} × ${pesos(f.costo)}</p></td>
+          <td class="px-2 py-2.5 text-right tabular-nums">${f.dias}</td>
+          <td class="px-2 py-2.5"><p class="leading-snug">${f.rec}</p>${f.aNombre ? `<p class="text-xs text-muted-foreground">a nombre de ${f.des}</p>` : ''}</td>
+          <td class="px-3 py-2.5 text-right"><button type="button" data-act="abrir" data-v="${f.id}" class="${BTN_SM_OUT}" aria-label="Resolver la diferencia de ${f.id}">${ic('scale')}Resolver</button></td>
+        </tr>`).join('')}</tbody>
+      </table></div></div>
+    <p class="text-sm text-muted-foreground">Cada fila es una línea de un traslado con unidades en En tránsito. Mientras no se resuelvan, no están en ninguna sede: ni en el origen ni en el destino.</p>`;
+}
+function listaTraslados() {
+  const F = [
+    ['TRA-2612', '30/10 07:58', 'Almacén Tolú', 'Crystal Beach', 4, 96, chip('En tránsito', 'negro')],
+    ['TRA-2601', '29/10 08:02', 'Almacén Tolú', 'El Paraíso', 3, 78, chip('Recibido con diferencia', 'negro')],
+    ['TRA-2598', '28/10 08:20', 'Almacén Tolú', 'La Joya', 5, 140, chip('Cerrado', 'verde')],
+    ['TRA-2594', '28/10 08:05', 'Almacén Tolú', 'El Francés', 2, 26, chip('Recibido con diferencia', 'negro')],
+    ['TRA-2590', '27/10 15:12', 'Sunset', 'El Paraíso', 1, 12, chip('Cerrado', 'verde')],
+  ];
+  return `<div class="overflow-hidden rounded-xl border bg-card"><table class="w-full text-left text-sm">
+    <thead class="border-b bg-muted/40 text-xs text-muted-foreground"><tr>
+      <th scope="col" class="${TH} w-[150px] px-3">Traslado</th><th scope="col" class="${TH}">Origen → destino</th>
+      <th scope="col" class="${TH} w-[120px] text-right">Productos</th><th scope="col" class="${TH} w-[120px] text-right">Unidades</th><th scope="col" class="${TH} w-[230px]">Estado</th></tr></thead>
+    <tbody class="divide-y">${F.map(([id, f, o, d, p, u, c]) => `<tr class="hover:bg-muted/40"><td class="px-3 py-2.5"><p class="font-semibold">${id}</p><p class="text-xs tabular-nums text-muted-foreground">Enviado ${f}</p></td>
+      <td class="px-2 py-2.5 text-[13px]">${ruta(o, d)}</td><td class="px-2 py-2.5 text-right tabular-nums">${p}</td><td class="px-2 py-2.5 text-right tabular-nums">${u}</td><td class="px-2 py-2.5">${c}</td></tr>`).join('')}</tbody>
+  </table></div>
+  <p class="text-sm text-muted-foreground">Vista de contexto: el listado de traslados no es parte de esta opción.</p>`;
+}
+
+/* =====================================================================
+   Paso 4 · Resolver diferencia (panel lateral, ui/sheet como PanelResponsables)
+   ===================================================================== */
+const filaPanel = () => filasBandeja().find(f => f.id === S.panel);
+const nVal = v => { const t = String(v).trim(); return t === '' ? NaN : Number(t); };
+function validar4() {
+  const f = filaPanel();
+  const d = nVal(S.dev), p = nVal(S.per);
+  const e = {};
+  if (Number.isNaN(d) || !Number.isInteger(d) || d < 0) e.dev = 'Cantidad entera, 0 o más.';
+  if (Number.isNaN(p) || !Number.isInteger(p) || p < 0) e.per = 'Cantidad entera, 0 o más.';
+  if (!e.dev && !e.per && d + p !== f.cant) e.suma = `Suman ${d + p}: deben sumar ${f.cant}.`;
+  if (!e.per && p > 0) {
+    if (!S.motivo) e.motivo = 'Elige el motivo de la pérdida.';
+    else if (S.motivo === 'otro' && !S.otro.trim()) e.otro = 'Escribe qué pasó.';
+    const v = nVal(S.valor);
+    if (Number.isNaN(v) || v < 0) e.valor = 'Escribe el valor en pesos (0 o más).';
+  }
+  return e;
+}
+function panelHtml() {
+  const f = filaPanel();
+  const e = validar4();
+  const d = nVal(S.dev), p = nVal(S.per);
+  const ok = !Object.keys(e).length;
+  const mostrar = k => e[k] && (S.intento || k === 'suma' || k === 'dev' || k === 'per');
+  const campo = (id, etiqueta, ayuda, val, err) => `<div class="flex items-start justify-between gap-4 px-4 py-3">
+      <div class="min-w-0"><label for="${id}" class="text-sm font-medium">${etiqueta}</label><p class="text-xs text-muted-foreground">${ayuda}</p></div>
+      <div class="w-28 shrink-0"><input id="${id}" data-inp="${id}" type="number" inputmode="numeric" min="0" max="${f.cant}" step="1" value="${esc(val)}"
+        class="${INPUT} text-right tabular-nums ${err ? 'border-rose-500 focus-visible:ring-rose-500' : ''}" aria-invalid="${!!err}">
+        ${err ? `<p class="mt-1 text-right text-xs font-medium text-rose-700">${err}</p>` : ''}</div>
+    </div>`;
+  const sumaOk = !e.dev && !e.per && !e.suma;
+  const reparto = `<section class="overflow-hidden rounded-xl border bg-card">
+      <div class="flex items-center justify-between gap-2 border-b bg-muted/40 px-4 py-2.5">
+        <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Repartir ${f.cant} ${f.cant === 1 ? f.u : f.us}</p>
+        <div class="flex gap-1">
+          <button type="button" data-act="todo-dev" class="rounded border px-1.5 py-0.5 text-xs ${d === f.cant && p === 0 ? 'border-primary bg-primary/10 font-semibold text-primary' : 'hover:bg-muted'}">Todo a devolver</button>
+          <button type="button" data-act="todo-per" class="rounded border px-1.5 py-0.5 text-xs ${p === f.cant && d === 0 ? 'border-primary bg-primary/10 font-semibold text-primary' : 'hover:bg-muted'}">Todo perdido</button>
+        </div>
+      </div>
+      <div class="divide-y">
+        ${campo('dev', `Devolver a ${f.ori}`, `Vuelve al origen con un traslado nuevo, En tránsito → ${f.ori}`, S.dev, mostrar('dev') ? e.dev : '')}
+        ${campo('per', 'Dar por perdido', 'Sale de En tránsito como pérdida, con su motivo y valor', S.per, mostrar('per') ? e.per : '')}
+      </div>
+      <div class="flex items-center justify-between border-t px-4 py-2.5 text-sm ${e.suma ? 'bg-rose-50 text-rose-800' : ''}">
+        <span>${e.suma ? `<span class="inline-flex items-center gap-1.5 font-semibold">${ic('alert', 'size-4')}${e.suma}</span>` : sumaOk ? `<span class="inline-flex items-center gap-1.5 text-emerald-700">${ic('check', 'size-4')}Suman ${f.cant} de ${f.cant}</span>` : '<span class="text-muted-foreground">Corrige las cantidades</span>'}</span>
+        <span class="tabular-nums text-muted-foreground">${Number.isNaN(d) ? '—' : d} + ${Number.isNaN(p) ? '—' : p} = ${sumaOk || e.suma ? d + p : '—'}</span>
+      </div>
+    </section>`;
+  const radios = MOTIVOS.map(([v, t]) => `<label class="flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2 text-sm ${S.motivo === v ? 'border-primary bg-primary/5' : 'hover:bg-muted/40'}">
+      <button type="button" role="radio" aria-checked="${S.motivo === v}" data-act="motivo" data-v="${v}" class="grid aspect-square size-4 place-items-center rounded-full border border-primary text-primary shadow focus:outline-none focus-visible:ring-1 focus-visible:ring-ring">${S.motivo === v ? '<span class="block size-2 rounded-full bg-current"></span>' : ''}</button>
+      <span data-act="motivo" data-v="${v}">${t}</span></label>`).join('');
+  const perdida = !e.per && p > 0 ? `<section class="flex flex-col gap-3">
+      <div>
+        <p class="text-sm font-medium">Motivo de la pérdida <span class="text-rose-700">*</span></p>
+        <div role="radiogroup" aria-label="Motivo de la pérdida" class="mt-1.5 grid grid-cols-2 gap-2">${radios}</div>
+        ${mostrar('motivo') ? `<p class="mt-1 text-xs font-medium text-rose-700">${e.motivo}</p>` : ''}
+        ${S.motivo === 'otro' ? `<div class="mt-2"><label for="otro" class="sr-only">Qué pasó</label><input id="otro" data-inp="otro" type="text" maxlength="200" value="${esc(S.otro)}" placeholder="Qué pasó (obligatorio)" class="${INPUT} ${mostrar('otro') ? 'border-rose-500' : ''}">${mostrar('otro') ? `<p class="mt-1 text-xs font-medium text-rose-700">${e.otro}</p>` : ''}</div>` : ''}
+      </div>
+      <div>
+        <label for="valor" class="text-sm font-medium">Valor de la pérdida</label>
+        <div class="relative mt-1.5 w-48"><span class="pointer-events-none absolute left-3 top-2 text-sm text-muted-foreground">$</span>
+          <input id="valor" data-inp="valor" type="number" inputmode="numeric" min="0" step="100" value="${esc(S.valor)}" class="${INPUT} pl-6 text-right tabular-nums ${mostrar('valor') ? 'border-rose-500' : ''}"></div>
+        ${mostrar('valor') ? `<p class="mt-1 text-xs font-medium text-rose-700">${e.valor}</p>` : ''}
+        <p class="mt-1 text-xs text-muted-foreground">Sugerido: ${p} × ${pesos(f.costo)} de costo promedio de hoy = ${pesos(p * f.costo)}.${S.valorTocado && nVal(S.valor) !== p * f.costo ? ` <button type="button" data-act="valor-sug" class="font-medium text-primary underline-offset-4 hover:underline">Usar el sugerido</button>` : ''}</p>
+      </div>
+    </section>` : '';
+  const efecto = sumaOk ? `<section class="rounded-xl border bg-muted/40 p-4">
+      <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Así queda</p>
+      <p class="mt-1.5 text-base font-semibold tabular-nums">${[d ? `${f.ori.replace('Almacén ', '')} +${d}` : '', `En tránsito −${f.cant}`, p ? `pérdida ${p} × ${pesos(f.costo)}` : ''].filter(Boolean).join(' · ')}</p>
+      <ul class="mt-2 space-y-1 text-[13px] text-muted-foreground">
+        ${d ? `<li>Se crea el traslado <b class="text-foreground">TRA-2610</b>: ${d} ${d === 1 ? f.u : f.us} de En tránsito a ${f.ori}.</li>` : ''}
+        ${p ? `<li>Se registra la salida por pérdida de ${p} ${p === 1 ? f.u : f.us} de En tránsito${!e.valor ? `, por ${pesos(nVal(S.valor))}` : ''}${S.motivo && !e.otro ? ` · ${esc(motivoTexto(S))}` : ''}.</li>` : ''}
+        <li>${f.id} queda <b class="text-foreground">Cerrado</b> y sale de esta bandeja.</li>
+      </ul>
+    </section>` : '';
+  return `<div class="bajo-barra fixed inset-0 z-50 bg-black/80 ${S.anim ? 'anim-fade' : ''}" data-act="cerrar"></div>
+    <div role="dialog" aria-modal="true" aria-labelledby="sh-t" class="bajo-barra ${S.anim ? 'anim-sheet' : ''} fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-xl flex-col gap-4 border-l bg-background p-6 shadow-lg">
+      <div class="flex flex-col gap-y-2 pr-6 text-left">
+        <div class="flex flex-wrap items-center gap-2"><h2 id="sh-t" class="text-lg font-semibold text-foreground">Resolver diferencia · ${f.id}</h2>${chip('En tránsito', 'negro')}</div>
+        <p class="text-sm text-muted-foreground"><b class="font-semibold text-foreground">${f.cant} ${f.cant === 1 ? f.u : f.us} de ${f.prod}</b> · ${f.ori} → ${f.des} · recibió ${f.rec}${f.aNombre ? ` a nombre de ${f.des}` : ''} · costo promedio ${pesos(f.costo)}</p>
+        ${f.nota ? `<p class="text-sm"><span class="text-muted-foreground">Nota de la recepción:</span> «${esc(f.nota)}»</p>` : ''}
+      </div>
+      <div class="-mx-6 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-2">
+        ${reparto}${perdida}${efecto}
+      </div>
+      <div class="flex items-center justify-between gap-3 border-t pt-4">
+        <span class="text-sm ${ok ? 'font-semibold' : 'text-muted-foreground'}">${ok ? 'Listo para resolver' : e.suma || e.dev || e.per ? 'Las cantidades deben sumar ' + f.cant : 'Falta el motivo o el valor'}</span>
+        <div class="flex gap-2">
+          <button type="button" data-act="cerrar" class="${BTN_OUT}">Cancelar</button>
+          <button type="button" data-act="pedir-confirmar4" ${ok ? '' : 'aria-disabled="true"'} class="${BTN_DEF} ${ok ? '' : 'opacity-50'}">Resolver diferencia</button>
+        </div>
+      </div>
+      <button data-act="cerrar" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" aria-label="Cerrar">${ic('x', 'size-4 text-muted-foreground')}</button>
+    </div>`;
+}
+function dialogo4() {
+  const f = filaPanel();
+  const d = nVal(S.dev), p = nVal(S.per);
+  const partes = [];
+  if (d) partes.push(`<b>${d}</b> ${d === 1 ? 'vuelve' : 'vuelven'} a ${f.ori} con el traslado TRA-2610`);
+  if (p) partes.push(`<b>${p}</b> se ${p === 1 ? 'da' : 'dan'} por ${p === 1 ? 'perdida' : 'perdidas'} (${esc(motivoTexto(S))}, ${pesos(nVal(S.valor))})`);
+  return dialogo(`¿Resolver la diferencia de ${f.id}?`,
+    `<p>De las ${f.cant} ${f.us} de ${f.prod}: ${partes.join(' y ')}.</p><p class="mt-2">${f.id} queda cerrado. No se puede deshacer.</p>`,
+    'si-confirmar4', 'Resolver diferencia', 'no-confirmar4');
+}
+
+/* =====================================================================
+   Paso 5 · Traslado cerrado
+   ===================================================================== */
+function paso5() {
+  const f = S.final;
+  const res = [f.dev ? `${f.dev} devuelta a Almacén Tolú (TRA-2610)` : '', f.per ? `${f.per} perdida por ${motivoTexto(f).toLowerCase()} (${pesos(f.valor)})` : ''].filter(Boolean).join(' · ');
+  return `
+    <div>
+      <div class="flex flex-wrap items-center gap-2"><h1 class="text-2xl font-bold tracking-tight">Traslado TRA-2601</h1>${chip('Cerrado', 'verde')}</div>
+      <p class="mt-0.5 text-muted-foreground">${ruta('Almacén Tolú', 'El Paraíso')} · enviado el 29/10 8:02 por Luzete Sierra · cerrado hoy 9:10 por Luzete Sierra</p>
+    </div>
+    <div class="grid grid-cols-4 gap-2">
+      ${cifra('Enviado', num(totEnv()), '3 productos')}
+      ${cifra('Recibido', num(totRec()), 'entraron a El Paraíso')}
+      ${cifra('Devuelto a Tolú', f.dev, f.dev ? 'TRA-2610' : 'nada')}
+      ${cifra('Perdido', f.per, f.per ? `${pesos(f.valor)} · ${motivoTexto(f).toLowerCase()}` : 'nada')}
+    </div>
+    ${tablaLineas('final')}
+    <div class="grid grid-cols-[minmax(0,1fr)_360px] items-start gap-4">
+      <div class="flex min-w-0 flex-col gap-4">${kardexHtml(true)}</div>
+      ${lineaTiempo([...hitosBase(), hito('check', 'Diferencia resuelta', 'Luzete Sierra', 'vie 30/10 9:10', `Ron Medellín 750 ml: ${res}`, 'ok')])}
+    </div>`;
+}
+
+/* =====================================================================
+   Render
+   ===================================================================== */
+/* catalogo/AvisoGuardado.vue */
+const avisoHtml = () => S.aviso ? `<div role="status" class="anim-fade fixed bottom-6 right-6 z-50 flex max-w-sm items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-lg">${ic('check', 'mt-0.5 size-4 shrink-0')}<span>${S.aviso}</span></div>` : '';
+
+function pagina() {
+  if (S.paso === 1) return paso1();
+  if (S.paso === 2) return paso2();
+  if (S.paso === 5) return paso5();
+  return paso3();
+}
+const MIGAS = { 1: ['Productos', 'Traslados', 'TRA-2601', 'Recibir'], 2: ['Productos', 'Traslados', 'TRA-2601'], 3: ['Productos', 'Traslados'], 4: ['Productos', 'Traslados'], 5: ['Productos', 'Traslados', 'TRA-2601'] };
+function render() {
+  pintarBarra();
+  const stage = document.getElementById('stage');
+  const sc = window.scrollY;
+  const enfoque = document.activeElement?.id;
+  const panelScroll = document.querySelector('[role="dialog"] .overflow-y-auto')?.scrollTop;
+  stage.innerHTML = `<div class="mx-auto flex min-h-screen max-w-[1440px] bg-sidebar">${sidebarHtml()}
+      <main class="relative my-2 mr-2 flex min-h-[calc(100vh-102px)] min-w-0 flex-1 flex-col rounded-xl bg-background shadow">${headerHtml(MIGAS[S.paso])}
+        <div class="flex min-w-0 flex-1 flex-col gap-4 p-6">${pagina()}</div></main></div>
+    <div id="ov">${S.paso === 4 && S.panel ? panelHtml() : ''}${S.confirmar1 ? dialogo1() : ''}${S.confirmar4 ? dialogo4() : ''}</div>${avisoHtml()}`;
+  S.anim = false; S.animDlg = false;
+  ajustarAside();
+  window.scrollTo(0, sc);
+  if (panelScroll != null) { const p = document.querySelector('[role="dialog"] .overflow-y-auto'); if (p) p.scrollTop = panelScroll; }
+  if (enfoque) { const el = document.getElementById(enfoque); if (el) { el.focus(); try { const n = el.value.length; el.setSelectionRange(n, n); } catch (e) {} } }
+  document.body.style.overflow = S.paso === 4 && S.panel ? 'hidden' : '';
+}
+function ajustarAside() {
+  const a = document.getElementById('aside');
+  if (!a) return;
+  const h = document.querySelector('.mk-bar').offsetHeight;
+  a.style.top = h + 'px'; document.querySelectorAll('.bajo-barra').forEach(el => el.style.top = h + 'px'); a.style.height = `calc(100vh - ${h}px)`; a.style.alignSelf = 'flex-start';
+}
+let avisoT;
+function avisar(t) { S.aviso = t; clearTimeout(avisoT); avisoT = setTimeout(() => { S.aviso = null; render(); }, 3600); }
+
+/* =====================================================================
+   Navegación entre pasos y escenarios
+   ===================================================================== */
+function abrirPanel(id) {
+  S.panel = id; S.anim = true; S.intento = false; S.confirmar4 = false;
+  const f = filaPanel();
+  if (id === 'TRA-2601') { S.dev = '1'; S.per = '1'; S.motivo = 'rotura'; S.otro = ''; S.valor = String(f.costo); }
+  else { S.dev = String(f.cant); S.per = '0'; S.motivo = ''; S.otro = ''; S.valor = '0'; }
+  S.valorTocado = false;
+}
+function irPaso(n, estado) {
+  S.paso = n; S.confirmar1 = false; S.confirmar4 = false; S.fallo1 = false; S.aviso = null; S.guardando = false;
+  if (n >= 3) { S.rec = { ...CASO }; S.notas = { ...NOTAS_CASO }; S.quien = 'rosa'; }
+  if (n === 3) { S.panel = null; S.tab = 'dif'; S.bandeja = 'con'; }
+  if (n === 4) { S.tab = 'dif'; S.bandeja = 'con'; abrirPanel('TRA-2601'); }
+  S.estado = estado ?? ({ 1: 'caso', 3: 'con', 4: 'uno-uno' }[n] || null);
+  window.scrollTo(0, 0);
+}
+function escenario(v) {
+  S.estado = v; S.confirmar1 = false; S.confirmar4 = false; S.fallo1 = false; S.aviso = null;
+  if (S.paso === 1) {
+    S.rec = v === 'completo' ? { ron: '24', agua: '48', serv: '6' } : v === 'exceso' ? { ron: '26', agua: '48', serv: '6' } : { ...CASO };
+    S.notas = v === 'completo' ? { ron: '', agua: '', serv: '' } : { ...NOTAS_CASO };
+    if (v === 'confirmar') { S.confirmar1 = true; S.animDlg = true; }
+    if (v === 'fallo') S.fallo1 = true;
+  }
+  if (S.paso === 3) { S.bandeja = v; S.tab = 'dif'; }
+  if (S.paso === 4) {
+    abrirPanel('TRA-2601'); S.anim = false;
+    if (v === 'devolver') { S.dev = '2'; S.per = '0'; }
+    if (v === 'nosuma') { S.dev = '2'; S.per = '1'; }
+    if (v === 'sinmotivo') { S.motivo = ''; S.intento = true; }
+    if (v === 'confirmar') { S.confirmar4 = true; S.animDlg = true; }
+  }
+}
+
+/* =====================================================================
+   Eventos
+   ===================================================================== */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el || el.disabled) return;
+  const v = el.dataset.v;
+  switch (el.dataset.act) {
+    case 'mk-paso': irPaso(+v); break;
+    case 'mk-ant': if (S.paso > 1) irPaso(S.paso - 1); break;
+    case 'mk-sig': if (S.paso < 5) irPaso(S.paso + 1); break;
+    case 'mk-quien': S.quien = v; break;
+    case 'mk-ve': S.veP2 = v; break;
+    case 'mk-est': escenario(v); break;
+    case 'kardex': S.kardex = !S.kardex; break;
+    case 'tab': S.tab = v; break;
+    case 'reintentar': S.bandeja = 'carga'; S.estado = 'carga'; render(); return setTimeout(() => { S.bandeja = 'con'; S.estado = 'con'; render(); }, 700);
+    case 'ir-bandeja': irPaso(3); break;
+    case 'ir-resolver': irPaso(4); break;
+    case 'pedir-confirmar1': if (hayErr1()) return; S.confirmar1 = true; S.animDlg = true; break;
+    case 'no-confirmar1': S.confirmar1 = false; break;
+    case 'si-confirmar1':
+      S.confirmar1 = false;
+      if (S.estado === 'fallo') { S.fallo1 = true; break; }
+      S.guardando = true; render();
+      return setTimeout(() => {
+        const dif = totDif(), quien = S.quien, rec = { ...S.rec }, notas = { ...S.notas };
+        irPaso(2); S.quien = quien; S.rec = rec; S.notas = notas; S.veP2 = quien === 'luzete' ? 'luzete' : 'rosa';
+        avisar(dif ? `Recepción de TRA-2601 guardada. ${dif} ${dif === 1 ? 'unidad queda' : 'unidades quedan'} en tránsito por resolver.` : 'Recepción de TRA-2601 guardada. Traslado cerrado.');
+        render();
+      }, 700);
+    case 'abrir': irPaso(4); S.estado = v === 'TRA-2601' ? 'uno-uno' : null; abrirPanel(v); break;
+    case 'cerrar': S.panel = null; S.paso = 3; S.estado = 'con'; break;
+    case 'todo-dev': { const f = filaPanel(); S.dev = String(f.cant); S.per = '0'; break; }
+    case 'todo-per': { const f = filaPanel(); S.dev = '0'; S.per = String(f.cant); if (!S.valorTocado) S.valor = String(f.cant * f.costo); break; }
+    case 'motivo': S.motivo = v; break;
+    case 'valor-sug': { const f = filaPanel(); S.valor = String(nVal(S.per) * f.costo); S.valorTocado = false; break; }
+    case 'pedir-confirmar4': S.intento = true; if (Object.keys(validar4()).length) break; S.confirmar4 = true; S.animDlg = true; break;
+    case 'no-confirmar4': S.confirmar4 = false; break;
+    case 'si-confirmar4': {
+      const f = filaPanel();
+      if (f.id !== 'TRA-2601') { S.confirmar4 = false; S.panel = null; S.paso = 3; avisar(`Diferencia de ${f.id} resuelta (en el mockup, solo TRA-2601 sigue al paso 5).`); break; }
+      S.final = { dev: nVal(S.dev), per: nVal(S.per), motivo: S.motivo, otro: S.otro, valor: nVal(S.per) ? nVal(S.valor) : 0 };
+      irPaso(5); S.kardex = false;
+      avisar('Diferencia de TRA-2601 resuelta. Traslado cerrado.');
+      break;
+    }
+    default: return;
+  }
+  render();
+});
+let tq;
+document.addEventListener('input', e => {
+  const k = e.target.dataset.inp;
+  if (!k) return;
+  if (k === 'rec') S.rec[e.target.dataset.k] = e.target.value;
+  else if (k === 'nota') { S.notas[e.target.dataset.k] = e.target.value; return; }
+  else if (k === 'dev') S.dev = e.target.value;
+  else if (k === 'per') {
+    S.per = e.target.value;
+    const f = filaPanel(), p = nVal(S.per);
+    if (!S.valorTocado && Number.isInteger(p) && p >= 0) S.valor = String(p * f.costo);
+    if (p > 0 && !S.motivo && f.id === 'TRA-2601') S.motivo = '';
+  }
+  else if (k === 'otro') S.otro = e.target.value;
+  else if (k === 'valor') { S.valor = e.target.value; S.valorTocado = true; }
+  clearTimeout(tq); tq = setTimeout(render, 150);
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (S.confirmar1) { S.confirmar1 = false; return render(); }
+  if (S.confirmar4) { S.confirmar4 = false; return render(); }
+  if (S.paso === 4 && S.panel) { S.panel = null; S.paso = 3; S.estado = 'con'; return render(); }
+});
+window.addEventListener('resize', ajustarAside);
+
+irPaso(S.paso, Q.get('estado') || undefined);
+if (Q.get('estado')) escenario(Q.get('estado'));
+if (Q.get('kardex')) S.kardex = true;
+render();
+</script>
+</body>
+</html>
