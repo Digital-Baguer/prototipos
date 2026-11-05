@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Chatbot de ventas STIRPE</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#0a0f0d;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .deck{height:100%;display:flex;align-items:center;justify-content:center}
+  .slide{display:none;width:min(98vw,calc(98vh*16/9));aspect-ratio:16/9;background:#f4f6f5;border-radius:14px;overflow:hidden;position:relative;
+         padding:3.2% 4%;flex-direction:column;font-size:clamp(9px,1.15vw,19px);color:#111816}
+  .slide.activa{display:flex}
+  .etq{font-size:.75em;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#0b8f5a;margin-bottom:.4em}
+  h2{font-size:2.1em;letter-spacing:-.02em;margin-bottom:.8em}
+  .pie{position:absolute;left:4%;right:4%;bottom:2.5%;display:flex;justify-content:space-between;color:#6b7a74;font-size:.7em}
+
+  /* chat */
+  .wa{width:100%;height:100%;background:#efeae2;border-radius:2em;border:.6em solid #0f1412;overflow:hidden;display:flex;flex-direction:column;color:#111816;box-shadow:0 30px 60px -18px rgba(0,0,0,.8)}
+  .wa-top{background:#075e54;color:#fff;padding:.8em 1.1em;display:flex;gap:.7em;align-items:center}
+  .wa-top .avt{width:2.2em;height:2.2em;border-radius:50%;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8em}
+  .wa-top b{display:block;font-size:.95em}.wa-top span{font-size:.7em;opacity:.8}
+  .wa-body{padding:.8em;display:flex;flex-direction:column;gap:.45em;font-size:.78em}
+  .m{max-width:84%;padding:.5em .7em;border-radius:.6em;line-height:1.3;box-shadow:0 1px 1px rgba(0,0,0,.1)}
+  .m.in{background:#fff;align-self:flex-start}.m.out{background:#d9fdd3;align-self:flex-end}
+  .m.card{display:flex;gap:.6em;align-items:center}
+  .pimg{width:3em;height:3em;border-radius:.4em;background:linear-gradient(135deg,#cfc3a6,#9c8a63);flex:none}
+  .tool{align-self:center;font-family:ui-monospace,monospace;font-size:.85em;background:#0f1412;color:#6ee7b7;border-radius:99px;padding:.15em .7em}
+
+  /* portada */
+  .portada{background:radial-gradient(circle at 70% 45%,#0f3d2e,#0a1512 60%);color:#f4f6f5;padding:0}
+  .ptxt{position:absolute;left:6%;top:50%;transform:translateY(-50%);max-width:44%}
+  .ptxt h1{font-size:4em;line-height:1;letter-spacing:-.02em}
+  .ptxt h1 span{color:#34d399}
+  .ptxt p{font-size:1.3em;color:#b7c9c1;margin-top:.6em}
+  .datos{display:flex;gap:1em;margin-top:1.6em}
+  .datos div{border:1px solid rgba(255,255,255,.2);border-radius:.6em;padding:.6em .9em;background:rgba(255,255,255,.05)}
+  .datos b{display:block;font-size:1.7em;color:#fff}.datos span{font-size:.8em;color:#9fb5ac}
+  .chatpos{position:absolute;right:7%;top:7%;bottom:7%;width:26%}
+  .nota{position:absolute;right:7%;bottom:2.2%;width:26%;text-align:center;color:#7f978d;font-size:.65em}
+
+  /* arquitectura */
+  .arq{flex:1;display:grid;grid-template-columns:1fr auto 1.1fr auto 1.4fr;align-items:center;gap:1em;padding-bottom:2.5em}
+  .caja{background:#fff;border:1px solid #dfe5e2;border-radius:.8em;padding:1em;text-align:center}
+  .caja b{display:block;font-size:1.1em}.caja span{color:#5c6b65;font-size:.85em}
+  .caja.wa2{border:2px solid #25d366}
+  .caja.orq{background:#0f1412;color:#fff;border:0}.caja.orq span{color:#9fb5ac}
+  .flecha{font-size:2em;color:#0b8f5a;font-weight:800}
+  .agentes{display:flex;flex-direction:column;gap:.5em}
+  .agentes div{background:#fff;border-left:4px solid #0b8f5a;border-radius:.5em;padding:.55em .8em}
+  .agentes b{display:block}.agentes span{color:#5c6b65;font-size:.8em}
+  .servicios{background:#fff;border:2px dashed #0b8f5a;border-radius:.8em;padding:1em}
+  .servicios h4{font-size:1.05em;margin-bottom:.6em}
+  .chips{display:flex;flex-wrap:wrap;gap:.35em}
+  .chips span{background:#ecf7f2;color:#0a5c3b;border-radius:99px;padding:.2em .65em;font-size:.82em;font-weight:600}
+  .regla{margin-top:.8em;font-size:.82em;color:#5c6b65}
+
+  /* avance */
+  .av{flex:1;display:grid;grid-template-columns:1.5fr 1fr;gap:2em;align-items:start}
+  .fila{display:grid;grid-template-columns:11em 1fr 9em;align-items:center;gap:1em;padding:.55em 0;border-bottom:1px solid #e1e7e4}
+  .fila b{font-size:1em}
+  .fila small{display:block;color:#5c6b65;font-size:.78em}
+  .barra{height:.7em;border-radius:99px;background:#dfe5e2;overflow:hidden}
+  .barra i{display:block;height:100%;background:#0b8f5a;border-radius:99px}
+  .est{font-size:.75em;font-weight:800;border-radius:99px;padding:.25em .6em;text-align:center}
+  .ok{background:#d1fae5;color:#065f46}.parc{background:#dbeafe;color:#1e40af}.pend{background:#e5e7eb;color:#374151}
+  .falta{background:#0f1412;color:#fff;border-radius:.8em;padding:1.2em 1.3em;display:flex;flex-direction:column;gap:.9em}
+  .falta h3{color:#34d399;font-size:1.05em;text-transform:uppercase;letter-spacing:.08em}
+  .falta div b{display:block;font-size:1.1em}
+  .falta div span{color:#b7c9c1;font-size:.9em}
+  .navx{position:fixed;bottom:10px;right:14px;color:#64748b;font-size:12px}
+</style>
+</head>
+<body><div class="deck">
+
+<!-- 1 Portada -->
+<section class="slide portada activa">
+  <div class="ptxt">
+    <div class="etq" style="color:#34d399">Proyecto</div>
+    <h1>Chatbot de ventas <span>STIRPE</span></h1>
+    <p>Vender por WhatsApp con agentes de IA</p>
+    <div class="datos">
+      <div><b>15.430</b><span>clientes escribieron a ventas en mayo</span></div>
+      <div><b>193 mil</b><span>mensajes en mayo, +17 % frente a abril</span></div>
+    </div>
+  </div>
+  <div class="chatpos"><div class="wa">
+    <div class="wa-top"><div class="avt">S</div><div><b>STIRPE</b><span>en línea</span></div></div>
+    <div class="wa-body">
+      <div class="m in">Hola, ¿tienen la camisa de lino azul en talla M?</div>
+      <div class="tool">inventario_por_talla</div>
+      <div class="m out">La M azul se agotó. Te muestro dos parecidas en tu talla:</div>
+      <div class="tool">productos_similares</div>
+      <div class="m out card"><div class="pimg"></div><div><b>Camisa lino arena</b><br>Talla M · $159.900</div></div>
+      <div class="m in">Me gusta. ¿Puedo pagar a cuotas?</div>
+      <div class="tool">simular_cuotas_quac</div>
+      <div class="m out">Con Quac: 3 cuotas de $53.300. ¿Te envío el link de pago?</div>
+      <div class="tool">generar_link_pago</div>
+      <div class="m out">Listo ✅ Aquí está tu link de pago.</div>
+    </div>
+  </div></div>
+  <div class="nota">Ejemplo de conversación con las herramientas que usa el bot</div>
+</section>
+
+<!-- 2 Cómo funciona -->
+<section class="slide">
+  <div class="etq">Cómo funciona</div>
+  <h2>Un orquestador, cuatro agentes y los servicios de la tienda</h2>
+  <div class="arq">
+    <div class="caja wa2"><b>WhatsApp</b><span>Cliente escribe por Infobip</span></div>
+    <div class="flecha">→</div>
+    <div class="caja orq"><b>Orquestador</b><span>Entiende qué necesita el cliente y le pasa la conversación al agente indicado</span></div>
+    <div class="flecha">→</div>
+    <div class="agentes">
+      <div><b>Comercial</b><span>Busca productos, tallas y precios</span></div>
+      <div><b>Asesor de estilo</b><span>Recomienda y arma looks</span></div>
+      <div><b>Cierre de venta</b><span>Carrito, envío, cuotas Quac y link de pago</span></div>
+      <div><b>Servicio al cliente</b><span>Pedidos, devoluciones y PQR</span></div>
+    </div>
+  </div>
+  <div class="servicios">
+    <h4>Servicios de la tienda en GET que consultan los agentes</h4>
+    <div class="chips">
+      <span>Buscar productos</span><span>Ficha de producto</span><span>Inventario por talla</span><span>Productos similares</span><span>Complementos</span>
+      <span>Carrito</span><span>Total y envío</span><span>Cuotas Quac</span><span>Link de pago</span><span>Estado del pedido</span><span>Devolución</span><span>PQR</span>
+    </div>
+    <div class="regla">El bot no inventa precios ni inventario: todo sale de la tienda. El pago se hace en la web. Cuando hace falta, pasa la conversación a una persona.</div>
+  </div>
+  <div class="pie"><span>Plan de trabajo: 7 épicas, 57 tareas</span><span>2</span></div>
+</section>
+
+</div>
+<div class="navx">← → · <span id="n"></span></div>
+<script>
+const s=[...document.querySelectorAll('.slide')];let i=0;
+const ver=k=>{s[i].classList.remove('activa');i=Math.max(0,Math.min(s.length-1,k));s[i].classList.add('activa');document.getElementById('n').textContent=(i+1)+' / '+s.length};
+document.addEventListener('keydown',e=>{if(['ArrowRight','PageDown',' '].includes(e.key))ver(i+1);if(['ArrowLeft','PageUp'].includes(e.key))ver(i-1)});
+document.addEventListener('click',e=>ver(e.clientX>innerWidth/2?i+1:i-1));
+ver((parseInt(new URLSearchParams(location.search).get('s')||location.hash.slice(1))||1)-1);
+</script>
+</body>
+</html>

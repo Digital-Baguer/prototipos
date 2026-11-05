@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>GET · Migración de los sistemas legacy</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#0b0f0e;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .deck{height:100%;display:flex;align-items:center;justify-content:center}
+  .slide{display:none;width:min(98vw,calc(98vh*16/9));aspect-ratio:16/9;background:#f5f6f6;border-radius:14px;overflow:hidden;position:relative;
+         padding:3.2% 4%;flex-direction:column;font-size:clamp(9px,1.15vw,19px);color:#0f1413}
+  .slide.activa{display:flex}
+  .etq{font-size:.75em;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#059669;margin-bottom:.4em}
+  h2{font-size:2.1em;letter-spacing:-.02em;margin-bottom:.7em}
+  .pie{position:absolute;left:4%;right:4%;bottom:2.5%;display:flex;justify-content:space-between;color:#6b7572;font-size:.7em}
+  .sc{border-radius:.6em;box-shadow:0 14px 34px -12px rgba(0,0,0,.45);border:1px solid #dde2e0;background:#fff;display:block}
+  .chip{display:inline-block;font-size:.72em;font-weight:800;border-radius:99px;padding:.2em .65em;white-space:nowrap}
+  .prod{background:#d1fae5;color:#065f46}.master{background:#dcfce7;color:#166534}.listo{background:#dbeafe;color:#1e40af}.dis{background:#fef3c7;color:#92400e}.pend{background:#e5e7eb;color:#374151}
+
+  /* portada */
+  .portada{background:radial-gradient(circle at 72% 40%,#0f3b2c,#0b1311 62%);color:#f5f6f6;padding:0}
+  .ptxt{position:absolute;left:6%;top:50%;transform:translateY(-50%);max-width:40%;z-index:5}
+  .ptxt h1{font-size:3.8em;line-height:1.02;letter-spacing:-.02em}
+  .ptxt h1 span{color:#34d399}
+  .ptxt p{font-size:1.25em;color:#b8c9c2;margin-top:.7em;line-height:1.35}
+  .ruta{display:flex;align-items:center;gap:.6em;margin-top:1.4em;flex-wrap:wrap}
+  .ruta span{border:1px dashed rgba(255,255,255,.4);border-radius:.4em;padding:.3em .7em;color:#d6e2dd}
+  .ruta b{color:#34d399;font-size:1.3em}
+  .ruta strong{background:#34d399;color:#06281d;border-radius:.4em;padding:.3em .8em}
+  .collage{position:absolute;left:47%;right:3%;top:8%;bottom:8%}
+  .collage img{position:absolute;border-radius:.6em;box-shadow:0 30px 60px -18px rgba(0,0,0,.85);border:1px solid #23312c}
+  .c1{left:0;top:0;width:72%}
+  .c2{right:0;top:30%;width:58%}
+  .c3{left:8%;bottom:0;width:56%}
+
+  /* stack */
+  .stack{display:grid;grid-template-columns:1fr auto 1fr;gap:1.2em;align-items:stretch;font-size:1.2em;margin-top:.4em}
+  .col{background:#fff;border-radius:1em;padding:1.1em 1.3em;border:1px solid #dde2e0}
+  .col.nuevo{border:2px solid #059669;box-shadow:0 14px 30px -14px rgba(5,150,105,.5)}
+  .col h3{font-size:1em;color:#6b7572;margin-bottom:.6em;text-transform:uppercase;letter-spacing:.08em}
+  .col.nuevo h3{color:#059669}
+  .fila{display:flex;justify-content:space-between;align-items:baseline;padding:.4em 0;border-top:1px solid #eef1f0;gap:1em}
+  .fila:first-of-type{border-top:0}
+  .fila span{color:#5d6764;font-size:.9em}
+  .fila b{font-size:1.15em;text-align:right}
+  .col.nuevo .fila b{color:#065f46}
+  .sop{margin-top:.7em;border-radius:.4em;padding:.45em .7em;font-size:.78em;font-weight:700;line-height:1.3}
+  .sop.no{background:#fee2e2;color:#991b1b}
+  .sop.si{background:#d1fae5;color:#065f46}
+  .flecha{font-size:2.6em;color:#059669;font-weight:800;align-self:center}
+  .razones{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2em;margin-top:1.8em;font-size:1.1em}
+  .razones div{background:#fff;border-top:4px solid #059669;border-radius:.6em;padding:.8em 1em}
+  .razones b{display:block;font-size:1.05em;margin-bottom:.2em}.razones span{color:#4c5653;font-size:.9em;line-height:1.35}
+
+  /* detalle */
+  .det{flex:1;display:grid;grid-template-columns:1.75fr 1fr;gap:1.8em;min-height:0;padding-bottom:2.2em}
+  .fotos{position:relative;min-height:0}
+  .fotos .a{position:absolute;left:0;top:0;width:78%}
+  .fotos .b{position:absolute;right:0;bottom:0;width:58%;border:3px solid #fff}
+  .fotos .solo{width:100%}
+  .puntos{display:flex;flex-direction:column;gap:.6em;justify-content:center}
+  .puntos div{background:#fff;border-left:4px solid #059669;border-radius:.5em;padding:.6em .9em}
+  .puntos div b{display:flex;justify-content:space-between;align-items:center;gap:.6em;font-size:1.02em}
+  .puntos div span{color:#5d6764;font-size:.85em}
+  .clave{background:#064e3b !important;color:#fff;border-left-color:#34d399 !important}
+  .clave span{color:#c4e8da !important}
+  .clave .chip{background:#fff !important;color:#065f46 !important}
+
+  /* pasos CR */
+  .pasos{display:flex;flex-direction:column;gap:.55em}
+  .paso{display:grid;grid-template-columns:2.2em 1fr;gap:.7em;align-items:start;background:#fff;border-radius:.6em;padding:.6em .8em;border:1px solid #dde2e0}
+  .paso .n{width:2.2em;height:2.2em;border-radius:50%;background:#059669;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .paso b{display:flex;justify-content:space-between;gap:.5em;font-size:1em}
+  .paso span{color:#5d6764;font-size:.85em}
+
+  /* pendientes */
+  .pend-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.6em;align-items:start;font-size:1.2em}
+  .grupo h3{font-size:1.1em;margin-bottom:.6em}
+  .lst{display:grid;grid-template-columns:1fr 1fr;gap:.5em}
+  .lst div{background:#fff;border:1px solid #dde2e0;border-radius:.5em;padding:.55em .8em}
+  .lst b{display:block;font-size:.95em}
+  .lst span{color:#5d6764;font-size:.78em}
+  .lst.sin div{border-style:dashed}
+  .ya{display:flex;flex-wrap:wrap;gap:.4em;margin-top:2em;align-items:center;font-size:1.15em}
+  .ya .t{font-weight:800;font-size:.9em;margin-right:.4em}
+  .ya span{background:#d1fae5;color:#065f46;border-radius:99px;padding:.2em .7em;font-size:.8em;font-weight:600}
+  /* migración de módulos */
+  .mig{flex:1;display:grid;grid-template-columns:.9fr auto 1.6fr;gap:1.4em;min-height:0;padding-bottom:2.2em;align-items:center}
+  .antes{position:relative;height:100%}
+  .antes .lbl{position:absolute;left:0;top:0;font-weight:800;font-size:.85em;color:#6b7572;text-transform:uppercase;letter-spacing:.08em}
+  .antes img{position:absolute;width:72%}
+  .antes .l1{left:0;top:9%}
+  .antes .l2{right:0;top:30%}
+  .antes .l3{left:10%;bottom:0;width:66%}
+  .fl{font-size:2.6em;color:#059669;font-weight:800}
+  .menu{background:#18181b;color:#e4e4e7;border-radius:.8em;padding:1em 1.1em;box-shadow:0 20px 40px -14px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:.7em}
+  .mh{display:flex;align-items:baseline;gap:.6em;border-bottom:1px solid #3f3f46;padding-bottom:.5em}
+  .mh b{font-size:1.3em}.mh span{color:#34d399;font-weight:700;font-size:.9em}
+  .g .gt{font-weight:800;font-size:.95em;color:#fff;margin-bottom:.3em}
+  .g ul{list-style:none;display:flex;flex-direction:column;gap:.3em;padding-left:.9em;border-left:1px solid #3f3f46;margin-left:.3em}
+  .g li{display:flex;align-items:center;gap:.45em;font-size:.85em}
+  .g li .nom{flex:1}
+  .o{font-style:normal;font-size:.72em;font-weight:700;border-radius:.3em;padding:.1em .45em}
+  .o.labs{background:#4c1d95;color:#ddd6fe}.o.cms{background:#7c2d12;color:#fed7aa}.o.nuevo{background:#065f46;color:#a7f3d0}
+  .g .chip{font-size:.66em}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:1.4em}
+  .cols>div{display:flex;flex-direction:column;gap:.6em}
+  .sec{color:#34d399;font-weight:800;font-size:.8em;letter-spacing:.12em}
+  .tiendas{display:flex;flex-wrap:wrap;gap:.3em;margin:.4em 0 0 1.2em}
+  .tiendas span{border:1px solid #52525b;border-radius:99px;padding:.05em .55em;font-size:.72em;color:#e4e4e7}
+  .bajada{color:#4c5653;font-size:1em;margin-bottom:1em}
+  .ver{display:inline-block;margin-left:.6em;background:#059669;color:#fff;text-decoration:none;font-weight:700;font-size:.85em;border-radius:99px;padding:.25em .8em}
+  .erp{flex:1;display:grid;grid-template-columns:1.15fr auto 1fr auto 1fr;gap:1.2em;min-height:0;align-items:center}
+  .erp .lado{position:relative;height:100%}
+  .erp .lbl{position:absolute;left:0;top:0;font-weight:800;font-size:.85em;color:#6b7572;text-transform:uppercase;letter-spacing:.08em}
+  .erp img{position:absolute}
+  .erp .e1{left:0;top:12%;width:82%}
+  .erp .e2{right:0;bottom:8%;width:74%;border:3px solid #fff}
+  .erp .g1{left:0;top:50%;transform:translateY(-45%);width:100%}
+  .navx{position:fixed;bottom:10px;right:14px;color:#64748b;font-size:12px}
+</style>
+</head>
+<body><div class="deck">
+
+<!-- 1 Portada -->
+<section class="slide portada activa">
+  <div class="ptxt">
+    <div class="etq" style="color:#34d399">Proyecto</div>
+    <h1>GET · <span>migración de los sistemas legacy</span></h1>
+    <p>Las herramientas de cms-stirpe y labs-quac pasan a un solo sistema</p>
+    <div class="ruta"><span>cms-stirpe</span><span>labs-quac</span><b>→</b><strong>GET</strong></div>
+  </div>
+  <div class="collage">
+    <img class="c1" src="img-get/portada_1.jpg">
+    <img class="c3" src="img-get/portada_3.jpg">
+    <img class="c2" src="img-get/portada_2.jpg">
+  </div>
+</section>
+
+<!-- 2 Stack -->
+<section class="slide">
+  <div class="etq">Tecnología</div>
+  <h2>De qué versión pasamos y por qué</h2>
+  <div class="stack">
+    <div class="col">
+      <h3>cms-stirpe</h3>
+      <div class="fila"><span>Laravel</span><b>5.5</b></div>
+      <div class="fila"><span>PHP</span><b>7</b></div>
+      <div class="fila"><span>Interfaz</span><b>Vue 2 · jQuery</b></div>
+      <div class="fila"><span>Estilos</span><b>Bootstrap 3</b></div>
+      <div class="sop no">Sin parches de seguridad desde ago 2020</div>
+    </div>
+    <div class="flecha">→</div>
+    <div class="col nuevo">
+      <h3>GET</h3>
+      <div class="fila"><span>Laravel</span><b>12.60</b></div>
+      <div class="fila"><span>PHP</span><b>8.2</b></div>
+      <div class="fila"><span>Interfaz</span><b>Vue 3.5 · Inertia 2</b></div>
+      <div class="fila"><span>Estilos</span><b>Tailwind 4</b></div>
+      <div class="sop si">Con soporte de seguridad hasta feb 2027</div>
+    </div>
+  </div>
+  <div class="razones">
+    <div><b>🔒 Seguridad</b><span>El CMS no recibe parches de seguridad de Laravel desde 2020. Una falla nueva no tendría corrección</span></div>
+    <div><b>🧭 Un solo sistema</b><span>Lo que estaba en el CMS y en labs queda con un login, un menú y permisos por rol</span></div>
+    <div><b>🧩 Código ordenado</b><span>Cada módulo nuevo pasa por especificación, pruebas y auditoría antes de salir</span></div>
+  </div>
+  <div class="pie"><span>Versiones tomadas de los repositorios</span><span>2</span></div>
+</section>
+
+<!-- 3 Migración de módulos -->
+<section class="slide">
+  <div class="etq">cms-stirpe y labs-quac → GET</div>
+  <h2>Migración de módulos a GET</h2>
+  <div class="mig">
+    <div class="antes">
+      <div class="lbl">Antes · dos sistemas</div>
+      <img class="sc l1" src="img-get/legacy_cms.jpg">
+      <img class="sc l2" src="img-get/legacy_labs_1.jpg">
+      <img class="sc l3" src="img-get/legacy_labs_2.jpg">
+    </div>
+    <div class="fl">→</div>
+    <div class="menu">
+      <div class="mh"><b>get</b></div>
+      <div class="cols">
+        <div><div class="sec">QUAC</div><div class="g"><div class="gt">▸ Planes</div><ul><li><span class="nom">Documentos digitales</span><i class="o labs">labs</i></li><li><span class="nom">Generar documento</span><i class="o labs">labs</i></li><li><span class="nom">Informe de inconsistencias</span><i class="o nuevo">nuevo</i></li></ul></div><div class="g"><div class="gt">▸ Validación de fotos</div><ul><li><span class="nom">Generar link crédito</span><i class="o labs">labs</i><span class="chip prod">En PROD</span></li><li><span class="nom">Gestión de fotos</span><i class="o labs">labs</i><span class="chip master">En master</span></li><li><span class="nom">Suplantadores</span><i class="o labs">labs</i><span class="chip dis">En diseño</span></li></ul></div><div class="g"><div class="gt">▸ Pagos Portal/App</div><ul><li><span class="nom">Consultar abonos</span><i class="o cms">cms-stirpe</i><span class="chip pend">Pendiente</span></li><li><span class="nom">Configuración pasarelas</span><i class="o cms">cms-stirpe</i><span class="chip pend">Pendiente</span></li></ul></div><div class="g"><div class="gt">▸ Diagnóstico del cliente</div><ul><li><span class="nom">Diagnóstico del cliente</span><i class="o nuevo">nuevo</i><span class="chip pend">Pendiente</span></li></ul></div></div>
+        <div><div class="sec">Tiendas</div><div class="g"><div class="gt">▸ Pedidos</div><ul><li><span class="nom">Consultar pedidos y detalle</span><i class="o cms">cms-stirpe</i><span class="chip prod">En GET</span></li></ul></div><div class="g"><div class="gt">▸ Productos</div><ul><li><span class="nom">Tipos de prenda</span><i class="o cms">cms-stirpe</i><span class="chip pend">Pendiente</span></li><li><span class="nom">Catálogo de productos</span><i class="o cms">cms-stirpe</i><span class="chip pend">Pendiente</span></li></ul></div><div class="g"><div class="gt">▸ Informes</div><ul><li><span class="nom">Informes de ventas y despachos</span><i class="o cms">cms-stirpe</i><span class="chip pend">Pendiente</span></li></ul></div><div class="g"><div class="gt">▸ Gestor de contenidos</div><ul><li><span class="nom">Banners, vitrinas, outfits y páginas</span><i class="o cms">cms-stirpe</i><span class="chip pend">Pendiente</span></li></ul><div class="tiendas"><span>Stirpe</span><span>Derek</span><span>Typer</span><span>U82</span><span>Factory</span><span>Groggy</span></div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="pie"><span>Izquierda: cms.stirpe.co y labs.quac.co hoy · derecha: el menú en GET</span><span>3</span></div>
+</section>
+
+<!-- 4 Diagnóstico -->
+<section class="slide">
+  <div class="etq">Módulo soporte</div>
+  <h2 style="margin-bottom:.25em">Diagnóstico del cliente</h2>
+  <p class="bajada">Busca al cliente y mira en qué proceso está, dónde se quedó y qué puedes hacer para que siga. <a class="ver" href="../mockups/SOPORTE-diagnostico-cliente.html" target="_blank">Ver mockup ↗</a></p>
+  <div class="det">
+    <div class="fotos"><img class="sc solo" src="img-get/m_diag.jpg"></div>
+    <div class="puntos">
+      <div class="clave"><b>Una cédula, todo el caso</b><span>Cupo, nivel QUAC y en qué paso quedó cada proceso</span></div>
+      <div><b>Qué está pasando</b><span>Instalación de la app, fotos, pagos, portal, compras con link y alertas de dispositivo</span></div>
+      <div><b>Acciones desde la ficha</b><span>Reenviar el link de fotos, enviar un pago al CRM y reenviar el código por SMS, WhatsApp o llamada</span></div>
+      <div><b>Reemplaza a Utilidades QUAC</b><span>Del CMS y de labs</span></div>
+    </div>
+  </div>
+  <div class="pie"><span>Mockup · 4 requerimientos (SOP-006 a SOP-009), pendientes</span><span>4</span></div>
+</section>
+
+<!-- 5 Campañas ERP -->
+<section class="slide">
+  <div class="etq">Proyecto CR</div>
+  <h2 style="margin-bottom:.25em">Integración de campañas del ERP con GET e Infobip</h2>
+  <p class="bajada">Las estrategias configuradas en el módulo Customer Retention del ERP pasan a GET como promociones y llegan a cada cliente por Infobip.</p>
+  <div class="erp">
+    <div class="lado">
+      <div class="lbl">ERP · Customer Retention</div>
+      <img class="sc e1" src="img-get/erp_1.jpg">
+      <img class="sc e2" src="img-get/erp_2.jpg">
+    </div>
+    <div class="fl">→</div>
+    <div class="lado">
+      <div class="lbl">GET · Promociones</div>
+      <img class="sc g1" src="img-get/m_cr2.jpg">
+    </div>
+    <div class="fl">→</div>
+    <div class="lado">
+      <div class="lbl">Infobip · Envío al cliente</div>
+      <img class="sc g1" src="img-get/infobip.jpg">
+    </div>
+  </div>
+</section>
+
+</div>
+<div class="navx">← → · <span id="n"></span></div>
+<script>
+const s=[...document.querySelectorAll('.slide')];let i=0;
+const ver=k=>{s[i].classList.remove('activa');i=Math.max(0,Math.min(s.length-1,k));s[i].classList.add('activa');document.getElementById('n').textContent=(i+1)+' / '+s.length};
+document.addEventListener('keydown',e=>{if(['ArrowRight','PageDown',' '].includes(e.key))ver(i+1);if(['ArrowLeft','PageUp'].includes(e.key))ver(i-1)});
+document.addEventListener('click',e=>{if(e.target.closest('a'))return;ver(e.clientX>innerWidth/2?i+1:i-1)});
+ver((parseInt(new URLSearchParams(location.search).get('s')||location.hash.slice(1))||1)-1);
+</script>
+</body>
+</html>
