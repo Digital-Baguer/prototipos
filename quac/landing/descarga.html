@@ -154,7 +154,8 @@
   .cta { position: relative; z-index: 1; overflow: clip; padding-block: 88px 104px; background: linear-gradient(135deg, var(--indigo), var(--electric) 52%, var(--fuchsia)); text-align: center; }
   .cta::before { content: ''; position: absolute; inset: 0; background: radial-gradient(70% 70% at 50% 30%, transparent, rgb(22 11 56 / 0.6)); }
   .cta > * { position: relative; }
-  #duck { display: block; width: min(460px, 82vw); height: 330px; margin: 0 auto 6px; }
+  #duck { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  #duckSlot { width: min(460px, 82vw); height: 330px; margin: 0 auto 6px; }
   .cta .section-t { color: #fff; }
   .cta .section-t b { color: var(--cyan); }
   .cta__get { margin: 32px auto 0; text-align: left; }
@@ -287,8 +288,9 @@
   </section>
 
   <section class="cta" id="cta">
+    <canvas id="duck" aria-hidden="true"></canvas>
     <div class="wrap">
-      <canvas id="duck" aria-hidden="true"></canvas>
+      <div id="duckSlot"></div>
       <h2 class="section-t">Lo quiero y con Quac <b>¡Lo tengo!</b></h2>
       <div class="get cta__get">
         <div class="badges" data-badges></div>
@@ -453,10 +455,18 @@
   /* Ojo del isotipo en píxeles de muestreo: centro del trazo DUCK[1] y radio con margen. */
   const EYE = { x: 238.5, y: 168.3, r: 45 };
   const duck = (() => {
-    const cv = $('#duck');
+    /* El canvas cubre toda la sección para que las partículas no se recorten en ningún marco.
+       #duckSlot solo reserva el espacio y dice dónde queda armado el pato. */
+    const cv = $('#duck'), box = cv.parentElement, slot = $('#duckSlot');
     const dpr = Math.min(devicePixelRatio, 2);
-    const w = cv.clientWidth, h = cv.clientHeight;
-    cv.width = w * dpr; cv.height = h * dpr;
+    const measure = () => {
+      const b = box.getBoundingClientRect(), r = slot.getBoundingClientRect();
+      return {
+        w: b.width, h: b.height,
+        cx: r.left - b.left + r.width / 2, cy: r.top - b.top + r.height / 2,
+        px: Math.min(r.width / 450, r.height / 393) * 0.92,
+      };
+    };
     /* Muestreo con Path2D (no con <img>) para no ensuciar el canvas al abrir por file://. */
     const off = document.createElement('canvas'); off.width = 450; off.height = 393;
     const c = off.getContext('2d', { willReadFrequently: true });
@@ -472,42 +482,56 @@
     if (!gl) {
       /* Sin WebGL o con movimiento reducido: el pato estático con el mismo color. */
       const c2 = cv.getContext('2d');
-      const s = Math.min(w / 450, h / 393) * 0.92;
-      c2.setTransform(dpr, 0, 0, dpr, 0, 0);
-      c2.translate((w - 450 * s) / 2, (h - 393 * s) / 2); c2.scale(s, s);
-      c2.drawImage(off, 0, 0);
-      c2.globalCompositeOperation = 'source-in'; c2.fillStyle = `rgb(${DUCK_A.map((v) => v * 255).join(',')})`; c2.fillRect(0, 0, 450, 393);
+      const paint = () => {
+        const { w, h, cx, cy, px } = measure();
+        cv.width = w * dpr; cv.height = h * dpr;
+        c2.setTransform(dpr, 0, 0, dpr, 0, 0);
+        c2.translate(cx - 225 * px, cy - 196 * px); c2.scale(px, px);
+        c2.drawImage(off, 0, 0);
+        c2.globalCompositeOperation = 'source-in'; c2.fillStyle = `rgb(${DUCK_A.map((v) => v * 255).join(',')})`; c2.fillRect(0, 0, 450, 393);
+      };
+      paint();
+      new ResizeObserver(paint).observe(box);
       return {};
     }
-    const aspect = w / h, s = 1.82 / 393;
+    /* a = lugar en el pato (px de muestreo), b = inicio en cualquier punto de la sección, c = ojo cerrado. */
     const buf = new Float32Array(count * 7);
     for (let i = 0; i < count; i++) {
       const px = pts[i * 2], py = pts[i * 2 + 1];
-      const x = (px - 225) * s / aspect, y = -(py - 196) * s;
-      const a = Math.random() * 6.283, r = 0.9 + Math.random() * 1.2;
+      const x = px - 225, y = 196 - py;
       /* Guiño: las partículas del ojo tienen una segunda posición, un arco cerrado. */
       const nx = (px - EYE.x) / EYE.r, ny = (py - EYE.y) / EYE.r;
       const shut = nx * nx + ny * ny <= 1 ? EYE.y + EYE.r * (0.25 - 0.5 * (1 - nx * nx) + ny * 0.13) : py;
-      buf.set([x, y, Math.cos(a) * r, Math.sin(a) * r, Math.random(), x, -(shut - 196) * s], i * 7);
+      buf.set([x, y, (Math.random() * 2 - 1) * 0.96, (Math.random() * 2 - 1) * 0.96, Math.random(), x, 196 - shut], i * 7);
     }
-    const vs = `attribute vec2 a;attribute vec2 b;attribute vec2 c;attribute float s;uniform float uP,uT,uD,uW;uniform vec2 uM;varying float vS;
+    const vs = `attribute vec2 a;attribute vec2 b;attribute vec2 c;attribute float s;uniform float uP,uT,uD,uW;uniform vec2 uM,uC,uS,uQ;varying float vS,vA;
       void main(){float k=clamp(uP*1.5-s*.5,0.,1.);k=1.-pow(1.-k,3.);
-        vec2 p=mix(b,mix(a,c,uW),k);p+=.012*vec2(sin(uT*.9+s*40.),cos(uT*.7+s*30.));
-        vec2 d=p-uM;float l=length(d);p+=normalize(d+.0001)*.16*exp(-l*l*22.);
-        vS=s;gl_Position=vec4(p,0.,1.);gl_PointSize=(2.1+s*1.8)*uD;}`;
-    const fs = `precision mediump float;uniform vec3 uA,uB;varying float vS;void main(){float d=length(gl_PointCoord-.5);
-        float al=smoothstep(.5,.28,d);vec3 c=mix(uA,uB,step(.72,vS));gl_FragColor=vec4(c*al,al);}`;
+        vec2 p=mix(b,uC+mix(a,c,uW)*uS,k);p+=.012*vec2(sin(uT*.9+s*40.),cos(uT*.7+s*30.))/uQ;
+        vec2 d=(p-uM)*uQ;float l=length(d);p+=normalize(d+.0001)*.16*exp(-l*l*22.)/uQ;
+        vS=s;vA=smoothstep(0.,.16,uP);gl_Position=vec4(p,0.,1.);gl_PointSize=(2.1+s*1.8)*uD;}`;
+    const fs = `precision mediump float;uniform vec3 uA,uB;varying float vS,vA;void main(){float d=length(gl_PointCoord-.5);
+        float al=smoothstep(.5,.28,d)*vA;vec3 c=mix(uA,uB,step(.72,vS));gl_FragColor=vec4(c*al,al);}`;
     const sh = (t, s2) => { const o = gl.createShader(t); gl.shaderSource(o, s2); gl.compileShader(o); return o; };
     const pr = gl.createProgram();
     gl.attachShader(pr, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr); gl.useProgram(pr);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER, buf, gl.STATIC_DRAW);
     [['a', 2, 0], ['b', 2, 8], ['s', 1, 16], ['c', 2, 20]].forEach(([n, sz, o]) => { const l = gl.getAttribLocation(pr, n); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, sz, gl.FLOAT, false, 28, o); });
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    gl.viewport(0, 0, cv.width, cv.height);
-    const u = Object.fromEntries(['uP', 'uT', 'uD', 'uW', 'uM', 'uA', 'uB'].map((n) => [n, gl.getUniformLocation(pr, n)]));
+    const u = Object.fromEntries(['uP', 'uT', 'uD', 'uW', 'uM', 'uC', 'uS', 'uQ', 'uA', 'uB'].map((n) => [n, gl.getUniformLocation(pr, n)]));
+    /* uC y uS ubican el pato en el canvas; uQ mantiene en píxeles el vaivén y el empuje del cursor. */
+    const fit = () => {
+      const { w, h, cx, cy, px } = measure();
+      cv.width = w * dpr; cv.height = h * dpr;
+      gl.viewport(0, 0, cv.width, cv.height);
+      gl.uniform2f(u.uC, cx / w * 2 - 1, 1 - cy / h * 2);
+      gl.uniform2f(u.uS, px / w * 2, px / h * 2);
+      gl.uniform2f(u.uQ, w / 330, h / 330);
+    };
+    fit();
+    new ResizeObserver(fit).observe(box);
     const state = { p: 0, w: 0, m: [9, 9] };
-    cv.addEventListener('pointermove', (e) => { const r = cv.getBoundingClientRect(); state.m = [(e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height * 2 - 1)]; });
-    cv.addEventListener('pointerleave', () => { state.m = [9, 9]; });
+    box.addEventListener('pointermove', (e) => { const r = cv.getBoundingClientRect(); state.m = [(e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height * 2 - 1)]; });
+    box.addEventListener('pointerleave', () => { state.m = [9, 9]; });
     const draw = (t) => {
       gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
       gl.uniform1f(u.uP, state.p); gl.uniform1f(u.uT, t); gl.uniform1f(u.uD, dpr); gl.uniform1f(u.uW, state.w); gl.uniform2f(u.uM, ...state.m);
@@ -624,8 +648,13 @@
       running?.kill();
       const tl = gsap.timeline();
       running = tl;
+      /* Con scroll rápido cada paso cancela al anterior a medio camino. Por eso el paso siempre
+         lleva todo a su estado final, sin suponer que el anterior alcanzó a terminar. */
       /* El toque va en la tab. Al abrir la clave, el toque es la píldora que se hunde un poco. */
-      if (!s.focus) {
+      if (s.focus) {
+        tl.to(tap, { opacity: 0, duration: 0.1 }, 0);
+        if (!from.focus) tl.to(pillEl, { scale: k * 0.95, duration: 0.12, ease: 'power2.out' }, 0.02);
+      } else {
         tl.set(tap, { x: 6 + 75.6 * (s.tab + 0.5), y: 781, scale: 0.45, opacity: 0 }, 0)
           .to(tap, { scale: 1, opacity: 1, duration: 0.14, ease: 'power2.out' }, 0.02)
           .to(tap, { scale: 1.7, opacity: 0, duration: 0.34, ease: 'power2.out' }, 0.18);
@@ -633,18 +662,12 @@
       tl.call(() => tabsEls.forEach((t, n) => t.classList.toggle('on', n === s.tab)), null, 0.16)
         .to(steps.filter((_, n) => n !== i), { autoAlpha: 0, y: -14, duration: 0.22, ease: 'power2.in' }, 0)
         .fromTo(steps[i], { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.42, ease: 'power3.out' }, 0.26)
-        .to(phoneEl, { ...pose(i), duration: 0.8, ease: 'power3.out' }, 0.12);
-      if (from.focus !== s.focus) {
-        const on = !!s.focus;
-        tl.to(veil, { autoAlpha: on ? 1 : 0, duration: 0.4, ease: 'sine.inOut' }, 0.16)
-          .to(behind, { filter: `blur(${on ? 9 : 0}px)`, duration: 0.4, ease: 'sine.inOut' }, 0.16)
-        if (on) tl.to(pillEl, { scale: k * 0.95, duration: 0.12, ease: 'power2.out' }, 0.02);
-        tl.to(pillEl, { scale: on ? k * pillGrow : k, duration: 0.55, ease: 'power3.out' }, 0.16);
-      }
-      if (from.layer !== s.layer) {
-        tl.to(layers.filter((_, n) => n !== s.layer), { autoAlpha: 0, duration: 0.16, ease: 'sine.in' }, 0.18)
-          .fromTo(layers[s.layer], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3, ease: 'sine.out' }, 0.32);
-      }
+        .to(phoneEl, { ...pose(i), duration: 0.8, ease: 'power3.out' }, 0.12)
+        .to(veil, { autoAlpha: s.focus ? 1 : 0, duration: 0.4, ease: 'sine.inOut' }, 0.16)
+        .to(behind, { filter: `blur(${s.focus ? 9 : 0}px)`, duration: 0.4, ease: 'sine.inOut' }, 0.16)
+        .to(pillEl, { scale: s.focus ? k * pillGrow : k, duration: 0.55, ease: 'power3.out' }, 0.16)
+        .to(layers.filter((_, n) => n !== s.layer), { autoAlpha: 0, duration: 0.16, ease: 'sine.in' }, 0.18)
+        .to(layers[s.layer], { autoAlpha: 1, duration: 0.3, ease: 'sine.out' }, 0.32);
     };
 
     /* El halo viaja del teléfono del hero al del tour. */
