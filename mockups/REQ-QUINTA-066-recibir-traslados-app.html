@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>REQ-QUINTA-066 · App: recibir traslados</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, "Segoe UI", sans-serif; }
+  .ms { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; line-height: 1; display: inline-block; -webkit-font-smoothing: antialiased; }
+  .phone { width: 390px; height: 844px; }
+  .scroll::-webkit-scrollbar { display: none; }
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+</style>
+</head>
+<body class="bg-[#e9e9ee] min-h-screen flex gap-8 p-8 items-start">
+
+<!-- Navegación del mockup -->
+<aside class="w-72 shrink-0 bg-white rounded-2xl p-4 shadow-sm sticky top-8">
+  <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">REQ-QUINTA-066</p>
+  <h1 class="text-lg font-bold leading-tight mt-1">App: el responsable confirma lo que recibió de un traslado</h1>
+  <p class="text-xs text-gray-500 mt-1">Usuario de ejemplo: Carlos Pérez, responsable de Playa 13 y Bahía 7.</p>
+  <nav id="nav" class="mt-4 flex flex-col gap-1 text-sm"></nav>
+  <div class="mt-4 border-t pt-3 text-xs text-gray-500 space-y-1">
+    <p><b>Chips:</b> negro en camino · esmeralda recibido completo · rosa con diferencia por resolver · gris anulado.</p>
+    <p>El chrome (inicio, «Más», barra inferior, pestañas segmentadas) se calca de la app en <code>main</code>.</p>
+  </div>
+</aside>
+
+<main class="flex gap-8 items-start">
+  <div class="phone relative bg-white rounded-[44px] shadow-[0_0_0_10px_#1f1f1f,0_20px_50px_rgba(0,0,0,.25)] overflow-hidden flex flex-col">
+    <div class="h-11 shrink-0 flex items-center justify-between px-7 text-[15px] font-semibold">
+      <span>9:41</span>
+      <span class="flex gap-1 items-center"><span class="ms text-[18px]">signal_cellular_alt</span><span class="ms text-[18px]">wifi</span><span class="ms text-[18px]">battery_full</span></span>
+    </div>
+    <div id="screen" class="flex-1 flex flex-col min-h-0 relative"></div>
+  </div>
+  <div id="nota" class="w-80 text-sm text-gray-700 bg-white rounded-2xl p-4 shadow-sm"></div>
+</main>
+
+<script>
+const C = { primary: '#314CFB' };
+
+// ---------- Datos de ejemplo ----------
+const porRecibir = [
+  { id: 18452, origen: 'Almacén Tolú', destino: 'Playa 13', envio: 'mar 3 nov · 4:12 p. m.', por: 'Luzete Martínez', obs: 'Va en la lancha de las 5', lineas: [
+    { p: 'Agua Cristal 600 ml', u: 'und', env: 48 },
+    { p: 'Cerveza Club Colombia lata 330 ml', u: 'und', env: 72 },
+    { p: 'Papel higiénico Familia x4', u: 'paq', env: 12 },
+    { p: 'Limón Tahití', u: 'kg', env: 2.5 },
+  ]},
+  { id: 18455, origen: 'Almacén Tolú', destino: 'Bahía 7', envio: 'mar 3 nov · 5:40 p. m.', por: 'Luzete Martínez', obs: '', lineas: [
+    { p: 'Hielo bolsa 5 kg', u: 'und', env: 10 },
+    { p: 'Gaseosa Coca-Cola 1,5 L', u: 'und', env: 24 },
+  ]},
+  { id: 18461, origen: 'Playa 13', destino: 'Bahía 7', envio: 'hoy · 8:05 a. m.', por: 'Carlos Pérez', obs: 'Préstamo para el fin de semana', lineas: [
+    { p: 'Toalla de piscina', u: 'und', env: 8 },
+  ]},
+];
+const recibidos = [
+  { id: 18440, origen: 'Almacén Tolú', destino: 'Playa 13', fecha: 'lun 2 nov · 7:30 p. m.', por: 'Carlos Pérez', estado: 'cerrado', resumen: '5 productos · recibido completo' },
+  { id: 18431, origen: 'Almacén Tolú', destino: 'Bahía 7', fecha: 'sáb 31 oct · 6:10 p. m.', por: 'Ana Gómez', estado: 'diferencia', resumen: '3 productos · faltaron 6 und de Agua Cristal 600 ml', },
+  { id: 18402, origen: 'Almacén Tolú', destino: 'Playa 13', fecha: 'mié 28 oct · 5:02 p. m.', por: 'Planeación (a nombre del destino)', estado: 'cerrado', resumen: '2 productos · diferencia resuelta por Planeación' },
+];
+const enviados = [
+  { id: 18461, origen: 'Playa 13', destino: 'Bahía 7', fecha: 'hoy · 8:05 a. m.', estado: 'camino', resumen: '1 producto · enviado por Carlos Pérez' },
+  { id: 18420, origen: 'Playa 13', destino: 'Almacén Tolú', fecha: 'jue 29 oct', estado: 'diferencia', resumen: '2 productos · recibido por Jorge Díaz el vie 30 oct' },
+  { id: 18398, origen: 'Bahía 7', destino: 'Playa 13', fecha: 'mar 27 oct', estado: 'cerrado', resumen: '4 productos · recibido por Carlos Pérez el mar 27 oct' },
+  { id: 18390, origen: 'Bahía 7', destino: 'Almacén Tolú', fecha: 'lun 26 oct', estado: 'anulado', resumen: 'Anulado en SIREQ por Luzete Martínez: «se envió doble»' },
+];
+
+const fmt = n => (Math.round(n * 100) / 100).toLocaleString('es-CO', { maximumFractionDigits: 2 });
+
+// ---------- Piezas ----------
+const chip = e => ({
+  camino:     '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-black text-white">En camino</span>',
+  cerrado:    '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">Recibido</span>',
+  diferencia: '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-700">Diferencia por resolver</span>',
+  anulado:    '<span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-200 text-gray-600">Anulado</span>',
+}[e]);
+
+function bottomNav(active) {
+  const items = [['home','Hoy'],['calendar_month','Calendario'],['bar_chart','Indicadores'],['check_circle','Tareas'],['more_horiz','Más']];
+  return `<div class="shrink-0 border-t border-[#F0F0F0] bg-white flex justify-around pt-2 pb-6">${items.map(([i,t]) =>
+    `<div class="flex flex-col items-center gap-0.5 text-[11px] ${t===active?'text-[#314CFB]':'text-gray-400'}"><span class="ms text-[24px]">${i}</span>${t}</div>`).join('')}</div>`;
+}
+
+function appBar(title, sub, back = true, actions = '') {
+  return `<div class="shrink-0 h-14 flex items-center px-2 bg-white">
+    ${back ? '<span class="ms text-[24px] p-2">arrow_back</span>' : '<span class="w-10"></span>'}
+    <div class="flex-1 text-center"><p class="text-[17px] font-semibold leading-tight">${title}</p>${sub ? `<p class="text-[13px] text-[#86868B] leading-tight">${sub}</p>` : ''}</div>
+    <div class="w-10 flex justify-end pr-2 text-[#86868B]">${actions}</div></div>`;
+}
+
+function tabs(active, n) {
+  const t = [['recibir', 'Por recibir', n], ['recibidos', 'Recibidos'], ['enviados', 'Enviados']];
+  return `<div class="mx-5 mt-3 bg-[#F5F5F7] rounded-[10px] flex">${t.map(([k, l, c]) =>
+    `<div class="flex-1 m-1 py-2 rounded-lg text-[14px] font-semibold flex items-center justify-center gap-1.5 ${k===active?'bg-[#314CFB] text-white':'text-[#86868B]'}">${l}${c ? `<span class="min-w-[20px] h-5 px-1.5 rounded-full text-[11px] flex items-center justify-center ${k===active?'bg-white text-[#314CFB]':'bg-[#314CFB] text-white'}">${c}</span>` : ''}</div>`).join('')}</div>`;
+}
+
+function trasladoCard(t, action = true) {
+  const n = t.lineas.length;
+  return `<div class="mx-4 mb-3 border border-[#E5E5EA] rounded-xl p-4">
+    <div class="flex items-start gap-3">
+      <div class="w-10 h-10 rounded-[10px] bg-[#314CFB]/10 text-[#314CFB] flex items-center justify-center"><span class="ms text-[22px]">local_shipping</span></div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between"><p class="text-[16px] font-semibold">Traslado ${t.id}</p>${chip('camino')}</div>
+        <p class="text-[14px] mt-0.5"><span class="text-[#86868B]">De</span> ${t.origen} <span class="ms text-[14px] align-middle text-[#86868B]">arrow_forward</span> <b>${t.destino}</b></p>
+        <p class="text-[13px] text-[#86868B] mt-0.5">${n} ${n===1?'producto':'productos'} · enviado ${t.envio} por ${t.por}</p>
+        ${t.obs ? `<p class="text-[13px] text-gray-700 mt-1 italic">«${t.obs}»</p>` : ''}
+      </div>
+    </div>
+    ${action ? `<button onclick="go('detalle', ${t.id})" class="mt-3 w-full h-10 rounded-xl bg-[#314CFB] text-white text-[15px] font-semibold">Revisar y recibir</button>` : ''}
+  </div>`;
+}
+
+function histCard(t) {
+  return `<div class="mx-4 mb-3 border border-[#E5E5EA] rounded-xl p-4">
+    <div class="flex items-center justify-between"><p class="text-[16px] font-semibold">Traslado ${t.id}</p>${chip(t.estado)}</div>
+    <p class="text-[14px] mt-0.5"><span class="text-[#86868B]">De</span> ${t.origen} <span class="ms text-[14px] align-middle text-[#86868B]">arrow_forward</span> <b>${t.destino}</b></p>
+    <p class="text-[13px] text-[#86868B] mt-0.5">${t.fecha}${t.por ? ' · recibió ' + t.por : ''}</p>
+    <p class="text-[13px] text-gray-700 mt-1">${t.resumen}</p>
+  </div>`;
+}
+
+function snack(text, color) {
+  return `<div class="absolute left-4 right-4 bottom-24 rounded-xl px-4 py-3 text-white text-[14px] shadow-lg flex items-center gap-2" style="background:${color}"><span class="ms text-[20px]">check_circle</span>${text}</div>`;
+}
+
+// ---------- Pantallas ----------
+const S = {};
+let state = { lineas: null, notaAbierta: {} };
+
+S.inicio = () => `
+  <div class="flex-1 overflow-y-auto scroll">
+    <div class="px-5 pt-2 flex items-start justify-between">
+      <div><p class="text-[24px] font-bold tracking-[-0.5px]">Buenos días, Carlos</p><p class="text-[15px] text-[#86868B]">miércoles, 4 noviembre</p></div>
+      <div class="relative mt-1"><span class="ms text-[28px] text-[#636366]">notifications</span><span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#FF3B30] text-white text-[10px] flex items-center justify-center">2</span></div>
+    </div>
+    <div class="mx-4 mt-4 rounded-2xl bg-black text-white p-4 flex items-center gap-3" onclick="go('recibir')">
+      <div class="w-11 h-11 rounded-[10px] bg-white/15 flex items-center justify-center"><span class="ms text-[24px]">local_shipping</span></div>
+      <div class="flex-1"><p class="text-[16px] font-semibold">3 traslados por recibir</p><p class="text-[13px] text-white/70">Playa 13 y Bahía 7 · el más antiguo salió ayer</p></div>
+      <span class="ms text-[22px] text-white/70">chevron_right</span>
+    </div>
+    <div class="px-4 mt-4 grid grid-cols-3 gap-2">
+      ${[['Llegan',4,true],['Activas',11,false],['Salen',3,false]].map(([l,n,s]) => `<div class="rounded-xl p-3 ${s?'bg-black text-white':'bg-[#F5F5F7]'}"><p class="text-[24px] font-bold">${n}</p><p class="text-[12px] font-medium ${s?'':'text-[#86868B]'}">${l}</p></div>`).join('')}
+    </div>
+    <div class="mx-4 mt-3 space-y-2">
+      ${['Reserva 80412 · Familia Restrepo · Playa 13','Reserva 80415 · Andrea Lozano · Bahía 7'].map(r => `<div class="rounded-2xl border border-[#E5E5EA] p-4 text-[14px]">${r}<p class="text-[12px] text-[#86868B] mt-1">Llega hoy · 3 noches</p></div>`).join('')}
+    </div>
+  </div>${bottomNav('Hoy')}`;
+
+S.mas = () => {
+  const item = (icon, t, s, badge) => `<div class="flex items-center gap-3 px-5 py-3" ${t==='Traslados'?`onclick="go('recibir')"`:''}>
+    <div class="w-11 h-11 rounded-[10px] bg-[#F5F5F7] flex items-center justify-center"><span class="ms text-[22px]">${icon}</span></div>
+    <div class="flex-1"><p class="text-[16px] font-semibold">${t}</p><p class="text-[13px] text-[#AEAEB2]">${s}</p></div>
+    ${badge ? `<span class="min-w-[22px] h-[22px] px-1.5 rounded-full bg-black text-white text-[12px] font-semibold flex items-center justify-center">${badge}</span>` : ''}
+    <span class="ms text-[22px] text-[#C7C7CC]">chevron_right</span></div>`;
+  return `<div class="flex-1 overflow-y-auto scroll">
+    <p class="px-5 pt-2 text-[28px] font-bold">Más</p>
+    <div class="px-5 py-4 flex items-center gap-4"><div class="w-16 h-16 rounded-full bg-[#E5E5EA] flex items-center justify-center"><span class="ms text-[28px] text-[#86868B]">person</span></div>
+      <div><p class="text-[17px] font-semibold">Carlos Pérez</p><p class="text-[15px] text-[#86868B]">Administrador de sede · PLAYA 13</p></div></div>
+    ${item('inventory_2','Inventario Físico','Conteos de la bodega')}
+    ${item('sailing','Salidas de botes','Registro de zarpes')}
+    <div class="bg-[#314CFB]/5 border-y border-[#314CFB]/20">${item('local_shipping','Traslados','Recibir lo que llega a tus bodegas', 3)}</div>
+    ${item('fact_check','Checklist de sede','Revisión diaria de la sede')}
+    <div class="mx-5 my-2 border-t border-[#F0F0F0]"></div>
+    <div class="flex items-center gap-3 px-5 py-3"><div class="w-11 h-11 rounded-[10px] bg-[#FF3B30]/10 flex items-center justify-center"><span class="ms text-[22px] text-[#FF3B30]">logout</span></div><p class="text-[16px] font-semibold text-[#FF3B30]">Cerrar sesión</p></div>
+  </div>${bottomNav('Más')}`;
+};
+
+S.recibir = () => `${appBar('Traslados', 'Playa 13 · Bahía 7', true, '<span class="ms text-[22px]">refresh</span>')}${tabs('recibir', 3)}
+  <div class="flex-1 overflow-y-auto scroll pt-3">${porRecibir.map(t => trasladoCard(t)).join('')}</div>`;
+
+S.recibirCarga = () => `${appBar('Traslados', 'Playa 13 · Bahía 7')}${tabs('recibir')}
+  <div class="flex-1 flex items-center justify-center"><div class="bg-[#F5F5F7] rounded-2xl px-8 py-6 flex flex-col items-center gap-3"><div class="w-10 h-10 border-[3px] border-black border-t-transparent rounded-full animate-spin"></div><p class="text-[14px]">Cargando traslados...</p></div></div>`;
+
+S.recibirVacio = () => `${appBar('Traslados', 'Playa 13 · Bahía 7')}${tabs('recibir')}
+  <div class="flex-1 flex flex-col items-center justify-center text-center px-10"><span class="ms text-[64px] text-[#34C759]">check_circle</span><p class="text-[17px] font-semibold mt-3">No tienes traslados por recibir</p><p class="text-[14px] text-[#86868B] mt-1">Cuando Planeación envíe algo a Playa 13 o Bahía 7, aparece aquí.</p></div>`;
+
+S.recibirError = () => `${appBar('Traslados', 'Playa 13 · Bahía 7')}${tabs('recibir')}
+  <div class="flex-1 flex flex-col items-center justify-center text-center px-10"><span class="ms text-[48px] text-[#C7C7CC]">error</span><p class="text-[15px] mt-3">No se pudieron cargar los traslados. Revisa la conexión.</p><button class="mt-4 h-10 px-6 rounded-xl bg-[#314CFB] text-white font-semibold">Reintentar</button></div>`;
+
+function lineasDe(id) {
+  if (!state.lineas || state.lineas.id !== id) {
+    state.lineas = { id, items: porRecibir.find(t => t.id === id).lineas.map(l => ({ ...l, rec: l.env, nota: '' })) };
+    state.notaAbierta = {};
+  }
+  return state.lineas.items;
+}
+
+function resumen(items) {
+  const dif = items.filter(l => l.rec < l.env);
+  const malas = items.filter(l => l.rec > l.env || l.rec < 0 || isNaN(l.rec));
+  return { dif, malas };
+}
+
+S.detalle = (id = 18452, preset) => {
+  const t = porRecibir.find(x => x.id === id);
+  const items = lineasDe(id);
+  if (preset === 'faltante') { items[0].rec = 42; items[0].nota = 'Llegaron 6 botellas rotas en la caja'; state.notaAbierta[0] = true; }
+  if (preset === 'excede') { items[3].rec = 3; }
+  const { dif, malas } = resumen(items);
+  const filas = items.map((l, i) => {
+    const mal = l.rec > l.env || l.rec < 0 || isNaN(l.rec);
+    const falta = !mal && l.rec < l.env;
+    return `<div class="px-4 py-3 border-b border-[#F0F0F0]">
+      <div class="flex items-center gap-3">
+        <div class="flex-1 min-w-0"><p class="text-[15px] font-medium">${l.p}</p><p class="text-[13px] text-[#86868B]">Enviado: ${fmt(l.env)} ${l.u}</p></div>
+        <div class="flex items-center gap-1">
+          <input type="number" step="0.01" min="0" value="${l.rec}" oninput="setRec(${i}, this.value)" class="w-20 h-10 rounded-xl border text-right px-3 text-[16px] font-semibold ${mal?'border-rose-500 text-rose-600':falta?'border-black':'border-[#D2D2D7]'}">
+          <span class="text-[13px] text-[#86868B] w-7">${l.u}</span>
+        </div>
+      </div>
+      ${mal ? `<p class="text-[12px] text-rose-600 mt-1">No puedes recibir más de lo enviado (${fmt(l.env)} ${l.u}).</p>` : ''}
+      ${falta ? `<p class="text-[12px] font-semibold mt-1">Faltan ${fmt(l.env - l.rec)} ${l.u}</p>` : ''}
+      ${state.notaAbierta[i]
+        ? `<textarea oninput="state.lineas.items[${i}].nota=this.value" rows="2" placeholder="Nota opcional: qué pasó con esta línea" class="mt-2 w-full rounded-xl border border-[#D2D2D7] p-2 text-[14px]">${l.nota}</textarea>`
+        : `<button onclick="state.notaAbierta[${i}]=true; render()" class="mt-1 text-[13px] text-[#314CFB] font-medium flex items-center gap-1"><span class="ms text-[16px]">edit_note</span>Agregar nota</button>`}
+    </div>`;
+  }).join('');
+  return `${appBar('Traslado ' + t.id, `${t.origen} → ${t.destino}`)}
+    <div class="flex-1 overflow-y-auto scroll">
+      <div class="mx-4 mt-2 mb-2 rounded-xl bg-[#F5F5F7] p-3 text-[13px] text-gray-700">Enviado ${t.envio} por ${t.por}.${t.obs ? ` «${t.obs}»` : ''}<br>La cantidad viene igual a la enviada: cambia solo lo que no llegó.</div>
+      ${filas}
+      <div class="h-4"></div>
+    </div>
+    <div class="shrink-0 border-t border-[#F0F0F0] px-4 pt-3 pb-7 bg-white">
+      <p class="text-[13px] mb-2 ${malas.length ? 'text-rose-600' : dif.length ? 'text-black font-semibold' : 'text-emerald-700'}">${malas.length ? 'Corrige las cantidades marcadas en rojo.' : dif.length ? `Recibes con faltantes en ${dif.length} ${dif.length===1?'producto':'productos'}.` : 'Recibes todo lo enviado.'}</p>
+      <button ${malas.length ? 'disabled' : `onclick="go('confirmar', ${id}, true)"`} class="w-full h-12 rounded-xl text-[16px] font-semibold ${malas.length ? 'bg-[#E5E5EA] text-[#AEAEB2]' : 'bg-[#314CFB] text-white'}">Confirmar recepción</button>
+    </div>`;
+};
+window.setRec = (i, v) => { state.lineas.items[i].rec = v === '' ? NaN : Number(v); renderKeepFocus(i); };
+
+S.confirmar = (id = 18452) => {
+  const t = porRecibir.find(x => x.id === id);
+  const items = lineasDe(id);
+  if (!items.some(l => l.rec < l.env)) { items[0].rec = 42; items[0].nota = 'Llegaron 6 botellas rotas en la caja'; }
+  const { dif } = resumen(items);
+  return S.detalle(id) + `<div class="absolute inset-0 bg-black/40 flex items-end">
+    <div class="w-full bg-white rounded-t-[20px] px-5 pt-3 pb-8">
+      <div class="w-10 h-1 rounded-full bg-[#D2D2D7] mx-auto mb-4"></div>
+      <p class="text-[18px] font-bold">¿Confirmar la recepción?</p>
+      <p class="text-[14px] text-gray-700 mt-1">Lo recibido entra a la bodega <b>${t.destino}</b>. Después no se puede corregir desde la app.</p>
+      ${dif.length ? `<div class="mt-3 rounded-xl bg-rose-50 border border-rose-200 p-3 text-[13px]"><p class="font-semibold text-rose-700">Faltantes</p>${dif.map(l => `<p class="mt-1">${l.p}: faltan ${fmt(l.env - l.rec)} ${l.u}${l.nota ? ` · «${l.nota}»` : ''}</p>`).join('')}<p class="mt-2 text-gray-700">Lo que falta queda en tránsito y lo resuelve Planeación.</p></div>` : ''}
+      <button onclick="go('exito')" class="mt-4 w-full h-12 rounded-xl bg-[#314CFB] text-white text-[16px] font-semibold">Sí, confirmar</button>
+      <button onclick="go('detalle', ${id}, true)" class="mt-2 w-full h-11 rounded-xl text-[15px] font-semibold text-[#86868B]">Volver a revisar</button>
+    </div></div>`;
+};
+
+S.enviando = (id = 18452) => S.detalle(id) + `<div class="absolute inset-0 bg-white/70 flex items-center justify-center"><div class="bg-[#F5F5F7] rounded-2xl px-8 py-6 flex flex-col items-center gap-3"><div class="w-10 h-10 border-[3px] border-black border-t-transparent rounded-full animate-spin"></div><p class="text-[14px]">Confirmando recepción...</p></div></div>`;
+
+S.exito = () => `${appBar('Traslados', 'Playa 13 · Bahía 7', true, '<span class="ms text-[22px]">refresh</span>')}${tabs('recibir', 2)}
+  <div class="flex-1 overflow-y-auto scroll pt-3">${porRecibir.slice(1).map(t => trasladoCard(t)).join('')}</div>
+  ${snack('Traslado 18452 recibido con faltantes. Planeación resuelve la diferencia.', '#34C759')}`;
+
+S.yaRecibido = () => S.detalle(18455) + `<div class="absolute inset-0 bg-black/40 flex items-center justify-center px-8">
+  <div class="bg-white rounded-2xl p-5 w-full">
+    <span class="ms text-[32px] text-rose-600">info</span>
+    <p class="text-[17px] font-bold mt-1">Este traslado ya fue recibido</p>
+    <p class="text-[14px] text-gray-700 mt-1">Lo recibió <b>Ana Gómez</b> hoy a las 9:14 a. m. Tu confirmación no se guardó.</p>
+    <button onclick="go('recibidos')" class="mt-4 w-full h-11 rounded-xl bg-[#314CFB] text-white font-semibold">Ver en Recibidos</button>
+  </div></div>`;
+
+S.sinSireq = () => S.detalle(18452) + `<div class="absolute left-4 right-4 bottom-28 rounded-xl px-4 py-3 text-white text-[14px] shadow-lg flex items-center gap-2 bg-[#FF3B30]"><span class="ms text-[20px]">wifi_off</span>No se pudo confirmar la recepción. Nada quedó guardado: intenta de nuevo en unos minutos.</div>`;
+
+S.anulado = () => S.detalle(18455) + `<div class="absolute inset-0 bg-black/40 flex items-center justify-center px-8">
+  <div class="bg-white rounded-2xl p-5 w-full">
+    <span class="ms text-[32px] text-gray-500">block</span>
+    <p class="text-[17px] font-bold mt-1">Este traslado fue anulado</p>
+    <p class="text-[14px] text-gray-700 mt-1">Lo anuló <b>Luzete Martínez</b> en SIREQ hoy a las 9:02 a. m.: «se envió a la sede equivocada». No hay nada que recibir.</p>
+    <button onclick="go('recibir')" class="mt-4 w-full h-11 rounded-xl bg-[#314CFB] text-white font-semibold">Volver a la lista</button>
+  </div></div>`;
+
+S.recibidos = () => `${appBar('Traslados', 'Playa 13 · Bahía 7', true, '<span class="ms text-[22px]">refresh</span>')}${tabs('recibidos', 3)}
+  <p class="px-5 pt-3 pb-2 text-[13px] text-[#86868B]">Últimos 30 días en tus bodegas</p>
+  <div class="flex-1 overflow-y-auto scroll">${recibidos.map(histCard).join('')}</div>`;
+
+S.recibidosVacio = () => `${appBar('Traslados', 'Playa 13 · Bahía 7')}${tabs('recibidos')}
+  <div class="flex-1 flex flex-col items-center justify-center text-center px-10"><span class="ms text-[64px] text-[#C7C7CC]">history</span><p class="text-[17px] font-semibold mt-3">Sin traslados recibidos en los últimos 30 días</p></div>`;
+
+S.enviados = () => `${appBar('Traslados', 'Playa 13 · Bahía 7', true, '<span class="ms text-[22px]">refresh</span>')}${tabs('enviados', 3)}
+  <p class="px-5 pt-3 pb-2 text-[13px] text-[#86868B]">Lo que salió de tus bodegas: en camino y últimos 30 días. Solo consulta.</p>
+  <div class="flex-1 overflow-y-auto scroll">${enviados.map(t => histCard({ ...t, por: '' })).join('')}</div>`;
+
+S.enviadosVacio = () => `${appBar('Traslados', 'Playa 13 · Bahía 7')}${tabs('enviados')}
+  <div class="flex-1 flex flex-col items-center justify-center text-center px-10"><span class="ms text-[64px] text-[#C7C7CC]">outbox</span><p class="text-[17px] font-semibold mt-3">No has enviado traslados en los últimos 30 días</p><p class="text-[14px] text-[#86868B] mt-1">Los traslados se envían desde SIREQ.</p></div>`;
+
+// ---------- Navegación del mockup ----------
+const flujos = [
+  ['Entrada', [['inicio', 'Inicio con tarjeta «Por recibir»'], ['mas', 'Menú «Más» con contador']]],
+  ['Por recibir', [['recibir', 'Lista por recibir'], ['recibirCarga', 'Cargando'], ['recibirVacio', 'Vacío'], ['recibirError', 'Error de conexión']]],
+  ['Recibir un traslado', [['detalle', 'Revisar: todo llegó'], ['detalleFaltante', 'Revisar: con faltante y nota'], ['detalleExcede', 'Revisar: cantidad mayor a lo enviado'], ['confirmar', 'Confirmación'], ['enviando', 'Guardando'], ['exito', 'Recibido']]],
+  ['Choques con SIREQ', [['yaRecibido', 'Ya lo recibió otro'], ['anulado', 'Lo anularon'], ['sinSireq', 'SIREQ no responde']]],
+  ['Historial', [['recibidos', 'Recibidos (30 días)'], ['recibidosVacio', 'Recibidos vacío'], ['enviados', 'Enviados'], ['enviadosVacio', 'Enviados vacío']]],
+];
+const notas = {
+  inicio: 'La tarjeta solo aparece si hay traslados por recibir en las bodegas del usuario. El número se consulta al abrir la app y al volver de recibir (sin push).',
+  mas: '«Traslados» solo aparece si el usuario es responsable de alguna bodega (bandera del login). El número es el mismo de la tarjeta del inicio. Reemplaza la vieja «Traslados de Stock».',
+  recibir: 'Junta todas las bodegas del usuario; cada tarjeta muestra origen y destino. El más antiguo arriba. Un traslado del usuario a otra de sus bodegas aparece aquí para el destino y en Enviados para el origen.',
+  detalle: 'La cantidad recibida viene igual a la enviada (hasta dos decimales). Se reciben todas las líneas en una sola confirmación: no hay recepciones parciales.',
+  detalleFaltante: 'Al bajar la cantidad la línea marca cuánto falta. La nota es opcional. Sin foto.',
+  detalleExcede: 'No se puede recibir más de lo enviado: la línea se marca en rosa y el botón se apaga.',
+  confirmar: 'Resume los faltantes antes de guardar. Lo que falta queda en tránsito y lo resuelve Planeación en SIREQ.',
+  enviando: 'Mientras se guarda, la pantalla no admite otro toque (no se duplica la recepción).',
+  exito: 'Vuelve a la lista, el contador baja y un mensaje confirma.',
+  yaRecibido: 'Si otro responsable o Planeación lo recibió en SIREQ antes, el servidor rechaza la recepción y la app dice quién y cuándo, y refresca la lista.',
+  sinSireq: 'La recepción la guarda SIREQ. Si no responde, nada se guarda, las cantidades quedan en pantalla y se puede volver a intentar. Las listas y el contador siguen funcionando porque se leen directo.',
+  anulado: 'Si lo anularon en SIREQ mientras estaba abierto, igual: quién, cuándo y motivo.',
+  recibidos: 'Recibidos en las bodegas del usuario en los últimos 30 días, con su estado. «Diferencia por resolver» pasa a «Recibido» cuando Planeación la resuelve.',
+  enviados: 'Solo consulta: lo que salió de las bodegas del usuario, en camino sin límite de fecha y lo demás de los últimos 30 días.',
+};
+let current = 'inicio', currentArg, navKey = 'inicio', preset = null;
+window.go = (k, arg, keep) => {
+  if (!keep) state.lineas = null;
+  navKey = k; preset = null;
+  if (k === 'detalleFaltante' || k === 'detalleExcede') { preset = k === 'detalleFaltante' ? 'faltante' : 'excede'; k = 'detalle'; arg = 18452; }
+  current = k; currentArg = arg; render();
+};
+function render() {
+  document.getElementById('screen').innerHTML = S[current](currentArg, preset);
+  preset = null;
+  const nk = notas[navKey] ? navKey : current;
+  document.getElementById('nota').innerHTML = `<p class="font-semibold mb-1">Qué muestra</p><p>${notas[nk] || ''}</p>`;
+  document.getElementById('nav').innerHTML = flujos.map(([g, items]) => `<p class="text-[11px] font-semibold text-gray-400 uppercase mt-2">${g}</p>` + items.map(([k, l]) =>
+    `<button onclick="go('${k}')" class="text-left px-3 py-1.5 rounded-lg ${k===navKey?'bg-black text-white':'hover:bg-gray-100'}">${l}</button>`).join('')).join('');
+}
+function renderKeepFocus(i) {
+  render();
+  const el = document.querySelectorAll('#screen input[type=number]')[i];
+  if (el) { el.focus(); }
+}
+render();
+</script>
+</body>
+</html>
