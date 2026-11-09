@@ -128,7 +128,59 @@ window.Quac = (() => {
     },
   };
 
+  /* SCR-060 «Mis dispositivos» (AQ-012): pantalla completa fuera del shell, con «Volver».
+     Textos y orden tomados de scr_060_mis_dispositivos_screen.dart; nombres con el formato
+     del api («Sistema · modelo»). Teléfonos, fechas y compra son datos de demo. */
+  const DEV = {
+    phone: '<svg viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>',
+    shield: '<svg viewBox="0 0 24 24"><path d="M12 3 5 6v5.5c0 4.2 3 7.9 7 9.5 4-1.6 7-5.3 7-9.5V6z"/><path d="m9 12 2.2 2.2L15.2 10"/></svg>',
+    login: '<svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/></svg>',
+    info: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></svg>',
+    back: '<svg viewBox="0 0 10 18"><path d="M8.5 1.5 1.5 9l7 7.5"/></svg>',
+  };
+  const devCard = ({ name, actual, auth, last, buy }) => `<div class="qd-card ${actual ? 'on' : ''}">
+      <div class="qd-card__t"><span class="qd-ic">${DEV.phone}</span><div><b>${name}</b>${actual ? '<span class="qd-chip">ESTE TELÉFONO</span>' : ''}</div></div>
+      <div class="qd-row">${DEV.shield}<span>Autorizado</span><p>${auth}</p></div>
+      <div class="qd-row">${DEV.login}<span>Último ingreso</span><p>${last}</p></div>
+      ${buy ? `<div class="qd-row">${SVG.bag}<span>Última compra</span><p>${buy[0]}<small>${buy[1]}</small></p></div>` : ''}
+      ${actual ? '<p class="qd-note">Para salir de este teléfono usa «Cerrar sesión» en el menú Más.</p>' : '<div class="qd-btn">Quitar este teléfono</div>'}
+    </div>`;
+  const dispositivos = () => `<div class="qs qd">
+      ${statusBar().replace('class="qs-bar"', 'class="qs-bar" style="--hd:#140f26"')}
+      <div class="qd-in">
+        <div class="qd-back">${DEV.back}Volver</div>
+        <small class="qd-eyebrow">SEGURIDAD</small>
+        <h3 class="qd-title">Mis dispositivos</h3>
+        <p class="qd-intro">Estos son los teléfonos que pueden entrar a tu cuenta QUAC. Si no reconoces alguno, quítalo.</p>
+        ${devCard({ name: 'iPhone · iPhone 15', actual: true, auth: '12 oct 2026 · 8:03 p. m.', last: 'Hoy · 9:40 a. m.', buy: ['$189.900 · U82 Shoes', '18 oct 2026'] })}
+        ${devCard({ name: 'Android · Galaxy A54', auth: 'Hoy · 6:12 a. m.', last: 'Hoy · 6:14 a. m.' })}
+        <div class="qd-help">${DEV.info}<div><b>¿No reconoces un teléfono?</b>Quítalo y cambia tu contraseña. Así nadie más puede entrar desde ese teléfono.<u>Cambiar contraseña</u></div></div>
+      </div>
+    </div>`;
+
+  /* SCR-039 «Selecciona método de pago» (AQ-005): ruta fuera del shell, como «Mis dispositivos».
+     Nombres y descripciones del catálogo payment_methods (GET /v2/pagos/medios); bloque de color de
+     _medioVisual y logo de icono_url. Orden con los cuatro activos, como CatalogoPagosTest. */
+  const MEDIOS = [
+    ['bancolombia', 'Bancolombia', 'Transfiere desde tu cuenta', '#2C2A29'],
+    ['pse', 'PSE', 'Transferencia electrónica', '#004983'],
+    ['efecty', 'Efecty', 'Paga en efectivo en puntos efecty', '#FFD919'],
+    ['tarjeta', 'Tarjeta crédito', 'Recibimos todas las tarjetas', '#E5BFFF'],
+  ];
+  const metodoPago = () => `<div class="qs qd">
+      ${statusBar().replace('class="qs-bar"', 'class="qs-bar" style="--hd:#140f26"')}
+      <div class="qd-in">
+        <div class="qd-back">${DEV.back}Volver</div>
+        <small class="qd-eyebrow" style="margin-top:8px;letter-spacing:1.5px">PAGAR</small>
+        <h3 class="qd-title" style="margin:4px 0 20px;line-height:1.1">Selecciona método de pago</h3>
+        <div class="qmp-val"><div><small>Valor a pagar</small><b>$86.900</b></div><span>Cambiar valor</span></div>
+        <div class="qmp-list">${MEDIOS.map(([id, n, d, c]) => `<div class="qmp-tile"><i style="background-color:${c};background-image:url(assets/pay/pago-${id}.png)"></i><p>${n}<small>${d}</small></p>${SVG.chev}</div>`).join('')}</div>
+      </div>
+    </div>`;
+
   const screens = {
+    dispositivos,
+    metodoPago,
     home: (id = 'plus', opts) => shell(level(id), 0, bodies.home(), opts),
     pagar: (id = 'plus', opts) => shell(level(id), 2, bodies.pagar(), opts),
     movimientos: (id = 'plus', opts) => shell(level(id), 1, bodies.movimientos(), opts),

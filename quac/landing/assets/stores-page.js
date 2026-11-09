@@ -11,14 +11,15 @@ const COPY = [
   { eyebrow: 'Quac+', title: ['Estrenar tiene', 'niveles.'], key: 'gold', support: ['Primera cuota a 60 días', '5% de descuento', '8% de descuento', '10% de descuento'], src: 'Lema de Quac+ y data/quacplus.ts. Gold 8% confirmado.', status: 'ok' },
   { eyebrow: 'Quac+ · Quacs', title: ['Pagar a tiempo,', 'paga.'], support: ['Gana Quacs por tus abonos a tiempo', 'Acumula Quacs en cada compra'], src: 'Lema de Quac+. Sin cantidades, para que la imagen no dependa de la regla vigente.', status: 'ok' },
   { eyebrow: 'Seguridad', title: ['Compra seguro con tu', 'clave dinámica'], html: 'Compra seguro con<br>tu <b>clave dinámica</b>', support: ['Cambia cada 30 segundos'], src: 'Texto del home del sitio. 30 s: totp_generator.dart.', status: 'ok' },
-  { eyebrow: 'Pagos', title: ['Paga desde', 'donde estés'], support: ['PSE', 'Tarjeta', 'Efecty', 'Bancolombia'], src: 'Pantallas de pago de la app. Los cuatro medios, confirmados.', status: 'ok' },
+  { eyebrow: 'Seguridad', title: ['Tu cuenta, solo en', 'tus teléfonos'], support: ['Quitamos Android · Galaxy A54', 'Ya no puede entrar a tu cuenta'], src: 'SCR-060 «Mis dispositivos» y hoja «Quitar este teléfono» (AQ-012). Textos de la app; teléfonos y fechas de demo.', note: 'AQ-012 sigue en su rama y no ha llegado a main: publicar esta imagen cuando la función esté en producción.', status: 'check' },
+  { eyebrow: 'Pagos', title: ['Paga desde', 'donde estés'], support: ['PSE', 'Tarjeta', 'Efecty', 'Bancolombia'], src: 'SCR-039 «Selecciona método de pago». Nombres y descripciones del catálogo payment_methods; logos del CDN de Quac (Bancolombia, del asset de la app anterior). Los cuatro medios, confirmados.', note: 'La app solo muestra los medios activos en el catálogo: en staging Bancolombia está apagado. Confirmar que en producción salen los cuatro.', status: 'check' },
   { eyebrow: 'Movimientos', title: ['Cada compra', 'suma Quacs'], support: ['345 Quacs', 'Compra en STIRPE'], src: 'Regla de 1 Quac por cada $1.000; $345.500 da 345 Quacs.', status: 'ok' },
   { eyebrow: 'Quac+ · Beneficios', title: ['Sube de nivel y', 'desbloquea más'], key: 'gold', support: [], src: 'Brand book, cap. 09: “sube de nivel y desbloquea descuentos, envíos gratis y más cuotas”.', status: 'ok' },
   { eyebrow: '', title: ['Tu app sube de nivel', 'contigo'], key: 'gold', support: [], src: 'QuacHeader: el header toma el color del nivel del cliente.', status: 'ok' },
 ];
 
 /* Panorámica: un solo fondo de 8 × 1242 que cada imagen recorta por su posición. */
-const W = 1242, N = 8;
+const W = 1242, N = 9;
 const halo = (id, c) => `<radialGradient id="${id}"><stop offset="0" stop-color="${c}" stop-opacity=".82"/><stop offset=".45" stop-color="${c}" stop-opacity=".26"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
 const pano = () => {
   const blobs = [
@@ -26,11 +27,12 @@ const pano = () => {
     [1900, 1400, 980, 'g'], [2500, 2500, 760, 'v'],
     [3150, 900, 820, 'v'], [3700, 2200, 760, 's'],
     [4350, 1000, 960, 'p'], [4950, 2300, 760, 'v'],
-    [5600, 1500, 900, 's'], [6200, 500, 640, 'm'],
-    [6820, 1700, 980, 'v'], [7350, 500, 640, 's'],
-    [8050, 1500, 940, 'm'], [8700, 2450, 760, 'g'],
+    [5600, 1250, 940, 'm'], [5250, 2450, 700, 's'],
+    [6842, 1500, 900, 's'], [7442, 500, 640, 'm'],
+    [8062, 1700, 980, 'v'], [8592, 500, 640, 's'],
+    [9292, 1500, 940, 'm'], [9942, 2450, 760, 'g'],
   ].map(([x, y, r, c]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="url(#h${c})"/>`).join('');
-  const rings = [[1242, 1500], [3726, 1250], [6210, 1600], [8694, 1300]].flatMap(([x, y]) =>
+  const rings = [[1242, 1500], [3726, 1250], [6210, 1600], [8694, 1300], [11178, 1450]].flatMap(([x, y]) =>
     [520, 860, 1200, 1540].map((r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="#fff" stroke-opacity=".055" stroke-width="3"/>`)).join('');
   return `<div class="pano"><svg viewBox="0 0 ${W * N} 2688" preserveAspectRatio="xMidYMin slice" aria-hidden="true"><defs>${halo('hv', '#7633FF')}${halo('hm', '#CB1CE7')}${halo('hs', '#4197ED')}${halo('hg', '#B08A2E')}${halo('hp', '#E5147E')}</defs>${blobs}${rings}</svg></div><div class="grain"></div>`;
 };
@@ -74,22 +76,32 @@ const SLIDES = [
       <div class="zoom"><p>Tu clave dinámica es:</p><div class="zoom__row"><span class="zoom__code">4938</span>${ring(0.68)}</div><small>${c.support[0]}</small></div>
       <i class="orb" style="width:96px;height:96px;left:28px;top:1250px"></i>
     </div>`,
-  /* 5 */ (c) => `${head(c)}
-    <div class="pays pays--top" style="top:516px">${c.support.map((t) => `<span>${t}</span>`).join('')}</div>
-    <div class="stage" style="top:calc(650px + var(--ph-top))"><div class="ph">${phone(S.pagar('plus'), PH)}</div>
-      <i class="cube" style="width:84px;height:84px;right:44px;top:300px;rotate:-14deg"></i>
+  /* 5 · Mis dispositivos: la lista y el aviso de la hoja al quitar un teléfono. */
+  (c) => `${head(c)}
+    <div class="stage"><div class="ph">${phone(S.dispositivos(), PH)}</div>
+      <i class="tap" style="left:796px;top:1307px"></i>
+      <div class="tag" style="left:50%;translate:-50% 0;top:1716px"><i class="ok"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></i><div>${c.support[0]}<small>${c.support[1]}</small></div></div>
+      <i class="orb cy" style="width:88px;height:88px;left:40px;top:300px"></i>
+      <i class="cube" style="width:76px;height:76px;right:46px;top:1050px;rotate:14deg"></i>
     </div>`,
   /* 6 */ (c) => `${head(c)}
+    <div class="stage"><div class="ph">${phone(S.metodoPago(), PH)}</div>
+      <i class="tap" style="left:775px;top:837px"></i>
+      <div class="tag" style="left:50%;translate:-50% 0;top:1420px"><i class="ok"><svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></i><div>Transacción exitosa<small>Se ha validado tu pago.</small></div></div>
+      <i class="cube" style="width:84px;height:84px;right:44px;top:300px;rotate:-14deg"></i>
+      <i class="orb cy" style="width:84px;height:84px;left:44px;top:1180px"></i>
+    </div>`,
+  /* 7 */ (c) => `${head(c)}
     <div class="stage"><div class="ph">${phone(S.movimientos('plus'), PH)}</div>
       <div class="tag" style="right:40px;top:1490px"><i><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></i><div>${c.support[0]}<small>${c.support[1]}</small></div></div>
       <i class="orb cy" style="width:84px;height:84px;left:48px;top:640px"></i>
     </div>`,
-  /* 7 */ (c) => `${head(c)}
+  /* 8 */ (c) => `${head(c)}
     <div class="stage"><div class="ph">${phone(S.quacplus('gold', { offset: 555 }), PH)}</div>
       <i class="orb go" style="width:100px;height:100px;left:36px;top:220px"></i>
       <i class="plus" style="--s:110px;right:44px;top:1500px;color:var(--gold-2)">+</i>
     </div>`,
-  /* 8 */ (c) => `${head(c)}
+  /* 9 */ (c) => `${head(c)}
     <div class="stage tower" style="top:calc(560px + var(--ph-top))">
       <div class="ph" style="top:0;transform:translateX(-50%) scale(.88);transform-origin:50% 0">${phone(S.home('plus'), 740)}</div>
       <div class="ph" style="top:250px;transform:translateX(-50%) scale(.94);transform-origin:50% 0">${phone(S.home('gold'), 740)}</div>

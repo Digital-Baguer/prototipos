@@ -82,7 +82,7 @@
   .step { position: absolute; inset: 50% 0 auto; translate: 0 -50%; }
   .step h2 { font: 200 clamp(36px, 4vw, 58px)/1.08 var(--font-sans); letter-spacing: -0.02em; color: #fff; }
   .step h2 b { font-weight: 900; color: var(--cyan); }
-  .step p { max-width: 26em; margin-top: 16px; color: #dcd8f2; font-size: 19px; }
+  .step > p { max-width: 26em; margin-top: 16px; color: #dcd8f2; font-size: 19px; }
   .step .kicker { margin-bottom: 14px; }
   .tour__stage { position: relative; align-self: stretch; perspective: 1400px; }
   .tour__phone { position: absolute; left: 50%; top: 50%; transform-style: preserve-3d; }
@@ -91,6 +91,8 @@
   .qs-veil { position: absolute; z-index: 4; inset: 0; visibility: hidden; opacity: 0; background: rgb(22 11 56 / 0.38); }
   .tour__phone > .qs-clave { right: auto; width: 350px; font-family: var(--font-sans); line-height: 1.3; -webkit-font-smoothing: antialiased; }
   .layer { position: absolute; inset: 0; background: #f8f8f8; }
+  .qs-route { position: absolute; z-index: 5; inset: 0; visibility: hidden; box-shadow: -18px 0 40px rgb(20 15 38 / 0.18); }
+  .qs-route > .qs { transform: none; }
   .layer + .layer { visibility: hidden; opacity: 0; }
   .tour__steps { display: flex; flex-direction: column; gap: 4px; padding: 0; list-style: none; }
   .tour__steps button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 0; border: 0; background: none; color: var(--night-ink-2); font: 600 16px var(--font-sans); text-align: left; cursor: pointer; transition: color 0.25s; }
@@ -104,7 +106,7 @@
   .stacked .tour__stage, .stacked .tour__steps { display: none; }
   .stacked .tour__copy { display: grid; gap: 64px; min-height: 0; }
   .stacked .step { position: static; text-align: center; }
-  .stacked .step p { margin-inline: auto; }
+  .stacked .step > p { margin-inline: auto; }
   .stacked .step__phone { display: grid; place-items: center; margin-top: 28px; }
 
   /* ── Pasos (sección clara) ── */
@@ -183,7 +185,7 @@
     .tour__copy { grid-column: 1 / -1; min-height: 0; }
     .step { inset: 0 0 auto; translate: none; }
     .step h2 { font-size: 32px; }
-    .step p { margin-top: 8px; font-size: 16px; }
+    .step > p { margin-top: 8px; font-size: 16px; }
     .step .kicker { margin-bottom: 6px; font-size: 12px; }
     .tour__steps { align-self: center; }
     .tour__steps button { justify-content: flex-end; padding: 11px 0; }
@@ -339,14 +341,16 @@
   const STEPS = [
     { nav: 'Inicio', kicker: 'Tu cupo', t: 'Todo tu crédito<br><b>de un vistazo</b>', p: 'Cupo disponible, pago mínimo, fecha límite y estado de tu crédito en una sola pantalla.', layer: 0, tab: 0, tint: [0.46, 0.2, 1] },
     { nav: 'Clave dinámica', kicker: 'Seguridad', t: 'Compra con tu<br><b>clave dinámica</b>', p: 'Cuatro dígitos que cambian cada 30 segundos, siempre a la mano en tu app.', layer: 0, tab: 0, tint: [0.62, 0.42, 1], focus: true },
+    { nav: 'Dispositivos', kicker: 'Seguridad', t: 'Tu cuenta, solo en<br><b>tus teléfonos</b>', p: 'Mira qué teléfonos pueden entrar a tu cuenta y quita el que no reconozcas.', layer: 0, tab: 4, tint: [0.78, 0.2, 0.92], route: true },
     { nav: 'Pagos', kicker: 'Pagos', t: 'Paga desde<br><b>donde estés</b>', p: 'Pago mínimo, pago total u otro valor, con PSE, tarjeta, Efecty o Bancolombia.', layer: 1, tab: 2, tint: [0.25, 0.6, 0.95] },
     { nav: 'Movimientos', kicker: 'Movimientos', t: 'Cada compra<br><b>suma Quacs</b>', p: 'Todas tus compras y abonos en un solo lugar, con los Quacs que ganaste en cada uno.', layer: 2, tab: 1, tint: [0.55, 0.99, 0.97] },
     { nav: 'Quac+', kicker: 'Quac+', t: 'Tu nivel,<br><b>a la vista</b>', p: 'Mira tus Quacs, lo que te falta para subir y los beneficios que ya tienes.', layer: 3, tab: 3, tint: [1, 0.6, 0.1] },
   ];
-  $('#tourCopy').innerHTML = STEPS.map((s) => `<article class="step"><p class="eyebrow kicker">${s.kicker}</p><h2>${s.t}</h2><p>${s.p}</p><div class="step__phone">${phone(frame('plus', s.tab, BODIES[s.layer]), 270)}</div></article>`).join('');
+  $('#tourCopy').innerHTML = STEPS.map((s) => `<article class="step"><p class="eyebrow kicker">${s.kicker}</p><h2>${s.t}</h2><p>${s.p}</p><div class="step__phone">${phone(s.route ? S.dispositivos() : frame('plus', s.tab, BODIES[s.layer]), 270)}</div></article>`).join('');
   /* Un solo shell: header, clave y barra de tabs quedan fijos y solo cambia el contenido. */
   $('#tourPhone').innerHTML = phone(frame('plus', 0, BODIES.map((b) => `<div class="layer">${b}</div>`).join('')), 340);
-  $('#tourPhone .qs').insertAdjacentHTML('beforeend', '<i class="qs-veil"></i><i class="qs-tap"></i>');
+  /* «Mis dispositivos» se abre desde Más fuera del shell: entra encima de todo, como una ruta. */
+  $('#tourPhone .qs').insertAdjacentHTML('beforeend', `<div class="qs-route">${S.dispositivos()}</div><i class="qs-veil"></i><i class="qs-tap"></i>`);
   $('#tourNav').innerHTML = STEPS.map((s, i) => `<li><button data-i="${i}" class="${i ? '' : 'on'}" aria-label="${s.nav}"><i></i><span>${s.nav}</span></button></li>`).join('');
 
   /* ── Niveles ── */
@@ -614,7 +618,7 @@
     $('#tourCopy').style.minHeight = narrow ? `${Math.max(...steps.map((s) => s.offsetHeight))}px` : '';
 
     const fit = Math.min(1, (stage.clientHeight - (narrow ? 0 : 40)) / phoneEl.offsetHeight, stage.clientWidth / phoneEl.offsetWidth);
-    const pose = (i) => ({ scale: fit, rotateY: narrow ? 0 : [0, 0, -5, 5, -5][i] });
+    const pose = (i) => ({ scale: fit, rotateY: narrow ? 0 : [0, 0, 5, -5, 5, -5][i] });
 
     /* La píldora sale de .qs, que recorta lo que sobra, y queda encima del teléfono en el mismo
        sitio: así puede crecer más allá de la pantalla sin cambiar de forma. Solo cambia su escala. */
@@ -625,7 +629,8 @@
     const stageBox = stage.getBoundingClientRect();
     const midX = stageBox.left + stageBox.width / 2;
     const pillGrow = Math.min(1.35, (2 * Math.min(midX, innerWidth - midX) - 24) / (350 * k * fit));
-    const behind = $$('.qs-bar, .qs-h, .qs-vp, .qs-nav', phoneEl);
+    const route = $('.qs-route', phoneEl);
+    const behind = $$('.qs-bar, .qs-h, .qs-vp, .qs-nav', phoneEl).filter((el) => !route.contains(el));
     phoneEl.append(pillEl);
     gsap.set(pillEl, {
       left: screenEl.offsetLeft + (195 * k) - 175,
@@ -633,6 +638,10 @@
       scale: k, z: 1,
     });
     gsap.set(behind, { filter: 'blur(0px)' });
+    /* Guardada del todo fuera de la pantalla: la sombra mide unos 60 px hacia la izquierda y,
+       pegada al borde, se asomaba. HIDDEN_X la deja más allá de ese alcance. */
+    const HIDDEN_X = 64;
+    gsap.set(route, { xPercent: 100, x: HIDDEN_X });
 
     gsap.set(phoneEl, { xPercent: -50, yPercent: -50, ...pose(0) });
     gsap.set(steps, { autoAlpha: 0, y: 16 });
@@ -655,7 +664,9 @@
         tl.to(tap, { opacity: 0, duration: 0.1 }, 0);
         if (!from.focus) tl.to(pillEl, { scale: k * 0.95, duration: 0.12, ease: 'power2.out' }, 0.02);
       } else {
-        tl.set(tap, { x: 6 + 75.6 * (s.tab + 0.5), y: 781, scale: 0.45, opacity: 0 }, 0)
+        /* Al salir de «Mis dispositivos» el toque va en «Volver»; si no, en la tab. */
+        const back = from.route && !s.route;
+        tl.set(tap, { x: back ? 52 : 6 + 75.6 * (s.tab + 0.5), y: back ? 74 : 781, scale: 0.45, opacity: 0 }, 0)
           .to(tap, { scale: 1, opacity: 1, duration: 0.14, ease: 'power2.out' }, 0.02)
           .to(tap, { scale: 1.7, opacity: 0, duration: 0.34, ease: 'power2.out' }, 0.18);
       }
@@ -667,14 +678,23 @@
         .to(behind, { filter: `blur(${s.focus ? 9 : 0}px)`, duration: 0.4, ease: 'sine.inOut' }, 0.16)
         .to(pillEl, { scale: s.focus ? k * pillGrow : k, duration: 0.55, ease: 'power3.out' }, 0.16)
         .to(layers.filter((_, n) => n !== s.layer), { autoAlpha: 0, duration: 0.16, ease: 'sine.in' }, 0.18)
-        .to(layers[s.layer], { autoAlpha: 1, duration: 0.3, ease: 'sine.out' }, 0.32);
+        .to(layers[s.layer], { autoAlpha: 1, duration: 0.3, ease: 'sine.out' }, 0.32)
+        /* Push como en la app: la ruta entra desde la derecha y lo de atrás se corre un poco. */
+        /* Solo se enciende cuando entra; al salir se desliza y se apaga. Si ya estaba guardada,
+           sigue apagada: antes se encendía en cada cambio de paso y su sombra parpadeaba en el borde. */
+        .set(route, s.route ? { autoAlpha: 1 } : {}, 0.22)
+        .to(route, { xPercent: s.route ? 0 : 100, x: s.route ? 0 : HIDDEN_X, duration: 0.5, ease: 'power3.inOut' }, 0.22)
+        .set(route, { autoAlpha: s.route ? 1 : 0 }, 0.72)
+        .to(behind, { x: s.route ? -117 : 0, duration: 0.5, ease: 'power3.inOut' }, 0.22)
+        /* La píldora vive fuera de la pantalla: no se desplaza para no asomarse por el borde, solo se apaga. */
+        .to(pillEl, { autoAlpha: s.route ? 0 : 1, duration: s.route ? 0.16 : 0.3, ease: 'sine.inOut' }, s.route ? 0.22 : 0.5);
     };
 
     /* El halo viaja del teléfono del hero al del tour. */
     if (aurora) gsap.to(aurora.state, { cx: narrow ? -0.1 : 0.04, cy: narrow ? -0.12 : 0, ease: 'none', scrollTrigger: { trigger: '#tour', start: 'top bottom', end: 'top top', scrub: true } });
 
     const st = ScrollTrigger.create({
-      trigger: '#tourPin', pin: true, start: 'top top', end: () => `+=${innerHeight * (narrow ? 2.8 : 3.4)}`, anticipatePin: 1,
+      trigger: '#tourPin', pin: true, start: 'top top', end: () => `+=${innerHeight * (narrow ? 0.7 : 0.85) * last}`, anticipatePin: 1,
       snap: { snapTo: 1 / last, inertia: false, duration: { min: 0.2, max: 0.45 }, ease: 'power2.inOut', delay: 0.08 },
       onUpdate: (t) => goTo(Math.round(t.progress * last)),
       /* En móvil el botón de WhatsApp taparía la barra de tabs del teléfono. */
@@ -683,7 +703,7 @@
     navBtns.forEach((b, i) => { b.onclick = () => scrollTo({ top: st.start + (st.end - st.start) * (i / last), behavior: 'smooth' }); });
     return () => {
       pillHome.prepend(pillEl);
-      gsap.set([...steps, phoneEl, pillEl, ...behind, veil], { clearProps: 'all' });
+      gsap.set([...steps, phoneEl, pillEl, ...behind, veil, route], { clearProps: 'all' });
     };
   });
   mm.add('(max-height: 479px)', () => {
