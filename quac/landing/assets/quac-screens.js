@@ -167,14 +167,15 @@ window.Quac = (() => {
     ['efecty', 'Efecty', 'Paga en efectivo en puntos efecty', '#FFD919'],
     ['tarjeta', 'Tarjeta crédito', 'Recibimos todas las tarjetas', '#E5BFFF'],
   ];
-  const metodoPago = () => `<div class="qs qd">
+  /* ids: medios a mostrar (por defecto los cuatro), en el orden del catálogo. */
+  const metodoPago = (ids) => `<div class="qs qd">
       ${statusBar().replace('class="qs-bar"', 'class="qs-bar" style="--hd:#140f26"')}
       <div class="qd-in">
         <div class="qd-back">${DEV.back}Volver</div>
         <small class="qd-eyebrow" style="margin-top:8px;letter-spacing:1.5px">PAGAR</small>
         <h3 class="qd-title" style="margin:4px 0 20px;line-height:1.1">Selecciona método de pago</h3>
         <div class="qmp-val"><div><small>Valor a pagar</small><b>$86.900</b></div><span>Cambiar valor</span></div>
-        <div class="qmp-list">${MEDIOS.map(([id, n, d, c]) => `<div class="qmp-tile"><i style="background-color:${c};background-image:url(assets/pay/pago-${id}.png)"></i><p>${n}<small>${d}</small></p>${SVG.chev}</div>`).join('')}</div>
+        <div class="qmp-list">${MEDIOS.filter(([id]) => !ids || ids.includes(id)).map(([id, n, d, c]) => `<div class="qmp-tile"><i style="background-color:${c};background-image:url(assets/pay/pago-${id}.png)"></i><p>${n}<small>${d}</small></p>${SVG.chev}</div>`).join('')}</div>
       </div>
     </div>`;
 
