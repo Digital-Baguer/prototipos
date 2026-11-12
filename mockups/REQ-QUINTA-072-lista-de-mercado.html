@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REQ-QUINTA-072 · Proyección de compras: lista de mercado con stock</title>
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+/* Tokens del admin nuevo: resources/css/app.css de quinta-admin-laravel origin/main (cef34), tema claro. */
+tailwind.config = {
+  theme: { extend: {
+    fontFamily: { sans: ['Instrument Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+    colors: {
+      border: 'hsl(var(--border) / <alpha-value>)', input: 'hsl(var(--input) / <alpha-value>)', ring: 'hsl(var(--ring) / <alpha-value>)',
+      background: 'hsl(var(--background) / <alpha-value>)', foreground: 'hsl(var(--foreground) / <alpha-value>)',
+      primary: { DEFAULT: 'hsl(var(--primary) / <alpha-value>)', foreground: 'hsl(var(--primary-foreground) / <alpha-value>)' },
+      muted: { DEFAULT: 'hsl(var(--muted) / <alpha-value>)', foreground: 'hsl(var(--muted-foreground) / <alpha-value>)' },
+      accent: { DEFAULT: 'hsl(var(--accent) / <alpha-value>)', foreground: 'hsl(var(--accent-foreground) / <alpha-value>)' },
+      card: { DEFAULT: 'hsl(var(--card) / <alpha-value>)', foreground: 'hsl(var(--card-foreground) / <alpha-value>)' },
+      popover: { DEFAULT: 'hsl(var(--popover) / <alpha-value>)', foreground: 'hsl(var(--popover-foreground) / <alpha-value>)' },
+      sidebar: { DEFAULT: 'hsl(var(--sidebar-background) / <alpha-value>)', foreground: 'hsl(var(--sidebar-foreground) / <alpha-value>)',
+        accent: { DEFAULT: 'hsl(var(--sidebar-accent) / <alpha-value>)', foreground: 'hsl(var(--sidebar-accent-foreground) / <alpha-value>)' },
+        border: 'hsl(var(--sidebar-border) / <alpha-value>)' },
+    },
+    borderRadius: { lg: 'var(--radius)', md: 'calc(var(--radius) - 2px)', sm: 'calc(var(--radius) - 4px)' },
+  } },
+};
+</script>
+<style>
+  :root{--background:0 0% 100%;--foreground:0 0% 3.9%;--card:0 0% 100%;--card-foreground:0 0% 3.9%;--popover:0 0% 100%;--popover-foreground:0 0% 3.9%;--primary:218 68% 42%;--primary-foreground:0 0% 98%;--secondary:0 0% 92.1%;--muted:0 0% 96.1%;--muted-foreground:0 0% 45.1%;--accent:0 0% 96.1%;--accent-foreground:0 0% 9%;--border:0 0% 92.8%;--input:0 0% 89.8%;--ring:218 68% 42%;--radius:0.5rem;--sidebar-background:0 0% 98%;--sidebar-foreground:240 5.3% 26.1%;--sidebar-accent:0 0% 94%;--sidebar-accent-foreground:0 0% 30%;--sidebar-border:0 0% 91%}
+  *{border-color:hsl(var(--border))}
+  body{background:hsl(var(--background));color:hsl(var(--foreground))}
+  .mk-bar{position:sticky;top:0;z-index:60}
+  .mk-ic{width:1rem;height:1rem;flex:none}
+  .no-scrollbar::-webkit-scrollbar{display:none}
+  input[type=number]::-webkit-inner-spin-button{opacity:1}
+  @keyframes entra{from{transform:translateX(100%)}to{transform:none}}
+  @keyframes funde{from{opacity:0}to{opacity:1}}
+  .anim-sheet{animation:entra .35s cubic-bezier(.32,.72,0,1)}
+  .anim-fade{animation:funde .15s ease-out}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+  .barra{display:flex;height:.5rem;width:100%;overflow:hidden;border-radius:9999px;background:hsl(0 0% 94%)}
+  .barra > span{display:block;height:100%}
+  .rayado{background:repeating-linear-gradient(135deg,hsl(160 84% 39% / .55) 0 3px,hsl(160 84% 39% / .18) 3px 6px)}
+  @media print{.no-print{display:none!important}body{background:#fff}}
+</style>
+</head>
+
+<body class="font-sans antialiased bg-neutral-200/70 text-foreground">
+
+<!-- ===== Barra del mockup (no es parte de la app) ===== -->
+<div class="mk-bar no-print border-b border-neutral-700 bg-neutral-900 text-neutral-100">
+  <div class="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2">
+    <div class="text-[11.5px] text-neutral-400">mockup · <span class="font-semibold text-neutral-200">REQ-QUINTA-072</span> · proyección de compras</div>
+    <div id="mk-pasos" class="flex flex-wrap gap-1 rounded-md bg-neutral-800 p-0.5"></div>
+  </div>
+  <div class="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-neutral-800 px-5 py-2">
+    <div id="mk-titulo" class="text-[12.5px] font-semibold"></div>
+    <div id="mk-estados" class="flex flex-wrap items-center gap-1.5"></div>
+  </div>
+  <div id="mk-decisiones" class="mx-auto max-w-[1440px] border-t border-neutral-800 px-5 py-2 text-[11.5px] leading-relaxed text-neutral-300"></div>
+</div>
+
+<div id="stage"></div>
+
+<!-- ===== Notas del mockup (no es parte de la app) ===== -->
+<footer class="no-print border-t border-neutral-700 bg-neutral-900 text-neutral-300">
+  <div class="mx-auto max-w-[1440px] px-5 py-5 text-[12.5px] leading-relaxed">
+    <p class="font-semibold text-neutral-100">Notas para el revisor</p>
+    <ul class="mt-2 list-disc space-y-1 pl-5">
+      <li><b class="text-neutral-100">Decidido (brainstorming §4, D1–D16):</b> la barra de arriba dice qué decisiones refleja cada pantalla. Aspecto B, con acentos con significado (D9); fuente Instrument Sans, la de SIREQ hoy: la apariencia general va en otro REQ (D9). Recetas hasta el fondo con «Revisar a mano» (D10); la lista se imprime desde el navegador con casillas para tachar, sin PDF ni CSV (D13).</li>
+      <li><b class="text-neutral-100">Barra de cada fila:</b> verde lleno = lo que hay en la bodega; verde rayado = lo que viene en camino (no se descuenta); gris vacío = lo que falta y se compra.</li>
+      <li><b class="text-neutral-100">Calcado de quinta-admin-laravel <code>origin/main</code>:</b> marco, menú y encabezado del mockup aprobado del 065 (<code>AppSidebarLayout.vue</code>, <code>NavModulos.vue</code>); «Proyección de compras» queda en el grupo Productos justo después de «Gestión compras» (D14); el módulo 80 del viejo se oculta.</li>
+      <li><b class="text-neutral-100">Datos:</b> El Paraíso es una sede real; bodegas, platos, recetas, saldos y la proyección #214 son de ejemplo (PROD sin leer).</li>
+      <li><b class="text-neutral-100">Fuera de este mockup:</b> permisos por botón (ver, crear, editar, borrar; se validan en el servidor, D12 y D14); crear la compra desde la lista (otro REQ, D3).</li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+const ISO_LOGO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAytklEQVR4nO2dB7RlZZXn97n3vVeBCkAVFagERZUWWaAACaIECWaxgyACom2bZrX0zDgz3bNmbKe7ja2Ydeye7lZUQBEDkkWQIEoupKCkKEJREahcr+q9evedWd+s3x42hxvOvffc8O7Z/7XOui/c+93vfOfbeX97izgcDofD4XA4HA6Hw+FwOBwOh8PhcDgcDofD4XA4HA6Hw+FwOBwOh8PhcDgcDofD4XA4HA6Hw+HoNkSdnoCjo89dX2MuR87gDCB/z1uvUUP0hTJ/c+QAzgDyi34RmQTRb03sCWcCOYEzgPxhPxE5QEQOFJGZIjIiIqtE5I8isl5EdnV6gg6HI3smH9T8/UXk4yLyOxHZhOTfCuF/T0ROFZGJvvgOR+8gEH7A3iLytyLymLH17bVbRH4qIieIyDg+4xqiwzGGoQ6/oogcLyL3GYIfgRGURGQPf9smIv+EmWCdg44elw6O3n2+Mc6+ozABlPiVuAswiBHe93q0BUcO4AwgHwiEPQdCryTZ9fdA/JP52aMBPQ5nAPkK+xUrqPQ2MSjsiYE2z83RITgDcDhyDGcADkeO4QzA4cgxnAE4HDmGMwCHI8dwBuBw5BjOAByOHMMZgMORYzgDcDhyDGcADkeO4QzA4cgxnAE4HDmGMwCHI8dwBtD78IIejoroq/wvR4+gkZr/+n6vB9DjcAbQm40+9OciJb/G8azTaHwR79e6gFo/MLxaWObgjGKMwhnAS3XzLHGMltnw3djcw3b2KZUhxMAAZojIIkqA6/OuVhRkgogcze87ReRFEdkgIoNlPlMo01SkG7WH5JopQ4sl58i7fag188pthGKXbBJb1lsqzGmKiCwQkdkiMp2invuKyDQRmQoTeJWIzK3C9GO+K1QHfhzCHxKRHZQQ38zf9FonIs+IyPNlxtLSY7bqcCdgCT6u8/nnAnlnALoGcyGSfjb9cxU2djegCJFPh8hDoc+DROTVIjJfRGbBCALhZ41d9BAIGsGzNBNZKSJrYArPc4U1TKLdHYeS3zeTZ1yk+vGaCvPMFfLOAPaiWu45lM2ejLS7RUR+iYTrhk45A6jmoWDnwSLyGhE5gtfwexJWxbUaRNrnndQydJxKYwRielhEHhCRB0XkUdZxF2ZEJyXsVNboNBE5RkTG81xvpkHKBswnR44Q0QHnw2zYIBGGqY+/m+vXInIGFXX1M+2YlzrvBpjjTEp1/4OI3IOE3QFxqd3fDdcQxL4ZE+L7IvJetJNJ3I8WJW3lWlp/Tli7/yAiy3imgzznQdbxMhE5FM3PkQPoxgub8T1IgEobOkjB20TkTWgK6vDKej66YbU+vyDpzxKRvxORnyFdN1SZZ8k4Lst1/cnyst+j31vufTswD24VkS+KyJ9hatleBIUWMARdw1AG/T/RCanSvWwWkc9iMumzzbtW3LOwGy04x36EVBg1XXKSnXLC7zeKyFuRxll1ykl68RWBQP6U7jy34mhLEt8IVzXia/el6zbC2o2UIbTAbP9FRD6GKq6Eak2LKCPJPxfif9TMYY+ZZ4lnH2O2vBMTS8fJDfIWBlRbdhaq6Tg2Rl+Z2vhKXGeYkGDQCLZnNA9FP3M5RESOFZHT8Uvos1E130rObkOSeK2mEGGHH8f1HOsYTKxHRGQFJliz36+EHpyi54nI+3CM6hySIdB+1ja8/yTm0w3+nrYibwxAIKK9TfOLSpJHpUmQZmeasOBvMmIC42BEhzL+O/Diq0NKN+5Y7M+XzK1QhhCjbl8gIm/BEXctUngNmkIzDHUWpt0lIrKEtSzWmONkIiqFDkYsOoY8MoCwKbaYxBZ92FGVNYrxIvezke/ExpU6Nor1P4xH4ge7+G2EpyYmJFUvoRyT3Rsm8AbMgx+gGbyYMCFqQbMd98Pp+BcispjP1tKWIpyCOxOJX7kg/jxCufw+InIFTEBtw2o2rqrhe9AA3ggRp3UMFg1xL6ZN911s9qQt3Wl7vl0+g2QEITjrviUiJyeYYTXtp994+4PN/2QdaznCe4Kf4CM4emUMaluOOqDE2ofjR9tl18MEYiTVWRXSiBX69z7DdC6C8awp40DLC/Hb+9Z7178F0+pXIvKf8YvYdSx3zkGJ/xMi8lSFZ1Xpu0d47t8jS7IXNS9HBRSITX84ESZKwwT0PTeSQFSukWZSioRElP+B08tKIJVCcc4vjSDo74FBflNETk2sb9KUmAmzUMlfSkn8McR/o4ic7VI/v0wg5NB/iHh1WkIcRWWNUePfaNTHJML4S0Xk380G1xBep4muGy8NweqzuAdNLRB6EjMSxK+h2zRXCAHegfM1wKV/DqHSJOTTv19EnqgzmUbf91ukSCB2QTUtsmkvwMOdlHB+pV/fkAD1j2hR/TDu/VH7VyakehrJPwTxn5o4zejIIfTBhzDQBzjcolI6rU+gxIZ6G57tIjn6l5nx0m7SVlyNZAdaRtiO7MJqBBuTtnsVkZiFIvLfyB9Iu7Y2Sel2iL/Is/eqWDmGtSn3xRzQjTVcBxMYJZFEw3qXi8hG8752SP9yRJtME65nLLWnK43bDqZgbfrd2OzfM5I/DfGrwy88z5sw2ZJHrB05R2Qy1j4qIssTRFVrk+p7bkXCaJppu518vehQVAKutu61rhDuvQGnrbToXMeYhNs+L1+LAjnh7yauvChl6q1uNFu0o9Wn3qphN+m1u9j8o4Qh90tx8i189g+8TkhcU4jRdwKWwdVDwDvw03wBDaDfMJTcwxnAy6FZgUETeJeI/BdsTs0G7Mb1GjVHmEfY8E8T3lxLfFzweL8dRlDuXjRtNpyV/0sRWYWzbX/Sd+fgiFsIIxggnXl8F3vRt5Fl+GkSuKxW4OjiB9cp6MbYKiLX8PsnEnnlnWICSbXYbvIQaXiIrLYn8D/sgCFsh4hfYz5XjZmF+3yBcZ6CyPt5ncBJygNF5DDGXIpmkTzh2Cnvuq7PEMT/GVK3S6YEmAM4A3gldNOGgyk/YY3+ikM7I21es7jMwSBhcz9MnPw+nGLr8ZaXO9GmPok0iEzyjSYrWTwNs7mLwzfz0AyO5rTfAWbO1hRqFzNQJnkHav9vuActXOowcAbwSsSG2LaSutvHOfZwgKcdiCukva6C4B+hyk2oZrQ68VmrpRQa1FzsGljoGCPUKljHHIJtfTjHmE+AGWjcPnlPrWYEJVK1v0xpN3u82+GoC0p8k7CLH68z4yyLaweEfwOOyVDswqKPy1bYKVcd5zOo9upBT36POsbCd73W3H9UpWxZn0nOUexNAtSV+CG2tClSoPdwu8nw6+9Sv03XwDWA6tDNNciGDhv9UyQO6f9btcGGMEPuoXrRbaj4pcR59aSK3mro91YqpBl8Ej8UketgJH/Kkd9Z+BFaSZBhTj8VkXt5Vu7trwFnAOlQQJI9jq09rQUb2Uq0naj4PyS3YDV/K1fvvptg7WytrrwcE+ECGMKUFtUC1P18LucDfmmYgKMCnAHURoRkOZAU0pkpiog0qmkUSR++BuK5Fz+EzsOWvupG6LzUJBjGabiRiMKphCKXZkz8tpzbiSJyPoz6oS5llF0DZwDpMJkssvMJeWUNrUxzN+r+TSZ+X0zYuWMBqgWopB/ElFlFxOJd2OkhJyFrFGA0a2AC4dXr/leAM4B0a3SKiPwJRSpGM45xj7JJA/H/M2cKYr5Xc/LHKpQRqNPwRRjcY5zyezt1EKOMtbVwVPjN5DJchTnicKSGbsgiCS9XIqGzPMevYwVH39cwMSTjJhWtiAI0AxtaXIydroeusjrHYA8r/Z7KTePN9zsM/EDEK2E3yT7UCtCCoFluoNh4ze9BXZUej1drZeWZSP8jW5Bmbf0Bh3HCMzCbAD/7n4AzgFdCpd5eOJTOIuynWW1ZQdNSp1PJ9lQkVdyDz0ULfI5wriDUXrgUzaQV0QCNRkygrdppJnTrWoCB+wBeCQ0dhbj1xaS2tsL5pt7pifgYNAX3etRi+56xDL2HEc4kXAgDCD+3MpdCv3cKztvHcK52Y2OVjsEZQHniH49EPgMpkrX0T27SYJO/LpHKur0HiF/MPSjxfxCmqucqWiWRI/P9x9Hj8cEubvveETgDKL9pTqC1lHUetXKj9hkmoE7AO5volNMNsNrLPIj/EpydpTbuPfUxnEMi17d7hLFmgl6zNZtFTJZfiFEfX6afXKNjpkne0e8I0upvSJ/dZ4xWr7EM8wA69ryPWgKSQg1Xb75GK5pFieIub+ZodxbPtScw1jZWqzFKhd93ZnT2P0n81TazntwrwHwupVGorTY8FqAx/1GI/z00RNFGH7UIWn0CO4mQZMEAlIm+lsah4xLzzS2cAbwErQl4Dp1iwqm/LMbciCpvbdJKUMKJ6Fj7EbSRyWNEbbXHhRfgfLuQ9ZQ6fCl7yBH4Dt2EbY5AM76d6WgBC8YQQ20p3Afwkq3aR8goxKazwghe/Y0Q8mtSEICGB2PMAOHnmzmQNBZs/rlI/ouJwScLmlTDDoqNfINMvpiowbQmmaCu6UIqA6+DMXuVoBzD2qr70cFnsEq2XD1n04fJRDsJx94HKNml9QTSZL5pl5zbOeUWNJRuzwScTfPTRjr2bOUYsSZeqQPxJ1Q6Srtu1TIvR6gSdJRZo1ybAXmGPvgBwn4qcRot+mEdV+Ewz5+bSMK+qMPKBNKUDNf/l6hv9xaKk6SVpu1iAPZ7AvE/W+eajWLv30BOhNVMI6Ijdzb5bOx97yT5anKHqzc7OgxNDZ1HJ58dCWJoZIOVOPTyHdRWMRt6KmrxI3U0H7FM4D7i2eNSMoFWMwANYep3/HcqESfnXm29RqhZeD0mWF+ZtN0+xl7dZK8Fe98/4z7TMlNHD0IJ5ERixLq5Gt1gKp3uRpLpJtZyXYLU+SBFPZXw0vSy15/vJEphq+tEHWAA9n/zkPzPlNGEakn+YRx+yY49yWKiwZfw3Srzr5cRbEILsOuUO+TZCWhTcQ9hE+vZ+0ZUwpjPbyTl9HeJDaeSZjuVfiK6EB2a4vtsTYCTzLi3Zhgqa9ThN584/wf4WUOZlaSqrm+E5L+dAp43m4So5IGoPsyzwCiONYd7GkWBHItDSPnObXZgnlUfPTCyGGndrBTQjX0LTqtkEosScIRD60o2/uPmzH81QlZNImgZJ9O05HR8C50i/gXE+C8x6b1pnWqDaDOfgWEOVKnhp0wlnJq8OlEerVHERGWO6QAD7RrknQEIGWInZqANxcSs76S1VqVjvaoRbKH01+doSJqGCYiZ5/EwAT3p1g5b1qrkB0L8F5kMv1prGBviD2bSJ/HIS428i5h7e5aCKavM+5sh3sOJBuRWE84zAxCy7JYgyXQtGvUIj3KI554U5btUWwh26C9E5PPUAoxSVLJVzSVCHb4UJhDKcbfSnrUZfgdS5PPCOjL81ObfDRF/kp59ei+1Pq9mzwo0hm2J/9WLUbSnwziopOuWq4hAbjkfG+DVInJERtJ/Czb5CjZTmlJeygSuQQX+MGqpqryVNqM2utD01j2890YII0lQ9W5q64CzPpERpP352P1K/DqXaogh/l9h+tyVuJda0O94nnDhm0x15ka1gIj7OYoSZeW6KvU08swAYoj/cNM9p5ExIgjwfsJ7g3V0FBY+HxyDl7PJP4ZUqidj8BQzlxsSGYONEIjVYFTjEDSl9yD5F9WZ4TeI5P8qjNI6Nuvtl7CCJKt5hFYbcdxGfG4+mlSYkzOAHCFClQ2bulHoxttBHPvZBghO36uOwcCMPo5pMpDiHlTbeIP5WdOGbegrrbkXERlRyZw8z38xUrMeprkVif9lmEB/A2ct7JpuMxGBwxvUACKTAXowdR9sCfZcOAbzpgHog9Uw0Hw2eyOVd+0GeYGw3/MNbp7YaAJXo2p/AhMlzdFVtc1PJj9gCIk2BLHN5H6r2bn6twloRuu5rx04GS8hbj7HhDxr3ZMS6914+39rcg6awQ58Lc/AAKRBLWCU+1jAGm1oIgzsGAPQB9tPPP1XZRJt6kkmidmMP4QwmnGsWg/7VKTtMpNgVE/G4P2kDYe8/HdQGnttyvvcgyYTVOwv4uz7JAwh+V3V1mYEreY6GFMxI8ezfYZ/D9GmSTwqd43wGs4tvJs06yzm6OhS6OYZhzR7pAkGoFl/zzDWlAw2j7Wnp1CR+KEGMwbvhvDvRxOIG7g2EdJ8rgzjq8aISnznteQq2PtrVrra9OC3EHYdbfAZjvC6AWYSGGauMwN7HQWj5n6xRmpsrWuY13vJ5tPTa1lscMsE/hImoHNMowmUu5+09zgKcxsuQyxpU6R3YaOfYdY9a6naRxbf/2mCiZd4HaSpaHBs5ooB5M0HIEYDWEwYqZGCn7Hxwq/m5J+G4sLfmoFuzsh0JR4h3r8kxeZUKaubWxlKPU5A3RdK8OpsTIMw5ztE5AvG4deKLr0xZslTTXRPihhnAv4We9w6F47APNk6Npy1N+2jGm3EEUMQqiJnUT2o3HeU8Ez/jNOKf6yjOk4RQm7mvHshcZCp2lwFf8gdtFC/LWViU6PQMZ+iAWmxyXFmmNObPU/4eWUAwkaZg/df/96IBiA41pa3cMPouC+QLPRPHIqxEr7TULNhB0T/d3joVXNo9do8Tc3/5N/TIDI/9xHqbGUZ+K5DHhlAPyWrtFBHM3gODUA3XdzCub8IE/gS0QFtHtppaHrvLTAoTe9Nm+HX7Lo8SWJQo2sfmdf9jTM3F8gTA7D2/xw4faPQjb3BtPFuFWLzrILJ8QPq5S3rgucXI/lvpsHpbcbf0A7mpMevV2UgsYs4FUO9htyg0xuoExhIaADNbJznOZoatUnN1qzDK0Tk65gfrfA/pMUIOQPfI6ei38y11VBHbMkk8DSDQkIDcBOgh+v/zWnSBNCNF2xzaaMtrnZ1cAz+nASk3W2eg/0ujaEH80RSnIJsFbaaZ9Go36FIHsCkPDGAbg4DJstdZaHiqQkwy+TZRw0ygLVoAK3sb1cOmu8fIXE7ocXZ0l3HED+/vQPx8wLrvxNNZJ8G9nRkXmeiAfSZCEgjsAyo1f6hnmUAkjLcVQ/Ucz6pyXsPm2UN0q/ZvPZ6oVI2aDFLO3yOXc9UHMp5AZXC7YKaG1vIyDysiecasS+KPNOs/BiWwXQdE+hmBhBzUus4Du1MblLaFbGf52LrNUsw06nVfzBaRbs88gUk3hFIX81A7AQ0Ger1rOfGNm/yAibQ/pQkKzY51iQR+RPGmtREglHMM1pDFuezTYzVUnSjnaOc8iAOspxLkQyN2zscYwHDOGmvp0bkMnN+xJFCrfwHuOiQqRRbb663X74GndoDozCBPRR7ObIbo259XSj5w8KdJSJvTUj9LP0BWWo+neTo3aTBdVqyddszjYx59i56Ef5X6TJ0EwOwOJGOsrY2XjdtdotunVe70UvrEGXISIYIOR9PmHFtHYVQW46uU0nATBxrGvd2OMYiItOafFKi+nBXoFsZgJ5Fdzh6AX1I/aEuOb/R9QxgBXnvYeGcETjGMiJe1xMOVAbQFfu6m3wA9tDLLdS7f7Oxl6IutfE6baZ0g4nUyXXQ7+22Zxqb/fwUB6W0UnNX2P/dxgAsHqIT7CzCJ1r1Ngu0gpHEOSV8e++dWous1yHK6D60GErQZL/PKU5FVxB/tzKAmOyum4ihnk6u+ZQmHSjawGMS4zWbWLSd0M7mDhDjKJmRs8mZ6LQGspa16MRhoBAp2ovU6H2bXIsRUoo3Nml+al3EkAn4APUG19bRMSp3UiQJm4c9kzbOM5tkAEXq1c2jLffCMq2v6i0G8hOq0o5vo3NHqwFNgzmeQ8SkE1DH1lWYbXpKsl3QZxrqO57HPmm0xXuMiv5vVFRutF+EmApJQfV/lLEbaYaSe6htV8jg0tN/B3B2XSMNjWQY6hn0ULFXzOmxdlxFcz/nmfx7bb7Zzmy33TRECUxIzOnEdl3jTN7IsjoqJycz9mKk/wp6Dgrr2+z8dP92q6DtShPAQlWwLNRK5b67UFe1a04j0mKUw0BB/ZYOnAgUGNhazuJPMwdz2gFdsz2YaqG/gnRAwum6T8AEaCaqVTImneQlb7/bGYBkyD37zJmCNTACLf5QL2I228zE2K2GakOjmDBnJjrktlvSxLT+GilTSryd8fVphhk3ug4lGOqg0bSyYOxdzUTGAgPIagFVRR7Cft+Vwbym4Yzb1YYHrUQ+wknJi2nTPb2DYaVxdOdZRwswlZ7SpvVQxjMrA+ZX4j62d1OqbqsxFhhAVogTqvNQ4u/1QO26WTSUCGHLVkPnuQDify91EuycOlFe7RSzj65NtCZvNUqo/trRp9n1XYdGo7/3PPLIAPagAWgtvWYIYD7daZUBtEJq2DEPoA/hxeSV19Oiu1UYwQmnHYCuN22224FFFGVpFLFpGrPGMIBcIE8MwIbQniNMIw3ajepsmkPoqdBim7+Ezf9+Ig/a0ixti24dq16kWReNl4fqRH8Dg70VTcB2Y8oakWGKS8r8vd77GyKyM5xx4llXo1vPArQC9mFvIzd7pEHCUPtzEtJHewxk6YizxB9s/veJyCWmfVUtNFM/wX42zTjqFD2czkBnZ9QtOc08D8AUa5RgIz67zlQ31rF7HnliABYj9Nnb1MQa6AaZS+2CrLoD6xhKeGHsi0TkQrPRleDShOn2ZLCha5k2NgEoFAj9OAVdprYgFm6LbAYN7MAMuiTtEpHH82b/59EE0Ac7SobWWppCNiK5lQD3oyjmyoQXvNl5FrFvLzAOv7Q2f0Q46xYk26E4KzVfoBpKqO/ruaZTgLTW+mgGXolCriHbUsgTeKEFKnXBFI6pxRArIea+tpHLEErQ5Qp5YwCKURpKhg3eTCRAIKpTSAve3KQzMDKbeRGE/x48//U4/IIT7jci8mky5EKo7oMicgIpruUYXmwYR2jrfRefDYzjQ/g61N6vxAwi3rOH05zamfjmjLr36Dw1AnEc6xQ1OdYOBELuGEBeEWGj/jObQLO+6rlGTerp0+Tla5OQRv0KavcHp9Y/kktez3xGYUJXi8jRRioGO/mL2LgqpZOf1zbe4TDMG8lvGIDBXYiE1ESqtKm24X33GfNFU2SbeW7CGEH1v9HMvd406FFzz/fgy8mqCc2YQV59AJrBthpp2SjBKvZBumpmYNQg8cdG8p8P4ep8q0GZ0Vak7ec4haZq927s3DRq+AiMYjse8RdpQ/Z5NAKbP19rTuGejhKRj5G1qElLje47XaeJqP/N5kEUWJunMVM6kU3ZUeSVAShWImWbXYfxVDJeaDZR2o0UGYJZhLRUtV//XmksK9GCGnuDiHyVAzpiHJN9dbQwi7gfe/BoCybO12As1klZCZqyXKCD0Yc5NDS1gTVK3vO+jDXHfFcj40S0d/uDSQzLFfLqA9BNswzVNjQeaTYj7khi4Q/VaUsqES0k1HcBkk0Jv1BjA6s2E5xt3xSRO0wc25afqsf+1s9as2QHx34jfAJHptg/ekApxiegP/+iAYepjjWAP2IpZkqjfoVRxnwWMyVoO5K3KEDeNYAnRORh1MBmHIFCLsDp2N6jdY6x0GT4qbdfj5PW+u7NJN58BcefHkzKahOryq9M4Eci8g2kpiWaavMs4Gc5AXPgHHN4Jy2U2c3l8zMNQ2nGCfgkeyDNvfQc8swAIgh/BYxA49hxE+OdjG2qKnS196pD7CAy/P6C9N60GX4xxP8bbP57TKZjK6BMLfgZrhGRy/Cca12FWuvWzxhLaZBxhqngU2sfWgI/BHNrcpP5BX2ESJcRoeiqYp3tQp4ZQGz8AHdldJZ9b5jAsVUkuD3Su4jsPpvhV2tDqwNuB5L/s6iw7TzBthk1/ium4o01OaohImPwU2QMhjWTGkxPs/UWE6FYkEFX5BjifyhvRG+RdwagNuBdxgnU6IbSbLjQAeadhBmT6qn+HBPquwiP/yxDRLUcfhEe/eDw+zKSX1X0VuevW+fdJpjAN3EM6l5KmzEY7v+vyRhUc6CaRC+Qb/GmjDoiR6j+D3fBgaqOIc8MQEziy+PYgkpAjRCSSt8gyU9DE9CKQ5Y4NM6v3v65EEUtVViJYydn779qHH6tPHRTiREV0AR+LCL/GyZgHZNxjYzBEZymH4UJ2MImSYyiNZyd0dFfQf1/lPBfbpHnKICVqGs5xroQadSoSqhS+CAk+2OcObCb/1X877wGMvw2k6X3JRH5bYcLTaq2so3EoxIOvsNTVNS1GYPHGcK/0WQMWmYQtKk/E5GTjIO0Eei4JepCLstL4Q9Heai62UeYSqVYM+3I1QO/nkMx+5kNH7LNPkO2Xb0Zfi/ggT+qjmQaZSxz+N4XUmQCrmItdH1qmUT6nn1hbMsg7LQZg/q++4iCzE5kDA6gIdzfRNam/Z6Y2P/5VDSqFW1x9Dh0o00l0WULBFJqYqPpa9AAzoX4D4EIny3z3krXCBs+2NtXIi2T8+40A7DYmzyG+xlvJMU6lszrfeRCzDKmzWFoZxptaPS5KFMfwndxSGKNcok8mwBJ7CTb7bXYpiMNqpo2n3wJUm0Sab3vJdRn1dFyiM2rZvh9XUR+z9/b4fCrB3ofW2iC0U/mX1jHWvdqMwaP4XNFko6mUQDldSaM2Kj6P8p+38YcV5u55RbOAF7u+PstRHZ4BpJBN9ZpEP8AxK9/r5XkE5OPfwOJN3eZbLhuIn5L4Jos9GOTMXhUHRmDQghV+MxkfCUTmiR+hWplv2Ztoy5cy7bCGcBLGDUtyZayEatJrlrQz+0FQ5E6N/FmzvN/jU41WWf4tdKpuh0mMIpj8LAU3YuU6ZVY+xmMMy2Dey6xfqEU3M9w+kbuAHQGkEQBiXswRTD6MrYRaxG/EtAmkny+gF0cdTnxl7uHbWQMlnCGHgoTqMZUI7PeCxJ/b3ZOQtj0KuNPyD3yngdQDrs5UntrwuPcaqgquo3v/rzxfI+1UFVs0oavNWnD6misdS9Z3quu34Mca16d17TfcnAG8HLESKDltHR+sY0bpYAj8nri/PeaWPtYtFNVxd4ME/gGRCgp6gmkOW6cBrHx/F8LY3cYuA/g5dCDOIMcsrmFMN7kjJxQ1TbqoMnwu9vEp8ci8Scdg5sxB3T9jk6ZX9AsIuPcvQmG3nUtujsJ1wAqb9zQdfdyVNdWH7QJBPJLcvvvMinEY5X4FbFZu604Br/FAZxWHr+NEym/P+T4cjsbqI4JOAN4JZTohlDDf0nVoKyhG3GE5JsvG29/r3WmVUaglYW+gpmlzTdbda8vIvl/Y1qWjXWmmimcAVTHVnwBN7GBWuEQ1Fp+AyY11faW7zVsIQ//R6YqUJZEqc9oCCfqv8Ng9X8OA2cA5WE3SigY+QMRuS3jUJw9h3AIbbXezWEkNQGkBxiBjbf3kRV5EGHWieY9WUF9Ncsx4R4wpy2dASTgTsDaKGIKXEVGX9i4WY8/m2s6x4NvolZhsoHpWNnEtu5BbO5zPk1UziVDckILBFGRhJ+fktOxe4wz0JbCGUBtaMntYEfO43TfHEOMWWwuzYA7iu/Qmvf3ZdDKvBOw8yyY7kJvEJG3kxnYqu/dScjvatMHYaysW9vhDCB9aHAtEuX1pKkOZMgA9LhwDLFcTEGRK9EGVmEvN9PSvN3QXP55FAM9n9OM4zNctyRCZOFOtLUQvXGvfw04A6jvdF/Ekdo9MIBWoUhLrr+C4VyHD+JZHIaVGEE7JV05ArZ2/gzKo72V03z7ZVDHrxwsMwkp1N+DCbjanwLOAKrDOuAORYqdnCKnvVHYDLgCNQpeh0lwFl7tG0wjS60XUM5hqPNrdo6Vahom1fx+1mUOa3Q6vQPmcSBKP5ccs1lYU2wiazaJU4nu/KsBZwC1N1aRw0EXwACCk05aqMZar7l6tOdzHcHJwmWUGltOSfNtib59ijQtvKrNIUnsSaIvQvizqdh7MH6MI5mnjpGm5mEWmExBkVHy/je2uVrymIMzgMpQdfZgCnn8uSngqdVqWgk9GWer4EynMOYb6WdwP1VtnyDjbSOOr8FEheF6HWHlwp061gCVf2ZSuWcedQ4Pg/C1XZcm+RTbUHXHPotjTQrwdayLJ/9UgDOAVyJKVO9V4teOPe0uIWWPyFrNYwnXOyhysRymsIp6hOor2MyZ+vF1MK0i6vxEQnXj+XkSTGgB330wkl4r+ur8OrW3tOz4UqNthMNVa8boqcqWwxlAZdVX6/a/26j9aTr22LFagaRdP5nDNYfiBR8kYrGS1xATF+6hmhNO/9ZP6e0BpPxMHHqz+ft8qvQOwBiyqNGfFml8CEr4od/jR5D+18MU7RgO95S+DJGRIEto13WeUWlr2fxqs9tTcK1c41rMZgfMYBfq+GQq91Zi+jrvIUyKYQh8gnmdUsGOt+ZG1IZ7rfUs1HcSc/Dom/gEnjfjxS2Yp2OMIlnI83NGbdREoGoVZ5XwX8A5tyZRHThu8aVz1Eq8rfxOjTxoxd9W358d31ZrrvW99pndT+/F6S1mVGMOvgivbNrxfrz9s1N26bWHXK4je28hHWwP7NB5C0sIirReeEs81tzQnzu1ZzbQwWkCkYb+Ou6lj+eimkCuuwE5XoJuZg31fQE1sd4GFNq0I3SuERjJ/+QMwWAbNYFeuqwGtYqKQmeTJXkvpk3addUagMvw68zogUNWjiahErGIA+0LhNF0U6VVMTeTenp8wr7eBw/99Xjkh8y4zgyqE/4oJsYgRPsJtKoiEYfQU/F3RDnSrKdd9yfIFZhpnr8jhyhAsEdA/Grz15Iqam+PQthX0ExEN5JVsycSl76MoiI7y2zITkvabriS6zEEM76Gw0NBYkuCuV5Eqa89KTs52f+HTMoPYuaFPeDH4nMGja0fQfXd1Sklv1VLt3Le/EQzrvX8W8kSzr//R4pSbkpsxjwzgnL3vgMV/7OYVMk1VbV9X/w195hqw2m0Nn3PAzAB1QQcOUKR1NVPm159pTpt/stND72+Cvak5sgLIbRzafH1IOm7nSbAbrqG0JJ+iMd+vnlWyczLyJgDH6CbU9rnN2r8O78jySs4Ft0fkAPoQw4P/FLswThRr77WtYEKQcETLSlPBUZm0y4gQeVqQoa7u4D4OnmVUPdvF5FP0R9wXIpENS2dFjSBS5Do6uxLo1Ht4fVKQr/tTGhydADW6zsb55y152tJjRGI/3LTolvHrRcTGeNv6VbzjMnf71X/QPK+hlnP4OT7DseGbUqxNNiVeLhOJ+4yEbmwReXJuh55SwWOkcJzaNSpLbeqrYNulC0U5/gy2WVxA116NYttEDNgDQwgHJ99E+HDvYxKqpt1LCavxObVMt89OEPXUWXpJohwLeuiSJO3r2NuIb4fnu1HSY2WFDkcMQ7FA3JIC/8PebzpGLW9VtONuEySz7dIKJEGm3ZYYhhF9d2IKXIvEYPXoR3sjVpqHVRJgugmhlBpbpbwd2Hn3wnxP8oBJj05qOm7eqX5TiVybfvdhw/hmDrODvRLTpE3BqCEtwEvvt1w+v+kxNoM8X+bsFOxiXP2kpDq+v3ruH6PdnE8R2tfZQpqVEtcsVpCO2HXrVKFoCHubSUnFh9mHR83n+0rU8sgLUbNWm7Ft6LzOdL4E+wa2XnvyPOR4TwxAJUWMSfDHiABKKiAFnYjv0Bxzq9DnH1GWmUxH21RZaXYdbQkW0qU4Ugch7MwWyaVIbZOaQKVvnc3GZXrCbE+jIZzj+kFoLUO4gzWVMcpmOYjgaA/xHHl5FFo+/OTmGOt7FTUtcgTA7Ccf4g2VbNIL93LbMiIDbmROnxfgllIC3vKJaXPMMRyPwS/CD/BSfw8GT+Bnte3z7GSZlIvk6im4URlpLyePtxJaPVBJP3DrOVwYv1KLVzHTZgDJSIuygTs3IfxO9zOHPeY+8kNusmGbPd9Bz/AKRT8OBFCU0m8Dsn/AxxU7awtV+57CvgEppESu5jkosX8PtWcze8zV9bPV08b6olAJfzn8GM8gU2/kspE5QqYJtXwVq7fNBj8e0n60nUZwgF7NWncq/JG+HlnAIoJHAI6ksSTvVBRn8AWDxtZOlRJxnqwk9JyX6rsTieTbT5mwv5s+mn8b6LZ9Mocaj1zTZSxiTUjOPA2YRZtwo/yDNd6/v68qcOXvI96nHvNwjKZKUQFjqEoSh9zX46WtbaBaE7PIM8MwD70CHNgAptbG0kmnYSdQpQgpCRD2IvQ5kyYwz7mmgxjOMxU+ikHNX92Yq9vQFLuZD22sDab+fl5JH/4W7kEHUnE4jsBy7gnm4YuL8KoJM/E73iJsKy0tX/rRqiHW0+yFavMdQBtIHTk+TdUck3KqZQYsxbn2bHYzvNMC69yc7Fz6MYjtslnHI2BZ9w25M0JmEQ56dQNEj9tgk0t7EHarUSiW0dXklB1vN2clnvA/K2ShCynjXQbKj3PuANz6TrknQH0GpJErTUONd05LdQHUG1sJ6AegDOA3kJcRU2vR93V03dK9M0kPjm6GM4Aeh+NeN+73QxyZITcO0EcjjzDGYDDkWM4A3A4cgxnAA5HjuEMwOHIMZwBOBw5hjMAhyPHcAaQH2iuf630Yi2U6sgBnAH0NmKT2rsjUS23HCLOAuw0vzt6GM4A8oHtHAjaaU7BJU8DFqmSs5LSZI4cwBlAb0NP/e2i7NWD/GyPxdqc/yfol2AZgKcE9zD8LEBvwx77fY5GpqEy0HGUGNOKuds4Lnwtl5oAXiijx+E2Xr4QquKcICJvpkzWFIj8aRG5gTqIoYqvOwFzAmcA+cN4SmPNopTYHkp8PW1Kdjscjhz6fNwnlDO4BpA/2AKjFo125nE4HA6Hw+FwOBwOh8PhcDgcDofD4XA4HA6Hw+FwOBwOh8PhcDgcDofD4XA4HA6Hw+FwOBwOh8PhcDgcDofD4XA4HA6Hw+FwOBwOh8PhcDgcDofD4XA4HA6Hw+FwOBpA3lupteL+876mjjGIqAVjRBmMmxyjFWNKl45ZbgxnLjXgC5QOfbTSDq21h0Vkq4jEXM2s+3jGLYnINl6jBsfVzw2IyGT+to3234UGG3/qmOH+p4pIUUS2i8iuDOYZXqeIyDgR2Skig/y/mTUNn53IFZ7TDm94Wh3hwTpqb6wDROS1IjJfRNaJyC0istr8v55Nq+/fR0SOFpHD2Ki/FpFVTY4ZGMoRInI8G/9OEXlUREaaGLNfRJaIyMkwlvtE5PfMud652veGtTxFRGaJyHLGfKGO+dkxhXEDQzlBRF4lIhuY62qYoKMMnAHURiCAM0TkIjbtcyIySUSuEJHnpX7EfP71IvIeEXkNknqGiHxfRJ5tcEyBmbxPRE6D6BeKyA9E5CG0i3pRYMwLROQsGMDdIjJBRG6HCTQiscM6nicibxeR2SLyCBrGtaxFvQxgFE3ijYx7GAzgGhH5VzS2RjUWR84RiPW7bLIRpMkjMITJEEk9ptReEOjPGa/E69MicimaQRizXkZ+kIh8XkQ2MdeYn78OQQTtIC0i3h8+90Vj8oyi/v8cYptS55gFCP5SJHPM/Yc1vVVEzkR91/enGVMwTV6HZjbIPMO416NhSAPPyeH4/wT7bYh0xGzau2AC09mAdpPby266QDBvEJErjfRUYo1RWT/Api1UGdOO2w/xfxITIk5c60XkayJyTIK4qo05CfPkMj4fJ+Ya5v4zEXmTiEyrMVfr7wiS/69FZIUZs8Rr8C38WERO5/urzdMyyHEQ/+VmTXWO/4pmpWM5HHWjH1X9d0iqEoQQnEz3iMhHsTmnVDCpijCRuSLyThH5kZGoylBUYg1jC4cxF/O5StpAEbX5KBH5XxCVailJ4gpE/C+o8bMgmnIYh4QO7/uOiKxNzNP+vBMJezFznVrh/sP67Ydf4u9F5PHE3Oyct4jIVcY0CPdfCeMh7rMxnbaY+ZUwUd5Wp0aRO7gPoDZGUE/nsJEXsJnCxl6KGbAEZvA4TsJB40CbKSKLINTXQwgT+H8g7iHep2MeDSEuwt5ejj07bLznE5jPkTjSTuP3CMawm7EH+EyYw7kQ1W0icq+IPGmIRj3y4TuPZZ4nicje/L+IRO0zzGMivpFpzOM+5voccy0gyefjmDwJ7WcORF+AoUZmH06FoPc18/yjMWv0/qai9Szl3o/jb8J7VorIL0TkDkwWRwU4V6wNDaEdjIPtXTABVfuFTfYQHve1qLOjEOpMGMQR/CyG6J6FacxjQweCVQSCe1BEHhaRNYw5zHv2ITJxFONaRq7e73H8b4b5PsHXcD/fu5G5j+N9BzPmQYl5BqL+Fd8biG7/xBoFx90fuP/VaAdFGEiY5+EicqhZSyX+e5HWi42trliHNvQY9zTI5ybCiBcTmQkMRVHi/r7PtbLB8Gdu4AwgHXTjBkK+UETezM8qYS3UPCihplr7WD3Rw2zwn0JYh6L2vsZoB2LU7mEYwG7+PyXBLFRTCQR9AxGK8TCrMyGYfjOmvn8H4+6VMGF0nrtgPr/EJAj+jncz5lyjDSRzIgZhAAPmvm24bjtM6ru890y0iTnMU8eKWMedfEbQuCYm/AsRDGU5vokrYBzu+a8BNwHSQTfkChyCQcq/Ay/53gmbugiRlsMoocMgmW6EAazAv7CeMY9GGo83G3xClTHD3F4UkadE5GYR+QlRCkFyrsOxdmDCYdePRA+XVGAmj8FQforJED67GSl/Nr6PGWWcnerEkzKawnrMpSt4HURqP888F7GmBbOeU6pEHIaZU5jr1YQSNZTqYb8acA0gPaw0mYG0DqGwE5Fck2EEfWxa1Rr2YOfvhqjuhah+CzFofH4qDCVIwlMxM3TMAeMnUA1jN1ewjx9gzDuR2IGAhbnMITnmLNT7GUhQHbdgHJBDSNu1EOdNqOEbE+swG1PgHHwas2BY4839q0NuGE1iE/b8bWg9f2T+wvsPwJY/GyY4nTmO596TY+r9P4ev5BZMG52rS/8UcAZQH1SVVTt2IfbtEqTh/kiviRCCpg2vQ0Iv5/oDm9eqxmqrzoe5HMyYc3GKqdq7B0m6Acm5HOn3MMSbVLdjtIcwz1fDZBZBxFMgLJ3nWrSTP3Ct4PuKxgmnY/Yz1iHMdSHMZh/+V0K6b2SeOp46NcVoDsoEJxp/wRK0lpnG5BmBmWyB0T3JmMtE5ImEr8Olfwo4A2gMyY27HxJsfzbrRIhgCGLdSIx+tSH0QsJ2To45LUFUE3iP+gOCyvwMjEUlvhKqtaFVwisOhAHMQMPog8iVUek8kwzP7hnLCCLmuBBNIMkAXmCeKxMSPzlP+z39OEYPYG2nwgD2wAC2MdcnTfqwmgzNnNFwOFrKRNOezquXMacdM2rRPWX53lbcu8PhcDiScO6ZDWw4qhxsWK+TY9YatxVj6nitGNO+OhwOh8PhcDgcDofD4XA4HA6Hw+FwOBwOh8PhcDgcDofD4XA4HA6Hw+FwOBwOh/Qs/i9/qorfIFR2qQAAAABJRU5ErkJggg==';
+/* =====================================================================
+   Utilidades (las del 063/064)
+   ===================================================================== */
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pesos = n => '$' + Math.round(n).toLocaleString('es-CO');
+const num = n => Number(n).toLocaleString('es-CO');
+
+const LU = {
+  chevR: '<path d="m9 18 6-6-6-6"/>', chevD: '<path d="m6 9 6 6 6-6"/>', x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  panel: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>',
+  updown: '<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>',
+  alert: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  arrowR: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/>',
+  truck: '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  pkgCheck: '<path d="m16 16 2 2 4-4"/><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><path d="M3.29 7 12 12l8.71-5"/><path d="M12 22V12"/>',
+  scale: '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  book: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
+  // menú (058, iconosModulos.ts)
+  chartBar: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16h8M7 11h12M7 6h3"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  clipboard: '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/>',
+  bell: '<path d="M3 20a1 1 0 0 1-1-1v-1a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1Z"/><path d="M20 16a8 8 0 1 0-16 0"/><path d="M12 4v4M10 4h4"/>',
+  dollar: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  anchor: '<circle cx="12" cy="5" r="3"/><path d="M12 22V8M5 12H2a10 10 0 0 0 20 0h-3"/>',
+  cart: '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
+  calPlus: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/>',
+  calDays: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>',
+  userPlus: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  utensils: '<path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8"/><path d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7"/><path d="m2.1 21.8 6.4-6.3"/><path d="m19 5-7 7"/>',
+  calc: '<rect width="16" height="20" x="4" y="2" rx="2"/><path d="M8 6h8M16 14v4M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/>',
+  cog: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  fileText: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/>',
+  pkg: '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12M3.3 7 12 12l8.7-5"/>',
+  chartLine: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/>',
+  banknote: '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+  handCoins: '<path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"/><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 16 6 6"/><circle cx="16" cy="9" r="2.9"/><circle cx="6" cy="5" r="3"/>',
+  badgeDollar: '<path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/>',
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+};
+const ic = (k, cls = 'mk-ic') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${LU[k]}</svg>`;
+const sk = cls => `<div class="animate-pulse rounded-md bg-muted ${cls}"></div>`;
+
+Object.assign(LU, {
+  printer: '<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  layers: '<path d="m12.83 2.18 8.58 3.91a1 1 0 0 1 0 1.83l-8.58 3.9a2 2 0 0 1-1.66 0L2.6 7.92a1 1 0 0 1 0-1.83l8.58-3.9a2 2 0 0 1 1.66 0Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+});
+
+/* =====================================================================
+   Datos de ejemplo
+   ===================================================================== */
+const INV = { // producto de stock: unidad de inventario, unidad de compra, factor, saldo en bodega, en camino, costo por unidad de inventario
+  'Mojarra roja':        { u: 'UD', uc: 'UD', f: 1,    hay: 80,   cam: 60,    c: 9500 },
+  'Arroz blanco':        { u: 'GR', uc: 'KG', f: 1000, hay: 8000, cam: 10000, c: 4.2 },
+  'Coco':                { u: 'UD', uc: 'UD', f: 1,    hay: 20,   cam: 0,     c: 2500 },
+  'Azúcar':              { u: 'GR', uc: 'KG', f: 1000, hay: 3000, cam: 0,     c: 3.8 },
+  'Sal':                 { u: 'GR', uc: null, f: null, hay: 300,  cam: 0,     c: 1.5 },
+  'Plátano verde':       { u: 'UD', uc: 'UD', f: 1,    hay: 40,   cam: 0,     c: 900 },
+  'Aceite':              { u: 'ML', uc: 'LT', f: 1000, hay: 2000, cam: 0,     c: 9.5 },
+  'Huevo':               { u: 'UD', uc: 'UD', f: 1,    hay: 360,  cam: 0,     c: 600 },
+  'Arepa de maíz':       { u: 'UD', uc: 'UD', f: 1,    hay: 600,  cam: 0,     c: 700 },
+  'Queso costeño':       { u: 'GR', uc: 'KG', f: 1000, hay: 4000, cam: 5000,  c: 22 },
+  'Café':                { u: 'GR', uc: 'LB', f: 500,  hay: 2500, cam: 0,     c: 32 },
+  'Limón':               { u: 'UD', uc: 'UD', f: 1,    hay: 200,  cam: 0,     c: 300 },
+  'Cerveza Águila lata': { u: 'UD', uc: 'UD', f: 1,    hay: 120,  cam: 96,    c: 2900 },
+};
+const RECETAS = { // null = sin receta cargada; 'nc' = producto no controlado en inventario
+  'Almuerzo pescado frito': [['Mojarra roja', 1], ['Arroz con coco', 1], ['Patacones', 1], ['Ensalada de la casa', 1]],
+  'Arroz con coco': [['Arroz blanco', 120], ['Coco', 0.25], ['Azúcar', 10], ['Sal', 2]],
+  'Patacones': [['Plátano verde', 0.5], ['Aceite', 20]],
+  'Desayuno típico': [['Huevo', 2], ['Arepa de maíz', 2], ['Queso costeño', 60], ['Café', 15]],
+  'Limonada natural': [['Limón', 2], ['Azúcar', 25], ['Hielo', 1]],
+  'Ensalada de la casa': null,
+  'Hielo': 'nc',
+};
+const DIAS = [
+  { f: 'jue 12 nov', per: 96, items: [['Almuerzo pescado frito', 40], ['Desayuno típico', 50], ['Limonada natural', 40], ['Cerveza Águila lata', 48]] },
+  { f: 'vie 13 nov', per: 104, items: [['Almuerzo pescado frito', 45], ['Desayuno típico', 50], ['Limonada natural', 40], ['Cerveza Águila lata', 48]] },
+  { f: 'sáb 14 nov', per: 131, items: [['Almuerzo pescado frito', 60], ['Desayuno típico', 55], ['Limonada natural', 60], ['Cerveza Águila lata', 72]] },
+  { f: 'dom 15 nov', per: 128, items: [['Almuerzo pescado frito', 60], ['Desayuno típico', 60], ['Limonada natural', 60], ['Cerveza Águila lata', 72]] },
+  { f: 'lun 16 nov', per: 72, items: [['Almuerzo pescado frito', 30], ['Desayuno típico', 40], ['Limonada natural', 30], ['Cerveza Águila lata', 24]] },
+];
+const PROYS = [
+  { id: 215, est: 'Próxima', sede: 'El Paraíso', d: '15 nov', h: '20 nov', dias: 6, items: 22, por: 'Luzete Sierra', cre: '5 nov 2026', cruce: '#214 (15 y 16 nov)' },
+  { id: 214, est: 'Próxima', sede: 'El Paraíso', d: '12 nov', h: '16 nov', dias: 5, items: 20, por: 'Luzete Sierra', cre: '4 nov 2026', cruce: '#215 (15 y 16 nov)' },
+  { id: 209, est: 'En curso', sede: 'La Joya', d: '3 nov', h: '9 nov', dias: 7, items: 31, por: 'Rosa Contreras', cre: '30 oct 2026' },
+  { id: 207, est: 'Termina hoy', sede: 'El Francés', d: '1 nov', h: '5 nov', dias: 5, items: 0, por: 'Rosa Contreras', cre: '28 oct 2026' },
+];
+const PASOS = [
+  { t: 'Proyecciones', e: ['normal', 'vacío'], d: 'D14 menú en Productos, después de Gestión compras · D15 el filtro solo trae tus sedes · D8 aviso de cruce entre proyecciones de la misma sede · D9 fecha como bloque y estado' },
+  { t: 'Editar proyección', e: ['normal', 'copiar día', 'nueva: rango inválido'], d: 'D12 cantidad editable en la fila, rango ≤ 15 días, copiar día con reemplazar o sumar · D15 al crear solo salen tus sedes · D16 personas por día de guía, no calculan · D8 aviso de cruce' },
+  { t: 'Lista de mercado', e: ['normal', 'varias bodegas', 'todo alcanza', 'sin ítems', 'cargando', 'error'], d: 'D5 bodega de la sede (se elige si hay varias; Tolú no se suma) · D6 comprar en unidad de compra hacia arriba + falta exacta; sin factor, aviso · D7 «En camino» no se resta · D8 cruce · D10 hasta el fondo + «Revisar a mano» · D11 hora del corte y actualizar · D9 acentos' },
+  { t: 'Imprimir', e: ['normal'], d: 'D13 hoja para imprimir desde el navegador con casillas para tachar; sin PDF del servidor ni CSV · D10 «Revisar a mano» también sale en la hoja' },
+];
+const S = { p: 3, e: 'normal', solo: false, abierto: {}, dia: 0, guardado: null };
+
+/* =====================================================================
+   Cálculo de la lista
+   ===================================================================== */
+function totalesPorPlato() {
+  const t = {};
+  DIAS.forEach(d => d.items.forEach(([p, q]) => { t[p] = (t[p] || 0) + q; }));
+  return t;
+}
+function calcular() {
+  const acc = {}, origen = {}, fuera = [];
+  const sumar = (prod, q, plato) => { acc[prod] = (acc[prod] || 0) + q; (origen[prod] = origen[prod] || new Set()).add(plato); };
+  const fondo = (prod, q, plato, ruta) => {
+    if (INV[prod]) return sumar(prod, q, plato);
+    const r = RECETAS[prod];
+    if (r === null) return fuera.push({ prod, plato, ruta, motivo: 'No tiene receta cargada' });
+    if (r === 'nc') return fuera.push({ prod, plato, ruta, motivo: 'No se controla en inventario: no tiene saldo' });
+    r.forEach(([i, c]) => fondo(i, q * c, plato, [...ruta, prod]));
+  };
+  Object.entries(totalesPorPlato()).forEach(([plato, q]) => fondo(plato, q, plato, []));
+  const filas = Object.entries(acc).map(([prod, nec]) => {
+    const p = INV[prod];
+    const hay = S.e === 'todo alcanza' ? Math.max(p.hay, nec * 1.2) : p.hay;
+    const falta = Math.max(0, nec - hay);
+    const comprar = falta === 0 ? 0 : p.f ? Math.ceil(falta / p.f - 1e-9) : Math.ceil(falta);
+    const costo = p.f ? comprar * p.f * p.c : comprar * p.c;
+    return { prod, ...p, hay, nec, falta, comprar, costo, de: [...origen[prod]] };
+  }).sort((a, b) => (b.comprar > 0) - (a.comprar > 0) || a.prod.localeCompare(b.prod, 'es'));
+  return { filas, fuera };
+}
+const fmt = n => Number(Math.round(n * 100) / 100).toLocaleString('es-CO');
+
+/* =====================================================================
+   Marco (calcado del 065)
+   ===================================================================== */
+const MENU = [
+  ['Dashboard Ocupación', 'chartBar', 'propio'], ['Sin gestionar', 'clock'], ['Checklist', 'clipboard', 'padre'],
+  ['Gestión de Reservas', 'bell', 'padre'], ['Cotización', 'dollar'], ['Botes', 'anchor', 'padre'],
+  ['Ver disponibilidad', 'calPlus'], ['Calendario disponibilidad', 'calDays'], ['Asignar personal', 'userPlus'], ['Registro de huéspedes', 'users'],
+  ['Gestión de productos', 'utensils', 'padre'], ['Consumos y servicios', 'calc', 'padre'], ['Mantenimiento', 'cog', 'padre'], ['Informes', 'fileText', 'padre'],
+  ['Productos', 'pkg', 'abierto', [['Stock', 'propio'], ['Traslados', 'propio'], ['Gestión compras', 'propio'], ['Proyección de compras', 'activo']]], ['Indicadores', 'chartLine', 'padre'], ['Presupuesto', 'banknote', 'padre'], ['Comisiones', 'handCoins'], ['Pagos', 'badgeDollar', 'padre'], ['Proveedores', 'wrench'],
+];
+const GRIS = 'text-[hsl(240_4%_66%)] hover:text-[hsl(240_4%_52%)]';
+function menuHtml() {
+  const hijo = ([t, tipo]) => tipo === 'activo'
+    ? `<li><a data-act="ir" data-p="1" class="flex h-7 w-full cursor-pointer items-center rounded-md bg-sidebar-accent px-2 text-sm font-medium text-sidebar-accent-foreground" aria-current="page"><span class="truncate">${t}</span></a></li>`
+    : `<li><a class="flex h-7 w-full items-center rounded-md px-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"><span class="truncate">${t}</span></a></li>`;
+  return MENU.map(([t, i, tipo, hijos]) => {
+    if (tipo === 'abierto') return `<li><button class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-left text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" aria-expanded="true">${ic(i)}<span class="truncate">${t}</span>${ic('chevD', 'mk-ic ml-auto')}</button>
+      <ul class="ml-3.5 mt-1 flex flex-col gap-1 border-l border-sidebar-border pl-2.5">${hijos.map(hijo).join('')}</ul></li>`;
+    if (tipo === 'padre') return `<li><button class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">${ic(i)}<span class="truncate">${t}</span>${ic('chevR', 'mk-ic ml-auto')}</button></li>`;
+    if (tipo === 'propio') return `<li><a class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">${ic(i)}<span class="truncate">${t}</span></a></li>`;
+    return `<li><a class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-sm ${GRIS}" title="Abre en el admin viejo (pestaña nueva)">${ic(i)}<span class="truncate">${t}</span></a></li>`;
+  }).join('');
+}
+function sidebarHtml() {
+  return `<aside class="sticky top-0 flex h-screen w-64 flex-none flex-col text-sidebar-foreground">
+    <div class="flex flex-col gap-2 p-2"><a class="flex h-12 items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent">
+      <img src="${ISO_LOGO}" alt="Quinta del Mar" class="size-7 shrink-0">
+      <span class="grid flex-1 text-left leading-tight"><span class="truncate font-semibold">SIREQ</span><span class="truncate text-xs text-muted-foreground">Quinta del Mar</span></span></a></div>
+    <div class="no-scrollbar flex min-h-0 flex-1 flex-col overflow-auto"><div class="relative flex w-full min-w-0 flex-col p-2">
+      <div class="flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70">Módulos</div>
+      <ul class="flex w-full min-w-0 flex-col gap-1">${menuHtml()}</ul></div></div>
+    <div class="flex flex-col gap-2 p-2"><button class="flex h-12 w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-sidebar-accent">
+      <span class="grid h-8 w-8 place-items-center rounded-lg bg-muted text-xs font-medium text-black">LS</span>
+      <span class="grid flex-1 text-left text-sm leading-tight"><span class="truncate font-medium">Luzete Sierra</span></span>${ic('updown', 'ml-auto size-4')}</button></div>
+  </aside>`;
+}
+function headerHtml(migas) {
+  const sep = `<li aria-hidden="true" class="[&>svg]:h-3.5 [&>svg]:w-3.5">${ic('chevR')}</li>`;
+  const items = migas.map(([t, p], i) => i === migas.length - 1
+    ? `<li class="inline-flex items-center gap-1.5"><span aria-current="page" class="text-foreground">${t}</span></li>`
+    : p == null ? `<li class="inline-flex items-center gap-1.5"><span>${t}</span></li>${sep}`
+    : `<li class="inline-flex items-center gap-1.5"><a data-act="ir" data-p="${p}" class="cursor-pointer hover:text-foreground">${t}</a></li>${sep}`).join('');
+  return `<header class="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/70 px-4">
+    <button class="-ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent" aria-label="Mostrar u ocultar el menú">${ic('panel')}</button>
+    <nav aria-label="breadcrumb"><ol class="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">${items}</ol></nav></header>`;
+}
+
+/* =====================================================================
+   Piezas
+   ===================================================================== */
+const btn = (txt, act, variante = 'outline', icono = '', extra = '') => {
+  const v = { primary: 'bg-primary text-primary-foreground hover:bg-primary/90', outline: 'border bg-background hover:bg-accent', ghost: 'hover:bg-accent', rosa: 'bg-rose-600 text-white hover:bg-rose-700' }[variante];
+  return `<button data-act="${act}" ${extra} class="inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 text-sm font-medium shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${v}">${icono ? ic(icono, 'size-4') : ''}${txt}</button>`;
+};
+const chip = (t, tono = 'gris') => {
+  const c = { gris: 'bg-muted text-muted-foreground', esmeralda: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200', rosa: 'bg-rose-50 text-rose-700 ring-1 ring-rose-200', negro: 'bg-neutral-900 text-white' }[tono];
+  return `<span class="inline-flex items-center gap-1 whitespace-nowrap rounded-md px-1.5 py-0.5 text-xs font-medium ${c}">${t}</span>`;
+};
+const aviso = (icono, tono, html) => {
+  const c = { info: 'border-border bg-muted/50 text-foreground', rosa: 'border-rose-200 bg-rose-50 text-rose-800', negro: 'border-neutral-300 bg-white text-foreground' }[tono];
+  return `<div class="flex items-start gap-3 rounded-lg border px-4 py-3 text-sm ${c}">${ic(icono, 'mt-0.5 size-4 flex-none')}<div class="min-w-0">${html}</div></div>`;
+};
+const vacio = (icono, titulo, texto, extra = '') => `<div class="rounded-xl border border-dashed bg-card px-4 py-14 text-center">
+  <span class="mx-auto grid size-10 place-items-center rounded-full bg-muted text-muted-foreground">${ic(icono, 'size-5')}</span>
+  <p class="mt-3 text-sm font-medium">${titulo}</p><p class="mx-auto mt-0.5 max-w-lg text-sm text-muted-foreground">${texto}</p>${extra}</div>`;
+const titulo = (t, sub, der = '') => `<div class="flex flex-wrap items-end justify-between gap-3"><div><h1 class="text-xl font-semibold tracking-tight">${t}</h1><p class="mt-0.5 text-sm text-muted-foreground">${sub}</p></div><div class="flex flex-wrap gap-2">${der}</div></div>`;
+const input = (val, extra = '') => `<input value="${esc(val)}" ${extra} class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">`;
+
+/* ===== Variante B: bloque de fecha ===== */
+const bloqueFecha = (dia, mes, on = true) => `<span class="grid w-11 flex-none place-items-center rounded-lg py-1 ${on ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}"><span class="text-[10px] font-medium leading-tight">${mes}</span><span class="text-lg font-semibold leading-none tabular-nums">${dia}</span></span>`;
+function fechaB(p) {
+  const [dd, md] = p.d.split(' '), [dh, mh] = p.h.split(' ');
+  const tono = { 'En curso': 'negro', 'Termina hoy': 'negro', 'Próxima': 'gris' }[p.est];
+  return `<div class="flex items-center gap-2">${bloqueFecha(dd, md, p.est !== 'Próxima')}${ic('arrowR', 'size-3.5 text-muted-foreground')}${bloqueFecha(dh, mh, p.est !== 'Próxima')}
+    <div class="ml-1"><div class="flex flex-wrap items-center gap-1.5">${chip(p.est, tono)}<span class="text-xs text-muted-foreground">${p.dias} días</span></div>
+    ${p.cruce ? `<div class="mt-1 inline-flex items-center gap-1 text-xs text-foreground">${ic('layers', 'size-3.5 text-primary')}Se cruza con ${p.cruce}</div>` : ''}</div></div>`;
+}
+
+/* Sedes del usuario (app_usuarios_sedes), D15 */
+const ayudaSedes = id => `<span id="${id}" class="inline-flex items-center gap-1 text-xs text-muted-foreground" title="Solo salen las sedes que tienes asignadas; el servidor lo valida en toda acción.">${ic('info', 'size-3.5')}Solo tus sedes</span>`;
+
+/* ===== 1. Proyecciones ===== */
+function pagProyecciones() {
+  const cab = titulo('Proyección de compras', 'Planea por días lo que se va a vender en una sede y saca la lista de mercado.', btn('Nueva proyección', 'nueva', 'primary', 'plus'));
+  if (S.e === 'vacío') return cab + vacio('cart', 'Todavía no hay proyecciones en tus sedes', 'Crea una con la sede y los días que vas a planear (hasta 15).', `<div class="mt-4">${btn('Nueva proyección', 'nueva', 'primary', 'plus')}</div>`);
+  const filas = PROYS.map(p => `<tr class="border-b last:border-0 hover:bg-muted/40">
+    <td class="px-3 py-2.5 tabular-nums text-muted-foreground">#${p.id}</td>
+    <td class="px-3 py-2.5 font-medium">${p.sede}</td>
+    <td class="px-3 py-2.5 tabular-nums">${fechaB(p)}</td>
+    <td class="px-3 py-2.5 tabular-nums">${p.items ? p.items : chip('Sin ítems')}</td>
+    <td class="px-3 py-2.5">${p.por}<div class="text-xs text-muted-foreground">${p.cre}</div></td>
+    <td class="px-3 py-2.5"><div class="flex justify-end gap-1">${btn('Editar', 'ir', 'ghost', '', 'data-p="2"')}<button data-act="ir" data-p="3" class="inline-flex h-9 items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-4 text-sm font-medium text-primary hover:bg-primary/10">${ic('list', 'size-4')}Lista de mercado</button></div></td></tr>`).join('');
+  return cab + `<div class="flex items-center gap-2"><div class="w-56"><select title="Solo tus sedes" aria-describedby="sedes-ayuda" class="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"><option>Todas mis sedes</option><option>El Paraíso</option><option>La Joya</option><option>El Francés</option></select></div>${ayudaSedes('sedes-ayuda')}</div>
+  <div class="overflow-hidden rounded-xl border bg-card"><table class="w-full text-sm"><thead class="border-b bg-muted/50 text-left text-xs text-muted-foreground"><tr>
+    <th class="px-3 py-2 font-medium">#</th><th class="px-3 py-2 font-medium">Sede</th><th class="px-3 py-2 font-medium">Días</th><th class="px-3 py-2 font-medium">Ítems</th><th class="px-3 py-2 font-medium">Creada por</th><th></th></tr></thead><tbody>${filas}</tbody></table></div>`;
+}
+
+/* ===== 2. Editar proyección ===== */
+function pagEditar() {
+  const cab = titulo('Proyección #214 · El Paraíso', 'Del jue 12 al lun 16 nov de 2026 · 5 días', btn('Lista de mercado', 'ir', 'primary', 'list', 'data-p="3"'));
+  const cruce = aviso('info', 'negro', 'Esta proyección se cruza con la <b>#215</b> de El Paraíso el 15 y el 16 nov. Cada lista descuenta todo el stock de la bodega: revisa las dos antes de comprar.');
+  const dias = DIAS.map((d, i) => {
+    const ab = S.dia === i;
+    const filas = d.items.map(([p, q], j) => `<tr class="border-b last:border-0">
+      <td class="px-3 py-2">${p}<div class="text-xs text-muted-foreground">${INV[p] ? 'Producto de stock' : 'Plato con receta'}</div></td>
+      <td class="w-36 px-3 py-2"><div class="relative"><input value="${q}" type="number" min="0" step="1" data-act="cant" data-k="${i}-${j}" aria-label="Cantidad" class="h-8 w-28 rounded-md border border-input bg-transparent px-2 text-right text-sm tabular-nums shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"></div></td>
+      <td class="w-28 px-3 py-2 text-xs text-emerald-700">${S.guardado === `${i}-${j}` ? `<span class="inline-flex items-center gap-1">${ic('check', 'size-3.5')}Guardado</span>` : ''}</td>
+      <td class="w-12 px-3 py-2 text-right"><button class="rounded-md p-1.5 text-muted-foreground hover:bg-rose-50 hover:text-rose-700" aria-label="Quitar">${ic('trash', 'size-4')}</button></td></tr>`).join('');
+    return `<div class="rounded-xl border bg-card ${ab ? 'border-primary/40 ring-1 ring-primary/20' : ''}">
+      <button data-act="dia" data-i="${i}" class="flex w-full items-center gap-3 px-4 py-3 text-left">${ic('chevR', `size-4 transition-transform ${ab ? 'rotate-90' : ''}`)}
+        ${bloqueFecha(d.f.split(' ')[1], d.f.split(' ')[0], ab)}<span><span class="block font-medium">${d.f}</span><span class="text-sm text-muted-foreground">${d.items.length} productos · ${d.items.reduce((s, x) => s + x[1], 0)} unidades</span></span>
+        <span class="ml-auto inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground" title="Huéspedes con reserva activa en El Paraíso ese día. Es una guía: no calcula cantidades.">${ic('users', 'size-3.5')}<span class="tabular-nums font-medium text-foreground">${d.per}</span> personas</span></button>
+      ${ab ? `<div class="border-t px-4 pb-4 pt-3">
+        <div class="mb-3 flex flex-wrap items-center gap-2"><div class="relative min-w-64 flex-1">${ic('search', 'absolute left-2.5 top-2.5 size-4 text-muted-foreground')}<input placeholder="Buscar plato o producto para agregar" class="h-9 w-full rounded-md border border-input bg-transparent pl-8 pr-3 text-sm shadow-sm"></div>
+          ${btn('Copiar de otro día', 'copiar', 'outline', 'copy')}</div>
+        <table class="w-full text-sm"><thead class="text-left text-xs text-muted-foreground"><tr><th class="px-3 py-1.5 font-medium">Producto</th><th class="px-3 py-1.5 font-medium">Cantidad</th><th></th><th></th></tr></thead><tbody>${filas}</tbody></table>
+        <p class="mt-2 text-xs text-muted-foreground">La cantidad se cambia en la fila y se guarda al salir del campo.</p></div>` : ''}
+    </div>`;
+  }).join('');
+  const guia = `<p class="-mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground">${ic('users', 'size-3.5')}«Personas» son los huéspedes con reserva activa en la sede ese día, de guía como en el viejo: no calculan cantidades.</p>`;
+  return cab + cruce + guia + `<div class="flex flex-col gap-2">${dias}</div>`;
+}
+function dlgCopiar() {
+  return dialogo('Copiar a jue 12 nov', 'Trae los productos de otro día de esta proyección.', `
+    <label class="text-sm font-medium">Copiar desde</label>
+    <select class="mt-1.5 h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"><option>sáb 14 nov · 4 productos</option><option>vie 13 nov · 4 productos</option></select>
+    <fieldset class="mt-4 space-y-2"><legend class="text-sm font-medium">Qué pasa con lo que ya tiene el jue 12 nov</legend>
+      <label class="flex items-start gap-2 rounded-md border p-3 text-sm"><input type="radio" name="m" checked class="mt-0.5"><span><b>Reemplazar</b><span class="block text-muted-foreground">Borra los 4 productos del día y deja los del sáb 14.</span></span></label>
+      <label class="flex items-start gap-2 rounded-md border p-3 text-sm"><input type="radio" name="m" class="mt-0.5"><span><b>Sumar</b> (como el viejo)<span class="block text-muted-foreground">Almuerzo pescado frito quedaría en 40 + 60 = 100.</span></span></label></fieldset>`,
+    btn('Cancelar', 'cerrar') + btn('Copiar', 'cerrar', 'primary'));
+}
+function dlgNueva() {
+  return dialogo('Nueva proyección', 'Elige la sede y los días. Máximo 15 días.', `
+    <label class="text-sm font-medium">Sede</label>
+    <select title="Solo tus sedes" aria-describedby="sedes-nueva" class="mt-1.5 h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"><option>El Paraíso</option><option>La Joya</option><option>El Francés</option></select>
+    <div class="mt-1">${ayudaSedes('sedes-nueva')}</div>
+    <div class="mt-4 grid grid-cols-2 gap-3"><div><label class="text-sm font-medium">Desde</label><div class="mt-1.5">${input('2026-11-21', 'type="date"')}</div></div>
+      <div><label class="text-sm font-medium">Hasta</label><div class="mt-1.5"><input type="date" value="2026-12-08" aria-invalid="true" class="h-9 w-full rounded-md border border-rose-400 bg-transparent px-3 text-sm shadow-sm"></div></div></div>
+    <p class="mt-2 text-sm text-rose-700">El rango tiene 18 días. Elige hasta el 5 dic o divide en dos proyecciones.</p>`,
+    btn('Cancelar', 'cerrar') + btn('Crear', 'cerrar', 'primary', '', 'disabled style="opacity:.5;pointer-events:none"'));
+}
+const dialogo = (t, sub, cuerpo, pie) => `<div class="no-print fixed inset-0 z-50 bg-black/60"></div>
+  <div role="dialog" class="no-print fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-background p-6 shadow-lg">
+    <h2 class="text-lg font-semibold">${t}</h2><p class="mt-1 text-sm text-muted-foreground">${sub}</p><div class="mt-4">${cuerpo}</div>
+    <div class="mt-6 flex justify-end gap-2">${pie}</div></div>`;
+
+/* ===== 3. Lista de mercado ===== */
+/* Encabezado con ayuda: ícono (i) y globo al pasar el mouse o al enfocar con teclado */
+function th(t, ayuda, lado = 'right', sr = '', cls = '', ultimo = false) {
+  const pos = ultimo ? 'right-0' : lado === 'left' ? 'left-0' : 'right-0';
+  return `<th class="px-3 py-2 font-medium text-${lado} ${cls}"><span class="group relative inline-flex items-center gap-1 ${lado === 'right' ? 'flex-row-reverse' : ''}">
+    <button type="button" class="rounded-full text-muted-foreground/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Qué es ${t || sr}">${ic('info', 'size-3.5')}</button>${t ? `<span>${t}</span>` : `<span class="sr-only">${sr}</span>`}
+    <span role="tooltip" class="pointer-events-none invisible absolute top-full z-30 mt-2 w-64 rounded-md bg-neutral-900 px-3 py-2 text-left text-xs font-normal leading-relaxed text-white opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 ${pos}">${ayuda}</span></span></th>`;
+}
+function barra(r) {
+  const tope = Math.max(r.nec, r.hay);
+  const hay = Math.min(r.hay, r.nec) / tope * 100;
+  const cam = Math.min(r.cam, Math.max(0, r.nec - r.hay)) / tope * 100;
+  return `<div class="barra" title="Hay ${fmt(r.hay)} · en camino ${fmt(r.cam)} · necesito ${fmt(r.nec)} ${r.u}"><span class="bg-emerald-600" style="width:${hay}%"></span><span class="rayado" style="width:${cam}%"></span></div>`;
+}
+function filaLista(r) {
+  const ab = S.abierto[r.prod];
+  const comprar = r.comprar === 0
+    ? `<div class="text-right">${chip(ic('check', 'size-3.5') + 'Alcanza', 'esmeralda')}</div>`
+    : `<div class="text-right"><span class="text-lg font-semibold tabular-nums text-primary">${fmt(r.comprar)}</span> <span class="text-sm font-medium text-primary">${r.uc || r.u}</span>
+        ${r.uc && r.f !== 1 ? `<div class="text-xs tabular-nums text-muted-foreground">faltan ${fmt(r.falta)} ${r.u}</div>` : ''}
+        ${!r.uc ? `<div class="mt-0.5">${chip('Sin factor de compra', 'rosa')}</div>` : ''}</div>`;
+  return `<tr class="border-b align-top last:border-0 ${r.comprar === 0 ? 'text-muted-foreground' : ''}">
+    <td class="px-3 py-3"><button data-act="origen" data-k="${esc(r.prod)}" class="flex items-start gap-1.5 text-left">${ic('chevR', `mt-0.5 size-4 flex-none text-muted-foreground transition-transform ${ab ? 'rotate-90' : ''}`)}<span><span class="font-medium ${r.comprar === 0 ? '' : 'text-foreground'}">${r.prod}</span>
+      <span class="block text-xs text-muted-foreground">${r.de.length === 1 ? r.de[0] : `${r.de.length} platos`}</span></span></button>
+      ${ab ? `<ul class="ml-6 mt-2 space-y-0.5 text-xs text-muted-foreground">${r.de.map(p => `<li>${p}</li>`).join('')}</ul>` : ''}</td>
+    <td class="px-3 py-3 text-right tabular-nums">${fmt(r.nec)} <span class="text-xs text-muted-foreground">${r.u}</span></td>
+    <td class="px-3 py-3 text-right tabular-nums">${fmt(r.hay)} <span class="text-xs text-muted-foreground">${r.u}</span></td>
+    <td class="px-3 py-3 text-right tabular-nums">${r.cam ? `<span title="Traslado sin recibir hacia la Bodega El Paraíso. No se resta de lo que hay que comprar." class="cursor-help underline decoration-dotted underline-offset-4">${fmt(r.cam)}</span> <span class="text-xs text-muted-foreground">${r.u}</span>` : '<span class="text-muted-foreground">—</span>'}</td>
+    <td class="w-40 px-3 py-4">${barra(r)}</td>
+    <td class="bg-primary/[0.04] px-3 py-3">${comprar}</td>
+    <td class="px-3 py-3 text-right tabular-nums text-muted-foreground">${r.costo ? pesos(r.costo) : '—'}</td></tr>`;
+}
+function pagLista() {
+  const cab = titulo('Lista de mercado · Proyección #214', 'El Paraíso · del jue 12 al lun 16 nov de 2026', S.e === 'sin ítems' || S.e === 'error' || S.e === 'cargando' ? '' : btn('Editar proyección', 'ir', 'outline', '', 'data-p="2"') + btn('Imprimir lista', 'ir', 'primary', 'printer', 'data-p="4"'));
+  const bodegas = S.e === 'varias bodegas'
+    ? `<label class="text-xs text-muted-foreground">Bodega que se descuenta</label><select class="mt-1 h-9 w-64 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"><option>Bodega El Paraíso</option><option>Cocina El Paraíso</option></select><p class="mt-1 text-xs text-muted-foreground">La sede tiene 2 bodegas activas: elige una. El Almacén Tolú no se suma.</p>`
+    : `<div class="text-xs text-muted-foreground">Bodega que se descuenta</div><div class="mt-1 text-sm font-medium">Bodega El Paraíso</div><p class="mt-1 text-xs text-muted-foreground">Única bodega activa de la sede. El Almacén Tolú no se suma.</p>`;
+  const corte = `<div class="text-xs text-muted-foreground">Stock de hoy</div><div class="mt-1 flex items-center gap-2 text-sm font-medium tabular-nums">jue 5 nov 2026, 10:42 a. m.<button data-act="recargar" class="rounded-md p-1 text-muted-foreground hover:bg-accent" aria-label="Actualizar">${ic('refresh', 'size-4')}</button></div><p class="mt-1 text-xs text-muted-foreground">Lo que se gaste antes del 12 nov no se descuenta.</p>`;
+  const barraCab = `<div class="flex flex-wrap gap-x-10 gap-y-3 rounded-xl border bg-card px-5 py-4"><div>${bodegas}</div><div>${corte}</div></div>`;
+  if (S.e === 'cargando') return cab + `<div class="flex flex-wrap gap-10 rounded-xl border bg-card px-5 py-4">${sk('h-10 w-56')}${sk('h-10 w-56')}</div><div class="rounded-xl border bg-card p-4 space-y-3">${Array.from({ length: 7 }, () => sk('h-9 w-full')).join('')}</div>`;
+  if (S.e === 'error') return cab + aviso('alert', 'rosa', `<b>No se pudo calcular la lista.</b> El servidor no respondió al consultar el stock de la Bodega El Paraíso. Vuelve a intentar; si sigue fallando, avisa a soporte.<div class="mt-3">${btn('Volver a intentar', 'reintentar', 'outline', 'refresh')}</div>`);
+  if (S.e === 'sin ítems') return cab + vacio('list', 'Esta proyección no tiene productos', 'Agrega platos o productos a los días para sacar la lista de mercado.', `<div class="mt-4">${btn('Editar proyección', 'ir', 'primary', '', 'data-p="2"')}</div>`);
+  const { filas, fuera } = calcular();
+  const porComprar = filas.filter(r => r.comprar > 0);
+  const total = porComprar.reduce((s, r) => s + r.costo, 0);
+  const vis = S.solo ? porComprar : filas;
+  const cruce = aviso('info', 'negro', 'Se cruza con la proyección <b>#215</b> de El Paraíso el 15 y el 16 nov. Las dos listas descuentan el mismo stock: si compras para las dos, revisa que no compres doble.');
+  const tabla = porComprar.length === 0 && S.solo ? vacio('check', 'Con lo que hay en bodega alcanza', 'Ningún producto de esta proyección necesita compra.') :
+    `<div class="rounded-xl border bg-card"><table class="w-full text-sm"><thead class="border-b bg-muted/50 text-xs text-muted-foreground"><tr>
+      ${th('Producto', 'Lo que se compra y se guarda en la bodega. Debajo, de qué platos sale; haz clic para ver la lista.', 'left')}${th('Necesito', 'Cuánto piden todos los días de la proyección, sumando las recetas de cada plato. En la unidad de la bodega (GR, ML, UD).')}${th('Hay en bodega', 'El saldo de hoy en la Bodega El Paraíso, a la hora del corte. Es lo único que se resta.')}
+      ${th('En camino', 'Lo que otra bodega ya despachó hacia la Bodega El Paraíso con un traslado y todavía nadie ha recibido. Ejemplo: Tolú mandó 10.000 GR de arroz ayer. Se muestra para que lo tengas en cuenta, pero no se resta: puede llegar tarde o incompleto.')}${th('', 'Verde lleno: lo que hay en bodega. Verde rayado: lo que viene en camino. Gris: lo que falta.', 'left', 'Barra')}${th('Comprar', 'Necesito menos Hay en bodega, pasado a la unidad en que se compra (KG, LB, LT, UD) y redondeado hacia arriba. Debajo, lo que falta exacto.', 'right', '', 'bg-primary/[0.06] text-primary')}${th('Costo estimado', 'Comprar por el costo promedio del producto. Es una referencia, no el precio del proveedor.', 'right', '', '', true)}</tr></thead>
+      <tbody>${vis.map(filaLista).join('')}</tbody></table></div>`;
+  const alcanza = S.e === 'todo alcanza' ? aviso('check', 'info', '<b>Con lo que hay en bodega alcanza para toda la proyección.</b> No hay nada que comprar.') : '';
+  const noCalc = fuera.length ? `<div id="fuera" class="rounded-xl border border-rose-200 bg-card">
+    <div class="flex items-center gap-2 border-b border-rose-200 px-4 py-3 text-sm font-medium text-rose-800">${ic('alert', 'size-4')}No se pudo calcular (${fuera.length}): revísalos a mano</div>
+    <ul class="divide-y text-sm">${fuera.map(f => `<li class="flex flex-wrap items-baseline justify-between gap-2 px-4 py-2.5"><span><b class="font-medium">${f.prod}</b> <span class="text-muted-foreground">en ${[f.plato, ...f.ruta.filter(x => x !== f.plato)].join(' › ')}</span></span><span class="text-muted-foreground">${f.motivo}</span></li>`).join('')}</ul></div>` : '';
+  const alcanzan = filas.length - porComprar.length;
+  const tarjeta = (num, txt, sub, cls, act = '') => `<button ${act} class="flex-1 rounded-xl border bg-card px-5 py-4 text-left ${cls}"><div class="text-3xl font-semibold tabular-nums leading-none">${num}</div><div class="mt-1.5 text-sm font-medium">${txt}</div><div class="text-xs text-muted-foreground">${sub}</div></button>`;
+  const resumenB = `<div class="flex flex-wrap gap-3">
+    ${tarjeta(porComprar.length, 'Por comprar', `Costo estimado ${pesos(total)}`, `border-l-4 border-l-primary text-primary ${S.solo ? 'ring-2 ring-primary/30' : ''}`, 'data-act="solo-b"')}
+    ${tarjeta(alcanzan, 'Alcanzan con la bodega', 'No se compran', 'border-l-4 border-l-emerald-600 text-emerald-700')}
+    ${tarjeta(fuera.length, 'Revisar a mano', 'No se pudieron calcular', 'border-l-4 border-l-rose-500 text-rose-700', 'data-act="ir-fuera"')}</div>
+    <div class="flex justify-end"><label class="flex items-center gap-2 text-sm"><input type="checkbox" data-act="solo" ${S.solo ? 'checked' : ''} class="size-4 rounded border-input">Solo lo que hay que comprar</label></div>`;
+  return cab + barraCab + cruce + alcanza + resumenB + tabla + noCalc;
+}
+
+/* ===== 4. Salida ===== */
+function hojaImpresa() {
+  const { filas, fuera } = calcular();
+  const comprar = filas.filter(r => r.comprar > 0);
+  return `<div class="mx-auto w-[794px] bg-white px-14 py-12 text-[13px] text-black shadow-lg">
+    <div class="flex items-start justify-between border-b border-black pb-3"><div><h1 class="text-lg font-semibold">Lista de mercado · El Paraíso</h1><p>Proyección #214 · del 12 al 16 nov de 2026</p></div>
+      <div class="text-right text-xs"><p>Bodega El Paraíso</p><p>Stock del 5 nov 2026, 10:42 a. m.</p></div></div>
+    <table class="mt-4 w-full"><thead class="border-b border-black text-left text-xs"><tr><th class="w-8 py-1.5"></th><th class="py-1.5">Producto</th><th class="py-1.5 text-right">Comprar</th><th class="py-1.5 text-right">Hay</th><th class="py-1.5 text-right">En camino</th><th class="py-1.5 text-right">Costo est.</th></tr></thead>
+      <tbody>${comprar.map(r => `<tr class="border-b border-neutral-300"><td class="py-2 text-base">☐</td><td class="py-2">${r.prod}${!r.uc ? ' <i>(sin factor)</i>' : ''}</td><td class="py-2 text-right font-semibold tabular-nums">${fmt(r.comprar)} ${r.uc || r.u}</td><td class="py-2 text-right tabular-nums">${fmt(r.hay)} ${r.u}</td><td class="py-2 text-right tabular-nums">${r.cam ? fmt(r.cam) + ' ' + r.u : '—'}</td><td class="py-2 text-right tabular-nums">${pesos(r.costo)}</td></tr>`).join('')}</tbody></table>
+    <p class="mt-3 text-right">Total estimado: <b class="tabular-nums">${pesos(comprar.reduce((s, r) => s + r.costo, 0))}</b></p>
+    ${fuera.length ? `<p class="mt-6 font-semibold">Revisar a mano</p><ul class="mt-1 list-disc pl-5">${fuera.map(f => `<li>${f.prod}: ${f.motivo.toLowerCase()}</li>`).join('')}</ul>` : ''}
+    <p class="mt-8 text-xs text-neutral-500">Generada por Luzete Sierra el 5 nov 2026. Se cruza con la proyección #215 (15 y 16 nov).</p></div>`;
+}
+function pagSalida() {
+  return titulo('Imprimir lista', 'Vista de impresión del navegador (Ctrl + P). La pantalla se oculta y solo sale la hoja, con una casilla por producto para tachar.', btn('Volver a la lista', 'ir', 'outline', '', 'data-p="3"')) + `<div class="rounded-xl bg-neutral-100 py-8">${hojaImpresa()}</div>`;
+}
+
+/* =====================================================================
+   Render
+   ===================================================================== */
+function pintarBarra() {
+  const b = (on, txt, act, extra) => `<button data-act="${act}" ${extra} class="rounded px-2.5 py-1 text-[11.5px] ${on ? 'bg-neutral-100 font-semibold text-neutral-900' : 'text-neutral-300 hover:text-white'}">${txt}</button>`;
+  document.getElementById('mk-pasos').innerHTML = PASOS.map((p, i) => b(S.p === i + 1, `${i + 1}. ${p.t}`, 'ir', `data-p="${i + 1}"`)).join('');
+  document.getElementById('mk-titulo').textContent = `${S.p}. ${PASOS[S.p - 1].t}`;
+  document.getElementById('mk-estados').innerHTML = PASOS[S.p - 1].e.length > 1 ? PASOS[S.p - 1].e.map(e => `<button data-act="est" data-e="${e}" class="rounded-full border px-2.5 py-0.5 text-[11.5px] ${S.e === e ? 'border-neutral-100 bg-neutral-100 text-neutral-900' : 'border-neutral-600 text-neutral-300 hover:text-white'}">${e}</button>`).join('') : '';
+  document.getElementById('mk-decisiones').innerHTML = `<span class="font-semibold text-neutral-100">Refleja:</span> ${esc(PASOS[S.p - 1].d)}`;
+}
+function migas() {
+  const m = [['Productos', null], ['Proyección de compras', 1]];
+  if (S.p >= 2) m.push(['#214 El Paraíso', 2]);
+  if (S.p >= 3) m.push(['Lista de mercado', 3]);
+  if (S.p === 4) m.push(['Imprimir', 4]);
+  return S.p === 2 ? m.slice(0, 3) : m;
+}
+function render() {
+  pintarBarra();
+  const pag = [pagProyecciones, pagEditar, pagLista, pagSalida][S.p - 1]();
+  const ov = S.p === 2 && S.e === 'copiar día' ? dlgCopiar() : S.p === 2 && S.e === 'nueva: rango inválido' ? dlgNueva() : '';
+  const sc = window.scrollY;
+  document.getElementById('stage').innerHTML = `<div class="mx-auto flex min-h-screen max-w-[1440px] bg-sidebar">${sidebarHtml()}
+    <main class="relative my-2 mr-2 flex min-h-[calc(100vh-102px)] min-w-0 flex-1 flex-col rounded-xl bg-background shadow">${headerHtml(migas())}
+      <div class="flex min-w-0 flex-1 flex-col gap-4 p-6">${pag}</div></main></div>${ov}`;
+  window.scrollTo(0, sc);
+}
+document.addEventListener('click', ev => {
+  const el = ev.target.closest('[data-act]');
+  if (!el) return;
+  const a = el.dataset.act;
+  if (a === 'ir') { S.p = +el.dataset.p; S.e = 'normal'; window.scrollTo(0, 0); }
+  else if (a === 'est') S.e = el.dataset.e;
+  else if (a === 'dia') S.dia = S.dia === +el.dataset.i ? -1 : +el.dataset.i;
+  else if (a === 'origen') S.abierto[el.dataset.k] = !S.abierto[el.dataset.k];
+  else if (a === 'solo') S.solo = el.checked;
+  else if (a === 'solo-b') S.solo = !S.solo;
+  else if (a === 'ir-fuera') { document.getElementById('fuera')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  else if (a === 'nueva') { S.p = 2; S.e = 'nueva: rango inválido'; }
+  else if (a === 'copiar') S.e = 'copiar día';
+  else if (a === 'cerrar' || a === 'reintentar') S.e = 'normal';
+  else if (a === 'recargar') { S.e = 'cargando'; render(); setTimeout(() => { S.e = 'normal'; render(); }, 700); return; }
+  else return;
+  render();
+});
+document.addEventListener('change', ev => {
+  const el = ev.target;
+  if (el.dataset.act !== 'cant') return;
+  const [i, j] = el.dataset.k.split('-').map(Number);
+  DIAS[i].items[j][1] = Math.max(0, +el.value || 0);
+  S.guardado = el.dataset.k; render();
+});
+render();
+</script>
+</body>
+</html>
