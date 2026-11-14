@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REQ-QUINTA-059 · Antes y después · Gestión de compras</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .win { width: 560px; flex: 0 0 auto; }
+  .scale { transform: scale(.55); transform-origin: top left; }
+  .holder { width: 308px; height: 268px; overflow: hidden; flex: 0 0 auto; }
+  .app { background:#f9fbfd; color:#12263f; font-size:13px; }
+  .card { background:#fff; border:1px solid #edf2f9; border-radius:6px; box-shadow:0 .75rem 1.5rem rgba(18,38,63,.03); }
+  .card-h { padding:10px 14px; border-bottom:1px solid #edf2f9; font-weight:600; }
+  .fondo { background:#e3ebf6; }
+  .btn { display:inline-block; border-radius:4px; padding:3px 9px; font-size:12px; border:1px solid; }
+  .btn-pri { background:#2c7be5; border-color:#2c7be5; color:#fff; }
+  .btn-sec { border-color:#6e84a3; color:#6e84a3; }
+  .btn-del { border-color:#e63757; color:#e63757; }
+  .badge-w { background:#f6c343; color:#283e59; border-radius:4px; padding:1px 6px; font-size:11px; }
+  .badge-s { background:#00d97e; color:#fff; border-radius:4px; padding:1px 6px; font-size:11px; }
+  table.t { width:100%; border-collapse:collapse; font-size:12px; }
+  table.t th { text-align:left; color:#12263f; font-weight:600; padding:6px 8px; border-bottom:1px solid #edf2f9; background:#f9fbfd; }
+  table.t td { padding:6px 8px; border-bottom:1px solid #edf2f9; }
+  .lost { background:#fde8ec !important; color:#b0213d; text-decoration: line-through; }
+  .kept { background:#e6f9f0 !important; }
+  .muted { color:#95aac9; }
+  table.c th, table.c td { padding:4px 5px; font-size:10.5px; white-space:nowrap; }
+  .toast { position:absolute; top:46px; right:10px; background:#fff; border-radius:6px; box-shadow:0 4px 18px rgba(0,0,0,.18); padding:9px 12px; font-size:12px; display:flex; gap:8px; align-items:center; z-index:5; }
+  .modal-bg { position:absolute; inset:28px 0 0 0; background:rgba(18,38,63,.45); display:flex; align-items:center; justify-content:center; z-index:6; }
+  .tag-igual { background:#e5e7eb; color:#374151; }
+  .tag-pasa { background:#dbeafe; color:#1e40af; }
+  .tag-rojo { background:#fee2e2; color:#b91c1c; }
+  .tag-verde { background:#059669; color:#fff; }
+</style>
+</head>
+<body class="bg-slate-100 text-slate-800">
+
+<header class="bg-slate-900 text-slate-100 px-6 py-3 text-sm">
+  <div class="flex flex-wrap gap-x-6 gap-y-1 items-baseline">
+    <span class="font-semibold text-base">REQ-QUINTA-059 · Antes y después</span>
+    <span>Gestión de compras del admin viejo (quinta-web)</span>
+    <span>Rama <code>feature/REQ-QUINTA-059</code> · <code>a20ec</code> (código <code>c4b1d</code>)</span>
+    <span>Tarjeta <a class="underline" href="https://baguerweb.atlassian.net/browse/QUIN-65">QUIN-65</a></span>
+  </div>
+  <div class="mt-1 text-slate-300">
+    Caso real: la compra 1379 (PESQUERA TOLU, Almacén Tolú) perdió su línea 1 entre el 11/10 y el 13/10/2026. Con ella se borraron la línea 1 del traslado 1379, del ajuste de entrada 1379 y del ajuste de salida 1379.
+    Es de ejemplo solo el producto de esa línea 1, que ya no queda en ninguna parte. Lo demás sale de producción, leído el 12/11/2026.
+  </div>
+</header>
+
+<main class="px-6 py-5">
+  <div class="flex flex-wrap items-center gap-3 mb-4">
+    <span class="text-sm font-semibold">Qué hace el usuario:</span>
+    <div id="sel" class="flex flex-wrap gap-2"></div>
+  </div>
+  <p id="resumen" class="text-sm bg-white border border-slate-200 rounded px-4 py-3 mb-5 max-w-5xl"></p>
+
+  <section class="mb-6">
+    <h2 class="text-sm font-bold uppercase tracking-wide text-rose-700 mb-2">Hoy en producción</h2>
+    <div id="fila-hoy" class="flex items-start gap-2 overflow-x-auto pb-2"></div>
+  </section>
+  <section class="mb-6">
+    <h2 class="text-sm font-bold uppercase tracking-wide text-emerald-700 mb-2">Con el ajuste</h2>
+    <div id="fila-ajuste" class="flex items-start gap-2 overflow-x-auto pb-2"></div>
+  </section>
+
+  <section class="bg-white border border-slate-200 rounded px-5 py-4 max-w-5xl text-sm leading-relaxed">
+    <h3 class="font-semibold mb-1">La regla nueva</h3>
+    <p>Quitar una línea borra solo la línea de la compra, y solo si la compra está en borrador («Pendiente confirmación»). Si la compra está confirmada o el número no es de una compra, el servidor responde con un error y no borra nada. El filtro «ID Gasto» se suma a las fechas, al centro y al proveedor.</p>
+    <h3 class="font-semibold mt-3 mb-1">Alcance, con cifras al 12/11/2026</h3>
+    <ul class="list-disc pl-5">
+      <li>Hay 21 compras en borrador en producción. Mientras el arreglo no esté desplegado, quitarles una línea puede seguir borrando la de un traslado o un ajuste.</li>
+      <li>El defecto ya dejó 19 diferencias de stock sin cuadrar: 8 de octubre y 11 del 29/10 al 10/11. Este deploy no las corrige. Planeación las corrige con conteo o ajuste manual a partir de <code>lineas-descuadradas.md</code>.</li>
+      <li>Las 51 líneas que se perdieron antes del corte de entrega de agosto ya las cuadró el conteo.</li>
+      <li>No cambia nada para quien digita compras: el botón «Eliminar» ya solo aparecía en compras en borrador.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+const fmt = n => '$' + n.toLocaleString('es-CO', {minimumFractionDigits:2, maximumFractionDigits:2});
+const items1379 = [
+  ['Anillos de Calamar','2000 gr',45,90000],['Caracol','2000 gr',35,70000],['Pulpo','2000 gr',55,110000],
+  ['Filete de Robalo','4000 gr',70,280000],['Cola de langosta','2000 gr',120,240000],['Camaron','3000 gr',55,165000],
+  ['Langostino','2000 gr',90,180000],['Pargo','9500 gr',50,475000]
+];
+const linea1 = ['Producto de la línea 1 (ejemplo)','1000 gr',100,100000];
+
+function chrome(url, body, extra='') {
+  return `<div class="holder"><div class="scale"><div class="win rounded-lg overflow-hidden border border-slate-300 bg-white shadow relative">
+    <div class="bg-slate-200 px-3 py-1.5 flex items-center gap-2 text-[11px] text-slate-600">
+      <span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span><span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+      <span class="ml-2 bg-white rounded px-2 py-0.5 flex-1 truncate">quintadelmar.co/app/${url}</span></div>
+    <div class="app p-3 h-[460px] overflow-hidden">${body}</div>${extra}</div></div></div>`;
+}
+
+function editarCompra({conLinea1, estado, toast}) {
+  const lines = (conLinea1 ? [linea1] : []).concat(items1379);
+  const total = lines.reduce((s,l)=>s+l[3],0);
+  const borrador = estado === 0;
+  const rows = lines.map((l,i)=>`<tr class="${i%2?'bg-slate-50':''}"><td>${i+1}</td><td>${l[0]}</td><td>${l[1]}</td><td>${fmt(l[2])}</td><td></td><td class="text-right">${fmt(l[3])}</td>${borrador?`<td class="text-right"><span class="btn btn-del">🗑 Eliminar</span></td>`:''}</tr>`).join('');
+  const body = `
+    <div class="flex justify-between items-center mb-2"><div class="text-lg font-semibold">Editar compra</div><span class="btn btn-sec">← Regresar</span></div>
+    <div class="card mb-2"><div class="card-h fondo">Datos generales</div>
+      <div class="grid grid-cols-4 gap-2 p-3 text-[12px]">
+        <div><div class="muted">Consecutivo:</div>COM 1379</div><div><div class="muted">Nro. Factura:</div>11689</div>
+        <div><div class="muted">Fecha de compra:</div>2026-10-01</div><div><div class="muted">Centro:</div>Almacen Tolu</div>
+        <div class="col-span-2"><div class="muted">Proveedor:</div>PESQUERA TOLU</div>
+        <div><div class="muted">Estado:</div>${borrador?'<span class="badge-w">Pendiente confirmación</span>':'<span class="badge-s">Confirmada</span>'}</div>
+        <div><div class="muted">Total:</div><span class="text-[#2c7be5]">${fmt(total)}</span></div>
+      </div></div>
+    <div class="card"><div class="card-h fondo">☰ ${lines.length} Productos en esta compra</div>
+      <table class="t"><thead><tr><th>Item</th><th>Producto</th><th>Cantidad</th><th>Precio Unit.</th><th>IVA %</th><th class="text-right">Total</th>${borrador?'<th></th>':''}</tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><th colspan="5" class="text-right">Total</th><th class="text-right text-[#2c7be5]">${fmt(total)}</th>${borrador?'<th></th>':''}</tr></tfoot></table></div>`;
+  return chrome('?ruta=gestioncompras&accion=edit', body, toast||'');
+}
+const toastOk = `<div class="toast"><span class="text-emerald-500 text-lg">✔</span>Se ha eliminado el item.</div>`;
+
+function modalEliminar() {
+  const m = `<div class="modal-bg"><div class="bg-white rounded-lg w-[360px] p-6 text-center shadow-xl">
+     <div class="text-4xl text-amber-400 mb-2">!</div>
+     <div class="text-lg font-semibold mb-1">¿Está segur@ que desea eliminar este item?</div>
+     <div class="text-sm text-slate-500 mb-4">Esta acción no se puede deshacer</div>
+     <span class="inline-block bg-[#2c7be5] text-white rounded px-4 py-1.5 mr-2">Sí, eliminar</span><span class="inline-block bg-slate-400 text-white rounded px-4 py-1.5">Cancelar</span></div></div>`;
+  return editarCompra({conLinea1:true, estado:0, toast:m});
+}
+
+function kardex(perdidas) {
+  const r = [
+    ['TRA 1379','Traslado Almacén Tolú → El Paraíso','1','Maiz tierno','Almacen Tolu','salida 285 gr'],
+    ['TRA 1379','Traslado Almacén Tolú → El Paraíso','2','Maiz tierno','El paraiso','entrada 285 gr'],
+    ['AJI 1379','Ajuste de entrada por conteo (24/05/2026)','1','Cerveza Costeñita','Almacen Tintipan','entrada 2 ud'],
+    ['AJS 1379','Ajuste de salida por conteo (11/08/2026)','1','Harina de Maiz','La Joya','salida 4.150 gr'],
+  ];
+  const rows = r.map(x=>{ const lost = perdidas && x[2]==='1';
+    return `<tr class="${lost?'lost':(perdidas?'':'kept')}"><td>${x[0]}</td><td>${x[2]}</td><td>${x[3]}</td><td>${x[4]}</td><td>${x[5]}</td><td>${lost?'borrada':'sigue'}</td></tr>`;}).join('');
+  const body = `<div class="text-lg font-semibold mb-1">Otros documentos con el número 1379</div>
+    <div class="muted text-[12px] mb-2">No es una pantalla del admin: es lo que queda en el kardex (lectura de producción). Cada tipo de documento lleva su propia numeración, así que el 1379 existe como compra, traslado y ajustes.</div>
+    <div class="card"><table class="t"><thead><tr><th>Documento</th><th>Línea</th><th>Producto</th><th>Bodega</th><th>Movimiento</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="mt-3 text-[12px]">${perdidas
+      ? '<b class="text-rose-700">Se borraron 3 líneas que no eran de la compra.</b> El traslado quedó cojo: entró a El Paraíso pero no salió de Tolú.'
+      : '<b class="text-emerald-700">Solo se borró la línea 1 de la compra.</b> El traslado y los dos ajustes siguen completos.'}</div>`;
+  return chrome('(kardex · consecutivo 1379)', body);
+}
+
+function stock(descuadre) {
+  const r = [['Maiz tierno','Almacen Tolu','285 gr de más'],['Cerveza Costeñita','Almacen Tintipan','2 ud de menos (saldo −2)'],['Harina de Maiz','La Joya','4.150 gr de más']];
+  const rows = r.map(x=>`<tr class="${descuadre?'lost':'kept'}" style="text-decoration:none"><td>${x[0]}</td><td>${x[1]}</td><td>${descuadre?x[2]:'cuadra'}</td></tr>`).join('');
+  const body = `<div class="text-lg font-semibold mb-1">Stock de esos productos</div>
+    <div class="muted text-[12px] mb-2">Lo que muestra el sistema frente a lo que hay en la bodega.</div>
+    <div class="card"><table class="t"><thead><tr><th>Producto</th><th>Bodega</th><th>El sistema muestra</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="mt-3 text-[12px]">${descuadre
+      ? 'Nadie tocó esos productos y el stock cambió. Así quedaron las 19 diferencias de <code>lineas-descuadradas.md</code>.'
+      : 'El stock de traslados y ajustes no se mueve al quitar una línea de una compra.'}</div>`;
+  return chrome('(stock)', body);
+}
+
+function peticionDirecta(hoy) {
+  const body = `<div class="text-lg font-semibold mb-1">Petición directa al servidor</div>
+    <div class="muted text-[12px] mb-2">Sin pasar por la pantalla: una pestaña con sesión abierta, o la consola del navegador.</div>
+    <div class="bg-slate-900 text-emerald-300 rounded p-3 font-mono text-[11px] leading-5">POST views/ajax/gestioncompras.ajax.php<br>key=eliminar_item_kardex<br>consecutivo=1379&nbsp;&nbsp;item_id=2</div>
+    <div class="mt-3 card p-3 text-[12px]">${hoy
+      ? '<div class="font-mono">{"estado":1,"mensaje":"Se ha eliminado el item.","type":"success"}</div><div class="mt-2 text-rose-700 font-semibold">Borra «Anillos de Calamar» de una compra ya confirmada, y además la línea 2 del traslado 1379 (entrada de maíz tierno en El Paraíso).</div>'
+      : '<div class="font-mono">{"estado":2,"mensaje":"La compra ya está confirmada; no se puede modificar","type":"error"}</div><div class="mt-2 text-emerald-700 font-semibold">No borra nada.</div>'}</div>`;
+  return chrome('views/ajax/gestioncompras.ajax.php', body);
+}
+
+const listado7 = [
+  ['2025-05-16','COM 249','2025-05-15','01SF-70772','Almacen Tintipan','Supertiendas y Droguerías Olímpica S.A.',231120],
+  ['2026-08-23','COM 1255','2026-08-21','1243','Almacen Tolu','LICORES MERCA+MAS',25000],
+  ['2026-08-23','COM 1263','2026-08-21','1249','Almacen Tolu','LICORES MERCA+MAS',15000],
+  ['2026-08-23','COM 1264','2026-08-21','1250','Almacen Tolu','LICORES MERCA+MAS',52000],
+  ['2026-08-28','COM 1273','2026-08-25','WA90737','Almacen Tolu','ALMACENES EXITO S.A.',2178252],
+  ['2026-08-28','COM 1272','2026-08-27','RY9858643','Almacen Tolu','ALMACENES EXITO S.A.',248974],
+  ['2026-09-01','COM 1276','2026-08-27','RY9858543','Almacen Tolu','ALMACENES EXITO S.A.',248974],
+];
+function listado(filas, marcarIntrusas) {
+  const rows = filas.map(f=>{ const intrusa = marcarIntrusas && f[5] !== 'LICORES MERCA+MAS';
+    return `<tr class="${intrusa?'lost':''}" style="text-decoration:none"><td>${f[0]}</td><td>${f[1]}</td><td>${f[2]}</td><td>${f[3]}</td><td>${f[4]}</td><td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">${f[5]}</td><td>${fmt(f[6])}</td></tr>`;}).join('');
+  const body = `<div class="text-lg font-semibold mb-2">Gestión de compras</div>
+    <div class="card mb-2"><div class="card-h">Consultar</div>
+      <div class="grid grid-cols-5 gap-2 p-3 text-[11px]">
+        <div><div class="muted">Fecha de compra (desde)</div><div class="border rounded px-1 py-0.5 bg-white">2026-08-01</div></div>
+        <div><div class="muted">Fecha de compra (hasta)</div><div class="border rounded px-1 py-0.5 bg-white">2026-08-31</div></div>
+        <div><div class="muted">Centro de inventario</div><div class="border rounded px-1 py-0.5 bg-white">Todos</div></div>
+        <div><div class="muted">Proveedor</div><div class="border rounded px-1 py-0.5 bg-white truncate">LICORES MERCA+MAS</div></div>
+        <div><div class="muted">ID Gasto</div><div class="border rounded px-1 py-0.5 bg-white">1415</div></div>
+      </div></div>
+    <div class="card"><table class="t c"><thead><tr><th>Fecha Registro</th><th>Consecutivo</th><th>Fecha Compra</th><th>Nro Factura</th><th>Centro</th><th>Proveedor</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="mt-2 text-[12px]">${marcarIntrusas
+      ? '<b class="text-rose-700">7 compras: el ID de gasto borra los demás filtros.</b> Salen una de 2025 y tres de otro proveedor.'
+      : '<b class="text-emerald-700">3 compras: agosto, LICORES MERCA+MAS y gasto 1415.</b>'}</div>`;
+  return chrome('?ruta=gestioncompras&accion=view', body);
+}
+function formularioFiltro() {
+  const body = `<div class="text-lg font-semibold mb-2">Gestión de compras</div>
+    <div class="card"><div class="card-h">Consultar</div>
+      <div class="grid grid-cols-2 gap-3 p-3 text-[12px]">
+        <div><div class="muted">Fecha de compra (desde)</div><div class="border rounded px-2 py-1 bg-white">2026-08-01</div></div>
+        <div><div class="muted">Fecha de compra (hasta)</div><div class="border rounded px-2 py-1 bg-white">2026-08-31</div></div>
+        <div><div class="muted">Centro de inventario</div><div class="border rounded px-2 py-1 bg-white">Todos</div></div>
+        <div><div class="muted">Proveedor</div><div class="border rounded px-2 py-1 bg-white">LICORES MERCA+MAS</div></div>
+        <div><div class="muted">ID Gasto</div><div class="border rounded px-2 py-1 bg-white">1415</div></div>
+        <div class="self-end"><span class="btn btn-pri w-full text-center">🔍 Consultar</span></div>
+      </div></div>
+    <div class="mt-3 text-[12px] muted">El rango por defecto es de los últimos 15 días: hay que poner agosto a mano.</div>`;
+  return chrome('?ruta=gestioncompras&accion=view', body);
+}
+
+const flujos = {
+  borrador: {
+    label: 'Quitar una línea de una compra en borrador',
+    resumen: 'La persona quita la línea 1 de la compra 1379 mientras está en borrador. Hoy desaparecen también la línea 1 del traslado y de los dos ajustes que tienen el número 1379, y el stock de esos productos cambia sin que nadie los toque. Con el ajuste solo cae la línea de la compra.',
+    hoy: [
+      [editarCompra({conLinea1:true, estado:0}),'igual','Compra en borrador con 9 productos y el botón «Eliminar».'],
+      [modalEliminar(),'igual','Confirma que quiere eliminar el item.'],
+      [editarCompra({conLinea1:false, estado:0, toast:toastOk}),'igual','La línea sale de la compra y el total se recalcula.'],
+      [kardex(true),'se pierde','También se borran líneas del traslado y de los dos ajustes 1379.'],
+      [stock(true),'se pierde','El stock queda descuadrado en tres bodegas.'],
+    ],
+    ajuste: [
+      [editarCompra({conLinea1:true, estado:0}),'igual','Misma pantalla.'],
+      [modalEliminar(),'igual','Mismo aviso.'],
+      [editarCompra({conLinea1:false, estado:0, toast:toastOk}),'igual','Mismo mensaje, mismo total.'],
+      [kardex(false),'cambia con el ajuste','El traslado y los ajustes con el número 1379 siguen completos.'],
+      [stock(false),'cambia con el ajuste','El stock de esos productos no se mueve.'],
+    ]
+  },
+  confirmada: {
+    label: 'Quitar una línea de una compra confirmada (sin la pantalla)',
+    resumen: 'En una compra confirmada la pantalla no muestra «Eliminar», pero el servidor aceptaba la petición igual. Hoy borra la línea de la compra confirmada y la del mismo número en otros documentos. Con el ajuste responde un error y no borra nada.',
+    hoy: [
+      [editarCompra({conLinea1:false, estado:1}),'igual','Compra 1379 confirmada: sin botón «Eliminar».'],
+      [peticionDirecta(true),'se pierde','El servidor responde «Se ha eliminado el item.» y borra.'],
+    ],
+    ajuste: [
+      [editarCompra({conLinea1:false, estado:1}),'igual','Misma pantalla.'],
+      [peticionDirecta(false),'cambia con el ajuste','«La compra ya está confirmada; no se puede modificar». No borra nada.'],
+    ]
+  },
+  filtro: {
+    label: 'Filtrar el listado por ID de gasto',
+    resumen: 'La persona busca las compras de agosto de LICORES MERCA+MAS con el ID de gasto 1415. Hoy el ID de gasto reemplaza los demás filtros y salen 7 compras, de otras fechas y otros proveedores. Con el ajuste salen las 3 que cumplen todo.',
+    hoy: [
+      [formularioFiltro(),'igual','Fechas de agosto, proveedor e ID de gasto.'],
+      [listado(listado7, true),'se queda aquí','7 compras: ignora las fechas y el proveedor.'],
+    ],
+    ajuste: [
+      [formularioFiltro(),'igual','Mismos filtros.'],
+      [listado(listado7.filter(f=>f[5]==='LICORES MERCA+MAS'), false),'cambia con el ajuste','3 compras: 1255, 1263 y 1264.'],
+    ]
+  }
+};
+
+const tagClass = t => t==='igual'?'tag-igual':t==='pasa'?'tag-pasa':t==='cambia con el ajuste'?'tag-verde':'tag-rojo';
+function fila(el, pasos) {
+  el.innerHTML = pasos.map((p,i)=>`
+    ${i?'<div class="self-center text-2xl text-slate-400 px-1">→</div>':''}
+    <figure class="flex-none">
+      ${p[0]}
+      <figcaption class="w-[308px] mt-1 text-xs"><span class="font-bold">${i+1}</span>
+        <span class="ml-1 px-1.5 py-0.5 rounded ${tagClass(p[1])}">${p[1]}</span>
+        <span class="ml-1">${p[2]}</span></figcaption>
+    </figure>`).join('');
+}
+let actual = 'borrador';
+function pintar() {
+  document.getElementById('sel').innerHTML = Object.entries(flujos).map(([k,f])=>
+    `<button data-k="${k}" class="px-3 py-1.5 rounded border text-sm ${k===actual?'bg-slate-900 text-white border-slate-900':'bg-white border-slate-300 hover:bg-slate-50'}">${f.label}</button>`).join('');
+  document.querySelectorAll('#sel button').forEach(b=>b.onclick=()=>{actual=b.dataset.k; pintar();});
+  const f = flujos[actual];
+  document.getElementById('resumen').textContent = f.resumen;
+  fila(document.getElementById('fila-hoy'), f.hoy);
+  fila(document.getElementById('fila-ajuste'), f.ajuste);
+}
+pintar();
+</script>
+</body>
+</html>
