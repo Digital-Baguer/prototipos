@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AQ-022 · Restablecer contraseña: reenvío del código y fallos</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+  .otp{width:46px;height:56px}
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+<div class="flex min-h-screen">
+  <!-- Navegación de pasos -->
+  <nav class="w-72 shrink-0 bg-white border-r border-gray-200 p-5">
+    <p class="text-xs uppercase tracking-wide text-gray-500">AQ-022 · App Quac</p>
+    <h1 class="text-lg font-semibold leading-tight mt-1">Restablecer contraseña: cómo debe quedar</h1>
+    <p class="text-xs text-gray-500 mt-2">Ejemplo: cédula 1098765432, correo fr*****@gmail.com, código 482913. La app no cambia; cambia lo que responde el servidor.</p>
+    <ol id="pasos" class="mt-5 space-y-1 text-sm"></ol>
+  </nav>
+
+  <main class="flex-1 p-8 flex gap-8 items-start">
+    <!-- Teléfono 390 px -->
+    <div class="shrink-0">
+      <div class="w-[390px] h-[780px] rounded-[44px] bg-black p-3 shadow-xl">
+        <div class="relative w-full h-full rounded-[34px] overflow-hidden bg-[#F8F8F8]">
+          <div class="h-10 flex items-center justify-between px-6 text-xs font-semibold"><span id="hora">10:00</span><span>●●● 5G</span></div>
+          <div class="px-5">
+            <button class="text-2xl text-[#140F26]">‹</button>
+            <div class="flex justify-center mt-1"><img src="assets-aq-009/img-1.png" alt="" class="w-[200px] h-[140px] object-contain"></div>
+            <p class="mt-4 text-sm text-[#A19EB5]">RECUPERAR CONTRASEÑA</p>
+            <p class="text-3xl font-extrabold text-[#140F26]">Validar identidad</p>
+            <p class="mt-2 text-sm text-[#A19EB5]">Ingresa el código que hemos enviado a tu correo electrónico <span class="text-[#7633FF]">fr*****@gmail.com</span></p>
+            <p class="mt-7 font-bold text-sm">Ingresa el código de verificación:</p>
+            <div id="otp" class="mt-2 flex gap-2"></div>
+            <div id="pie" class="mt-6 text-center"></div>
+          </div>
+          <!-- Modal -->
+          <div id="velo" class="hidden absolute inset-0 bg-black/40 flex items-center justify-center p-6">
+            <div class="bg-white rounded-[20px] p-6 w-full">
+              <div class="flex items-center gap-2"><span id="mIcono" class="text-2xl text-[#FF6464]">⊘</span><p class="text-lg font-bold text-[#140F26]" id="mTitulo">Demasiados intentos</p></div>
+              <p id="mTexto" class="mt-4 text-[15px] text-[#140F26]"></p>
+              <p id="mTimer" class="mt-3 font-extrabold text-[15px] hidden"></p>
+              <button class="mt-6 w-full h-12 rounded-full bg-[#321185] text-white text-sm font-semibold">✆ Llamar al 6077000225</button>
+              <p class="mt-3 text-center text-sm text-[#7633FF]">Cerrar</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Qué pasa -->
+    <section class="flex-1 max-w-none space-y-4">
+      <div class="bg-white rounded-xl border border-gray-200 p-5">
+        <p class="text-xs uppercase tracking-wide text-gray-500" id="etapa"></p>
+        <h2 class="text-xl font-semibold mt-1" id="titulo"></h2>
+        <p class="text-sm text-gray-700 mt-2" id="descripcion"></p>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-white rounded-xl border border-gray-200 p-5">
+          <p class="text-xs font-semibold text-gray-500">HOY</p>
+          <p class="text-sm mt-2" id="hoy"></p>
+        </div>
+        <div class="bg-white rounded-xl border-2 border-emerald-500 p-5">
+          <p class="text-xs font-semibold text-emerald-700">CON AQ-022</p>
+          <p class="text-sm mt-2" id="nuevo"></p>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-5">
+        <p class="text-xs font-semibold text-gray-500">BANDEJA DEL CLIENTE</p>
+        <ul id="bandeja" class="mt-2 text-sm divide-y divide-gray-100"></ul>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-5 text-sm">
+        <p class="text-xs font-semibold text-gray-500">ESTADO DEL CÓDIGO</p>
+        <div class="mt-2 flex flex-wrap gap-2" id="chips"></div>
+      </div>
+      <div id="deuda" class="bg-white rounded-xl border border-gray-200 p-5 hidden">
+        <p class="text-xs font-semibold text-rose-700">DEUDA TÉCNICA · títulos fijos en la app (ADR-004)</p>
+        <p class="text-sm text-gray-600 mt-1">La app elige el título por el número de escenario. AQ-022 sale así; con AQ-018 el título lo manda el API.</p>
+        <div class="grid grid-cols-2 gap-4 mt-4">
+          <div><p class="text-xs font-semibold text-gray-500 mb-2">SALE CON AQ-022 · título fijo en la app</p><div id="dHoy"></div></div>
+          <div><p class="text-xs font-semibold text-emerald-700 mb-2">CON AQ-018 · título del API</p><div id="dFut"></div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const CORREO_P = 'Cuenta principal', CORREO_R = 'Cuenta de reenvío';
+const pasos = [
+  {nav:'1. Pide el código', hora:'10:00', etapa:'Pedido de código', titulo:'Le llega el código al correo',
+   desc:'El cliente pone su cédula y la app pide el código. Sale el primer correo.',
+   hoy:'Código nuevo, dura 10 minutos. Sale por la cuenta principal.',
+   nuevo:'Código nuevo, dura 30 minutos. Sale por la cuenta principal. Gasta 1 de los 6 correos del teléfono en 30 min.',
+   otp:'', pie:'cuenta', bandeja:[['10:00','482913',CORREO_P]],
+   chips:[['Código 482913','negro'],['Vence 10:30','gris'],['Intentos: 5 de 5','gris'],['Correos del teléfono: 1 de 6','gris']]},
+  {nav:'2. Toca «Reenviar»', hora:'10:01', etapa:'Pedido de código · reenvío', titulo:'Le llega el mismo código, por la cuenta de reenvío',
+   desc:'No le llegó o no lo encuentra; a los 60 s toca «Reenviar código».',
+   hoy:'Código nuevo 305177 que anula al 482913. Si escribe el del primer correo: «Código inválido o expirado».',
+   nuevo:'El mismo 482913, que sigue vigente. Sale por la cuenta de reenvío. Cualquiera de los dos correos sirve.',
+   otp:'', pie:'cuenta', bandeja:[['10:00','482913',CORREO_P],['10:01','482913',CORREO_R]],
+   chips:[['Código 482913','negro'],['Vence 10:30','gris'],['Intentos: 5 de 5','gris'],['Correos del teléfono: 2 de 6','gris']]},
+  {nav:'3. Valida (cargando)', hora:'10:02', etapa:'Validación de código', titulo:'Escribe los 6 números y se valida solo',
+   desc:'Con el sexto número la app manda el código. Mientras responde, muestra el indicador de carga.',
+   hoy:'Igual.', nuevo:'Igual.', otp:'482931', pie:'carga', bandeja:null,
+   chips:[['Código 482913','negro'],['Validando…','gris']]},
+  {nav:'4. Primer fallo', hora:'10:02', etapa:'Validación de código', titulo:'Se equivoca: le dice cuántos intentos le quedan',
+   desc:'Escribió 482931 en vez de 482913.',
+   hoy:'«Código inválido o expirado.» No cuenta los fallos.',
+   nuevo:'«El código no es correcto. Te quedan 4 intentos.» Sale como error de validación, así que la app pone el título genérico «Algo pasó». «Demasiados intentos» queda solo para el quinto fallo y el cupo. El título desde el API («Código incorrecto») llega con AQ-018.',
+   otp:'482931', pie:'cuenta', modal:{texto:'El código no es correcto. Te quedan 4 intentos.', titulo:'Algo pasó', icono:'ⓘ'}, futuro:{titulo:'Código incorrecto', icono:'ⓘ'},
+   chips:[['Código 482913','negro'],['Intentos: 4 de 5','gris']]},
+  {nav:'5. Quinto fallo: se anula', hora:'10:04', etapa:'Validación de código', titulo:'Al quinto fallo el código deja de valer',
+   desc:'Cuarto y quinto fallo seguidos. El servidor borra el código.',
+   hoy:'«Código inválido o expirado.» Sin tope de fallos: puede probar 10 por minuto durante 10 min.',
+   nuevo:'«Superaste los 5 intentos. Pide un código nuevo.» Aunque luego escriba 482913, ya no vale.',
+   otp:'482193', pie:'cuenta', modal:{texto:'Superaste los 5 intentos. Pide un código nuevo.'}, futuro:{titulo:'Código anulado', icono:'⊘'},
+   chips:[['Código 482913 anulado','rosa'],['Intentos: 0 de 5','rosa']]},
+  {nav:'6. Pide otro: código nuevo', hora:'10:05', etapa:'Pedido de código · reenvío', titulo:'Tras anularse, el reenvío trae un código nuevo',
+   desc:'Toca «Reenviar código». Como no hay código vigente, se genera uno nuevo.',
+   hoy:'—',
+   nuevo:'Código nuevo 305177, dura 30 min y tiene 5 intentos. Sale por la cuenta de reenvío.',
+   otp:'', pie:'cuenta', bandeja:[['10:00','482913',CORREO_P],['10:01','482913',CORREO_R],['10:05','305177',CORREO_R]],
+   chips:[['Código 305177','negro'],['Vence 10:35','gris'],['Intentos: 5 de 5','gris'],['Correos del teléfono: 3 de 6','gris']]},
+  {nav:'7. Válido: sigue a nueva clave', hora:'10:06', etapa:'Validación de código', titulo:'Código correcto: pasa a poner la nueva contraseña',
+   desc:'Escribe 305177. Pasa a la pantalla de nueva clave, que tiene 5 minutos para completarse, igual que hoy.',
+   hoy:'Igual.', nuevo:'Igual.', otp:'305177', pie:'ok',
+   chips:[['Código 305177 validado','verde'],['Permiso de cambiar la clave: 5 min','gris']]},
+  {nav:'8. Pasó el cupo de correos', hora:'10:20', etapa:'Pedido de código · cupo', titulo:'Pidió 6 correos en 30 min: le dice cuánto esperar',
+   desc:'El teléfono ya pidió 6 correos de código sumando registro, autorización y restablecer. Pide el séptimo.',
+   hoy:'5 por minuto por IP: como todos llegan con la IP del balanceador, puede salir este aviso a quien apenas pidió uno.',
+   nuevo:'Cuenta por teléfono: el aviso solo le sale a quien pidió 6. No sale correo. Muestra cuánto falta.',
+   otp:'', pie:'cuenta', modal:{texto:'Has solicitado muchos códigos. Espera unos minutos antes de pedir uno nuevo.', timer:'Espera 14:00'}, futuro:{titulo:'Llegaste al límite de correos', icono:'⏱'},
+   bandeja:null,
+   chips:[['Correos del teléfono: 6 de 6','rosa'],['Se libera 10:34','gris']]},
+];
+const colores={negro:'bg-gray-900 text-white',gris:'bg-gray-100 text-gray-700',rosa:'bg-rose-100 text-rose-700',verde:'bg-emerald-100 text-emerald-800'};
+let actual=0;
+function pintar(i){
+  actual=i; const p=pasos[i];
+  document.getElementById('pasos').innerHTML=pasos.map((s,k)=>`<li><button onclick="pintar(${k})" class="w-full text-left px-3 py-2 rounded-lg ${k===i?'bg-gray-900 text-white':'hover:bg-gray-100'}">${s.nav}</button></li>`).join('');
+  document.getElementById('hora').textContent=p.hora;
+  const d=(p.otp||'').padEnd(6,' ').split('');
+  document.getElementById('otp').innerHTML=d.map(c=>`<div class="otp rounded-lg border ${c.trim()?'border-[#7633FF]':'border-[#A19EB5]'} bg-white flex items-center justify-center text-xl font-bold">${c.trim()}</div>`).join('');
+  const pie={cuenta:'<span class="text-[#7633FF] font-semibold text-sm">Reenviar codigo</span>',
+             carga:'<div class="mx-auto w-8 h-8 rounded-full border-4 border-[#C5C5FF] border-t-[#7633FF] animate-spin"></div>',
+             ok:'<p class="text-sm text-emerald-700">→ Pantalla «Nueva contraseña»</p>'}[p.pie];
+  document.getElementById('pie').innerHTML=pie;
+  const v=document.getElementById('velo');
+  if(p.modal){v.classList.remove('hidden');document.getElementById('mTitulo').textContent=p.modal.titulo||'Demasiados intentos';const ic=document.getElementById('mIcono');ic.textContent=p.modal.icono||'⏱';ic.className='text-2xl '+(p.modal.icono?'text-[#7633FF]':'text-[#FF6464]');document.getElementById('mTexto').textContent=p.modal.texto;
+    const t=document.getElementById('mTimer'); if(p.modal.timer){t.textContent=p.modal.timer;t.classList.remove('hidden')}else t.classList.add('hidden');}
+  else v.classList.add('hidden');
+  document.getElementById('etapa').textContent=p.etapa;
+  document.getElementById('titulo').textContent=p.titulo;
+  document.getElementById('descripcion').textContent=p.desc;
+  document.getElementById('hoy').textContent=p.hoy;
+  document.getElementById('nuevo').textContent=p.nuevo;
+  const b=p.bandeja;
+  document.getElementById('bandeja').innerHTML=b?b.map(r=>`<li class="py-2 flex justify-between"><span class="text-gray-500 w-14">${r[0]}</span><span class="flex-1">Tu código de restablecimiento: <b>${r[1]}</b></span><span class="text-gray-500">${r[2]}</span></li>`).join(''):'<li class="py-2 text-gray-400">Sin correos nuevos en este paso</li>';
+  pintarDeuda(p);
+  document.getElementById('chips').innerHTML=p.chips.map(c=>`<span class="px-2.5 py-1 rounded-full text-xs font-medium ${colores[c[1]]}">${c[0]}</span>`).join('');
+}
+function mini(t,ic,col,texto,timer){return `<div class="rounded-2xl border border-gray-200 p-4 shadow-sm"><div class="flex items-center gap-2"><span class="text-xl ${col}">${ic}</span><span class="font-bold text-[#140F26]">${t}</span></div><p class="mt-2 text-sm">${texto}</p>${timer?`<p class="mt-1 text-sm font-extrabold">${timer}</p>`:''}<div class="mt-3 h-8 rounded-full bg-[#321185] text-white text-xs flex items-center justify-center">✆ Llamar al 6077000225</div></div>`}
+function pintarDeuda(p){const d=document.getElementById('deuda');
+  if(!p.futuro){d.classList.add('hidden');return}
+  d.classList.remove('hidden');
+  const t=p.modal.titulo||'Demasiados intentos', ic=p.modal.icono||'⏱', col=p.modal.icono?'text-[#7633FF]':'text-[#FF6464]';
+  document.getElementById('dHoy').innerHTML=mini(t,ic,col,p.modal.texto,p.modal.timer);
+  document.getElementById('dFut').innerHTML=mini(p.futuro.titulo,p.futuro.icono,'text-[#7633FF]',p.modal.texto,p.modal.timer);}
+pintar(0);
+</script>
+</body>
+</html>
