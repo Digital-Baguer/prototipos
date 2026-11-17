@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AQ-030 · Antes y después · El aviso de teléfono autorizado dice «iPhone» o «Android» con la versión del sistema</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = { theme: { extend: {
+  colors: { quac:'#7633FF', quacdark:'#321185', lavender:'#E9E8F1', txt:'#140F26', muted:'#A19EB5', err:'#FF6464' },
+  fontFamily: { display:['Poppins','sans-serif'] }
+} } }
+</script>
+<style>
+  body { font-family:'Nunito Sans', sans-serif; }
+  .font-display { font-family:'Poppins', sans-serif; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  /* Teléfono a 360x740 escalado al 62 % */
+  .slot { width:224px; height:460px; position:relative; flex-shrink:0; }
+  .phone { width:360px; height:740px; border-radius:44px; border:10px solid #140F26; background:#F8F8F8; position:absolute; top:0; left:0; overflow:hidden; transform:scale(.62); transform-origin:top left; box-shadow:0 20px 40px rgba(20,15,38,.18); }
+  .barra { height:30px; display:flex; align-items:center; justify-content:space-between; padding:0 22px; font-size:13px; font-weight:700; color:#140F26; }
+  .marca { border-radius:6px; padding:1px 4px; }
+  .marca.mal { background:#FEE2E2; box-shadow:0 0 0 2px #FCA5A5; }
+  .marca.bien { background:#D1FAE5; box-shadow:0 0 0 2px #6EE7B7; }
+  .chip-t { border-radius:999px; padding:2px 10px; font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+  .flecha { align-self:center; color:#94a3b8; font-size:22px; padding:0 2px; margin-top:-60px; }
+  .tab { border:1px solid #e2e8f0; background:#fff; color:#334155; }
+  .tab.on { background:#312e81; border-color:#312e81; color:#fff; }
+  /* Página pública del enlace (layout enlace_bloqueo.blade.php) */
+  .pub { background:linear-gradient(180deg,#F0ECF9,#F7F6FA); height:100%; padding:20px 16px; font-family:Arial,Helvetica,sans-serif; color:#12263f; }
+  .pub .card { background:#fff; border-radius:20px; padding:22px 18px; }
+  .pub h2 { color:#2E1380; font-size:22px; font-weight:800; margin-top:12px; }
+  .pub .lead { color:#4a4f66; font-size:15px; margin-top:6px; }
+  .pub .small { color:#5c6075; font-size:14px; }
+  .pub .device { background:#F7F6FA; border:1px solid #ECEDF3; border-radius:14px; padding:12px; display:flex; gap:10px; align-items:center; margin-top:14px; }
+  .pub .btn { border-radius:14px; height:48px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; }
+</style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-700">
+<header class="sticky top-0 z-50 border-b border-indigo-200 bg-indigo-50/95 px-6 py-3 backdrop-blur">
+  <p class="text-[12px] font-bold text-indigo-900">AQ-030 · El aviso de teléfono autorizado dice «iPhone» o «Android» con la versión del sistema · api-quac-v2 <code>origin/master 1c9c7</code> (aún sin rama) · sin tarjeta todavía</p>
+  <p class="mt-0.5 text-[12px] text-indigo-800">Caso real: cédula ****8390, aviso del 16-nov a las 12:28 pm. Decía «iPhone18,4» y la clienta tiene un iPhone 17; creyó que le estaban mintiendo. De ejemplo: el nombre del cliente, los 4 dígitos del celular, la segunda fila de Mis dispositivos y su compra.</p>
+  <div class="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
+    <div class="flex items-center gap-2"><span class="font-bold text-indigo-900">Dónde lo ve</span>
+      <div class="flex flex-wrap gap-1 rounded-lg bg-indigo-100 p-1" id="tabsFlujo">
+        <button data-f="sms" class="tab rounded-md px-3 py-1 font-semibold">aviso por SMS</button>
+        <button data-f="correo" class="tab rounded-md px-3 py-1 font-semibold">aviso por correo</button>
+        <button data-f="enlace" class="tab rounded-md px-3 py-1 font-semibold">enlace de emergencia</button>
+        <button data-f="mis" class="tab rounded-md px-3 py-1 font-semibold">Mis dispositivos</button>
+      </div></div>
+    <div class="flex items-center gap-2"><span class="font-bold text-indigo-900">El teléfono del cliente</span>
+      <div class="flex flex-wrap gap-1 rounded-lg bg-indigo-100 p-1" id="tabsTel">
+        <button data-t="iphone" class="tab rounded-md px-3 py-1 font-semibold">iPhone 17</button>
+        <button data-t="samsung" class="tab rounded-md px-3 py-1 font-semibold">Samsung</button>
+        <button data-t="moto" class="tab rounded-md px-3 py-1 font-semibold">Motorola con nombre legible</button>
+        <button data-t="ipad" class="tab rounded-md px-3 py-1 font-semibold">iPad</button>
+      </div></div>
+  </div>
+</header>
+<main class="px-6 py-5">
+  <div id="resumen" class="mb-4 rounded-xl bg-white p-4 shadow-sm"></div>
+  <section class="mb-6">
+    <div class="mb-2 flex items-center gap-3"><span class="chip-t bg-red-100 text-red-700">Hoy en producción</span><span id="txtHoy" class="text-sm text-slate-500"></span></div>
+    <div id="filaHoy" class="flex items-start gap-2 overflow-x-auto pb-2"></div>
+  </section>
+  <section>
+    <div class="mb-2 flex items-center gap-3"><span class="chip-t bg-emerald-100 text-emerald-700">Con el ajuste</span><span id="txtFix" class="text-sm text-slate-500"></span></div>
+    <div id="filaFix" class="flex items-start gap-2 overflow-x-auto pb-2"></div>
+  </section>
+  <section class="mt-6 grid gap-4 md:grid-cols-3">
+    <div class="rounded-xl bg-white p-4 shadow-sm text-sm">
+      <p class="font-display font-bold text-txt">La regla nueva</p>
+      <ol class="mt-1 list-decimal space-y-0.5 pl-5">
+        <li>El cliente ve la familia del teléfono y la versión del sistema, nunca el modelo: «iPhone (iOS 26.6.1)», «Android (Android 16)», «iPad (iOS 26.6.1)».</li>
+        <li>Si no hay versión, solo la familia. Si no se sabe el sistema, «tu teléfono» en el aviso y «Teléfono» en Mis dispositivos.</li>
+        <li>El mismo texto en el SMS, el WhatsApp, el correo, la página del enlace, Mis dispositivos y los correos de teléfono quitado.</li>
+      </ol>
+    </div>
+    <div class="rounded-xl bg-white p-4 shadow-sm text-sm">
+      <p class="font-display font-bold text-txt">Alcance (PROD, desde el 10-nov)</p>
+      <p class="mt-1"><b class="tnum">11.312</b> autorizaciones de iPhone o iPad con <b class="tnum">49</b> códigos de Apple distintos («iPhone18,4», «iPhone14,5»…): todas pasan a decir «iPhone» o «iPad» con su versión.</p>
+      <p class="mt-2"><b class="tnum">13.443</b> autorizaciones Android con <b class="tnum">752</b> modelos distintos, entre códigos («SM-A356E») y nombres legibles («motorola edge 60 fusion»): todas pasan a «Android» con su versión.</p>
+      <p class="mt-2 text-slate-500"><span class="tnum">0</span> filas sin versión en ese rango.</p>
+    </div>
+    <div class="rounded-xl bg-white p-4 shadow-sm text-sm">
+      <p class="font-display font-bold text-txt">Lo que no cambia</p>
+      <ul class="mt-1 list-disc space-y-0.5 pl-5">
+        <li>La app publicada es la misma: el nombre lo manda el api.</li>
+        <li>El modelo se sigue guardando en la base; solo deja de mostrarse al cliente.</li>
+        <li>Cuándo sale cada aviso, a quién y con qué enlace sigue igual (AQ-009-3).</li>
+        <li>Dos teléfonos de la misma familia y versión se llaman igual; se distinguen por las fechas. El nombre propio llega con AQ-019.</li>
+        <li>WhatsApp: su plantilla vive en Infobip y no está en el repo; cambia la variable del teléfono como en el SMS.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+/* Teléfonos de ejemplo: sistema, versión y modelo como llegan en autorizaciones_dispositivo */
+const TEL = {
+  iphone:  { os:'ios',     ver:'26.6.1', modelo:'iPhone18,4',              fam:'iPhone', real:'iPhone 17' },
+  samsung: { os:'android', ver:'16',     modelo:'SM-A356E',                fam:'Android', real:'Samsung Galaxy A35' },
+  moto:    { os:'android', ver:'16',     modelo:'motorola edge 60 fusion', fam:'Android', real:'Motorola Edge 60 Fusion' },
+  ipad:    { os:'ios',     ver:'26.6.1', modelo:'iPad13,4',                fam:'iPad',   real:'iPad Pro' },
+};
+/* Segunda fila de Mis dispositivos: otro teléfono de la misma familia y versión (D6) */
+const OTRO = {
+  ios:     { os:'ios',     ver:'26.6.1', modelo:'iPhone14,5', fam:'iPhone' },
+  android: { os:'android', ver:'16',     modelo:'SM-A556E',   fam:'Android' },
+};
+const sistema = t => (t.os === 'ios' ? 'iOS' : 'Android') + ' ' + t.ver;          // nombreSistema()
+const nuevo = t => `${t.fam} (${sistema(t)})`;                                    // AQ-030 D4
+const hoyMis = t => `${t.os === 'ios' ? 'iPhone' : 'Android'} · ${t.modelo}`;     // armarNombre() hoy
+const M = (txt, ok) => `<span class="marca ${ok ? 'bien' : 'mal'}">${txt}</span>`;
+const SAC = '6077000225', WA = '312 460 5748';
+const barra = (hora='12:29') => `<div class="barra"><span>${hora}</span><span class="flex items-center gap-1"><span class="inline-block h-2 w-4 rounded-sm bg-txt"></span></span></div>`;
+const icoTel = c => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg>`;
+const icoEscudo = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+const icoCheck = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1E7B34" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
+const logo = `<p class="text-center font-display text-[26px] font-extrabold tracking-tight text-quac">quac</p>`;
+
+/* ---------- Pantallas ---------- */
+const P = {
+  /* SMS del aviso (EnviarAvisoDispositivoJob::mensajeAutorizado). Con enlace solo al celular anterior */
+  sms: (nombre, ok, conEnlace) => `<div class="h-full bg-white">${barra()}
+      <div class="border-b border-slate-200 px-4 pb-3 pt-2 text-center">
+        <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-slate-300 font-bold text-white">Q</div>
+        <p class="mt-1 text-[13px] font-semibold text-txt">QUAC</p></div>
+      <p class="mt-4 text-center text-[11px] text-slate-400">Hoy 12:28 p. m.</p>
+      <div class="mx-3 mt-2 max-w-[290px] rounded-2xl rounded-bl-md bg-slate-100 px-3.5 py-2.5 text-[15px] leading-snug text-txt">
+        QUAC: Hoy 16/11/2026 a las 12:28 pm se autorizó un teléfono nuevo (${M(nombre, ok)}) para entrar a tu cuenta. Si fuiste tú, no hagas nada. Si no fuiste tú, ${conEnlace ? 'bloquéalo aquí: <span class="text-blue-600 underline">quac.co/b/7Hk2Q</span>, ' : ''}llama al ${SAC} opción 2 o escríbenos al WhatsApp ${WA}.
+      </div></div>`,
+  /* Correo del aviso (emails/autorizacion_dispositivo.blade.php) */
+  correo: (caja, ok) => `<div class="h-full bg-white">${barra()}
+      <div class="border-b border-slate-200 px-4 py-3">
+        <p class="text-[17px] font-bold leading-tight text-txt">Se autorizó un teléfono nuevo en tu cuenta QUAC</p>
+        <p class="mt-1 text-[12px] text-slate-500">QUAC · 16 nov, 12:28 p. m.</p></div>
+      <div class="px-4 py-3" style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a">
+        <p style="color:#6A1B9A;font-size:22px;font-weight:700">Hola, Marcela</p>
+        <p class="mt-2 text-[14px]">El 16/11/2026 a las 12:28 pm se autorizó un teléfono nuevo en tu cuenta QUAC:</p>
+        <div class="mt-3 px-3 py-2.5 text-[14px] font-bold" style="background:#F5F5F5;border-left:4px solid #6A1B9A">${M(caja, ok)}</div>
+        <p class="mt-3 text-[14px]">El código de verificación llegó al celular terminado en <b>2481</b>.</p>
+        <p class="mt-3 text-[16px] font-bold">Si fuiste tú</p>
+        <p class="mt-1 text-[14px]">Listo, no necesitas hacer nada. Ya puedes usar la app desde ese teléfono.</p>
+        <p class="mt-3 text-[16px] font-bold">¿No reconoces este teléfono?</p>
+        <p class="mt-1 text-[14px]">Comunícate con servicio al cliente: llama al <b style="color:#6A1B9A">${SAC} opción 2</b> o escríbenos al WhatsApp <b style="color:#6A1B9A">${WA}</b>.</p>
+        <hr class="my-3"><p style="color:#888;font-size:12px">Este es un correo automático de seguridad de QUAC. No respondas a este mensaje.</p>
+      </div></div>`,
+  /* Página del enlace: pregunta (publico/bloqueo_pregunta.blade.php) */
+  pregunta: (nombre, ok) => `<div class="pub">${logo}
+      <div class="card mt-3">
+        <div class="flex h-14 w-14 items-center justify-center rounded-full" style="background:#F0ECF9">${icoEscudo}</div>
+        <h2>¿Bloquear este teléfono?</h2>
+        <p class="lead">Se autorizó un teléfono nuevo para entrar a tu cuenta.</p>
+        <div class="device"><div class="flex h-9 w-9 items-center justify-center rounded-lg bg-white">${icoTel('#7633FF')}</div>
+          <div><p class="text-[16px] font-bold">${M(nombre, ok)}</p><p class="text-[13px]" style="color:#5c6075">16/11/2026 · 12:28 p. m.</p></div></div>
+        <p class="small mt-3">Si no fuiste tú, bloquéalo. Saldrá de tu cuenta y cerraremos todas tus sesiones.</p>
+        <div class="btn mt-4 text-white" style="background:#C62828">Sí, bloquear este teléfono</div>
+        <div class="btn mt-2" style="color:#7633FF;border:1px solid #C4ADFF;box-shadow:0 0 0 4px rgba(252,211,77,.85)">Fui yo, no bloquear</div>
+      </div><p class="mt-4 text-center text-[12px] font-bold" style="color:#8a87a0">QUAC.CO</p></div>`,
+  /* Página del enlace: confirmación (publico/bloqueo_autorizado.blade.php) */
+  autorizado: (nombre, ok) => `<div class="pub">${logo}
+      <div class="card mt-3">
+        <div class="flex h-14 w-14 items-center justify-center rounded-full" style="background:#E6F4EA">${icoCheck}</div>
+        <h2>Teléfono autorizado</h2>
+        <p class="mt-2 text-[15px]">Gracias por confirmarlo. <b>${M(nombre, ok)}</b> sigue autorizado para entrar a tu cuenta.</p>
+        <p class="small mt-3">Ya puedes cerrar esta página.</p>
+      </div><p class="mt-4 text-center text-[12px] font-bold" style="color:#8a87a0">QUAC.CO</p></div>`,
+  /* Mis dispositivos (scr_060_mis_dispositivos_screen.dart; nombre del api) */
+  mis: (n1, n2, ok) => {
+    const dato = (e, v) => `<div class="flex items-center gap-2 text-[13px]"><span class="w-[92px] text-muted">${e}</span><span class="font-semibold text-txt">${v}</span></div>`;
+    const tarjeta = (nombre, actual, aut, ing, compra) => `<div class="mt-3 rounded-2xl bg-white p-4" style="${actual ? 'border:2px solid rgba(118,51,255,.4)' : ''}">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 items-center justify-center rounded-full" style="background:${actual ? 'rgba(118,51,255,.1)' : '#E9E8F1'}">${icoTel(actual ? '#7633FF' : '#321185')}</div>
+          <div><p class="text-[15px] font-extrabold text-txt">${M(nombre, ok)}</p>
+            ${actual ? '<span class="mt-0.5 inline-block rounded-full px-2 py-[1px] text-[10px] font-extrabold text-quac" style="background:rgba(118,51,255,.1)">ESTE TELÉFONO</span>' : ''}</div></div>
+        <div class="mt-3 space-y-1.5">${dato('Autorizado', aut)}${dato('Último ingreso', ing)}${compra ? dato('Última compra', compra) : ''}</div>
+        ${actual ? '<p class="mt-3 text-[11.5px] text-muted">Para salir de este teléfono usa «Cerrar sesión» en el menú Más.</p>'
+                 : '<div class="mt-3 flex h-10 items-center justify-center rounded-[10px] text-[14px] font-bold" style="border:1px solid #FF6464;color:#FF6464;box-shadow:0 0 0 4px rgba(252,211,77,.85)">Quitar este teléfono</div>'}
+      </div>`;
+    return `<div class="h-full px-4" style="background:#F8F8F8">${barra()}
+      <p class="mt-2 text-[11px] font-bold tracking-wider text-muted">SEGURIDAD</p>
+      <p class="font-display text-[24px] font-extrabold text-quacdark">Mis dispositivos</p>
+      <p class="mt-1 text-[14px] text-txt">Estos son los teléfonos que pueden entrar a tu cuenta QUAC. Si no reconoces alguno, quítalo.</p>
+      ${tarjeta(n1, true, 'Hoy · 12:28 p. m.', 'Hoy · 12:29 p. m.')}
+      ${tarjeta(n2, false, '2 nov 2026 · 4:05 p. m.', '10 nov 2026 · 8:03 p. m.', '$189.900 · Cabecera')}
+    </div>`;
+  },
+  /* Correo de teléfono quitado (emails/dispositivo_quitado.blade.php) */
+  quitado: (origen, quitado, ok) => `<div class="h-full px-3 pt-0" style="background:#F8F8F8">${barra()}
+      <p class="px-1 pb-2 text-[15px] font-bold text-txt">Quitaste un teléfono de tu cuenta QUAC</p>
+      <div class="rounded-xl bg-white p-4">
+        <p class="font-display text-[20px] font-extrabold text-quac">quac</p>
+        <p class="mt-2 text-[20px] font-bold" style="color:#321185">Quitaste un teléfono de tu cuenta</p>
+        <p class="mt-2 text-[14px] text-txt">Hola, Marcela. Desde tu ${M(origen, ok)} quitaste este teléfono de tu cuenta QUAC:</p>
+        <div class="mt-3 space-y-1.5 text-[14px]">
+          <div><span class="text-muted">Teléfono</span><br><b class="text-txt">${M(quitado, ok)}</b></div>
+          <div><span class="text-muted">Fecha y hora</span><br><b class="text-txt">17 nov 2026 · 9:44 a. m.</b></div></div>
+        <p class="mt-3 text-[14px] text-txt">Si no fuiste tú, cambia tu contraseña en la app (Más › Cambiar contraseña) o comunícate con nosotros.</p>
+        <p class="mt-3 text-[12px] text-muted">Este correo se envía automáticamente. No respondas a esta dirección.</p>
+      </div></div>`,
+};
+
+/* ---------- Recorridos: [pantalla, marca, pie] ---------- */
+function recorrido(F, t, fix) {
+  const n = fix ? nuevo(t) : t.modelo;
+  const otro = OTRO[t.os];
+  const mal = fix ? 'cambia' : 'queda';
+  if (F === 'sms') return [
+    [P.sms(n, fix, false), mal, fix ? `Dice «${nuevo(t)}»: lo mismo que el cliente ve en Ajustes › General › Información (o Acerca del teléfono).`
+                                    : `Dice «${t.modelo}». El cliente tiene un ${t.real} y no reconoce ese nombre. El WhatsApp lleva la misma variable.`],
+  ];
+  if (F === 'correo') return [
+    [P.correo(fix ? nuevo(t) : `${t.modelo} (${sistema(t)})`, fix), mal,
+      fix ? `La caja dice «${nuevo(t)}». La versión ya estaba; sale el modelo.` : `La caja dice «${t.modelo} (${sistema(t)})»: la versión está bien, el modelo confunde.`],
+  ];
+  if (F === 'enlace') return [
+    [P.sms(n, fix, true), mal, 'El SMS al celular anterior, cuando es distinto del que validó, trae el enlace para bloquear.'],
+    [P.pregunta(n, fix), mal, fix ? `La tarjeta dice «${nuevo(t)}». El cliente reconoce su teléfono y toca «Fui yo».`
+                                  : `La tarjeta dice «${t.modelo}». Es la pantalla donde el cliente decide si bloquear: con un nombre que no reconoce, puede bloquear su propio teléfono.`],
+    [P.autorizado(n, fix), mal, fix ? `«${nuevo(t)} sigue autorizado».` : `«${t.modelo} sigue autorizado».`],
+  ];
+  /* Mis dispositivos → quitar el otro teléfono → correo */
+  const n1 = fix ? nuevo(t) : hoyMis(t), n2 = fix ? nuevo(otro) : hoyMis(otro);
+  const extraIpad = (!fix && t.fam === 'iPad') ? ' El iPad sale como «iPhone»: hoy el api llama «iPhone» a todo lo que es iOS.' : '';
+  return [
+    [P.mis(n1, n2, fix), mal, fix ? `«${n1}» y «${n2}». ${n1 === n2 ? 'Se llaman igual y se distinguen por «Este teléfono», Autorizado y Último ingreso (D6).' : ''}`
+                                  : `«${n1}» y «${n2}»: el código técnico al lado de la familia.${extraIpad}`],
+    [P.quitado(n1, n2, fix), mal, fix ? `«Desde tu ${n1} quitaste este teléfono: ${n2}».` : `«Desde tu ${n1} quitaste este teléfono: ${n2}». También el correo de «Intentaron quitar un teléfono».`],
+  ];
+}
+const MARCA = { queda:['bg-red-100 text-red-700','se queda aquí'], cambia:['bg-emerald-600 text-white','cambia con el ajuste'], igual:['bg-slate-200 text-slate-600','igual'] };
+const pintarFila = (sel, pasos) => {
+  $(sel).innerHTML = pasos.map(([html, m, pie], i) => `${i ? '<span class="flecha">→</span>' : ''}
+    <figure class="flex flex-col gap-2">
+      <div class="slot"><div class="phone">${html}</div></div>
+      <figcaption class="w-[224px] text-[12px] leading-snug">
+        <span class="chip-t ${MARCA[m][0]}">${i+1} · ${MARCA[m][1]}</span>
+        <p class="mt-1 text-slate-600">${pie}</p>
+      </figcaption>
+    </figure>`).join('');
+};
+const RES_TEL = {
+  iphone:  ['Un iPhone 17.', 'Es el caso que origina el ajuste. Apple identifica el iPhone 17 por dentro como «iPhone18,4» y ese código es el que llega al aviso. La clienta lee otro modelo y cree que no es su teléfono.'],
+  samsung: ['Un Samsung.', 'El teléfono manda su número de fábrica, «SM-A356E». El cliente conoce su teléfono como «Galaxy A35» y no lo reconoce.'],
+  moto:    ['Un Motorola que sí manda un nombre legible.', 'Este es el caso que pierde algo: hoy se lee «motorola edge 60 fusion». Con el ajuste dice «Android (Android 16)», como todos los Android: una sola regla, sin adivinar entre 752 modelos (D3).'],
+  ipad:    ['Un iPad.', 'Llega como «iPad13,4». Con el ajuste se reconoce como «iPad» con su versión.'],
+};
+const RES_FLUJO = { sms:'Aviso por SMS', correo:'Aviso por correo', enlace:'Enlace de emergencia', mis:'Mis dispositivos' };
+let F = 'sms', T = 'iphone';
+function render(){
+  document.querySelectorAll('#tabsFlujo .tab').forEach(b => b.classList.toggle('on', b.dataset.f === F));
+  document.querySelectorAll('#tabsTel .tab').forEach(b => b.classList.toggle('on', b.dataset.t === T));
+  const t = TEL[T]; const [tit, txt] = RES_TEL[T];
+  $('#resumen').innerHTML = `<p class="font-display font-bold text-txt">${RES_FLUJO[F]} · ${tit}</p><p class="mt-1 text-sm">${txt}</p>`;
+  $('#txtHoy').textContent = F === 'mis' ? `Se lee «${hoyMis(t)}».` : F === 'correo' ? `Se lee «${t.modelo} (${sistema(t)})».` : `Se lee «${t.modelo}».`;
+  $('#txtFix').textContent = `Se lee «${nuevo(t)}».`;
+  pintarFila('#filaHoy', recorrido(F, t, false));
+  pintarFila('#filaFix', recorrido(F, t, true));
+}
+document.querySelectorAll('#tabsFlujo .tab').forEach(b => b.onclick = () => { F = b.dataset.f; render(); });
+document.querySelectorAll('#tabsTel .tab').forEach(b => b.onclick = () => { T = b.dataset.t; render(); });
+render();
+</script>
+</body>
+</html>
