@@ -54,6 +54,7 @@ html,body{font-family:ui-sans-serif,system-ui,sans-serif,"Apple Color Emoji","Se
     <button class="mk-btn" data-caso="bloqueado">2 · Teléfono bloqueado por el enlace de emergencia</button>
     <button class="mk-btn" data-caso="registro">3 · Registro de cuenta a medias</button>
     <button class="mk-btn" data-caso="ok">4 · Sin pendientes</button>
+    <button class="mk-btn" data-caso="restablece">5 · Restableciendo contraseña</button>
     <button class="mk-btn" data-caso="vacio">Sin resultados</button>
     <button class="mk-btn" data-caso="cargando">Cargando</button>
     <button class="mk-btn" data-caso="error">Error</button>
@@ -211,7 +212,7 @@ function datos(){
       M('20-oct',29,'7:41:10 p. m.',C,'app','Entró a la app','Desde su equipo autorizado','App',{est:['verde','Correcto']}),
       M('24-oct',25,'12:05:33 p. m.',C,'app','Entró a la app','Desde su equipo autorizado','App',{est:['verde','Correcto']}),
       M('28-oct',21,'4:18:47 p. m.',C,'app','Entró a la app','Desde su equipo autorizado','App',{est:['verde','Correcto']}),
-      M('28-oct',21,'4:19:02 p. m.',C,'envio','Código para cambiar la contraseña','a m•••@gmail.com','Correo',COR),
+      M('28-oct',21,'4:19:02 p. m.',C,'envio','Pidió código para restablecer la contraseña','a m•••@gmail.com','Correo',COR),
       M('28-oct',21,'4:20:15 p. m.',C,'valida','Cambió su contraseña','Desde su equipo autorizado','App',{est:['verde','Correcto']}),
       M('28-oct',21,'4:20:16 p. m.',C,'envio','Aviso de cambio de contraseña','a m•••@gmail.com','Correo',COR),
       M('1-nov',17,'9:12:47 a. m.',C,'app','Entró a la app','Desde su equipo autorizado','App',{est:['verde','Correcto']}),
@@ -294,6 +295,8 @@ function datos(){
     bloqueos:[],
     mov:[
       M('30-oct',19,'7:02:11 p. m.',V,'app','Entró a la app','Desde su equipo autorizado','App',{est:['verde','Correcto']}),
+      M('2-nov',16,'6:38:20 p. m.',V,'envio','Pidió código para restablecer la contraseña','a a•••@gmail.com','Correo',{canal:'Correo',est:['verde','Aceptado por el servidor'],rest:'pedido'}),
+      M('2-nov',16,'6:40:12 p. m.',V,'valida','Cambió la contraseña','Con el código del correo','App',{est:['verde','Correcto']}),
       M('17-nov',1,'8:33:12 a. m.',N,'app','Inició sesión desde un equipo nuevo','Clave correcta; el equipo no está autorizado','App',{est:['gris','Intento abierto']}),
       M('17-nov',1,'8:33:15 a. m.',N,'envio','Código del celular · nuevo','a 301 555 7788','Infobip · SMS',SMS(ENT)),
       M('17-nov',1,'8:33:40 a. m.',N,'valida','Escribió el código del celular','Paso 1','App',{est:['verde','Correcto']}),
@@ -303,11 +306,25 @@ function datos(){
       M('17-nov',1,'8:33:54 a. m.',N,'envio','Aviso de equipo nuevo con el enlace «No fui yo»','a a•••@gmail.com','Correo',COR)],
     soporte:[], accesos:[]
   };
+  /* 5 · restableciendo contrasena: un equipo autorizado, nada pendiente en la app */
+  const X='a4c6e8f0-1b3d-4e5f-9a7b-2c4d6e8f0a12';
+  const restablece={
+    nombre:'Mónica Andrea Pardo Quintero', cedula:'1020304050', cuenta:'Activa desde 22-ago-2025',
+    celular:'312 444 9090', correo:'m•••@gmail.com', correoFull:'mapardo.quintero@gmail.com', cupo:'$ 1.200.000', appVer:'4.0.1 · Android', min:11*60+3,
+    equipos:[{id:X, modelo:'SM-A155M', so:'Android 14', app:'4.0.1', ip:'203.0.113.61', primer:'22-ago-2025', ultimo:'hoy 10:55 a. m.', estado:'autorizado', autorizado:'22-ago-2025'}],
+    procesos:[], bloqueos:[],
+    mov:[
+      M('9-nov',9,'7:15:44 p. m.',X,'app','Entró a la app','Desde su equipo autorizado','App',{est:['verde','Correcto']}),
+      M('14-nov',4,'12:31:09 p. m.',X,'app','Entró a la app','Desde su equipo autorizado','App',{est:['verde','Correcto']}),
+      M('Hoy',0,'10:52:06 a. m.',X,'envio','Pidió código para restablecer la contraseña','a m•••@gmail.com','Correo',{canal:'Correo',est:['verde','Aceptado por el servidor'],rest:'pedido'}),
+      M('Hoy',0,'10:55:18 a. m.',X,'envio','Reenvío del código para restablecer','a m•••@gmail.com','Correo',{canal:'Correo',est:['verde','Aceptado por el servidor'],rest:'reenvio'})],
+    soporte:[], accesos:[]
+  };
   /* Codigo completo de cada envio: solo se guarda en el intento activo; en los viejos queda sin codigo */
   atascado.mov.forEach(m=>{if(m.eq===A&&m.k==='envio')m.cod='518247';});
   const codReg={'9:14:25 a. m.':'730561','9:15:03 a. m.':'264109','9:16:40 a. m.':'940382','9:23:10 a. m.':'940382'};
   registro.mov.forEach(m=>{if(codReg[m.h])m.cod=codReg[m.h];});
-  return {atascado, bloqueado, registro, ok};
+  return {atascado, bloqueado, registro, ok, restablece};
 }
 let CASOS=datos();
 
@@ -327,7 +344,22 @@ function calcVeredicto(c){
   const p=procActivo(c);
   if(p&&p.cupo.usados>=p.cupo.de) return {tono:'rosa',titulo:'Llegó al límite de códigos hasta las '+p.cupo.libre,hacer:'Reinicia el límite y reenvía el código por otro canal',chip:'Límite de códigos alcanzado',acc:'reiniciar-limite'};
   if(p&&p.pasos.some(s=>s.e==='en_curso')) return {tono:'negro',titulo:'Esperando que escriba el código',hacer:'Reenvía el código vigente por otro canal o compara la hora con el SMS que tiene',chip:'Esperando el código',acc:'reenviar'};
+  if(restActivo(c)) return {tono:'negro',titulo:'Está restableciendo su contraseña',hacer:'El código le llega al correo; si no le llega, pídele que revise spam y toque Reenviar en la app',chip:'Restableciendo contraseña',acc:null};
   return {tono:'verde',titulo:'Sin pendientes',hacer:null,chip:'Sin pendientes',acc:null};
+}
+/* Restablecer contrasena: pedido de hoy con menos de 30 min y sin «Cambio la contrasena» despues */
+const minDe=h=>{const [hh,mm]=h.split(':');return (+hh%12+(h.includes('p. m.')?12:0))*60+(+mm);};
+function restActivo(c){
+  const i=c.mov.map(m=>m.rest==='pedido'&&m.d===0).lastIndexOf(true); if(i<0) return null;
+  const m=c.mov[i], t=minDe(m.h);
+  if(c.min-t>=30||c.mov.slice(i+1).some(x=>/^Cambió (la|su) contraseña/.test(x.t))) return null;
+  return {hora:fmt(t),vence:fmt(t+30)};
+}
+function tarjetaRestablecer(c){
+  const r=restActivo(c); if(!r) return '';
+  return '<div class="rounded-xl border bg-white p-5 shadow-sm"><div class="flex items-center gap-2 rounded-lg bg-neutral-100 px-4 py-3 text-sm text-gray-700">'+ic('key-round','h-4 w-4 shrink-0 text-gray-500')+
+    '<span><span class="font-medium text-gray-900">Restablecer contraseña</span> · código enviado a '+c.correo+' a las '+r.hora+' · vence a las '+r.vence+'</span></div>'+
+    '<p class="mt-2 text-xs text-gray-500">Por ahora esta pantalla no muestra ni reenvía este código.</p></div>';
 }
 function veredicto(c){
   const v=calcVeredicto(c); REC=v.acc;
@@ -547,7 +579,7 @@ function tablaEquipos(c){
       '<div class="whitespace-nowrap font-mono text-[13px] text-gray-900">'+corto(e.id)+'</div><div class="mt-0.5 text-xs text-gray-500">'+e.so+(e.modelo!=='No registrado'?' · '+e.modelo:'')+' · app '+e.app.toLowerCase()+'</div></td>'+
       '<td class="whitespace-nowrap tabular-nums">'+e.ip+'</td><td class="whitespace-nowrap tabular-nums">'+e.primer+'</td><td class="whitespace-nowrap tabular-nums">'+e.ultimo+'</td>'+
       '<td><div class="flex flex-col items-start gap-1">'+est+'</div></td>'+
-      '<td class="text-right">'+(e.proc!==undefined&&!actual?'<button data-proc="'+e.proc+'" class="inline-flex h-8 items-center rounded-md border bg-white px-3 text-xs font-medium text-gray-900 hover:bg-accent">Ver proceso</button>':'<span class="text-gray-300">—</span>')+'</td></tr>';
+      '<td class="text-right text-xs text-gray-500">'+(actual?'Es el proceso que ves arriba':'')+'</td></tr>';
   };
   return '<div class="overflow-hidden rounded-lg border bg-white shadow-sm"><div class="border-b px-5 py-3"><div class="text-base font-semibold text-gray-900">Equipos del cliente</div><div class="text-xs text-gray-500">Autorizar un equipo nuevo no les quita la autorización a los demás.</div></div>'+
     '<table class="p-dt"><thead><tr><th>Equipo</th><th>Red (IP)</th><th>Primer contacto</th><th>Último contacto</th><th>Estado</th><th></th></tr></thead><tbody>'+c.equipos.map(fila).join('')+'</tbody></table></div>';
@@ -593,7 +625,7 @@ function paginacion(desde,n,total,nPag){
     (nPag>1?'<div class="flex items-center gap-1">'+b(pagMov-1,'Anterior',false,pagMov===1)+nums+b(pagMov+1,'Siguiente',false,pagMov===nPag)+'</div>':'')+'</div>';
 }
 
-function vistaIntento(c){return tarjetaBloqueos(c)+selectorProcesos(c)+tarjetaProceso(c)+comparacion(c)+tablaEquipos(c)+vistaMovimiento(c);}
+function vistaIntento(c){return tarjetaBloqueos(c)+selectorProcesos(c)+tarjetaProceso(c)+tarjetaRestablecer(c)+comparacion(c)+tablaEquipos(c)+vistaMovimiento(c);}
 
 function vistaSoporte(c){
   if(!c.soporte.length) return '<div class="flex flex-col items-center justify-center rounded-lg border bg-white py-14 text-center shadow-sm">'+ic('headset','h-8 w-8 text-gray-300')+
