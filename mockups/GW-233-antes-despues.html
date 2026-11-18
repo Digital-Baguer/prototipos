@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-233 · Antes y después · Cupón y saldos en venta confirmada</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .sel button[aria-pressed="true"] { background:#111827; color:#fff; border-color:#111827; }
+  .pantalla { width: 300px; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<header class="border-b bg-white px-6 py-3 text-xs text-gray-600">
+  <div class="flex flex-wrap items-center gap-x-6 gap-y-1">
+    <span class="text-sm font-semibold text-gray-900">GW-233 · Antes y después</span>
+    <span>get-web <code>feature/GW-233</code> <code>7cd96</code> · get-api <code>9b48e</code></span>
+    <span>Tarjeta Jira GW-234</span>
+    <span>Pantalla: Venta asistida › Carrito › barra lateral, tarjetas «Resumen» y «Cupón y saldos»</span>
+  </div>
+  <p class="mt-1">Caso que lo originó: una venta contra entrega de $58.950, confirmada por la clienta y con el mensajero en ruta. Apareció un cupón del 10 % y nadie lo pudo aplicar. Nombres, códigos y cifras de esta página son de ejemplo.</p>
+</header>
+
+<div class="sel flex flex-wrap items-center gap-2 border-b bg-white px-6 py-3 text-xs">
+  <span class="mr-1 text-gray-500">Qué hace el usuario</span>
+  <div id="casos" class="flex flex-wrap gap-2"></div>
+</div>
+
+<main class="space-y-8 px-6 py-6">
+  <section class="rounded-lg border bg-white p-4">
+    <p id="resumen" class="text-sm text-gray-700"></p>
+  </section>
+
+  <section>
+    <h2 class="mb-3 text-sm font-bold uppercase tracking-wide text-gray-500">Hoy en producción</h2>
+    <div id="filaHoy" class="flex flex-wrap items-start gap-3"></div>
+  </section>
+
+  <section>
+    <h2 class="mb-3 text-sm font-bold uppercase tracking-wide text-emerald-700">Con el ajuste</h2>
+    <div id="filaAjuste" class="flex flex-wrap items-start gap-3"></div>
+  </section>
+
+  <section class="rounded-lg border bg-white p-4 text-sm text-gray-700">
+    <h2 class="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">La regla nueva</h2>
+    <p>En una venta confirmada sin pedido, solo un rol con el permiso «Ajustar cobro de venta confirmada» aplica o quita cupón, saldo a favor y gift card, aunque el mensajero vaya en ruta. Antes de aplicar un cupón ve lo que cobra hoy y lo que cobrará. Cada cambio queda en Sucesos con quién lo hizo.</p>
+    <h2 class="mb-2 mt-4 text-xs font-bold uppercase tracking-wide text-gray-500">Alcance (PROD, medido el 18-nov-2026)</h2>
+    <ul class="list-disc space-y-1 pl-5">
+      <li>En los últimos 30 días hubo 256 ventas asistidas confirmadas sin pedido. A todas les aplica el ajuste.</li>
+      <li>3 de ellas tenían saldo a favor aplicado. Ese es el caso del aviso «Se quitará el saldo a favor».</li>
+      <li>No cambia: la venta sin confirmar, los ítems de una venta confirmada, la forma de pago con mensajero y el desbloqueo.</li>
+    </ul>
+  </section>
+</main>
+
+<script>
+const fmt = n => '$' + n.toLocaleString('es-CO');
+
+// ── Piezas de la barra lateral (textos tomados de BarraLateralPedido.vue en master 53014 y en la rama) ──
+const tarjeta = (titulo, badge, cuerpo) => `
+  <div class="rounded-lg border bg-white text-[13px] shadow-sm">
+    <div class="flex items-center justify-between border-b px-3 py-2">
+      <h3 class="text-[10px] font-bold uppercase tracking-wide text-gray-500">${titulo}</h3>${badge || ''}
+    </div>
+    <div class="space-y-3 p-3">${cuerpo}</div>
+  </div>`;
+const badgeLectura = '<span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600">🔒 Solo lectura</span>';
+const badgeCobra = '<span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600">Cambia lo que cobra el mensajero</span>';
+const campoCupon = (valor, error) => `
+  <div class="space-y-1">
+    <p class="text-xs font-medium text-gray-500">CUPÓN</p>
+    <div class="flex gap-2"><div class="h-8 flex-1 rounded-md border px-2 py-1.5 text-xs ${valor ? '' : 'text-gray-400'}">${valor || 'Código de cupón'}</div><div class="h-8 rounded-md border px-2 py-1.5 text-xs font-medium">Aplicar</div></div>
+    ${error ? `<p class="text-xs text-red-600">${error}</p>` : ''}
+  </div>`;
+const saldos = (activas, marcado) => `
+  <div>
+    <div class="mb-2 flex gap-1 rounded-lg bg-gray-100 p-1 text-[10px] font-medium"><span class="flex-1 rounded-md bg-white px-2 py-1 text-center shadow-sm">SALDOS A FAVOR</span><span class="flex-1 px-2 py-1 text-center text-gray-600">GIFT CARD</span></div>
+    <div class="flex items-center gap-2 rounded-lg p-1.5 ${marcado ? 'bg-green-50' : ''}">
+      <span class="flex h-4 w-4 items-center justify-center rounded border text-[10px] ${activas ? '' : 'opacity-50'} ${marcado ? 'border-gray-900 bg-gray-900 text-white' : ''}">${marcado ? '✓' : ''}</span>
+      <span class="flex-1 truncate text-xs text-gray-500">DEVEJEMPLO12...</span>
+      <span class="text-xs font-semibold ${marcado ? 'text-green-600' : 'text-slate-600'}">${marcado ? '-' : ''}${fmt(20000)}</span>
+    </div>
+  </div>`;
+const nota = '<p class="border-t pt-2 text-[11px] text-gray-500">La venta ya está confirmada. Para aplicar un cupón o un saldo a favor, pídeselo a alguien con el permiso «Ajustar cobro de venta confirmada».</p>';
+const confirmacion = (codigo, hoy, nuevo, aviso) => `
+  <div class="rounded-lg border border-gray-300 bg-gray-50 p-2 text-xs">
+    <p class="font-medium">¿Aplicar ${codigo} a esta venta confirmada?</p>
+    <div class="mt-2 grid grid-cols-2 gap-2">
+      <div class="rounded bg-white p-1.5"><p class="text-[10px] text-gray-500">Cobra hoy</p><p class="font-semibold">${fmt(hoy)}</p></div>
+      <div class="rounded bg-white p-1.5"><p class="text-[10px] text-gray-500">Cobrará</p><p class="font-semibold text-emerald-700">${fmt(nuevo)}</p></div>
+    </div>
+    ${aviso ? `<p class="mt-2 font-medium text-amber-700">${aviso}</p>` : ''}
+    <p class="mt-2 text-gray-600">Andrés ya va en ruta: verá el valor nuevo en su link de cobro. Avísale si ya habló del valor con la clienta.</p>
+    <div class="mt-2 flex justify-end gap-2"><span class="rounded-md border bg-white px-2 py-1">Cancelar</span><span class="rounded-md bg-gray-900 px-2 py-1 font-medium text-white">Aplicar cupón</span></div>
+  </div>`;
+const cuponAplicado = (codigo, desc) => `
+  <div class="space-y-1"><p class="text-xs font-medium text-gray-500">CUPÓN</p>
+    <div class="flex items-center justify-between rounded-lg bg-green-50 p-2"><div><p class="text-xs font-medium text-green-800">${codigo}</p><p class="text-[11px] text-green-600">-${fmt(desc)}</p></div><span class="text-xs text-gray-500">✕</span></div></div>`;
+const resumen = (total, cupon, saldo, pendiente) => tarjeta('Resumen', '<span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px]">Pendiente de pago</span>', `
+  <div><p class="text-[10px] text-gray-500">TOTAL</p><p class="text-2xl font-bold">${fmt(total)}</p></div>
+  <div class="space-y-1 border-t pt-2 text-xs">
+    <div class="flex justify-between"><span class="text-gray-600">Descuento / cupón ${cupon ? `<b class="text-emerald-700">${cupon[0]}</b>` : ''}</span><span class="${cupon ? 'text-emerald-700' : 'text-gray-400'}">-${fmt(cupon ? cupon[1] : 0)}</span></div>
+    <div class="flex justify-between"><span class="text-gray-600">Saldo a favor</span><span class="${saldo ? 'text-emerald-700' : 'text-gray-400'}">-${fmt(saldo || 0)}</span></div>
+  </div>
+  <div class="flex justify-between border-t pt-2 text-xs"><span class="text-gray-600">Saldo pendiente</span><b>${fmt(pendiente)}</b></div>`);
+const toast = texto => `<div class="rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow"><p class="font-semibold">✓ Cupón aplicado</p><p>${texto}</p></div>`;
+const sucesos = lineas => tarjeta('Sucesos', '', lineas.map(([t, d]) => `
+  <div class="border-l-2 ${d ? 'border-emerald-500' : 'border-gray-200'} pl-2"><p class="text-xs font-medium">${t}</p>${d ? `<p class="text-[11px] text-gray-600">${d}</p>` : ''}</div>`).join(''));
+const mensajero = (valor, bien) => `
+  <div class="rounded-lg border bg-white p-3 text-xs shadow-sm">
+    <p class="text-[10px] font-bold uppercase tracking-wide text-gray-500">Link de cobro del mensajero</p>
+    <p class="mt-1 text-gray-600">Contra entrega · Andrés</p>
+    <p class="mt-1 text-2xl font-bold ${bien ? 'text-emerald-700' : 'text-red-600'}">${fmt(valor)}</p>
+    <p class="mt-1 text-gray-500">${bien ? 'Cobra el valor con el cupón.' : 'Cobra el valor completo: el cupón nunca entró.'}</p>
+  </div>`;
+
+const ETIQ = {
+  igual: ['igual', 'bg-gray-100 text-gray-700'],
+  pasa: ['pasa', 'bg-gray-100 text-gray-700'],
+  queda: ['se queda aquí', 'bg-red-100 text-red-700'],
+  cambia: ['cambia con el ajuste', 'bg-emerald-600 text-white'],
+};
+
+// ── Casos: las filas de «El problema en simple» de la spec ──
+const CASOS = [
+  {
+    id: 'ruta', nombre: 'Cupón con el mensajero en ruta',
+    resumen: 'La coordinadora quiere aplicar un cupón del 10 % a una venta contra entrega de $58.950 que el mensajero ya lleva. Hoy el campo de cupón no aparece y el mensajero cobra el valor completo. Con el ajuste lo aplica, ve antes cuánto cobrará y queda registrado.',
+    hoy: [
+      ['igual', 'Venta confirmada: la tarjeta no tiene campo de cupón.', tarjeta('Cupón y saldos', '', saldos(true, false))],
+      ['queda', 'El mensajero cobra $58.950.', mensajero(58950, false)],
+    ],
+    ajuste: [
+      ['cambia', 'Con el permiso, aparece el campo y el aviso de que cambia lo que cobra el mensajero.', tarjeta('Cupón y saldos', badgeCobra, campoCupon('STIRPE10') + saldos(true, false))],
+      ['cambia', 'Antes de aplicar ve «Cobra hoy / Cobrará» y que el mensajero va en ruta.', tarjeta('Cupón y saldos', badgeCobra, campoCupon('STIRPE10') + confirmacion('STIRPE10', 58950, 53055))],
+      ['cambia', 'Al confirmar, el total y el saldo pendiente bajan. Las prendas no cambian.', toast('El mensajero cobrará $53.055') + '<div class="h-2"></div>' + resumen(53055, ['STIRPE10', 5895], 0, 53055)],
+      ['cambia', 'Sucesos dice quién lo hizo y el total antes y después.', sucesos([['Cupón STIRPE10 aplicado por Coordinadora Ejemplo', 'Total a cobrar: $58.950 → $53.055'], ['En ruta', ''], ['Confirmada por la clienta', '']])],
+      ['pasa', 'El mensajero cobra $53.055.', mensajero(53055, true)],
+    ],
+  },
+  {
+    id: 'sin', nombre: 'Asesora sin el permiso',
+    resumen: 'Una asesora abre la misma venta confirmada. Hoy puede marcar un saldo a favor y no queda quién cambió lo que cobra el mensajero. Con el ajuste, la tarjeta queda en solo lectura y le dice a quién pedírselo.',
+    hoy: [
+      ['igual', 'Sin campo de cupón. Las casillas de saldo a favor siguen activas.', tarjeta('Cupón y saldos', '', saldos(true, false))],
+      ['pasa', 'Marca el saldo: se aplica sin registrar quién lo hizo.', tarjeta('Cupón y saldos', '', saldos(true, true))],
+    ],
+    ajuste: [
+      ['cambia', '«Solo lectura»: sin campo ni X, casillas deshabilitadas y la nota.', tarjeta('Cupón y saldos', badgeLectura, saldos(false, false) + nota)],
+    ],
+  },
+  {
+    id: 'saldo', nombre: 'Cupón sobre una venta con saldo a favor',
+    resumen: 'La venta de $58.950 ya tiene un saldo a favor de $20.000, así que el mensajero cobra $38.950. La coordinadora aplica un cupón del sistema anterior, que no se acumula con el saldo. Hoy no se puede aplicar. Con el ajuste se aplica, pero la confirmación avisa que el saldo se quita y Sucesos lo registra.',
+    hoy: [
+      ['queda', 'Venta confirmada: no hay campo de cupón. El cupón no entra.', tarjeta('Cupón y saldos', '', saldos(true, true))],
+    ],
+    ajuste: [
+      ['cambia', 'La confirmación avisa que el saldo se quita y por eso «Cobrará» sube.', tarjeta('Cupón y saldos', badgeCobra, campoCupon('BIENVENIDA10') + confirmacion('BIENVENIDA10', 38950, 53055, 'Se quitará el saldo a favor de $20.000: este cupón no se acumula con él.'))],
+      ['cambia', 'Sucesos registra el cupón y también el saldo quitado.', sucesos([['Saldo a favor quitado por Coordinadora Ejemplo', 'Total a cobrar: $38.950 → $53.055'], ['Cupón BIENVENIDA10 aplicado por Coordinadora Ejemplo', 'Total a cobrar: $38.950 → $53.055']])],
+    ],
+    pie: 'El saldo se quita también hoy cuando el cupón entra antes de confirmar: es la regla de hoy y no cambia. Con un código del motor de promociones nuevo el saldo se queda y no sale aviso.',
+  },
+  {
+    id: 'vencido', nombre: 'Cupón vencido',
+    resumen: 'La coordinadora escribe NAVIDAD25, que venció el 10 de noviembre. Hoy no hay campo para intentarlo. Con el ajuste, el cupón se valida con las reglas de hoy y se rechaza con el mensaje de siempre.',
+    hoy: [
+      ['igual', 'Venta confirmada: no hay campo de cupón.', tarjeta('Cupón y saldos', '', saldos(true, false))],
+    ],
+    ajuste: [
+      ['igual', 'Sale «Cupón de descuento inválido.», no se abre la confirmación y el total no cambia.', tarjeta('Cupón y saldos', badgeCobra, campoCupon('NAVIDAD25', 'Cupón de descuento inválido.') + saldos(true, false))],
+    ],
+  },
+  {
+    id: 'abierta', nombre: 'Venta sin confirmar',
+    resumen: 'La clienta todavía no confirma la venta. Cualquier usuario de venta asistida aplica cupón y saldo como hoy: sin confirmación «Cobra hoy / Cobrará» y sin sucesos nuevos.',
+    hoy: [
+      ['igual', 'Campo de cupón y casillas activas para cualquier usuario.', tarjeta('Cupón y saldos', '', campoCupon('STIRPE10') + saldos(true, false))],
+      ['pasa', 'Aplicar pone el cupón directo.', resumen(53055, ['STIRPE10', 5895], 0, 53055)],
+    ],
+    ajuste: [
+      ['igual', 'Igual que hoy.', tarjeta('Cupón y saldos', '', campoCupon('STIRPE10') + saldos(true, false))],
+      ['igual', 'Aplicar pone el cupón directo, sin confirmación.', resumen(53055, ['STIRPE10', 5895], 0, 53055)],
+    ],
+  },
+];
+
+let actual = 'ruta';
+function fila(pasos) {
+  return pasos.map(([etq, texto, html], i) => {
+    const [label, cls] = ETIQ[etq];
+    return `${i ? '<div class="self-center px-1 text-2xl text-gray-300">→</div>' : ''}
+      <figure class="pantalla">
+        <div class="rounded-xl border-4 border-gray-200 bg-gray-50 p-2">${html}</div>
+        <figcaption class="mt-2 text-xs text-gray-700"><span class="mr-1 font-semibold">${i + 1}.</span><span class="mr-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${cls}">${label}</span>${texto}</figcaption>
+      </figure>`;
+  }).join('');
+}
+function render() {
+  const c = CASOS.find(x => x.id === actual);
+  document.getElementById('casos').innerHTML = CASOS.map(x => `<button data-c="${x.id}" aria-pressed="${x.id === actual}" class="rounded border px-2 py-1">${x.nombre}</button>`).join('');
+  document.querySelectorAll('#casos button').forEach(b => b.onclick = () => { actual = b.dataset.c; render(); });
+  document.getElementById('resumen').innerHTML = c.resumen + (c.pie ? `<br><span class="text-gray-500">${c.pie}</span>` : '');
+  document.getElementById('filaHoy').innerHTML = fila(c.hoy);
+  document.getElementById('filaAjuste').innerHTML = fila(c.ajuste);
+}
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GW-233 · Cupón y saldos en venta confirmada</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .toolbar button[aria-pressed="true"] { background:#111827; color:#fff; border-color:#111827; }
+  [data-lucide] { stroke-width: 2; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<!-- Barra del mockup (no es parte de la pantalla) -->
+<div class="toolbar sticky top-0 z-50 flex flex-wrap items-center gap-x-6 gap-y-2 border-b bg-white px-4 py-2 text-xs shadow-sm">
+  <span class="font-semibold text-gray-700">GW-233 · mockup</span>
+  <div class="flex items-center gap-1"><span class="mr-1 text-gray-500">Versión</span>
+    <button data-g="ver" data-v="actual" class="rounded border px-2 py-1">Actual</button>
+    <button data-g="ver" data-v="propuesta" class="rounded border px-2 py-1">Propuesta</button>
+  </div>
+  <div class="flex items-center gap-1" id="grpRol"><span class="mr-1 text-gray-500">Usuario</span>
+    <button data-g="rol" data-v="con" class="rounded border px-2 py-1">Con permiso «Ajustar cobro de venta confirmada»</button>
+    <button data-g="rol" data-v="sin" class="rounded border px-2 py-1">Sin permiso (asesora)</button>
+  </div>
+  <div class="flex items-center gap-1"><span class="mr-1 text-gray-500">Estado</span>
+    <button data-g="est" data-v="inicial" class="rounded border px-2 py-1">Inicial</button>
+    <button data-g="est" data-v="cargando" class="rounded border px-2 py-1">Cargando saldos</button>
+    <button data-g="est" data-v="vacio" class="rounded border px-2 py-1">Sin saldos</button>
+    <button data-g="est" data-v="confirmar" class="rounded border px-2 py-1">Confirmar cupón</button>
+    <button data-g="est" data-v="aplicado" class="rounded border px-2 py-1">Cupón aplicado</button>
+    <button data-g="est" data-v="error" class="rounded border px-2 py-1">Cupón rechazado</button>
+    <button data-g="est" data-v="pedido" class="rounded border px-2 py-1">Ya hay pedido</button>
+  </div>
+</div>
+
+<div class="flex min-h-screen">
+  <!-- Menú lateral (calcado) -->
+  <aside class="w-[175px] shrink-0 bg-[#0f1115] text-gray-300">
+    <div class="flex h-16 items-center justify-end px-4"><i data-lucide="panel-left" class="h-5 w-5"></i></div>
+    <nav class="space-y-5 px-3 pt-6 text-sm">
+      <div class="flex justify-between"><span>Ventas</span><i data-lucide="chevron-down" class="h-4 w-4"></i></div>
+      <div class="flex justify-between"><span>Clientes</span><i data-lucide="chevron-right" class="h-4 w-4"></i></div>
+      <div class="flex justify-between text-white"><span>Venta asistida</span><i data-lucide="chevron-down" class="h-4 w-4"></i></div>
+      <div class="flex justify-between"><span>Entregas</span><i data-lucide="chevron-right" class="h-4 w-4"></i></div>
+      <div class="flex justify-between"><span>Compras</span><i data-lucide="chevron-right" class="h-4 w-4"></i></div>
+    </nav>
+  </aside>
+
+  <main class="flex-1 min-w-0 bg-white">
+    <!-- Cabezote -->
+    <div class="flex items-center justify-between border-b px-10 py-4">
+      <div class="flex w-[600px] items-center gap-3 rounded-lg border px-4 py-3 text-gray-400"><i data-lucide="search" class="h-5 w-5"></i>Filtrar menú...</div>
+      <div class="flex items-center gap-3"><div class="h-9 w-9 rounded-full bg-gray-300"></div><div class="text-sm leading-tight"><p class="font-medium" id="usuarioNombre">Coordinación VA</p><p class="text-gray-500" id="usuarioRol">Coordinadora</p></div><i data-lucide="chevron-down" class="h-4 w-4"></i></div>
+    </div>
+    <div class="flex items-center gap-3 border-b px-10 py-3 text-sm text-gray-500"><i data-lucide="home" class="h-4 w-4"></i><i data-lucide="chevron-right" class="h-3 w-3"></i>Dashboard<i data-lucide="chevron-right" class="h-3 w-3"></i>Venta Asistida<i data-lucide="chevron-right" class="h-3 w-3"></i><span class="text-gray-900">Carrito</span></div>
+
+    <!-- Encabezado venta (calcado) -->
+    <div class="flex items-start justify-between border-b px-10 py-6">
+      <div>
+        <div class="flex items-center gap-3"><h1 class="text-3xl font-bold">Venta 100000</h1><span class="rounded-full bg-gray-900 px-2.5 py-0.5 text-xs font-semibold text-white">STIRPE</span><span class="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">Confirmada</span></div>
+        <p class="mt-1 text-gray-600">Creada el 13/11/2026, 9:20 a. m. · 3 productos · <span class="js-total">$ 58.950</span> · Contra entrega · Asesora Asesora Ejemplo</p>
+      </div>
+      <button id="btnSucesos" class="flex items-center gap-2 rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white"><i data-lucide="history" class="h-4 w-4"></i>Sucesos</button>
+    </div>
+
+    <div class="flex gap-6 p-8">
+      <!-- Columna principal (calcada, resumida) -->
+      <div class="flex-1 min-w-0 space-y-6">
+        <div class="rounded-xl border">
+          <div class="flex items-center justify-between border-b px-5 py-3"><h3 class="text-xs font-bold tracking-wide text-gray-600">PRODUCTOS</h3>
+            <div class="flex gap-2 text-sm"><span class="rounded-md bg-gray-50 px-3 py-1.5 text-gray-600">Confirmados el 13/11/2026, 9:29 a. m.</span><span class="flex items-center gap-1 rounded-md bg-gray-50 px-3 py-1.5 text-gray-400"><i data-lucide="lock-open" class="h-4 w-4"></i>Desbloquear</span></div></div>
+          <div class="space-y-3 p-5">
+            <p class="text-gray-600">Productos en el carrito (3)</p>
+            <div class="flex items-center gap-4 rounded-lg border bg-gray-50 p-4"><div class="h-16 w-16 rounded bg-blue-100"></div><div class="flex-1"><p class="font-medium">Jean para mujer con proceso rotos paris lindsay derek</p><p class="text-sm text-gray-500">AZUL · Talla 06 · Cant: 1 · SKU: 829028</p><span class="mt-1 inline-block rounded-full border border-rose-300 px-2 py-0.5 text-xs text-rose-600">Devuelto por el cliente</span></div><p class="text-sm"><s class="text-gray-400">$ 213.950</s> <b class="text-lg">$ 64.950</b></p></div>
+            <div class="flex items-center gap-4 rounded-lg border bg-gray-50 p-4"><div class="h-16 w-16 rounded bg-blue-100"></div><div class="flex-1"><p class="font-medium">Jean para mujer con proceso rotos paris lindsay derek</p><p class="text-sm text-gray-500">AZUL · Talla 08 · Cant: 1 · SKU: 829028</p><span class="mt-1 inline-block rounded-full border border-rose-300 px-2 py-0.5 text-xs text-rose-600">Devuelto por el cliente</span></div><p class="text-sm"><s class="text-gray-400">$ 213.950</s> <b class="text-lg">$ 64.950</b></p></div>
+            <div class="flex items-center gap-4 rounded-lg border bg-gray-50 p-4"><div class="h-16 w-16 rounded bg-rose-100"></div><div class="flex-1"><p class="font-medium">Blusa para mujer ana derek lovely</p><p class="text-sm text-gray-500">ROSADO · Talla SS · Cant: 1 · SKU: 835466</p></div><p class="text-sm"><s class="text-gray-400">$ 117.900</s> <b class="text-lg">$ 58.950</b></p></div>
+          </div>
+        </div>
+        <div class="rounded-xl border">
+          <div class="flex items-center justify-between border-b px-5 py-3"><h3 class="text-xs font-bold tracking-wide text-gray-600">LOGÍSTICA DE ENTREGA</h3><span class="rounded bg-gray-900 px-2 py-0.5 text-xs font-semibold text-white">EN RUTA</span></div>
+          <div class="grid grid-cols-2 gap-6 p-5 text-sm">
+            <div class="space-y-3"><div class="rounded-lg bg-gray-50 p-3"><p class="text-xs text-gray-500">MÉTODO Y COBRO</p><p>Mensajería interna · Contra entrega</p></div><div class="rounded-lg bg-gray-50 p-3"><p class="text-xs text-gray-500">MENSAJERO</p><p>Andrés · 300 000 0000</p></div><div class="rounded-lg bg-gray-50 p-3"><p class="text-xs text-gray-500">FECHA PROGRAMADA</p><p>sábado, 14 de noviembre · 5 - 6 pm</p></div></div>
+            <ul class="space-y-3"><li>✓ Confirmada · 9:29 a. m.</li><li>✓ Recogida · 2:25 p. m.</li><li>✓ En ruta · 2:59 p. m.</li><li class="font-medium">Entregada — el mensajero cobra al entregar <span class="js-total font-semibold">$ 58.950</span></li></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra lateral: aquí está el cambio -->
+      <div class="w-[455px] shrink-0 space-y-4">
+        <!-- Resumen (calcado; el total se mueve con el cupón) -->
+        <div class="rounded-lg border bg-white">
+          <div class="flex items-center justify-between border-b px-4 py-3"><h3 class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Resumen</h3><span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium" id="chipEstadoPago">Pendiente de pago</span></div>
+          <div class="space-y-3 p-4 text-sm">
+            <div class="flex items-center justify-between"><div><p class="text-xs text-gray-500">TOTAL</p><p class="js-total text-3xl font-bold">$ 58.950</p></div><span class="rounded-full bg-gray-100 px-3 py-1 text-xs">Contra entrega</span></div>
+            <div class="space-y-2 border-t pt-3">
+              <div class="flex justify-between"><span class="text-gray-600">Subtotal · 3 productos</span><span>$ 58.950</span></div>
+              <div class="flex justify-between"><span class="text-gray-600">Descuento / cupón</span><span id="lineaCupon" class="text-gray-500">- $ 0</span></div>
+              <div class="flex justify-between"><span class="text-gray-600">Envío</span><span class="text-emerald-700">Gratis</span></div>
+              <div class="flex justify-between"><span class="text-gray-600">Saldo a favor</span><span class="text-gray-500">- $ 0</span></div>
+            </div>
+            <div class="space-y-2 border-t pt-3">
+              <div class="flex justify-between"><span class="text-gray-600">Total pagado</span><b>$ 0</b></div>
+              <div class="flex justify-between"><span class="text-gray-600">Saldo pendiente</span><b class="js-total">$ 58.950</b></div>
+            </div>
+            <div class="rounded-lg bg-gray-50 p-3"><div class="flex justify-between"><b>Sin pago registrado</b><span class="rounded border bg-white px-2 text-xs">Contra entrega</span></div><p class="text-xs text-gray-500">El mensajero cobra al entregar.</p></div>
+          </div>
+        </div>
+
+        <!-- Cupón y saldos -->
+        <div id="tarjetaCupon" class="rounded-lg border bg-white"></div>
+
+        <!-- Cupo Quac (calcado, resumido) -->
+        <div class="rounded-lg border bg-white">
+          <div class="flex items-center justify-between border-b bg-violet-50 px-4 py-3"><h3 class="text-xs font-bold tracking-wide text-violet-900">CUPO QUAC</h3><span class="rounded bg-emerald-100 px-2 text-[11px] font-semibold text-emerald-800">AL DÍA</span></div>
+          <div class="p-4"><p class="text-xs text-gray-500">CUPO DISPONIBLE</p><p class="text-2xl font-bold">$4.281.202</p></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Panel de sucesos -->
+<div id="panelSucesos" class="fixed inset-0 z-40 hidden bg-black/30">
+  <div class="absolute right-0 top-0 h-full w-[420px] overflow-y-auto bg-white p-5 shadow-xl">
+    <div class="mb-4 flex items-center justify-between"><h3 class="font-semibold">Sucesos · Venta 100000</h3><button id="cerrarSucesos"><i data-lucide="x" class="h-5 w-5"></i></button></div>
+    <ol class="space-y-4 text-sm" id="listaSucesos"></ol>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden items-center gap-2 rounded-lg bg-gray-900 px-4 py-3 text-sm text-white shadow-lg"><i data-lucide="check" class="h-4 w-4 text-emerald-400"></i><span></span></div>
+
+<script>
+const S = { ver: 'propuesta', rol: 'con', est: 'inicial' };
+const SALDOS = [{ code: 'BW-7F3K2Q9X1M4P8R', valor: 20000 }];
+const fmt = n => '$ ' + n.toLocaleString('es-CO');
+const TOTAL = 58950, CUPON = { codigo: 'STIRPE10', desc: 5895 };
+
+function cuponBloque(ver, rol, est) {
+  const puede = ver === 'propuesta' && rol === 'con';
+  if (ver === 'actual') return ''; // Hoy: carrito sellado sin cupón → el bloque no se pinta (GW-205)
+  if (est === 'aplicado') return `
+    <div class="space-y-2">
+      <div class="flex items-center gap-2 text-sm font-medium text-gray-500"><i data-lucide="ticket" class="h-4 w-4"></i>CUPÓN</div>
+      <div class="flex items-center justify-between rounded-lg bg-green-50 p-2">
+        <div><p class="text-sm font-medium text-green-800">${CUPON.codigo}</p><p class="text-xs text-green-600">-${fmt(CUPON.desc)}</p></div>
+        ${puede ? '<button class="h-6 w-6 rounded hover:bg-green-100 flex items-center justify-center" title="Quitar cupón"><i data-lucide="x" class="h-3 w-3"></i></button>' : ''}
+      </div>
+    </div>`;
+  if (!puede) return '';
+  return `
+    <div class="space-y-2">
+      <div class="flex items-center gap-2 text-sm font-medium text-gray-500"><i data-lucide="ticket" class="h-4 w-4"></i>CUPÓN</div>
+      <div class="flex gap-2">
+        <input value="${est === 'confirmar' || est === 'error' ? (est === 'error' ? 'NAVIDAD25' : 'STIRPE10') : ''}" placeholder="Código de cupón" class="h-9 flex-1 rounded-md border px-3 text-sm">
+        <button id="btnAplicarCupon" class="h-9 rounded-md border px-3 text-sm font-medium hover:bg-gray-50">Aplicar</button>
+      </div>
+      ${est === 'error' ? '<p class="text-xs text-rose-600">El cupón NAVIDAD25 venció el 10/11/2026.</p>' : ''}
+      ${est === 'confirmar' ? `
+      <div class="rounded-lg border border-gray-300 bg-gray-50 p-3 text-sm">
+        <p class="font-medium">¿Aplicar STIRPE10 a esta venta confirmada?</p>
+        <div class="mt-2 grid grid-cols-2 gap-2">
+          <div class="rounded bg-white p-2"><p class="text-xs text-gray-500">Cobra hoy</p><p class="font-semibold">${fmt(TOTAL)}</p></div>
+          <div class="rounded bg-white p-2"><p class="text-xs text-gray-500">Cobrará</p><p class="font-semibold text-emerald-700">${fmt(TOTAL - CUPON.desc)}</p></div>
+        </div>
+        <p class="mt-2 text-xs text-gray-600">Andrés ya va en ruta: verá el valor nuevo en su link de cobro. Avísale si ya habló del valor con la clienta.</p>
+        <div class="mt-3 flex justify-end gap-2"><button id="btnCancelar" class="rounded-md border bg-white px-3 py-1.5 text-xs">Cancelar</button><button id="btnConfirmar" class="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white">Aplicar cupón</button></div>
+      </div>` : ''}
+    </div>`;
+}
+
+function saldosBloque(ver, rol, est) {
+  const puede = ver === 'actual' || rol === 'con';
+  let lista;
+  if (est === 'cargando') lista = '<p class="py-2 text-center text-sm text-gray-500">Cargando saldos...</p>';
+  else if (est === 'vacio') lista = '<p class="py-2 text-center text-sm text-gray-500">Sin saldos a favor</p>';
+  else lista = SALDOS.map(s => `
+    <div class="flex items-center gap-3 rounded-lg p-2">
+      <input type="checkbox" ${puede ? '' : 'disabled'} class="h-4 w-4 rounded border-gray-300 ${puede ? '' : 'opacity-40'}">
+      <p class="flex-1 truncate text-sm text-gray-500">${s.code.substring(0, 12)}...</p>
+      <p class="font-semibold text-slate-600">${fmt(s.valor)}</p>
+    </div>`).join('');
+  return `
+    <div>
+      <div class="mb-3 flex gap-1 rounded-lg bg-gray-100 p-1">
+        <button class="flex-1 rounded-md bg-white px-3 py-1.5 text-xs font-medium text-gray-900 shadow-sm">SALDOS A FAVOR</button>
+        <button class="flex-1 rounded-md px-3 py-1.5 text-xs font-medium text-gray-600">GIFT CARD</button>
+      </div>
+      ${lista}
+    </div>`;
+}
+
+function render() {
+  document.querySelectorAll('.toolbar button').forEach(b => b.setAttribute('aria-pressed', S[b.dataset.g] === b.dataset.v));
+  document.getElementById('grpRol').style.opacity = S.ver === 'actual' ? .4 : 1;
+  document.getElementById('usuarioNombre').textContent = S.rol === 'con' || S.ver === 'actual' ? 'Coordinación VA' : 'Asesora Ejemplo';
+  document.getElementById('usuarioRol').textContent = S.rol === 'con' || S.ver === 'actual' ? 'Coordinadora' : 'Asesora';
+
+  const aplicado = S.est === 'aplicado' && S.ver === 'propuesta';
+  const total = aplicado ? TOTAL - CUPON.desc : TOTAL;
+  document.querySelectorAll('.js-total').forEach(e => e.textContent = fmt(total));
+  const lc = document.getElementById('lineaCupon');
+  lc.textContent = aplicado ? `- ${fmt(CUPON.desc)} · ${CUPON.codigo}` : '- $ 0';
+  lc.className = aplicado ? 'text-emerald-700' : 'text-gray-500';
+
+  const t = document.getElementById('tarjetaCupon');
+  if (S.est === 'pedido') { t.style.display = 'none'; document.getElementById('chipEstadoPago').textContent = 'Pagado'; return icons(); }
+  t.style.display = ''; document.getElementById('chipEstadoPago').textContent = 'Pendiente de pago';
+
+  const propuesta = S.ver === 'propuesta';
+  const sinPermiso = propuesta && S.rol === 'sin';
+  t.innerHTML = `
+    <div class="flex items-center justify-between border-b px-4 py-3">
+      <h3 class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Cupón y saldos</h3>
+      ${propuesta ? (sinPermiso
+        ? '<span class="flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600"><i data-lucide="lock" class="h-3 w-3"></i>Solo lectura</span>'
+        : '<span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">Cambia lo que cobra el mensajero</span>') : ''}
+    </div>
+    <div class="space-y-4 p-4">
+      ${cuponBloque(S.ver, S.rol, S.est)}
+      ${saldosBloque(S.ver, S.rol, S.est)}
+      ${sinPermiso ? '<p class="border-t pt-3 text-xs text-gray-500">La venta ya está confirmada. Para aplicar un cupón o un saldo a favor, pídeselo a alguien con el permiso «Ajustar cobro de venta confirmada».</p>' : ''}
+    </div>`;
+
+  const bA = document.getElementById('btnAplicarCupon'); if (bA) bA.onclick = () => set('est', 'confirmar');
+  const bC = document.getElementById('btnCancelar'); if (bC) bC.onclick = () => set('est', 'inicial');
+  const bK = document.getElementById('btnConfirmar'); if (bK) bK.onclick = () => { set('est', 'aplicado'); toast(`Cupón aplicado · el mensajero cobrará ${fmt(TOTAL - CUPON.desc)}`); };
+  renderSucesos();
+  icons();
+}
+
+function renderSucesos() {
+  const items = [
+    ['Confirmada por la clienta', '13/11/2026 9:29 a. m.', ''],
+    ['Recogida por Andrés', '14/11/2026 2:25 p. m.', ''],
+    ['En ruta', '14/11/2026 2:59 p. m.', ''],
+  ];
+  if (S.ver === 'propuesta' && S.est === 'aplicado') items.push(['Cupón STIRPE10 aplicado por Coordinación VA', '14/11/2026 3:52 p. m.', `Total a cobrar: ${fmt(TOTAL)} → ${fmt(TOTAL - CUPON.desc)}`]);
+  document.getElementById('listaSucesos').innerHTML = items.reverse().map(([t, f, d]) => `
+    <li class="border-l-2 ${d ? 'border-emerald-500' : 'border-gray-200'} pl-3"><p class="font-medium">${t}</p><p class="text-xs text-gray-500">${f}</p>${d ? `<p class="mt-1 text-xs text-gray-700">${d}</p>` : ''}</li>`).join('');
+}
+
+function toast(m) { const e = document.getElementById('toast'); e.querySelector('span').textContent = m; e.classList.remove('hidden'); e.classList.add('flex'); setTimeout(() => { e.classList.add('hidden'); e.classList.remove('flex'); }, 2600); }
+function set(g, v) { S[g] = v; render(); }
+function icons() { window.lucide && lucide.createIcons(); }
+
+document.querySelectorAll('.toolbar button').forEach(b => b.onclick = () => set(b.dataset.g, b.dataset.v));
+document.getElementById('btnSucesos').onclick = () => document.getElementById('panelSucesos').classList.remove('hidden');
+document.getElementById('cerrarSucesos').onclick = () => document.getElementById('panelSucesos').classList.add('hidden');
+render();
+</script>
+</body>
+</html>
