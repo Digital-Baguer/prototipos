@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AQ-031 · v1 · Una sola versión de la app: «Validar identidad», avisos del api y actualización</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Nunito+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script>
+tailwind.config = { theme: { extend: {
+  colors: { quac:'#7633FF', quacdark:'#321185', lavender:'#E9E8F1', lila:'#C5C5FF', fondo:'#F8F8F8',
+            txt:'#140F26', muted:'#A19EB5', aldia:'#06D6A0', err:'#FF6464' },
+  fontFamily: { display:['Poppins','sans-serif'], body:['"Nunito Sans"','sans-serif'] }
+} } }
+</script>
+<style>
+  body { font-family:'Nunito Sans', sans-serif; }
+  .font-display { font-family:'Poppins', sans-serif; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  ::-webkit-scrollbar { width:0; }
+  @keyframes fade { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+  .fade { animation: fade .22s ease-out; }
+  .spin { animation: spin .9s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse2 { 0%,100%{opacity:.35} 50%{opacity:1} } .pulse2 { animation: pulse2 1.6s ease-in-out infinite; }
+  .sube { animation: sube .26s cubic-bezier(.16,1,.3,1); } @keyframes sube { from{transform:translateY(100%)} to{transform:none} }
+  .on { background:#312e81; color:#fff; border-color:#312e81; }
+  .off { background:#fff; border:1px solid #e2e8f0; color:#334155; }
+  .nav-i { display:block; width:100%; text-align:left; padding:8px 10px; border-radius:8px; font-size:12.5px; font-weight:600; color:#334155; }
+  .nav-i small { display:block; font-weight:500; color:#94a3b8; font-size:11px; }
+  .nav-i.on small { color:#c7d2fe; }
+  /* Medidas de app-quac-v2 (QuacButtonStyles: alto 50, radio 10, Poppins 16 w700) */
+  .btn-quac { height:50px; border-radius:10px; width:100%; font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .btn-dark { background:#321185; color:#fff; }
+  .btn-primary { background:#7633FF; color:#fff; }
+  .btn-outline { background:transparent; color:#7633FF; border:2px solid #7633FF; }
+  .btn-disabled { background:#E3E3E3; color:#979796; }
+  .bg-register { background: radial-gradient(520px 380px at -10% -8%, rgba(197,197,255,.75) 0%, rgba(233,232,241,.55) 45%, rgba(248,248,248,0) 72%), #F8F8F8; }
+  .h1-app { font-family:'Poppins',sans-serif; font-size:28px; font-weight:700; line-height:1.15; color:#321185; }
+  .h3-app { font-family:'Poppins',sans-serif; font-size:18px; font-weight:700; line-height:1.25; color:#140F26; }
+  .body-app { font-size:16px; line-height:1.4; color:#140F26; }
+  .body-muted { font-size:16px; line-height:1.4; color:#A19EB5; }
+  .link-app { font-size:16px; font-weight:700; color:#7633FF; }
+  .otp { height:56px; flex:1; border:1px solid #A19EB5; border-radius:10px; background:#fff; font-family:'Poppins',sans-serif; font-weight:700; font-size:22px; display:flex; align-items:center; justify-content:center; color:#140F26; }
+  .otp.act { border-color:#7633FF; } .otp.bien { border-color:#06D6A0; }
+  .cambia { outline:2px dashed #f472b6; outline-offset:5px; border-radius:6px; position:relative; }
+  .cambia::after { content:'cambia'; position:absolute; top:-17px; right:0; font-size:10px; font-weight:700; color:#be185d; background:#fdf2f8; padding:0 6px; border-radius:4px; }
+  .cam { background: radial-gradient(circle at 50% 42%, #3b3550 0%, #1c1830 55%, #120f22 100%); }
+  .oval { width:150px; height:190px; border-radius:50%; border:3px solid #06D6A0; box-shadow: 0 0 0 9999px rgba(10,8,20,.55); }
+  .dot { width:8px; height:8px; border-radius:9999px; background:#C5C5FF; } .dot.on { background:#7633FF; } .dot.done { background:#06D6A0; }
+  .snack-m { position:absolute; bottom:16px; left:12px; right:12px; z-index:30; background:#323232; color:#fff; border-radius:6px; padding:14px 16px; font-size:14px; }
+  .velo { position:absolute; inset:0; z-index:20; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:0 20px; }
+  .scrim { position:absolute; inset:0; z-index:20; background:rgba(0,0,0,.54); display:flex; align-items:flex-end; }
+  .sheet { background:#fff; width:100%; border-radius:28px 28px 0 0; padding:0 20px 24px; }
+  .sheet .handle { width:32px; height:4px; border-radius:2px; background:rgba(73,69,79,.4); margin:16px auto 18px; }
+  .campo { position:relative; height:56px; border:1px solid #A19EB5; border-radius:10px; background:#fff; display:flex; align-items:center; padding:0 14px; font-size:16px; color:#140F26; }
+  .campo.err { border-color:#FF6464; } .campo.foco { border-color:#7633FF; border-width:2px; }
+  .campo .et { position:absolute; top:-10px; left:10px; background:#fff; padding:0 6px; font-size:12px; color:#A19EB5; }
+  .sbtn { min-height:50px; border-radius:10px; width:100%; font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; background:#7633FF; color:#fff; display:flex; align-items:center; justify-content:center; padding:8px 16px; text-align:center; }
+  .sbtn.off2 { background:#E3E3E3; color:#979796; }
+  .sbtn2 { min-height:44px; width:100%; font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; color:#7633FF; display:flex; align-items:center; justify-content:center; }
+  .ico96 { width:96px; height:96px; border-radius:999px; background:#E9E8F1; display:flex; align-items:center; justify-content:center; }
+  .lista-op { background:#fff; border-radius:10px; box-shadow:0 6px 18px rgba(0,0,0,.22); overflow:hidden; }
+  .lista-op div { height:44px; display:flex; align-items:center; padding:0 12px; font-size:14px; color:#140F26; }
+  .lista-op div + div { border-top:1px solid #f1f1f5; }
+  .btn60 { height:60px; border-radius:10px; width:100%; font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; letter-spacing:1.2px; display:flex; align-items:center; justify-content:center; background:#7633FF; color:#fff; }
+  .btn60.off3 { background:#E3E3E3; color:#979796; }
+  .cb { height:44px; border-radius:10px; background:#fff; border:1px solid #A19EB5; display:flex; align-items:center; justify-content:center; font-size:16px; color:#140F26; }
+  .cb.sel { background:#7633FF; border-color:#7633FF; color:#fff; font-weight:700; }
+  .cb.dis { background:#E3E3E3; border-color:#E3E3E3; color:#979796; }
+  .seg { border:1px solid #A19EB5; border-radius:10px; background:#fff; padding:8px 12px; text-align:center; flex:1; }
+  .seg.act { border:2px solid #7633FF; }
+  .tag { font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; padding:2px 10px; border-radius:999px; }
+  [data-go] { cursor:pointer; }
+</style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-700">
+
+<div class="sticky top-0 z-[80] border-b border-indigo-200 bg-indigo-50/95 px-4 py-2 backdrop-blur">
+  <p class="text-[12px] font-bold text-indigo-900">AQ-031 · v1 (2026-11-18) · App Quac: «Validar identidad» única, pasos y textos que manda el api · cliente ficticio: <b>Martha</b> · cédula 1098765432 · celular ***4567 · correo m***@gmail.com · calcado de las pantallas de la rama <code>fix/ajustes-salida-v401</code></p>
+</div>
+
+<div class="flex gap-5 p-5 max-w-[1500px] mx-auto items-start">
+  <nav id="nav" class="w-[210px] shrink-0 space-y-1 sticky top-14"></nav>
+  <main class="flex-1 min-w-0">
+    <div id="cabecera" class="mb-3"></div>
+    <div id="controles" class="mb-4 rounded-xl bg-white p-3 shadow-sm space-y-2.5 text-[12px] ring-2 ring-quac/30"></div>
+    <div id="telefonos" class="flex flex-wrap gap-6 items-start"></div>
+    <div id="notas" class="mt-5 grid gap-4 md:grid-cols-2"></div>
+  </main>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+
+/* ═══════════ estado ═══════════ */
+const S = {
+  scr:'recorrido',
+  // 1 · login
+  lg:'inicio',
+  // 2 · validar identidad
+  flujo:'autorizar', pide:'cel_correo', paso:'celular', sub:'ingresar', hoja:'cerrada', nst:'listo', cst:'vacia', pideReg:'cel_correo', pideAut:'cel',
+  // 3 · nombre
+  os:'ios', nm:'cerrada',
+  // 5 · error
+  er:'espera', sac:'igual',
+};
+{ const q=new URLSearchParams(location.hash.slice(1)); for (const [k,v] of q) if (k in S) S[k]=v; }
+
+/* ═══════════ datos ═══════════ */
+const D = { nombre:'Martha', doc:'1098765432', cel:'***4567', correo:'m***@gmail.com' };
+const SAC_HOY = '607 700 0225';
+const SAC_API = { igual:{tel:'607 700 0225', tel_raw:'6077000225'}, otro:{tel:'601 555 0100', tel_raw:'6015550100'} };
+const HORARIO = 'Lunes a viernes, 8:00 a. m. a 6:30 p. m. · Sábados, 8:30 a. m. a 5:30 p. m.';
+const NOMBRE_TEL = { ios:'iPhone (iOS 26.3)', android:'Android (Android 15)' };
+const IMG9 = 'assets-aq-009/', IMG2 = 'assets-aq-002/', IMG8 = 'assets-aq-008/';
+
+/* ═══════════ piezas comunes ═══════════ */
+const ic = (d, c='#7633FF', s=24, w=2) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const I = {
+  info:  ic('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>','#7633FF',28),
+  phone: (c='#fff') => ic('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/>',c,18),
+  chat:  (c='#fff') => ic('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/>',c,18),
+  timer: ic('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/>','#7633FF',28),
+  face:  ic('<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 10h.01M15 10h.01M9 15c.8.8 1.8 1.2 3 1.2s2.2-.4 3-1.2"/>','#7633FF',28),
+  down:  ic('<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>','#7633FF',44),
+  alert: ic('<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>','#7633FF',28),
+  chev:  ic('<path d="m6 9 6 6 6-6"/>','#140F26',20),
+  back:  `<svg width="10" height="16" viewBox="0 0 10 16" fill="none"><path d="M8 1 2 8l6 7" stroke="#7633FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  ok:    ic('<circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 5-5"/>','#06D6A0',18,2.2),
+  tel:   ic('<rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/>','#7633FF',26),
+};
+const spinner = (c='#7633FF', s=28) => `<svg class="spin" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="${c}" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="${c}" stroke-width="3" stroke-linecap="round"/></svg>`;
+const img = (base,f,w,cls='') => `<img src="${base}${f}" alt="" style="width:${w}px" class="block ${cls}">`;
+const btn = (t, cls='btn-dark', extra='') => `<div class="btn-quac ${cls}" ${extra}>${t}</div>`;
+const volver = () => `<div class="flex items-center gap-2.5 py-2 text-quac" style="font-size:16px">${I.back}<span>Volver</span></div>`;
+
+/* Marco de teléfono: 390 x 844, mostrado al 80 % */
+function telefono(etiqueta, tono, contenido, {oscuro=false, zoom=.8}={}) {
+  const col = oscuro ? '#fff' : '#140F26';
+  return `<div class="shrink-0">
+    <div class="mb-2 flex items-center gap-2"><span class="tag ${tono==='hoy'?'bg-slate-200 text-slate-700':(tono==='nuevo'?'bg-emerald-100 text-emerald-700':'bg-indigo-100 text-indigo-700')}">${etiqueta}</span></div>
+    <div style="zoom:${zoom}">
+      <div class="relative bg-fondo rounded-[2.5rem] shadow-2xl ring-8 ring-slate-900 overflow-hidden flex flex-col" style="width:390px;height:844px;">
+        <div class="absolute top-0 inset-x-0 h-11 px-7 flex items-center justify-between text-[13px] font-semibold z-[40] pointer-events-none" style="color:${col}"><span class="tnum">9:41</span><span class="tnum">100%</span></div>
+        <div class="flex-1 overflow-y-auto relative">${contenido}</div>
+      </div>
+    </div></div>`;
+}
+function vacio(txt) {
+  return `<div class="shrink-0"><div class="mb-2"><span class="tag bg-slate-200 text-slate-700">Hoy</span></div>
+    <div style="width:312px;height:675px" class="rounded-[2rem] border-2 border-dashed border-slate-300 flex items-center justify-center p-8 text-center text-[13px] text-slate-500">${txt}</div></div>`;
+}
+
+/* ═══════════ 1 · login con datos guardados ═══════════ */
+const loginBase = ({cargando=false}={}) => `
+  <div class="relative min-h-full text-white" style="background:url(${IMG2}bg-login-screen-dark-2.png) center/cover, #321185; height:100%">
+    <div class="px-6 pt-20">
+      <div class="flex justify-center"><img src="${IMG2}logo.png" style="width:70px" alt=""></div>
+      <p class="mt-8 text-center text-[16px]">Hola <b style="font-weight:900">${D.nombre}</b></p>
+      <div class="mt-7">
+        <div style="height:50px;border-radius:10px;background:#fff;padding:0 14px;display:flex;align-items:center;justify-content:space-between;color:#140F26;font-size:16px;opacity:${cargando?.7:1}">
+          <span style="letter-spacing:4px">••••••</span>${ic('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>','#A19EB5',20)}</div>
+      </div>
+      <div class="mt-5" data-go="${cargando ? 'lg=dentro' : 'lg=enviando'}">${btn(cargando?spinner('#fff',22):'INGRESAR','btn-dark')}</div>
+      <p class="mt-7 text-center link-app" style="color:#fff;text-decoration:underline">Recuperar contraseña</p>
+      <p class="mt-5 text-center link-app" style="color:#fff;text-decoration:underline">No soy ${D.nombre}</p>
+    </div>
+    <p class="absolute bottom-5 inset-x-0 text-center text-[11px]" style="color:rgba(255,255,255,.55)">© 2026 Quac App<br>Desarrollado por Cyral SAS<br>V4.0.1</p>
+  </div>`;
+const modalAlgoPaso = (fondo, titulo, texto, botonHtml, cerrar=true, extra='') => `<div class="relative h-full">${fondo}
+  <div class="velo"><div class="w-full bg-white rounded-[20px] p-6">
+    <div class="flex items-center gap-2">${I.info}<p class="h3-app flex-1">${titulo}</p></div>
+    <p class="body-app mt-4">${texto}</p>${extra}
+    <div class="mt-6">${botonHtml}</div>
+    ${cerrar?`<p class="mt-3 text-center link-app">Cerrar</p>`:''}</div></div></div>`;
+const homeFalso = () => `<div class="h-full bg-white px-5 pt-16">
+  <p class="font-display text-[22px] font-bold text-txt">Hola, ${D.nombre}</p>
+  <div class="mt-4 h-32 rounded-2xl" style="background:linear-gradient(135deg,#7633FF,#321185)"></div>
+  <div class="mt-4 grid grid-cols-2 gap-3"><div class="h-24 rounded-xl bg-lavender"></div><div class="h-24 rounded-xl bg-lavender"></div></div>
+  <p class="mt-6 text-center text-[13px] text-muted">Entró a su cuenta</p></div>`;
+
+function pantallaLogin() {
+  const hoy = modalAlgoPaso(loginBase({}), 'Algo pasó', 'El tipo de documento es obligatorio.',
+    `<div class="btn-quac btn-dark" style="border-radius:999px;font-size:15px">${I.phone()} Llamar al 6077000225</div>`);
+  let nuevo;
+  const sub = S.lg;
+  if (sub==='dentro') nuevo = homeFalso();
+  else nuevo = loginBase({cargando: sub==='enviando'});
+  return [telefono('Hoy','hoy',hoy,{oscuro:true}), telefono('Con el ajuste','nuevo',nuevo,{oscuro:sub!=='dentro'})];
+}
+const notaLogin = {
+  enviando:'Botón con rueda mientras el api responde. No se pide nada más al cliente.',
+  dentro:'Entra al Home. El api devolvió el tipo de documento de la cuenta y la app lo guardó para los siguientes ingresos.',
+};
+
+/* ═══════════ 2 · Validar identidad (única) ═══════════ */
+const PIDE = {
+  cel_correo:        { t:'Celular y correo', val:['celular','correo'] },
+  cel:               { t:'Solo celular', val:['celular'] },
+  correo:            { t:'Solo correo', val:['correo'] },
+  cel_correo_selfie: { t:'Celular, correo y selfie', val:['celular','correo','selfie'] },
+};
+const NOMBRE_PASO = { celular:'Celular', correo:'Correo', selfie:'Selfie' };
+function recorrido() {
+  const v = PIDE[S.pide].val.slice();
+  if (S.flujo==='registro') v.push('saludo','nacimiento','clave');
+  v.push('listo');
+  return v;
+}
+const ETQ = { celular:'Código del celular', correo:'Código del correo', selfie:'Selfie', saludo:'Saludo (con nombre del teléfono)', nacimiento:'Cumpleaños', clave:'Clave', listo:'Listo' };
+const etq = (k) => k==='listo' && S.flujo==='autorizar' ? 'Éxito (con nombre del teléfono)' : ETQ[k];
+
+/* ── ilustraciones de «Validar identidad» (SVG en línea) ── */
+const ST = 'fill="none" stroke="#7633FF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"';
+const gT = (x,y,sc,inner) => `<g transform="translate(${x} ${y}) scale(${sc})">${inner}</g>`;
+const phoneS = (x,y,sc) => gT(x,y,sc,`<rect x="-18" y="-32" width="36" height="64" rx="7" fill="#fff" ${ST}/><path d="M-5 -24H5" ${ST}/>`);
+const bubbleS = (x,y,sc) => gT(x,y,sc,`<rect x="-22" y="-14" width="44" height="26" rx="7" fill="#fff" ${ST}/><path d="M-10 12V21L0 12" fill="#fff" ${ST}/><circle cx="-9" cy="-1" r="2.4" fill="#7633FF"/><circle cx="0" cy="-1" r="2.4" fill="#7633FF"/><circle cx="9" cy="-1" r="2.4" fill="#7633FF"/>`);
+const shieldS = (x,y,sc) => gT(x,y,sc,`<path d="M0 -14L13 -9V2C13 11 7 16 0 19C-7 16 -13 11 -13 2V-9Z" fill="#fff" ${ST}/><path d="M-5 3L-1 7L6 -2" ${ST}/>`);
+const envS = (x,y,sc) => gT(x,y,sc,`<rect x="-26" y="-18" width="52" height="36" rx="6" fill="#fff" ${ST}/><path d="M-24 -14L0 5L24 -14" ${ST}/>`);
+const badgeS = (x,y,sc) => gT(x,y,sc,`<circle r="11" fill="#7633FF"/><path d="M-5 0L-1.5 3.5L5 -3.5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`);
+const faceS = (x,y,sc) => gT(x,y,sc,`<ellipse rx="15" ry="19" fill="#fff" ${ST}/><circle cx="-6" cy="-4" r="1.9" fill="#7633FF"/><circle cx="6" cy="-4" r="1.9" fill="#7633FF"/><path d="M-6 7Q0 12 6 7" ${ST}/>`);
+const frameS = (x,y,sc) => gT(x,y,sc,`<path d="M-34 -22V-34H-22M22 -34H34V-22M34 22V34H22M-22 34H-34V22" ${ST}/>`);
+const spark = (pts) => pts.map(([x,y,r])=>`<circle cx="${x}" cy="${y}" r="${r}" fill="#C5C5FF"/>`).join('');
+const ILU_SVG = {
+  A: {
+    celular: `<circle r="56" fill="#E9E8F1"/>${phoneS(-4,2,1)}${shieldS(-4,6,.8)}${bubbleS(24,-30,.62)}`,
+    correo:  `<circle r="56" fill="#E9E8F1"/>${envS(0,2,1.15)}${badgeS(26,22,1.05)}`,
+    selfie:  `<circle r="56" fill="#E9E8F1"/>${frameS(0,0,1.0)}${faceS(0,0,1)}`,
+  },
+};
+function ILU(k, w=150, est) {
+  est = est || 'A';
+  if (est==='hoy') {
+    const f = {celular:'img-4.png', correo:'img-1.png', selfie:'img-card-selfie.png'}[k];
+    return k==='selfie' ? img(IMG9,f,Math.round(w*.45),'rounded-lg') : img(IMG9,f,w);
+  }
+  return `<svg width="${w}" height="${w}" viewBox="-60 -60 120 120" aria-hidden="true">${ILU_SVG[est][k]}</svg>`;
+}
+
+const linea = (on) => `<span class="w-6 h-px ${on?'bg-aldia':'bg-lila'}"></span>`;
+function chips(val, actual) {
+  if (val.length < 2) return '';
+  const i = val.indexOf(actual);
+  return `<div class="flex items-center gap-2 text-[12px] font-bold">` + val.map((p,k)=>{
+    const est = k<i ? 'hecho' : (k===i ? 'activo' : 'pend');
+    const circ = est==='hecho' ? 'bg-aldia text-white' : (est==='activo' ? 'bg-quac text-white' : 'bg-lavender text-muted');
+    const c = est==='pend' ? 'text-muted' : (est==='hecho' ? 'text-txt' : 'text-quac');
+    return (k?linea(k<=i):'') + `<span class="flex items-center gap-1.5 ${c}"><span class="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-display font-bold ${circ}">${est==='hecho'?'✓':k+1}</span>${NOMBRE_PASO[p]}</span>`;
+  }).join('') + `</div>`;
+}
+const cajas = (vals, estado) => `<div class="flex gap-2">${vals.map(v=>`<div class="otp ${estado==='bien'?'bien':(v?'act':'')} ${estado==='off'?'opacity-50':''}">${v}</div>`).join('')}</div>`;
+const valsDe = (sub, base) => sub==='ingresar' ? base : (sub==='incorrecto' ? ['','','','','',''] : base.map((_,i)=>['4','8','2','9','1','3'][i]));
+
+function pantallaOtp({titulo, intro, texto, chipsHtml, imagen, esCorreo, sub, conEnlaceCorreo, ayuda, conVolver=true, esHoy=false}) {
+  const vals = valsDe(sub, esCorreo ? ['7','1','','','',''] : ['4','8','2','','','']);
+  const estadoCajas = sub==='cargando' ? 'off' : (sub==='ok' ? 'bien' : '');
+  const cargando = sub==='cargando', ok = sub==='ok';
+  return `<div class="bg-register min-h-full px-5 pb-8 pt-11 fade">
+    ${conVolver ? `<div class="h-[6px]"></div>${volver()}` : '<div class="h-[26px]"></div>'}
+    <div class="flex justify-center mt-1">${ILU(esCorreo?'correo':'celular', 150, esHoy?'hoy':undefined)}</div>
+    <div class="h-2"></div>
+    <p class="h1-app" data-api="1">${titulo}</p>
+    ${intro ? `<p class="body-muted mt-3">${intro}</p>` : ''}
+    ${chipsHtml ? `<div class="mt-3.5">${chipsHtml}</div>` : ''}
+    <div class="h-5"></div>
+    <p class="body-app">${texto}</p>
+    <div class="h-5"></div>
+    <p class="text-[16px] font-bold text-txt">Ingresa el código de verificación</p>
+    <div class="h-3"></div>
+    ${cajas(vals, estadoCajas)}
+    ${ok ? `<p class="mt-2 text-[14px] font-bold flex items-center gap-1.5" style="color:#05a07a">${I.ok} Código correcto</p>` :
+      `<p class="mt-2 text-[14px] font-semibold text-muted">El código expira en 09:41</p>`}
+    ${sub==='incorrecto' ? `<p class="mt-2 text-[14px] font-bold text-err">Te quedan 2 intentos</p>` : ''}
+    <div class="h-5"></div>
+    ${cargando ? `<div class="flex justify-center">${spinner()}</div><p class="text-center text-[14px] text-muted mt-3">Validando el código…</p>` : `
+      <p class="text-center text-[14px] text-txt">¿No recibiste el código?${esCorreo?' Revisa también la carpeta de spam.':''}</p>
+      <p class="mt-1 text-center text-[14px] font-bold text-txt">Podrás reenviar el código en 00:47</p>
+      ${conEnlaceCorreo ? `<div class="text-center cambia" style="margin-top:6px"><span data-go="hoja=abierta" style="display:inline-block;padding:8px 12px" class="link-app">¿No reconoces este correo?</span></div>` : ''}
+      <div class="h-5"></div>
+      ${btn('Continuar', ok ? 'btn-dark' : 'btn-disabled')}
+      ${ayuda ? ayudaPeq(ayudaTxt(SAC_API[S.sac].tel)) : ''}`}
+  </div>`;
+}
+
+/* hoja «¿No reconoces este correo?» (AQ-018) */
+function hojaCorreo() {
+  const h = S.hoja; if (h==='cerrada') return '';
+  const campo = (v, err) => `<div class="campo ${err?'err':''}"><span class="et">Tu correo</span><span>${v||'<span style="color:#A19EB5">nombre@correo.com</span>'}</span></div>`;
+  let cuerpo = '';
+  if (h==='abierta') cuerpo = `<p class="text-[14px] mt-3">Escribe tu correo y te decimos si es el que tenemos</p><div class="mt-5">${campo('martha.ruiz@gmail.com')}</div>
+      <div class="mt-5"><div class="sbtn" data-go="hoja=coincide">Comparar</div></div>`;
+  if (h==='coincide') cuerpo = `<p class="text-[14px] mt-3">Es el correo que tenemos. Revisa spam o promociones y toca Reenviar.</p><div class="mt-6"><div class="sbtn" data-go="hoja=cerrada">Entendido</div></div>`;
+  if (h==='nocoincide') cuerpo = `<p class="text-[14px] mt-3">No es el correo que tenemos. Actualízalo en el Portal Actualización de datos; si ya lo hiciste, toca Reenviar.</p>
+      <div class="mt-6"><div class="sbtn">Ir al Portal Actualización de datos</div></div><div class="mt-1"><div class="sbtn2" data-go="hoja=cerrada">Cerrar</div></div>`;
+  return `<div class="scrim" data-go="hoja=cerrada"><div class="sheet sube"><div class="handle"></div><p class="h3-app">¿No reconoces este correo?</p>${cuerpo}</div></div>`;
+}
+
+/* selfie */
+function pantallaSelfie(sub, chipsHtml, {volver:conV=true, esHoy=false}={}) {
+  const cargando = sub==='cargando', fin = sub==='ok', mal = sub==='incorrecto';
+  const caja = cargando ? `<div class="h-full flex flex-col items-center justify-center gap-3 text-muted bg-white">${spinner()}<p class="text-[14px]">Preparando la cámara…</p></div>`
+    : `<div class="cam h-full relative flex flex-col items-center text-white">
+        <div class="flex-1 flex items-center justify-center w-full relative overflow-hidden"><div class="oval relative flex items-end justify-center overflow-hidden"><svg width="120" height="160" viewBox="0 0 150 190" fill="none" opacity=".55"><ellipse cx="75" cy="70" rx="42" ry="52" fill="#d9cfc4"/><path d="M20 190c5-45 30-62 55-62s50 17 55 62z" fill="#d9cfc4"/></svg></div></div>
+        <div class="mb-3"><span class="px-4 py-1.5 rounded-full bg-white text-txt text-[14px] font-bold ${fin?'':'pulse2'}">${fin?'¡Listo!':(mal?'No te vimos bien. Intenta otra vez':'Parpadea dos veces')}</span></div></div>`;
+  return `<div class="bg-register min-h-full flex flex-col px-5 pb-4 pt-11 fade" style="height:100%">
+    ${conV ? `<div class="h-[6px]"></div>${volver()}` : '<div class="h-[26px]"></div>'}
+    <div class="flex items-center justify-between mt-1">${ILU('selfie', 84, esHoy?'hoy':undefined)}${chipsHtml||''}</div>
+    <div class="h-[10px]"></div>
+    <p class="h1-app">Confirma que eres tú</p>
+    <p class="body-muted mt-2" style="font-size:15px">Tómate una selfie siguiendo los gestos que te pide la pantalla.</p>
+    <div class="h-3"></div>
+    <div class="flex-1 min-h-[250px] rounded-2xl overflow-hidden border border-lila">${caja}</div>
+    <div class="h-4"></div>${btn('Continuar', fin?'btn-dark':'btn-disabled')}
+  </div>`;
+}
+
+/* nombre del teléfono dentro del saludo y del éxito (D9) */
+const ETIQ_RENOMBRAR = 'Renombrar';
+const NOMBRE_NUEVO = 'Celular de Martha';
+const nombreTel = (nm=S.nm) => nm==='guardado' ? NOMBRE_NUEVO : NOMBRE_TEL[S.os];
+const sistemaTel = () => S.os==='ios' ? 'iPhone · iOS 26.3' : 'Android · Android 15';
+const toastGuardado = () => `<div class="snack-m fade">Nombre guardado</div>`;
+function tecladoTexto() {
+  const k = (t,w) => `<div style="height:40px;flex:${w||1};min-width:0;border-radius:6px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;color:#140F26;box-shadow:0 1px 0 rgba(0,0,0,.25)">${t}</div>`;
+  const fila = (letras, pad=0) => `<div class="flex gap-1" style="padding:0 ${pad}px">${letras.split('').map(c=>k(c)).join('')}</div>`;
+  return `<div style="background:#D1D3D9;padding:8px 4px 22px" class="space-y-2">${fila('qwertyuiop')}${fila('asdfghjklñ',10)}${fila('zxcvbnm',22)}<div class="flex gap-1">${k('123',1.4)}${k('espacio',5)}${k('listo',1.6)}</div></div>`;
+}
+function sheetNombre(nm) {
+  if (!['abierta','editado','vacio','guardando'].includes(nm)) return '';
+  const def = NOMBRE_TEL[S.os];
+  const valor = nm==='editado' ? NOMBRE_NUEVO : (nm==='vacio' ? '' : def);
+  const guardando = nm==='guardando';
+  const conTeclado = ['abierta','editado','vacio'].includes(nm);
+  return `<div class="scrim" style="flex-direction:column;justify-content:flex-end" data-go="nm=cerrada"><div style="width:100%"><div class="sheet sube"><div class="handle"></div>
+    <p class="h3-app">Nombre del teléfono</p>
+    <p class="text-[14px] mt-2" style="color:#140F26">Así lo reconocerás en «Mis dispositivos».</p>
+    <div class="mt-5 campo ${conTeclado?'foco':''}"><span class="et">Nombre</span>
+      <span style="flex:1;${valor?'':'color:#A19EB5'}">${valor || 'Nombre del teléfono'}${conTeclado?'<span style="border-left:2px solid #7633FF;margin-left:1px"></span>':''}</span>
+      ${valor ? ic('<path d="M18 6 6 18M6 6l12 12"/>','#A19EB5',18) : ''}</div>
+    <div class="mt-1.5 flex justify-between text-[12.5px] text-muted"><span>${nm==='vacio' ? `Si lo dejas vacío y guardas, queda «${def}».` : 'Máximo 30 caracteres.'}</span><span class="tnum">${valor.length}/30</span></div>
+    <div class="mt-5"><div class="sbtn" data-go="nm=${guardando?'guardando':'guardado'}">${guardando ? spinner('#fff',22) : 'Guardar'}</div></div>
+    <div class="mt-1"><div class="sbtn2" data-go="nm=cerrada">Cancelar</div></div></div>${conTeclado?tecladoTexto():''}</div></div>`;
+}
+const filaCambiar = (marca=true) => `<div class="${marca?'cambia':''}" style="padding:15px 0;text-align:center">
+  <p style="font-size:16px;font-weight:700;color:#140F26">Este teléfono</p>
+  <p style="font-size:16px;color:#140F26">${nombreTel()}</p>
+  ${S.nm==='guardado' ? `<p style="font-size:12px;color:#6b6880">${sistemaTel()}</p>` : ''}
+  <p data-go="nm=abierta" style="font-size:16px;font-weight:700;color:#7633FF;padding:4px 12px;display:inline-block">${ETIQ_RENOMBRAR}</p></div>`;
+
+/* saludo real del registro (scr_012): ¡Hola {nombre}!, datos del cliente y celular verificado */
+function pantallaSaludo({nm='cerrada', volver:conV=false, conNombre=true}={}) {
+  const fila = (e,v) => `<div style="padding:15px 0;border-bottom:1px solid #D8D8D8;text-align:center"><p style="font-size:16px;font-weight:700;color:#140F26">${e}</p><p style="font-size:16px;color:#140F26">${v}</p></div>`;
+  const save = S.nm; S.nm = nm;
+  const fila2 = conNombre ? filaCambiar(true) : '';
+  const hoja = sheetNombre(nm);
+  S.nm = save;
+  return `<div class="relative bg-register min-h-full px-5 pb-8 pt-11 fade" style="height:100%">
+    ${conV ? `<div class="h-[6px]"></div>${volver()}` : '<div class="h-[26px]"></div>'}
+    <div class="flex justify-center mt-2">${img(IMG8,'info-cupo.png',48)}</div>
+    <p class="h1-app mt-3 text-center" style="font-size:24px">¡Hola ${D.nombre}!</p>
+    <p class="text-center mt-1" style="font-size:16px;color:#321185">Bienvenido a Quac.</p>
+    <div class="mt-4 bg-white" style="border-radius:20px;padding:0 16px">
+      ${fila('Nro de documento',D.doc)}${fila('Nombres','Martha Lucía')}${fila('Apellidos','Ruiz Pérez')}
+      <div style="padding:15px 0;text-align:center;${conNombre?'border-bottom:1px solid #D8D8D8':''}"><p style="font-size:16px;font-weight:700;color:#140F26">Celular verificado</p>
+        <p class="flex items-center justify-center gap-4" style="font-size:16px;color:#140F26">${D.cel} ${img(IMG8,'decorador-check.png',24)}</p></div>
+      ${fila2}
+    </div>
+    <p class="text-center mt-4" style="font-size:16px;color:#374957">A continuación es necesario actualizar algunos datos para activar tu aplicación.</p>
+    <div class="mt-6">${btn('CONTINUAR','btn-primary')}</div>
+    ${hoja}${nm==='guardado'?toastGuardado():''}</div>`;
+}
+const iconoTelVerificado = `<svg width="84" height="84" viewBox="0 0 84 84" fill="none" aria-hidden="true"><circle cx="30" cy="46" r="22" fill="#7633FF" opacity=".9"/><rect x="34" y="10" width="30" height="56" rx="7" fill="#fff" stroke="#321185" stroke-width="3"/><rect x="44" y="15" width="10" height="2.4" rx="1.2" fill="#321185"/><circle cx="49" cy="58" r="2.6" fill="#321185"/><circle cx="63" cy="60" r="13" fill="#06D6A0" stroke="#fff" stroke-width="3"/><path d="m56.5 60.5 4.2 4.2 8-8.5" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
+/* modal real «Dispositivo autorizado» (scr_024_resultado_modal) */
+function pantallaExito({nm='cerrada', conNombre=true}={}) {
+  const modelo = S.os==='ios' ? ['iPhone','iOS 26.3'] : ['Samsung Galaxy A34','Android 15'];
+  const f = (e,v) => `<div class="flex justify-between items-start" style="padding:10px 12px"><span style="font-size:12px;font-weight:700;color:#6b6880;letter-spacing:.3px;padding-top:2px">${e}</span><span class="text-right">${v}</span></div>`;
+  const val = (t) => `<span style="font-family:Poppins;font-size:14px;font-weight:700;color:#140F26">${t}</span>`;
+  const save = S.nm; S.nm = nm;
+  const fila = conNombre
+    ? `<div class="cambia">${f('DISPOSITIVO', val(nombreTel())+(nm==='guardado'?`<br><span style="font-size:12px;color:#6b6880">${sistemaTel()}</span>`:'')+`<br><span data-go="nm=abierta" style="font-size:14px;font-weight:700;color:#7633FF;display:inline-block;padding:4px 0">${ETIQ_RENOMBRAR}</span>`)}</div>`
+    : f('DISPOSITIVO', val(modelo[0])+`<br><span style="font-size:12px;color:#6b6880">${modelo[1]}</span>`);
+  const hoja = sheetNombre(nm);
+  S.nm = save;
+  return `<div class="relative h-full">${loginBase({})}
+    <div class="velo" style="padding:0 40px"><div class="w-full bg-white rounded-[20px] p-6 text-center">
+      <div class="flex justify-center">${iconoTelVerificado}</div>
+      <p class="mt-3" style="font-family:Poppins;font-size:22px;font-weight:700;color:#140F26">Dispositivo autorizado</p>
+      <div class="mt-4 text-left" style="background:#E9E8F1;border-radius:14px">
+        ${f('FECHA Y HORA', val('18 de noviembre de 2026 · 9:41 a. m.'))}
+        <div style="height:1px;background:#e4e3ee"></div>
+        ${fila}
+      </div>
+      <p class="body-app mt-4">Ya puedes usar QUAC en este dispositivo.</p>
+      <div class="mt-5">${btn('Ir al inicio','btn-dark')}</div></div></div>${hoja}${nm==='guardado'?toastGuardado():''}</div>`;
+}
+
+/* ── registro: cumpleaños (scr_015) y clave (scr_016), calcados de la app ── */
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const MES3 = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const COPY_NAC = 'Ingresa tu fecha de nacimiento y recibe cupones de descuento para usar en nuestros comercios aliados. (Recuerda que para instalar Quac debes ser mayor de edad.)';
+const MSG_MENOR = 'Para usar Quac debes ser mayor de edad.';
+const cab = (conV, icono, titulo) => `${conV ? `<div class="h-[6px]"></div>${volver()}` : '<div class="h-[26px]"></div>'}
+  <div class="mt-3">${img(IMG8,icono,57)}</div><p class="h1-app mt-4">${titulo}</p>`;
+const pildora = (txt) => `<div class="flex justify-center mt-6"><div style="background:#E9E8F1;border-radius:10px;padding:15px 40px;font-size:18px;font-weight:700;color:#321185">${txt}</div></div>`;
+
+/* Hoy: tres ruedas (CupertinoPicker) día · mes · año, 1900 hasta hoy */
+function ruedaHoy(d, m, a) {
+  const col = (items, idx, flex) => `<div style="flex:${flex};height:250px;position:relative;overflow:hidden">
+    ${items.map((t,i)=>{ const o=i-idx; return `<div style="position:absolute;left:0;right:0;top:${105+o*40}px;height:40px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#140F26;opacity:${Math.max(.15,1-Math.abs(o)*.3)}">${t}</div>`; }).join('')}</div>`;
+  const dias = Array.from({length:31},(_,i)=>String(i+1));
+  const anios = Array.from({length:127},(_,i)=>String(1900+i));
+  const win = (arr, idx) => arr.slice(Math.max(0,idx-3), idx+4);
+  const c = (arr, idx, fl) => col(win(arr,idx), Math.min(3,idx), fl);
+  return `<div class="relative flex mt-4" style="height:250px">${c(dias,d-1,1)}${c(MESES,m-1,2)}${c(anios,a-1900,1)}
+    <div style="position:absolute;left:0;right:0;top:105px;height:40px;background:rgba(0,0,0,.06);border-top:1px solid #000;border-bottom:1px solid #000;pointer-events:none"></div></div>`;
+}
+function nacHoy(menor, conV) {
+  const f = menor ? [14,3,2012] : [14,3,1990];
+  return `<div class="bg-register min-h-full px-5 pb-8 pt-11 fade">${cab(conV,'icon-born-register.png','¿Cuándo naciste?')}
+    <p class="body-muted mt-2">${COPY_NAC}</p>${ruedaHoy(...f)}${pildora(menor?'14 años':'36 años')}
+    ${menor?`<p class="text-center mt-4" style="font-size:15px;color:#FF6464">${MSG_MENOR}</p>`:''}
+    <div class="mt-10"><div class="btn60 ${menor?'off3':''}">CONTINUAR</div></div></div>`;
+}
+
+function pantallaNacimiento({st='listo', volver:conV=false}={}) { return nacHoy(st==='menor', conV); }
+
+/* clave (scr_016): QuacClaveInstruccion, campos con estado, mensajes de AQ-008-1 */
+const CLAVES = {
+  vacia:      { c:'',       k:'',       ec:null, ek:null, ok:false },
+  distintos:  { c:'112233', k:'',       ec:'Usa al menos 4 números diferentes.' },
+  seguidos:   { c:'123456', k:'',       ec:'No uses números seguidos, como 123456.' },
+  fecha:      { c:'140390', k:'',       ec:'No uses tu fecha de nacimiento.' },
+  distinta:   { c:'582047', k:'582040', ek:'Las contraseñas no coinciden' },
+  valida:     { c:'582047', k:'582047', ok:true },
+  creando:    { c:'582047', k:'582047', ok:true, cargando:true },
+};
+function campoClave(valor, estado) {
+  const col = estado==='error' ? '#FF6464' : (estado==='ok' ? '#00CE68' : '#A19EB5');
+  const ojo = ic('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>','#A19EB5',20);
+  const chulo = ic('<path d="m5 12.5 4.5 4.5L19 7.5"/>','#00CE68',20,2.6);
+  return `<div style="height:56px;border-radius:10px;background:#fff;border:${estado==='ok'?2:1}px solid ${col};display:flex;align-items:center;justify-content:space-between;padding:0 14px"><span style="letter-spacing:5px;font-size:18px">${'•'.repeat(valor.length)}</span><span class="flex items-center gap-2">${estado==='ok'?chulo:''}${ojo}</span></div>`;
+}
+function pantallaClave({st='vacia'}={}) {
+  const C = CLAVES[st];
+  const estC = C.ec ? 'error' : (C.c.length===6 ? 'ok' : 'n');
+  const estK = C.ek ? 'error' : (C.ok ? 'ok' : 'n');
+  const err = (t) => `<p class="mt-1.5" style="font-size:15px;color:#FF6464">${t}</p>`;
+  return `<div class="bg-register min-h-full px-5 pb-8 pt-11 fade"><div class="h-[26px]"></div>
+    <div class="mt-3">${img(IMG8,'icon-password-register.png',57)}</div>
+    <p class="h1-app mt-4">Crear Contraseña</p>
+    <p class="body-muted mt-2">Crea una contraseña de <b style="font-weight:700">6 dígitos</b> con al menos <b style="font-weight:700">4 números diferentes</b>. No puede ser una serie seguida (como 123456) ni tu fecha de nacimiento.</p>
+    <p class="mt-6 mb-2 font-bold text-[16px]">Contraseña</p>${campoClave(C.c, estC)}${C.ec?err(C.ec):''}
+    <p class="body-muted mt-5">Por favor, introduzca de nuevo su contraseña para confirmarla.</p>
+    <p class="mt-3 mb-2 font-bold text-[16px]">Confirmar contraseña</p>${campoClave(C.k, estK)}${C.ek?err(C.ek):''}
+    <div class="mt-6"><div class="btn60 ${C.ok?'':'off3'}">${C.cargando?spinner('#fff',24):'CREAR CUENTA'}</div></div></div>`;
+}
+function pantallaRegistro(paso, {volver:conV=false, nueva=false, mini=false}={}) {
+  if (paso==='nacimiento') return pantallaNacimiento({st: mini ? 'listo' : S.nst, volver:conV});
+  return pantallaClave({st: mini ? 'valida' : S.cst});
+}
+function pantallaListo({nm='cerrada', conNombre=true}={}) {
+  if (S.flujo==='registro') return `<div class="bg-register h-full flex flex-col items-center justify-center px-8 text-center fade">
+    ${img(IMG8,'check-success.png',96)}<p class="h1-app mt-6" style="font-size:24px">Tu cuenta ha sido creada exitosamente</p>
+    <p class="body-muted mt-3">Estamos preparando tu inicio.</p><div class="mt-6">${spinner()}</div></div>`;
+  return pantallaExito({nm, conNombre});
+}
+
+/* textos que manda el api, por flujo y paso */
+function textosApi(paso, val) {
+  const reg = S.flujo==='registro';
+  const primero = val[0]===paso;
+  const intro = primero ? (reg
+      ? 'Vamos a confirmar que eres tú para crear tu cuenta.'
+      : 'Este teléfono aún no está vinculado a tu cuenta. Para protegerla, confirmamos que eres tú.') : '';
+  if (paso==='celular') return { titulo:'Validar identidad', intro, texto:`Hemos enviado un código a tu celular <b>${D.cel}</b>. Una vez lo recibas, ingrésalo.` };
+  return { titulo:'Validar identidad', intro, texto:`Ingresa el código que te hemos enviado a tu correo electrónico <b>${D.correo}</b>` };
+}
+
+function pantallaValidar() {
+  const val = PIDE[S.pide].val, r = recorrido();
+  if (!r.includes(S.paso)) S.paso = r[0];
+  const p = S.paso, reg = S.flujo==='registro';
+  const ch = chips(val, p), conV = val[0]===p;
+  let nuevo;
+  if (p==='celular' || p==='correo') {
+    const t = textosApi(p, val);
+    nuevo = pantallaOtp({ ...t, chipsHtml:ch, esCorreo:p==='correo', sub:S.sub, conEnlaceCorreo:p==='correo' && S.sub!=='cargando', ayuda:true, conVolver:conV }) + hojaCorreo();
+  }
+  else if (p==='selfie') nuevo = pantallaSelfie(S.sub, ch, {volver:conV});
+  else if (p==='saludo') nuevo = pantallaSaludo({nm:S.nm});
+  else if (p==='nacimiento' || p==='clave') nuevo = pantallaRegistro(p,{nueva:true});
+  else nuevo = pantallaListo({nm:S.nm});
+
+  /* «Hoy» */
+  let hoy;
+  if (p==='listo') hoy = telefono('Hoy','hoy',pantallaListo({conNombre:false}));
+  else if (p==='saludo') hoy = telefono('Hoy','hoy',pantallaSaludo({conNombre:false, volver:true}));
+  else if (p==='nacimiento' || p==='clave') hoy = telefono('Hoy','hoy',pantallaRegistro(p,{volver:true}));
+  else if (S.pide==='cel_correo' && (p==='celular' || p==='correo')) {
+    const esC = p==='celular';
+    hoy = telefono('Hoy','hoy',pantallaOtp({
+      titulo: esC ? 'Autorizar dispositivo' : 'Validar identidad',
+      intro: esC ? (reg ? 'Hemos enviado un código a tu celular. Una vez lo recibas ingrésalo.' : 'Este teléfono aún no está vinculado a tu cuenta. Para protegerla, lo validamos con un código a tu celular y otro a tu correo.') : '',
+      texto: esC ? `Hemos enviado un código a tu celular <b>${D.cel}</b>. Una vez lo recibas, ingrésalo.` : `Ingresa el código que te hemos enviado a tu correo electrónico <b>${D.correo}</b>`,
+      chipsHtml: chips(['celular','correo'], p), esCorreo:!esC, sub:S.sub, conEnlaceCorreo:false, esHoy:true }));
+  } else if (S.pide==='cel_correo_selfie' && p==='selfie' && !reg) {
+    hoy = telefono('Hoy','hoy',pantallaSelfie(S.sub, chips(['celular','correo','selfie'],'selfie'), {esHoy:true}));
+  } else {
+    hoy = vacio(reg && p==='selfie' ? 'Hoy el registro no puede pedir selfie.' : `Hoy el api siempre pide celular y luego correo. «${PIDE[S.pide].t}» no existe todavía.`);
+  }
+  return [hoy, telefono('Con el ajuste','nuevo',nuevo)];
+}
+
+/* ═══════════ 3 · nombre del teléfono dentro del saludo y del éxito ═══════════ */
+function pantallaNombreSolo() {
+  const SEC = [['cerrada','1 · Cerrada'],['abierta','2 · Abierta, con el nombre sugerido'],['editado','3 · Escribiendo «Celular de Martha»'],['guardando','4 · Guardando'],['guardado','5 · Guardado: vuelve con el nombre nuevo']];
+  const fila = (tit, fn) => `<div class="w-full"><p class="font-display font-bold text-txt text-[14px] mb-2">${tit}</p><div class="flex gap-4 overflow-x-auto pb-2">${SEC.map(([k,t])=>telefono(t,'nuevo',fn(k),{zoom:.52})).join('')}</div></div>`;
+  return [`<div class="w-full space-y-5">${fila('Registro · el saludo', (k)=>pantallaSaludo({nm:k}))}${fila('Autorizar · «Dispositivo autorizado»', (k)=>conFlujo('autorizar',()=>pantallaExito({nm:k})))}</div>`];
+}
+
+/* ═══════════ 4 · paso que la app no conoce ═══════════ */
+function pantallaPasoDesconocido() {
+  const fondo = pantallaOtp({ ...textosApi('celular',['celular','correo']), chipsHtml:chips(['celular','correo'],'celular'), esCorreo:false, sub:'ok' });
+  const dlg = (titulo, msg, botones) => `<div class="relative h-full">${fondo}<div class="velo"><div class="w-full bg-white rounded-[20px] p-6">
+    <div class="flex items-center gap-2">${I.alert}<p class="h3-app flex-1">${titulo}</p></div>
+    <p class="body-app mt-4">${msg}</p><div class="mt-6">${botones}</div></div></div></div>`;
+  const hoy = modalAlgoPaso(fondo, 'Algo pasó', 'Ocurrió un error inesperado. Intenta de nuevo más tarde.',
+     `<div class="btn-quac btn-dark" style="border-radius:999px;font-size:15px">${I.phone()} Llamar al 6077000225</div>`);
+  const nuevo = dlg('Hay un nuevo paso de seguridad', 'Para seguir, actualiza la app a la última versión. Tu código ya quedó validado y no pierdes nada.', btn('Actualizar','btn-dark'));
+  return [telefono('Hoy','hoy',hoy), telefono('Con el ajuste','nuevo',nuevo)];
+}
+
+/* ═══════════ 5 · aviso de error con textos del api ═══════════ */
+const ayudaTxt = (tel) => `Si no recibiste el código, comunícate con servicio al cliente al ${tel}, de lunes a viernes de 8:00 a. m. a 6:30 p. m. y sábados de 8:30 a. m. a 5:30 p. m.`;
+const ayudaPeq = (t, marca=true) => `<p class="${marca?'cambia ':''}mt-3 text-center" style="font-size:12px;line-height:1.4;color:#4a4560">${t}</p>`;
+function bloqueSac(tel, horario) {
+  return `<div class="mt-4 rounded-xl bg-lavender p-3 text-txt">
+    <p style="font-family:Poppins;font-size:11px;font-weight:800;letter-spacing:1.2px;color:#374957">SERVICIO AL CLIENTE</p>
+    <p class="mt-1 font-display" style="font-weight:800;font-size:18px">${tel}</p>
+    <p class="mt-0.5" style="font-size:12px;color:#374957">${horario}</p></div>`;
+}
+function pantallaError() {
+  const fondo = loginBase({});
+  const sac = SAC_API[S.sac];
+  let hoy, nuevo;
+  if (S.er==='espera') {
+    hoy = `<div class="relative h-full">${fondo}<div class="velo"><div class="w-full bg-white rounded-[20px] p-6">
+      <div class="flex items-center gap-2">${I.timer}<p class="h3-app flex-1">Demasiados intentos</p></div>
+      <p class="body-app mt-4">Superaste el número de intentos permitidos. Intenta de nuevo más tarde.</p>
+      <p class="body-app mt-3 font-display" style="font-weight:800">Espera 30 minutos</p>
+      <div class="mt-6"><div class="btn-quac btn-dark" style="border-radius:10px;font-size:15px">${I.phone()} Llamar al 6077000225</div></div>
+      <p class="mt-3 text-center link-app">Cerrar</p></div></div></div>`;
+    nuevo = `<div class="relative h-full">${fondo}<div class="velo"><div class="w-full bg-white rounded-[20px] p-6">
+      <div class="flex items-center gap-2">${I.timer}<p class="h3-app flex-1 cambia">Hiciste varios intentos seguidos</p></div>
+      <p class="body-app mt-4 cambia">Por tu seguridad, bloqueamos el ingreso por 30 minutos. Intenta de nuevo cuando termine el tiempo.</p>
+      <p class="mt-6 text-center link-app cambia">Cerrar</p>
+      ${ayudaPeq(ayudaTxt(sac.tel))}</div></div></div>`;
+  } else {
+    hoy = `<div class="relative h-full">${fondo}<div class="velo"><div class="w-full bg-white rounded-[20px] p-6">
+      <div class="flex items-center gap-2">${I.face}<p class="h3-app flex-1">Necesitamos confirmar que eres tú</p></div>
+      <p class="body-app mt-4">No pudimos confirmar tu identidad con la selfie. Para autorizar este teléfono, contacta a soporte de QUAC: un asesor te ayudará a solucionarlo.</p>
+      ${bloqueSac('312 460 5748', HORARIO)}
+      <div class="mt-5"><div class="btn-quac btn-dark" style="font-size:15px">${I.chat()} Escribir a servicio al cliente</div></div>
+      <p class="mt-3 text-center link-app">Volver al inicio de sesión</p></div></div></div>`;
+    nuevo = `<div class="relative h-full">${fondo}<div class="velo"><div class="w-full bg-white rounded-[20px] p-6">
+      <div class="flex items-center gap-2">${I.face}<p class="h3-app flex-1 cambia">Revisemos tu identidad con un asesor</p></div>
+      <p class="body-app mt-4 cambia">La selfie no alcanzó para confirmar que eres tú. Un asesor puede ayudarte a terminar la validación. Ten tu documento a la mano.</p>
+      <p class="mt-6 text-center link-app cambia">Cerrar</p>
+      ${ayudaPeq(`Si ya tienes tu documento a la mano, comunícate con servicio al cliente al ${sac.tel}, de lunes a viernes de 8:00 a. m. a 6:30 p. m. y sábados de 8:30 a. m. a 5:30 p. m.`)}</div></div></div>`;
+  }
+  return [telefono('Hoy','hoy',hoy,{oscuro:true}), telefono('Con el ajuste','nuevo',nuevo,{oscuro:true})];
+}
+
+/* ═══════════ 6 · actualización obligatoria (AQ-011) ═══════════ */
+function pantallaActualizar() {
+  const cuerpo = `<div class="absolute inset-0 bg-fondo flex flex-col">
+    <div class="pt-[84px] flex justify-center"><img src="${IMG2}logo-simple-primary.png" style="height:40px" alt="Quac"></div>
+    <div class="flex-1 flex flex-col items-center justify-center px-8 text-center">
+      <div class="ico96">${I.down}</div>
+      <p class="mt-6" style="font-family:Poppins;font-size:26px;font-weight:700;line-height:1.15;color:#321185">Actualiza QUAC para seguir</p>
+      <p class="mt-3" style="font-size:16px;line-height:1.4;color:#374957">Tenemos novedades para ti. Descarga la nueva versión desde la tienda para seguir usando QUAC.</p>
+    </div>
+    <div class="px-6 pb-12"><div class="btn-quac btn-primary" style="font-family:'Nunito Sans'">Actualizar</div></div></div>`;
+  return [telefono('Existe hoy · AQ-011','hoy',cuerpo)];
+}
+
+/* ═══════════ menú, controles y notas ═══════════ */
+/* ═══════════ 0 · recorrido completo ═══════════ */
+const conFlujo = (f, fn) => { const a=S.flujo; S.flujo=f; const r=fn(); S.flujo=a; return r; };
+const pTerminos = () => `<div class="bg-register min-h-full px-5 pb-8 pt-11"><div class="h-[6px]"></div>${volver()}
+  <div class="mt-4">${img(IMG8,'icon-tycp-register.png',57)}</div>
+  <p class="h1-app mt-4" style="font-size:26px">Antes de continuar...</p><p class="body-muted mt-2">Revisa y confirma nuestras políticas.</p>
+  <div class="mt-8 space-y-5">${[['icon-tyc-register.png','Términos y condiciones'],['icon-pol-priv-register.png','Política de privacidad']].map(([f,t])=>`<div class="flex items-center gap-3 bg-white rounded-xl p-3 border border-lila">${img(IMG8,f,40)}<span class="flex-1" style="font-size:16px;font-weight:900">${t}</span>${img(IMG8,'arrow-right.png',24)}</div>`).join('')}</div>
+  <p class="body-muted text-center mt-12">Confirmo que he leído y acepto los <b style="font-weight:900">Términos y Condiciones</b> y la <b style="font-weight:900">Política de tratamiento de datos.</b></p>
+  <div class="mt-8">${btn('ACEPTAR','btn-primary')}</div></div>`;
+const pDocumento = () => `<div class="bg-register min-h-full px-5 pb-8 pt-11"><div class="h-[6px]"></div>${volver()}
+  <div class="mt-4">${img(IMG8,'icon-name-register.png',57)}</div>
+  <p class="h1-app mt-4" style="font-size:26px">Ingresa tu número de documento</p><p class="body-muted mt-2">Con este número de documento podrás iniciar sesión en Quac.</p>
+  <p class="mt-8 font-bold text-[16px]">Tipo de documento</p><div class="campo mt-2 justify-between" style="height:52px"><span>Cédula de ciudadanía</span>${I.chev}</div>
+  <p class="mt-6 font-bold text-[16px]">Número de documento</p><div class="campo mt-2 tnum" style="height:50px">${D.doc}</div>
+  <div class="mt-8">${btn('CONTINUAR','btn-primary')}</div></div>`;
+const pEspera = () => `<div class="bg-register h-full flex flex-col items-center justify-center text-center px-5">
+  <p class="h1-app">Un momento por favor...</p><div class="mt-10 w-full">${img(IMG8,'loading-aliados-white.gif',350,'mx-auto')}</div>
+  <p class="mt-10" style="font-size:16px;color:#321185">Sincronizando información con nuestros comercios aliados.</p></div>`;
+const pRestablecer = () => `<div class="bg-register min-h-full px-5 pt-11"><div class="h-[6px]"></div>${volver()}
+  <p class="h1-app mt-4">Restablecer contraseña</p><p class="body-muted mt-2">Quac te enviará un código de verificación al correo electrónico registrado.</p>
+  <div class="mt-10">${btn('Enviar código','btn-primary')}</div></div>`;
+const pFaceId = () => `<div class="relative h-full">${loginBase({})}<div class="velo"><div class="bg-white rounded-[20px] p-6 text-center w-[200px]">
+  <img src="${IMG2}icon-face-id.png" style="width:64px;margin:0 auto" alt=""><p class="h3-app mt-3">Face ID</p></div></div></div>`;
+
+function mini(html, {oscuro=false}={}) {
+  return `<div style="zoom:.45"><div class="relative bg-fondo rounded-[2.5rem] shadow-xl ring-8 ring-slate-900 overflow-hidden flex flex-col" style="width:390px;height:844px">
+    <div class="absolute top-0 inset-x-0 h-11 px-7 flex items-center justify-between text-[13px] font-semibold z-[40]" style="color:${oscuro?'#fff':'#140F26'}"><span>9:41</span><span>100%</span></div>
+    <div class="flex-1 overflow-hidden relative">${html}</div></div></div>`;
+}
+function paso(nombre, html, {go='', destacar=false, oscuro=false, nota=''}={}) {
+  return `<div class="shrink-0 text-center" style="width:182px" ${go?`data-go="${go}"`:''}>
+    <div class="${destacar?'rounded-[26px]':''}" style="${destacar?'outline:4px solid #06D6A0;outline-offset:3px;':''}">${mini(html,{oscuro})}</div>
+    <p class="mt-2 text-[12px] leading-tight ${destacar?'font-bold text-emerald-700':'font-semibold text-slate-700'}">${nombre}</p>
+    ${nota?`<p class="text-[10.5px] text-slate-400 leading-tight mt-0.5">${nota}</p>`:''}</div>`;
+}
+const flechaP = (txt) => `<div class="shrink-0 self-start text-center" style="margin-top:150px;width:64px">${ic('<path d="M3 12h16M13 6l6 6-6 6" stroke-dasharray="3 3"/>','#94a3b8',22)}<p class="text-[10px] leading-tight text-slate-400">${txt}</p></div>`;
+const rama = (htmlSolicita, htmlResultado) => `<div class="shrink-0 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50/40 px-3 pb-2 pt-2"><p class="text-[11px] font-bold text-emerald-700 mb-1">Si toca «Renombrar»</p><div class="flex items-start gap-2">${htmlSolicita}${flechaP('guarda')}${htmlResultado}</div></div>`;
+const flecha = () => `<div class="shrink-0 self-start" style="margin-top:170px">${ic('<path d="M5 12h14M13 6l6 6-6 6"/>','#94a3b8',22)}</div>`;
+const tira = (titulo, subt, items, color='indigo') => `<section class="rounded-xl bg-white p-4 shadow-sm w-full">
+  <p class="font-display font-bold text-txt text-[14px]">${titulo}</p><p class="text-[12px] text-slate-500 mb-3">${subt}</p>
+  <div class="flex items-start gap-2 overflow-x-auto pb-2">${items.join('')}</div></section>`;
+const unir = (arr) => arr.flatMap((x,i)=> typeof x==='object' ? [x.raw] : (i && typeof arr[i-1]!=='object' ? [flecha(), x] : [x]));
+
+function pantallaRecorrido() {
+  const valR = PIDE[S.pideReg].val, valA = PIDE[S.pideAut].val;
+  const g = (f, pa) => `scr=validar&flujo=${f}&paso=${pa}&sub=ingresar&hoja=cerrada`;
+  const validar = (f, val) => conFlujo(f, () => val.map((v) => {
+    const conV = val[0]===v;
+    if (v==='selfie') return paso('Selfie (solo si el api la pide)', pantallaSelfie('ingresar', chips(val,'selfie'), {volver:conV}), {go:g(f,'selfie')});
+    const t = textosApi(v,val);
+    return paso(`Validar identidad: código del ${v==='celular'?'celular':'correo'}`, pantallaOtp({...t, chipsHtml:chips(val,v), esCorreo:v==='correo', sub:'ingresar', conEnlaceCorreo:v==='correo', ayuda:true, conVolver:conV}), {go:g(f,v)});
+  }));
+  const login = paso('Login (cédula y clave)', loginBase({}), {go:'scr=login', oscuro:true});
+  const NOTA = 'Aquí se ve y se puede cambiar el nombre';
+  const A = unir([
+    paso('Términos', pTerminos()), paso('Documento', pDocumento()), paso('Espera', pEspera()),
+    ...validar('registro', valR),
+    paso('Saludo / datos', pantallaSaludo({nm:'cerrada'}), {go:'scr=nombre', destacar:true, nota:NOTA}),
+    ({raw: flechaP('toca Renombrar') + rama(paso('Hoja de renombrar', pantallaSaludo({nm:'editado'}), {go:'scr=nombre', nota:'Campo, teclado, Guardar y Cancelar'}), paso('Nombre guardado', pantallaSaludo({nm:'guardado'}), {go:'scr=nombre', nota:'«Celular de Martha» y aviso breve'})) + flechaP('vuelve al flujo') }),
+    paso('Cumpleaños', pantallaRegistro('nacimiento',{nueva:true,mini:true}), {go:g('registro','nacimiento')}),
+    paso('Clave', pantallaRegistro('clave',{mini:true}), {go:g('registro','clave')}),
+    paso('Cuenta creada', conFlujo('registro',()=>pantallaListo()), {go:g('registro','listo')}),
+    paso('Inicio', homeFalso()),
+  ]);
+  const B = unir([login, ...validar('autorizar', valA),
+    paso('Éxito: dispositivo autorizado', conFlujo('autorizar',()=>pantallaExito({nm:'cerrada'})), {go:'scr=nombre', destacar:true, nota:NOTA}),
+    ({raw: flechaP('toca Renombrar') + rama(paso('Hoja de renombrar', conFlujo('autorizar',()=>pantallaExito({nm:'editado'})), {go:'scr=nombre', nota:'Campo, teclado, Guardar y Cancelar'}), paso('Nombre guardado', conFlujo('autorizar',()=>pantallaExito({nm:'guardado'})), {go:'scr=nombre', nota:'«Celular de Martha» y aviso breve'})) + flechaP('vuelve al flujo') }),
+    paso('Inicio', homeFalso())]);
+  const C = unir([ paso('Login en un teléfono ya autorizado', loginBase({}), {oscuro:true, nota:'Entra directo al inicio'}), paso('Inicio', homeFalso()) ])
+    + `<div class="shrink-0 self-center w-6"></div>` + paso('Restablecer contraseña', pRestablecer(), {nota:'No muestra el nombre'})
+    + paso('FaceID', pFaceId(), {oscuro:true, nota:'No muestra el nombre'});
+  return [`<div class="w-full space-y-4">
+    ${tira('A · Registro de cuenta (cliente nuevo)', `Pide: ${PIDE[S.pideReg].t.toLowerCase()}. El nombre del teléfono se ve en el saludo, antes de seguir con la cuenta.`, [A.join('')])}
+    ${tira('B · Autorizar un teléfono nuevo (cliente que ya tiene cuenta)', `Pide: ${PIDE[S.pideAut].t.toLowerCase()}. El nombre del teléfono se ve en el aviso de éxito, antes de ir al inicio.`, [B.join('')])}
+    ${tira('C · Dónde NO sale', 'Cambiar el nombre después: Mis dispositivos (AQ-019, otro REQ).', [C])}
+  </div>`];
+}
+
+const PANT = [
+  { id:'recorrido', n:'0 · Recorrido completo', s:'Dónde sale el nombre del teléfono', t:'Flujo: de abrir la app a quedar adentro', f:pantallaRecorrido },
+  { id:'login',   n:'1 · Login con datos guardados', s:'Sin pedir el tipo de documento', t:'Flujo: iniciar sesión con «Hola, Martha»', f:pantallaLogin },
+  { id:'validar', n:'2 · Validar identidad',         s:'Registro y autorizar teléfono, una sola pantalla', t:'Flujo: registro o autorizar este teléfono', f:pantallaValidar },
+  { id:'nombre',  n:'3 · Nombre del teléfono: dentro del saludo', s:'Fila con el enlace «Renombrar»', t:'Flujo: ver y cambiar el nombre del teléfono', f:pantallaNombreSolo },
+  { id:'paso',    n:'4 · Paso que la app no conoce', s:'Aviso para actualizar', t:'Flujo: el api pide un paso nuevo', f:pantallaPasoDesconocido },
+  { id:'error',   n:'5 · Aviso de error',            s:'Textos y teléfono del api', t:'Flujo: aviso cuando algo falla', f:pantallaError },
+  { id:'update',  n:'6 · Actualización obligatoria', s:'La pantalla que ya existe', t:'Flujo: versión por debajo de la mínima', f:pantallaActualizar },
+];
+const NST_OPC = [['listo','Fecha de 36 años'],['menor','Menor de 18']];
+const CST_OPC = [['vacia','Vacía'],['distintos','Pocos números distintos'],['seguidos','Serie seguida'],['fecha','Fecha de nacimiento'],['distinta','Confirmación distinta'],['valida','Válida'],['creando','Creando']];
+const NM_OPC = [['cerrada','Cerrada'],['abierta','Abierta con el nombre sugerido'],['editado','Escribiendo «Celular de Martha»'],['guardando','Guardando'],['guardado','Guardado'],['vacio','Lo dejó vacío']];
+const grupo = (titulo, key, opts) => `<div class="flex flex-wrap items-center gap-1.5"><span class="font-bold text-slate-700 w-[150px] shrink-0">${titulo}</span>
+  ${opts.map(([v,t])=>`<button data-go="${key}=${v}" class="px-2.5 py-1 rounded-lg border text-[11.5px] font-bold ${S[key]===v?'on':'off'}">${t}</button>`).join('')}</div>`;
+
+function controles() {
+  const p = S.scr;
+  if (p==='recorrido') return grupo('Registro pide','pideReg',Object.entries(PIDE).map(([k,v])=>[k,v.t]))
+    + grupo('Autorizar pide','pideAut',Object.entries(PIDE).map(([k,v])=>[k,v.t]))
+    + `<p class="text-[11px] text-slate-500">Cada flujo tiene su propio interruptor en el api. Oculta o muestra las miniaturas de código y selfie en cada tira. Toca una miniatura para ver su pantalla grande.</p>`;
+  if (p==='login') return grupo('Estado','lg',[['inicio','Con el ajuste: login'],['enviando','Ingresando'],['dentro','Entró']])
+    + `<p class="text-[11px] text-slate-500">También se puede tocar INGRESAR dentro del teléfono.</p>`;
+  if (p==='validar') {
+    const r = recorrido();
+    return grupo('Flujo','flujo',[['autorizar','Autorizar este teléfono'],['registro','Registro']])
+    + grupo('Lo que pide el api','pide',Object.entries(PIDE).map(([k,v])=>[k,v.t]))
+    + `<div class="flex flex-wrap items-center gap-1.5"><span class="font-bold text-slate-700 w-[150px] shrink-0">Recorrido</span>`
+      + r.map((k,i)=>`<button data-go="paso=${k}" class="px-2.5 py-1 rounded-lg border text-[11.5px] font-bold ${S.paso===k?'on':'off'}">${i+1}. ${ETQ[k]}</button>`).join('<span class="text-slate-300">›</span>') + `</div>`
+    + (['celular','correo','selfie'].includes(S.paso) ? grupo('Estado','sub',[['ingresar','Escribiendo'],['cargando','Validando'],['incorrecto','Código incorrecto'],['ok','Éxito']]) : '')
+    + (S.paso==='nacimiento' ? grupo('Estado','nst',NST_OPC) : '')
+    + (S.paso==='clave' ? grupo('Estado','cst',CST_OPC) : '')
+    + (S.paso==='correo' ? grupo('Hoja «¿No reconoces este correo?»','hoja',[['cerrada','Cerrada'],['abierta','Abierta'],['coincide','Coincide'],['nocoincide','No coincide']]) : '')
+    + ((S.paso==='saludo' || (S.paso==='listo' && S.flujo==='autorizar')) ? grupo('Hoja del nombre','nm',NM_OPC) + grupo('Teléfono','os',[['ios','iPhone'],['android','Android']]) : '');
+  }
+  if (p==='nombre') return grupo('Teléfono','os',[['ios','iPhone'],['android','Android']]) + `<p class="text-[11px] text-slate-500">Secuencia completa de la hoja, en los dos casos. Si el cliente deja el campo vacío y guarda, queda el nombre sugerido.</p>`;
+  if (p==='error') return grupo('Aviso','er',[['espera','Ingreso bloqueado un rato'],['asesor','Selfie no superada']])
+    + grupo('Número en la ayuda','sac',[['igual','El mismo de hoy'],['otro','Otro número (ejemplo)']]);
+  return `<p class="text-slate-500">Esta pantalla no tiene variantes: es la que ya se ve hoy.</p>`;
+}
+
+function notaFecha() {
+  const caja = (t, h) => `<div class="rounded-xl bg-white p-4 shadow-sm text-[13px] leading-relaxed"><p class="font-display font-bold text-txt text-[14px] mb-1">${t}</p>${h}</div>`;
+  if (S.paso==='nacimiento') return caja('Cumpleaños', `<p>Queda como hoy: tres ruedas de deslizar (día, mes y año, de 1900 hasta hoy), una etiqueta con la edad («36 años») y «CONTINUAR» apagado si es menor de 18, con el aviso «${MSG_MENOR}».</p>
+      <p class="mt-2 text-slate-500">Solo cambia que ya no tiene «Volver»: el celular ya quedó validado. No lleva la barra «Paso N de 8», que cambia según lo que pida el api.</p>`);
+  if (S.paso==='clave') return caja('Reglas de la clave (AQ-008-1)', `<p>6 dígitos; al menos 4 números diferentes; sin serie seguida (123456 o 654321); y no puede ser la fecha de nacimiento (DDMMAA o AAMMDD). Por eso esta pantalla va después de la del cumpleaños y no se une a ella.</p>
+      <p class="mt-2 text-slate-500">El campo se pone verde con chulo cuando la clave es válida; «CREAR CUENTA» solo se enciende con las dos claves iguales.</p>`);
+  return '';
+}
+function notas() {
+  const caja = (t, h) => `<div class="rounded-xl bg-white p-4 shadow-sm text-[13px] leading-relaxed"><p class="font-display font-bold text-txt text-[14px] mb-1">${t}</p>${h}</div>`;
+  const p = S.scr;
+  if (p==='recorrido') return caja('Cuándo sale el nombre del teléfono', `<p>El nombre no es un paso aparte. Se muestra una sola vez por teléfono, con el nombre sugerido, en una pantalla que ya existe: el saludo del registro o el aviso «Dispositivo autorizado». Ahí el cliente puede tocar «Renombrar» y guardarlo.</p>
+      <p class="mt-2 text-slate-500">Desde el código del correo en adelante no hay «Volver»: el celular ya quedó validado.</p>`);
+  if (p==='login') return caja('Qué cambia', `<p>Nada que el cliente vea: la pantalla es la misma. Si el teléfono no tiene guardado el tipo de documento, la app envía documento y clave sin tipo, y hoy eso termina en un aviso que no explica nada.</p>
+      <p class="mt-2 text-slate-500">${notaLogin[S.lg]||'Pantalla de login de siempre, sin preguntas nuevas.'}</p>`)
+    + caja('Qué decide el api', `<p>Si el teléfono no tiene guardado el tipo de documento, el api lo busca por el número y lo devuelve al entrar; la app lo guarda. El cliente no ve nada distinto.</p>`);
+  if (p==='validar') return notaFecha() + caja('Qué decide el api', `<p>En cada respuesta el api dice cuál es el paso que sigue: código del celular, código del correo, selfie, datos o listo, en cualquier orden. La app solo obedece y dibuja ese paso.</p>
+      <p class="mt-2">Así, un cliente de riesgo bajo valida solo con el celular y uno de riesgo alto con correo y selfie, sin otra versión de la app.</p>
+      <p class="mt-2 text-slate-500">Título, ayuda de cada paso y el texto pequeño de ayuda (letra pequeña, opcional, bajo «reenviar») también los manda el api. Por eso el registro deja de decir «Autorizar dispositivo».</p>`)
+    + caja('Lo que no cambia', `<p>El registro conserva «Crear cuenta»: saludo, cumpleaños y clave. El api conserva sus dos flujos y sus reglas de códigos (tope de reenvíos en el registro, espera tras fallos al autorizar).</p>
+      <p class="mt-2 text-slate-500">Con el api de hoy la app se comporta como la 4.0.1: celular, luego correo.</p>`);
+  if (p==='nombre') return caja('Qué cambia', `<p>No hay pantalla nueva: el saludo del registro y el aviso «Dispositivo autorizado» muestran el nombre del teléfono con el nombre sugerido y un enlace «Renombrar». Tocarlo abre una hoja inferior con el campo prellenado (máximo 30 caracteres), «Guardar» y «Cancelar». Al guardar, vuelve a la misma pantalla con el nombre nuevo y el aviso «Nombre guardado».</p>
+      <p class="mt-2 text-slate-500">Nunca el modelo comercial («iPhone 17»): en iPhone «${NOMBRE_TEL.ios}», en Android «${NOMBRE_TEL.android}». Si lo deja vacío y guarda, queda el sugerido. Ya renombrado, debajo se ve pequeño el modelo y el sistema.</p>`)
+    + caja('Qué decide el api', `<p>Si aparece el nombre del teléfono, el nombre sugerido y la etiqueta del enlace. «Renombrar» es el texto por defecto si el api no manda otra.</p>`)
+    + caja('Qué muestra hoy', `<p>El saludo del registro: «¡Hola {primer nombre}!», «Bienvenido a Quac.», y la tarjeta con documento, nombres, apellidos y celular verificado. El aviso «Dispositivo autorizado»: fecha y hora y una sola fila DISPOSITIVO con modelo y sistema.</p>`);
+  if (p==='paso') return caja('Qué cambia', `<p>Si el api pide un paso que esta versión no conoce, la app no falla: muestra el aviso con el título, el mensaje y el botón que manda el api, y el botón abre la tienda.</p>
+      <p class="mt-2 text-slate-500">Hoy, en el registro la app termina en error y al autorizar toma cualquier paso desconocido como «selfie».</p>`)
+    + caja('Qué decide el api', `<p>Título, mensaje, rótulo del botón y un texto de ayuda opcional, en letra pequeña. La app solo guarda un texto de respaldo por si el api no lo manda.</p>
+      <p class="mt-2 text-slate-500">El aviso no tiene salida distinta de actualizar o volver atrás.</p>`);
+  if (p==='error') return caja('Qué cambia', `<p>Cada aviso trae del api su título, su mensaje y los rótulos de los botones. El título, el mensaje y la ayuda en letra pequeña llegan del api: ya no hay un número fijo dentro de la app. La app solo pone «Cerrar».</p>
+      <p class="mt-2 text-slate-500">Con «Otro número» se ve el efecto en el texto de ayuda: el cambio llega sin publicar una versión nueva.</p>`)
+    + caja('Qué decide el api', `<p>Título, mensaje y un texto de ayuda opcional en letra pequeña. La app solo pone «Cerrar».</p>`);
+  return caja('Para qué está aquí', `<p>Es la pantalla de actualización obligatoria que ya existe. Se muestra solo para recordar qué la activa: cuando esta versión esté aprobada en las dos tiendas, se sube la versión mínima y nadie sigue con la 4.0.1.</p>`)
+    + caja('Qué decide el api', `<p>Ícono, título, mensaje y rótulo del botón, igual que hoy. El botón abre la ficha en la tienda; sin «Después» ni salida con el botón atrás.</p>`);
+}
+
+function render() {
+  $('#nav').innerHTML = PANT.map(x=>`<button data-go="scr=${x.id}" class="nav-i ${S.scr===x.id?'on':'off'}">${x.n}<small>${x.s}</small></button>`).join('');
+  const cur = PANT.find(x=>x.id===S.scr);
+  $('#cabecera').innerHTML = `<p class="text-xs font-bold text-quac uppercase tracking-widest">${cur.t}</p>
+    <h1 class="font-display font-bold text-lg leading-tight mt-1">${cur.n.replace(/^\d · /,'')}</h1>`;
+  $('#controles').innerHTML = controles();
+  $('#telefonos').innerHTML = cur.f().join('');
+  $('#notas').innerHTML = notas();
+}
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-go]'); if (!el) return;
+  if (el.classList.contains('scrim') && e.target!==el) return;
+  for (const par of el.dataset.go.split('&')) { const [k,v] = par.split('='); S[k]=v; }
+  if (el.dataset.go.startsWith('scr=')) { S.hoja='cerrada'; S.nm = el.dataset.go.startsWith('scr=nombre') ? 'abierta' : 'cerrada'; }
+  if (el.dataset.go.startsWith('paso=') || el.dataset.go.startsWith('pide=') || el.dataset.go.startsWith('flujo=')) { S.sub='ingresar'; S.hoja='cerrada'; S.nm='cerrada'; }
+  if (el.dataset.go.startsWith('paso=')) { S.nst='listo'; S.cst='vacia'; }
+  render();
+});
+render();
+</script>
+</body>
+</html>
