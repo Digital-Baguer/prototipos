@@ -1,0 +1,915 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REQ-QUINTA-079 · Usuarios</title>
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+/* Tokens del admin nuevo (resources/css/app.css de quinta-admin-v2, origin/main f91ca): mismos HSL que el mockup 077. Copiados del mockup 064. */
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: {
+    fontFamily: { sans: ['Instrument Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+    colors: {
+      border: 'hsl(var(--border) / <alpha-value>)', input: 'hsl(var(--input) / <alpha-value>)', ring: 'hsl(var(--ring) / <alpha-value>)',
+      background: 'hsl(var(--background) / <alpha-value>)', foreground: 'hsl(var(--foreground) / <alpha-value>)',
+      primary: { DEFAULT: 'hsl(var(--primary) / <alpha-value>)', foreground: 'hsl(var(--primary-foreground) / <alpha-value>)' },
+      muted: { DEFAULT: 'hsl(var(--muted) / <alpha-value>)', foreground: 'hsl(var(--muted-foreground) / <alpha-value>)' },
+      accent: { DEFAULT: 'hsl(var(--accent) / <alpha-value>)', foreground: 'hsl(var(--accent-foreground) / <alpha-value>)' },
+      card: { DEFAULT: 'hsl(var(--card) / <alpha-value>)', foreground: 'hsl(var(--card-foreground) / <alpha-value>)' },
+      popover: { DEFAULT: 'hsl(var(--popover) / <alpha-value>)', foreground: 'hsl(var(--popover-foreground) / <alpha-value>)' },
+      sidebar: { DEFAULT: 'hsl(var(--sidebar-background) / <alpha-value>)', foreground: 'hsl(var(--sidebar-foreground) / <alpha-value>)',
+        accent: { DEFAULT: 'hsl(var(--sidebar-accent) / <alpha-value>)', foreground: 'hsl(var(--sidebar-accent-foreground) / <alpha-value>)' },
+        border: 'hsl(var(--sidebar-border) / <alpha-value>)' },
+    },
+    borderRadius: { lg: 'var(--radius)', md: 'calc(var(--radius) - 2px)', sm: 'calc(var(--radius) - 4px)' },
+  } },
+};
+</script>
+<style>
+  :root{--background:0 0% 100%;--foreground:0 0% 3.9%;--card:0 0% 100%;--card-foreground:0 0% 3.9%;--popover:0 0% 100%;--popover-foreground:0 0% 3.9%;--primary:218 68% 42%;--primary-foreground:0 0% 98%;--secondary:0 0% 92.1%;--muted:0 0% 96.1%;--muted-foreground:0 0% 45.1%;--accent:0 0% 96.1%;--accent-foreground:0 0% 9%;--border:0 0% 92.8%;--input:0 0% 89.8%;--ring:218 68% 42%;--radius:0.5rem;--sidebar-background:0 0% 98%;--sidebar-foreground:240 5.3% 26.1%;--sidebar-accent:0 0% 94%;--sidebar-accent-foreground:0 0% 30%;--sidebar-border:0 0% 91%}
+  *{border-color:hsl(var(--border))}
+  body{background:hsl(var(--background));color:hsl(var(--foreground))}
+  .mk-bar{position:sticky;top:0;z-index:60}
+  .mk-ic{width:1rem;height:1rem;flex:none}
+  .no-scrollbar::-webkit-scrollbar{display:none}
+  .th-sticky{position:sticky;top:0;z-index:2}
+  .col-sticky{position:sticky;left:0;z-index:1}
+  tr.anulada td{color:hsl(var(--muted-foreground))}
+  tr.anulada td .tachar{text-decoration:line-through}
+  @keyframes entra{from{transform:translateX(100%)}to{transform:none}}
+  @keyframes funde{from{opacity:0}to{opacity:1}}
+  .anim-sheet{animation:entra .35s cubic-bezier(.32,.72,0,1)}
+  .anim-fade{animation:funde .15s ease-out}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+
+<body class="font-sans antialiased bg-neutral-200/70 text-foreground">
+
+<!-- ===== Barra del mockup (no es parte de la app) ===== -->
+<div class="mk-bar border-b border-neutral-700 bg-neutral-900 text-neutral-100">
+  <div class="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2.5">
+    <div class="text-[12.5px] font-semibold">REQ-QUINTA-079 · Usuarios</div>
+    <div class="flex items-center gap-1.5 text-[11.5px] text-neutral-400">Entra como <div id="mk-rol" class="flex gap-1 rounded-md bg-neutral-800 p-0.5"></div></div>
+  </div>
+  <div class="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-neutral-800 px-5 py-2">
+    <div class="text-[11.5px] text-neutral-400">Vista:</div>
+    <div id="mk-estados" class="flex flex-wrap gap-1.5"></div>
+    <div id="mk-nota" class="basis-full text-[11.5px] text-neutral-400"></div>
+  </div>
+</div>
+
+<div id="stage"></div>
+
+<!-- ===== Notas del mockup (no es parte de la app) ===== -->
+<footer class="border-t border-neutral-700 bg-neutral-900 text-neutral-300">
+  <div class="mx-auto max-w-[1440px] px-5 py-5 text-[12.5px] leading-relaxed">
+    <p class="font-semibold text-neutral-100">Notas para el revisor</p>
+    <ul class="mt-2 list-disc space-y-1 pl-5">
+      <li><b class="text-neutral-100">Flujos cubiertos:</b> 1 listado (búsqueda, filtros Rol, Grupo y Estado, paginación, cuentas del sistema) · 2 sin resultados, cargando y error al cargar · 3 nuevo usuario en página aparte · 4 nuevo con errores (usuario repetido, clave corta, falta la cédula) y error al guardar · 5 editar con historial y editar mi propio usuario · 6 editar a quien tiene otro rol en la app y no tiene cédula · 7 desactivar (confirmación y aviso) y activar · 8a guarda del último Super Admin cuando dos se desactivan o se cambian el rol el uno al otro a la vez · 8b un Coordinador ante un Super Admin y al crear · 9 sin permiso de crear.</li>
+      <li><b class="text-neutral-100">Queda fuera:</b> permisos directos y vista consolidada de lo que puede hacer un usuario (REQ 081); clonar y entrar como otro usuario (REQ 083); «cambiar mi clave», que sigue en el admin viejo (D15); foto del usuario; «solo sin gestionar» y «administrador», que el formulario no muestra (D7); borrar usuarios (D1); que la app y el admin viejo también saquen al desactivado, que va en un REQ aparte (D6). «Roles» sigue abriendo el admin viejo hasta el 080.</li>
+      <li><b class="text-neutral-100">Datos inventados.</b> 118 usuarios, 34 activos: 30 personas y las 4 cuentas del sistema (Sistema, booking, expedia, airbnb; D9). Los nombres de las 9 cuentas del sistema inactivas son de ejemplo. Roles, grupos y sedes son los reales. «Hoy» en el mockup es el miércoles 17 de marzo de 2027, unos meses después de salir, para que el historial tenga con qué llenarse.</li>
+      <li><b class="text-neutral-100">Decisiones de diseño tomadas aquí (para confirmar):</b>
+        <ul class="mt-1 list-[circle] space-y-1 pl-5">
+          <li><b class="text-neutral-100">50 por página.</b> Los 34 activos caben en una sola página y las cuentas del sistema quedan al final de la lista, a la vista. La paginación aparece con «Inactivos» o «Todos» (vista «Listado · todos»).</li>
+          <li><b class="text-neutral-100">Cuentas del sistema:</b> van después de las personas, bajo un encabezado de grupo que dice qué son; no tienen acciones ni se pueden abrir. Los filtros Rol y Grupo las ocultan (no tienen ni rol ni grupo).</li>
+          <li><b class="text-neutral-100">Un Coordinador ante un Super Admin ve todo bloqueado, no solo rol y estado.</b> D5 dice «solo un Super Admin crea o modifica a otro»; si pudiera cambiarle la clave, podría entrar como él. En el listado el botón dice «Ver» y no hay «Desactivar». Si el arquitecto prefiere bloquear solo rol y estado, es quitar el bloqueo del resto.</li>
+          <li><b class="text-neutral-100">Guarda del último Super Admin:</b> como nadie se cambia a sí mismo (D17), solo queda un caso: dos Super Admin que se desactivan o se cambian el rol el uno al otro casi al mismo tiempo. El segundo en guardar recibe el mensaje, al confirmar (desactivar) o al guardar (cambio de rol o desmarcar «activo»), porque lo decide el servidor. En esas dos vistas el mockup hace de cuenta que el otro guardó un instante antes.</li>
+          <li><b class="text-neutral-100">«Rol distinto en la app» cubre los dos casos de D4:</b> quien tiene otro rol en la app (1 activo) y quien no tiene ninguno y por eso no entra (6 activos). Mismo chip, aviso distinto al abrirlo. Al guardar, el chip desaparece.</li>
+          <li><b class="text-neutral-100">Activar también pide confirmación</b> (mismo diálogo de <code>ConfirmarActivo</code>), porque devuelve el acceso.</li>
+          <li><b class="text-neutral-100">Clave:</b> «Generar clave» la deja a la vista y la ayuda pide anotarla, porque después de guardar no se vuelve a mostrar (se guarda cifrada, D11).</li>
+          <li><b class="text-neutral-100">Historial:</b> a la derecha del formulario; una entrada por guardado, con todos sus cambios. Empieza el día que Usuarios pasa a SIREQ: lo anterior no quedó guardado en ningún lado (D3).</li>
+          <li><b class="text-neutral-100">«Exento de la prioridad entre sedes»:</b> la línea que lo explica sale de leer la regla en el admin viejo (<code>Reservas.php</code>, <code>getDisponinibilidadPorHabitacion</code>): el sistema pasa la reserva a la sede del grupo que ya tiene huéspedes; el exento reserva donde eligió.</li>
+        </ul></li>
+      <li><b class="text-neutral-100">D17, decidida por el arquitecto al aprobar el mockup:</b> nadie se desactiva ni se cambia el rol a sí mismo. En tu propio usuario, Rol y «Usuario activo» salen bloqueados con la nota «No puedes cambiar tu propio rol ni desactivarte. Pídeselo a otro administrador.»; tus datos y tu clave sí los cambias. En el listado tu fila no ofrece «Desactivar» (vista «Editar mi propio usuario»).</li>
+      <li><b class="text-neutral-100">Sin verificar:</b> de dónde sale «Último acceso» (el brainstorming no nombra ese dato; si no existe, la columna sale del alcance o el REQ empieza a guardarlo).</li>
+      <li><b class="text-neutral-100">Calcado de quinta-admin-laravel <code>origin/main</code> (17717):</b> marco, tabla, chips, botones, diálogo, carga y avisos = mockup 064 (<code>bodegas/Index.vue</code>, <code>ConfirmarActivo.vue</code>, <code>AvisoGuardado.vue</code>, <code>AvisoFalloGuardado.vue</code>, <code>ui/skeleton</code>); encabezado con botón = <code>proyecciones/Index.vue</code>; buscador y listas de filtro = <code>stock/FiltrosStock.vue</code>; «Mostrando… Limpiar», paginación y «ningún resultado» = mockup 063; formulario en página aparte (título, bloques, etiquetas, controles de 36 px, errores en rosa, botones abajo a la izquierda) = <code>proyecciones/Nueva.vue</code>; casillas = <code>ui/checkbox</code>.</li>
+      <li><b class="text-neutral-100">No existe en el admin y entra al plan:</b> <i>componente nuevo: campo de clave</i> con ojo y «Generar clave»; <i>componente nuevo: historial del usuario</i>; no hay <code>ui/select</code> (se usa la lista nativa con las clases de <code>FiltrosStock</code>), ni <code>ui/badge</code>, ni componente de paginación.</li>
+      <li><b class="text-neutral-100">Menú:</b> «Usuarios» queda donde está hoy: hijo de Configuración (módulo 10), antes de Roles, al final del menú. Con D16 deja de abrir el admin viejo y abre esta pantalla.</li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+const ISO_LOGO = 'data:image/png;base64,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';
+
+/* =====================================================================
+   Utilidades (las del 064)
+   ===================================================================== */
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const fFecha = iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)} ${iso.slice(11, 16)}`;
+const HOY = '2027-03-17';
+const ahora = () => { const d = new Date(); return `${HOY} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+
+/* Íconos Lucide (los del admin) */
+const LU = {
+  chevR: '<path d="m9 18 6-6-6-6"/>', chevD: '<path d="m6 9 6 6 6-6"/>', x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  panel: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>',
+  updown: '<path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>',
+  alert: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  pencil: '<path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6M14 11v6"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"/>',
+  userPlus: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
+  warehouse: '<path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z"/><path d="M6 18h12"/><path d="M6 14h12"/><rect width="12" height="12" x="6" y="10"/>',
+  // menú (058, iconosModulos.ts)
+  chartBar: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16h8M7 11h12M7 6h3"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  clipboard: '<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/>',
+  bell: '<path d="M3 20a1 1 0 0 1-1-1v-1a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1Z"/><path d="M20 16a8 8 0 1 0-16 0"/><path d="M12 4v4M10 4h4"/>',
+  dollar: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  anchor: '<circle cx="12" cy="5" r="3"/><path d="M12 22V8M5 12H2a10 10 0 0 0 20 0h-3"/>',
+  cart: '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
+  calPlus: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/>',
+  calDays: '<rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  utensils: '<path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8"/><path d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7"/><path d="m2.1 21.8 6.4-6.3"/><path d="m19 5-7 7"/>',
+  calc: '<rect width="16" height="20" x="4" y="2" rx="2"/><path d="M8 6h8M16 14v4M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"/>',
+  cog: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  fileText: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/>',
+  pkg: '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12M3.3 7 12 12l8.7-5"/>',
+  chartLine: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/>',
+  banknote: '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+  handCoins: '<path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"/><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 16 6 6"/><circle cx="16" cy="9" r="2.9"/><circle cx="6" cy="5" r="3"/>',
+  badgeDollar: '<path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/>',
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+};
+const ic = (k, cls = 'mk-ic') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${LU[k]}</svg>`;
+const sk = cls => `<div class="animate-pulse rounded-md bg-muted ${cls}"></div>`;
+
+/* Chips: stock/ChipSenal.vue. Gris neutro, esmeralda positivo, negro en curso, rosa bloqueante. Ámbar prohibido. */
+const CHIP = {
+  rosa: 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200',
+  negro: 'bg-neutral-900 text-white',
+  gris: 'bg-neutral-100 text-neutral-600',
+  verde: 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200',
+};
+const chip = (t, c, tip = '', extra = '') => `<span class="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${CHIP[c]} ${extra}" ${tip ? `title="${esc(tip)}"` : ''}>${t}</span>`;
+
+/* ui/button (buttonVariants) */
+const BTN = 'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0';
+const BTN_DEF = `${BTN} h-9 px-4 py-2 bg-primary text-primary-foreground shadow hover:bg-primary/90`;
+const BTN_OUT = `${BTN} h-9 px-4 py-2 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground`;
+const BTN_GHOST_ICON = `${BTN} h-8 w-8 hover:bg-accent hover:text-accent-foreground`;
+/* stock/TablaBodega.vue */
+const TH = 'whitespace-nowrap px-2 py-2.5 font-semibold uppercase tracking-wide';
+/* ui/tooltip TooltipContent */
+const TIP = 'z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md';
+
+/* Íconos que el 064 no traía. Lucide; los del menú (bookUser…settings) salen de DATA.icons del mockup 058. */
+Object.assign(LU, {
+  chevL: '<path d="m15 18-6-6 6-6"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  eye: '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/>',
+  key: '<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>',
+  lock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  history: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  bookUser: '<path d="M15 13a3 3 0 1 0-6 0"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/><circle cx="12" cy="8" r="2"/>',
+  idCard: '<path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/>',
+  hotel: '<path d="M10 22v-6.57"/><path d="M12 11h.01"/><path d="M12 7h.01"/><path d="M14 15.43V22"/><path d="M15 16a5 5 0 0 0-6 0"/><path d="M16 11h.01"/><path d="M16 7h.01"/><path d="M8 11h.01"/><path d="M8 7h.01"/><rect x="4" y="2" width="16" height="20" rx="2"/>',
+  contact: '<path d="M16 2v2"/><path d="M7 22v-2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/><path d="M8 2v2"/><circle cx="12" cy="11" r="3"/><rect x="3" y="4" width="18" height="18" rx="2"/>',
+  plug: '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+});
+
+/* stock/FiltrosStock.vue: lista de filtro y buscador (mockup 063) */
+const SELECT = 'h-9 appearance-none rounded-md border border-input bg-transparent pl-3 pr-8 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50';
+/* proyecciones/Nueva.vue: control del formulario en página aparte */
+const CONTROL = 'h-9 w-full rounded-md border bg-transparent px-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-muted/60 disabled:text-muted-foreground';
+/* Avisos: rosa = pide atención (AvisoFalloGuardado); neutro = informa. Nada de ámbar. */
+const AVISO_ROSA = 'flex items-start gap-2.5 rounded-lg border border-rose-300 bg-rose-50 px-4 py-2.5 text-sm text-rose-900';
+const AVISO_NEUTRO = 'flex items-start gap-2.5 rounded-lg border bg-muted/50 px-4 py-2.5 text-sm text-foreground';
+const avisoRosa = html => `<div role="alert" class="${AVISO_ROSA}">${ic('alert', 'mt-0.5 size-4 shrink-0')}<p>${html}</p></div>`;
+
+/* =====================================================================
+   Datos de ejemplo: personas inventadas; roles, grupos y sedes reales.
+   ===================================================================== */
+const ROLES = ['Super Admin', 'Coordinador', 'Supervisor', 'Contabilidad', 'Administrador sede', 'Asesor de ventas', 'Agencias', 'Asistente adm. N1', 'Asistente adm. N2', 'Auditoría', 'Coordinador de ventas', 'Auxiliar compras', 'Coordinador operativo'];
+const GRUPOS = ['Grupo de Ventas', 'Atención en Tolú y Tintipán', 'Administrativos', 'Agencias', 'Soporte Web', 'Mantenimiento Islas', 'Botes'];
+const SEDES = [[4, 'La Joya'], [6, 'El Francés'], [3, 'El Paraíso'], [7, 'Crystal Beach'], [1, 'Tintipán'], [2, 'Sunset']];
+const SEDE_N = Object.fromEntries(SEDES);
+const TODAS = SEDES.map(s => s[0]);
+const SA = 'Super Admin';
+const MSG_GUARDA = 'No se puede: Quinta quedaría sin ningún Super Admin activo. Asigna y activa otro antes.';
+const POR_PAGINA = 50;
+
+const diasAtras = (n, hora) => { const d = new Date(`${HOY}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - n); return `${d.toISOString().slice(0, 10)} ${hora}`; };
+const per = (id, nom, corto, login, ced, mail, cel, rol, grupo, sedes, acc, act = 1, extra = {}) => ({ id, nom, corto, login, ced, mail, cel, rol, grupo, sedes, acc, act, exento: 0, sis: 0, ...extra });
+const DESTACADOS = [
+  per(1, 'Marcela Bustamante Rhenals', 'Marcela', 'mbustamante', '1102834517', 'marcela.bustamante@quintadelmar.co', '3005550142', SA, 'Administrativos', TODAS, diasAtras(0, '07:48')),
+  per(2, 'Hernando Cuello Sierra', 'Hernando', 'hcuello', '92518344', 'hernando.cuello@quintadelmar.co', '3105550119', SA, 'Administrativos', TODAS, diasAtras(1, '18:20')),
+  per(3, 'Paola Andrea Vergara Tous', 'Paola V.', 'pvergara', '1103115260', 'paola.vergara@quintadelmar.co', '3015550164', 'Coordinador', 'Administrativos', TODAS, diasAtras(0, '08:15'), 1, { exento: 1 }),
+  per(4, 'Luz Dary Monterroza Paternina', 'Luz Dary', 'lmonterroza', '64571208', 'contabilidad@quintadelmar.co', '', 'Contabilidad', 'Administrativos', [4, 6, 3, 7], diasAtras(1, '16:02')),
+  per(5, 'Rosa Elena Tordecilla Pérez', 'Rosa T.', 'rtordecilla', '1104422871', 'rosa.tordecilla@quintadelmar.co', '3205550173', 'Coordinador de ventas', 'Grupo de Ventas', [4, 6, 3, 1], diasAtras(0, '08:31')),
+  per(6, 'Álvaro José Pacheco Oviedo', 'Álvaro P.', 'apacheco', '', '', '3015550187', 'Coordinador', 'Grupo de Ventas', [4, 7], diasAtras(2, '11:20'), 1, { rolApp: 'Coordinador de ventas' }),
+  per(7, 'Yadira Meza Contreras', 'Yadira', 'ymeza', '1005574932', '', '3135550108', 'Asesor de ventas', 'Grupo de Ventas', [4, 6, 3], diasAtras(0, '07:55'), 1, { rolApp: null }),
+  per(8, 'Jorge Luis Navarro Simanca', 'Jorge N.', 'jnavarro', '92541877', '', '3145550126', 'Administrador sede', 'Atención en Tolú y Tintipán', [1], diasAtras(1, '20:11')),
+  per(9, 'Deisy Carolina Hoyos Ruiz', 'Deisy', 'dhoyos', '1102877415', 'deisy.hoyos@quintadelmar.co', '', 'Asistente adm. N1', 'Administrativos', [], diasAtras(5, '09:40')),
+  per(10, 'Camilo Andrés Zúñiga Ricardo', 'Camilo Z.', 'czuniga', '1005661204', 'camilo.zuniga@quintadelmar.co', '3165550191', 'Asesor de ventas', 'Grupo de Ventas', [4, 6], null),
+  per(11, 'Wilson Tapias Barboza', 'Wilson', 'wtapias', '78034561', '', '3125550135', 'Coordinador operativo', 'Mantenimiento Islas', [1, 2], diasAtras(3, '06:30')),
+  per(12, 'Nelson Romero Guzmán', 'Nelson R.', 'nromero', '9148773', '', '3115550157', 'Supervisor', 'Botes', [4, 1, 2], diasAtras(0, '06:12')),
+  per(13, 'Ingrid Paola Sotelo Arrieta', 'Ingrid', 'isotelo', '1047392210', 'agencias@quintadelmar.co', '3175550112', 'Agencias', 'Agencias', TODAS, diasAtras(4, '15:27')),
+  per(14, 'Eduardo Enrique Martelo Luna', 'Eduardo M.', 'emartelo', '73154620', 'compras@quintadelmar.co', '3185550148', 'Auxiliar compras', 'Administrativos', [4, 6, 3], diasAtras(1, '10:05')),
+  per(15, 'Margarita Rosa Anaya Chica', 'Margarita', 'manaya', '33198745', 'auditoria@quintadelmar.co', '', 'Auditoría', 'Administrativos', TODAS, diasAtras(19, '14:44')),
+  per(16, 'Shirley Patricia Bohórquez Díaz', 'Shirley', 'sbohorquez', '1102799034', 'soporte@quintadelmar.co', '3005550176', 'Asistente adm. N2', 'Soporte Web', [7], diasAtras(0, '08:02')),
+];
+/* Relleno hasta 105 personas (30 activas): nombres armados por combinación, no salen de la base. */
+const NOM = ['Adalberto', 'Aura Cristina', 'Betty Luz', 'Brayan Stiven', 'Candelaria', 'Cristian Camilo', 'Dania Marcela', 'Edinson', 'Elvia Rosa', 'Fabián Enrique', 'Gloria Inés', 'Harold', 'Iván Darío', 'Jenifer', 'Karen Lorena', 'Leonardo Fabio', 'Liliana Patricia', 'Manuel Salvador', 'Nayibe', 'Orlando', 'Piedad', 'Ramiro', 'Sindy Paola', 'Tatiana', 'Uriel', 'Viviana', 'Walter', 'Ximena', 'Yesenia', 'Zuleima'];
+const APE = ['Acosta', 'Benítez', 'Cantillo', 'De la Ossa', 'Espitia', 'Feria', 'Garcés', 'Hernández', 'Imbett', 'Jaraba', 'Lambraño', 'Madera', 'Narváez', 'Otero', 'Padilla', 'Quiroz', 'Rivero', 'Salgado', 'Tuirán', 'Urango', 'Vitola', 'Yepes', 'Zabaleta'];
+const ROL_RELLENO = ['Asesor de ventas', 'Administrador sede', 'Asesor de ventas', 'Asistente adm. N1', 'Administrador sede', 'Asesor de ventas', 'Supervisor', 'Administrador sede', 'Agencias', 'Asesor de ventas', 'Coordinador operativo', 'Asistente adm. N2', 'Asesor de ventas', 'Administrador sede'];
+const GRUPO_DE = { 'Asesor de ventas': 'Grupo de Ventas', 'Administrador sede': 'Atención en Tolú y Tintipán', 'Asistente adm. N1': 'Administrativos', 'Asistente adm. N2': 'Administrativos', 'Supervisor': 'Mantenimiento Islas', 'Agencias': 'Agencias', 'Coordinador operativo': 'Botes' };
+function relleno() {
+  const usados = new Set(DESTACADOS.map(u => u.login));
+  const out = [];
+  for (let i = 0; i < 89; i++) {
+    const act = i < 14 ? 1 : 0;
+    const nombre = NOM[i % NOM.length], a1 = APE[(i * 7 + 3) % APE.length], a2 = APE[(i * 11 + 8) % APE.length];
+    let login = norm(nombre[0] + a1).replace(/[^a-z]/g, '').slice(0, 18);
+    for (let k = 2; usados.has(login); k++) login = login.replace(/\d+$/, '') + k;
+    usados.add(login);
+    const rol = ROL_RELLENO[i % ROL_RELLENO.length];
+    const sedes = rol === 'Administrador sede' ? [TODAS[i % 6]] : rol === 'Asesor de ventas' ? (i % 3 === 0 ? TODAS : i % 3 === 1 ? [4, 6, 3] : [7, 1, 2]) : [TODAS[i % 6], TODAS[(i + 2) % 6]];
+    const acc = act ? diasAtras(i % 6, `${String(6 + (i * 5) % 12).padStart(2, '0')}:${String((i * 17) % 60).padStart(2, '0')}`)
+      : i % 9 === 4 ? null : diasAtras(120 + i * 9, `${String(7 + (i * 3) % 11).padStart(2, '0')}:${String((i * 13) % 60).padStart(2, '0')}`);
+    out.push(per(17 + i, `${nombre} ${a1} ${a2}`, nombre.split(' ')[0], login, String(i % 2 ? 1100000000 + (i * 7654321) % 9999999 : 30000000 + (i * 654321) % 49999999),
+      i % 3 === 0 ? `${login}@quintadelmar.co` : '', i % 4 === 1 ? '' : `3${String(100000000 + (i * 39916801) % 99999999).slice(0, 2)}555${String(1000 + (i * 377) % 9000).slice(0, 4)}`,
+      rol, GRUPO_DE[rol], sedes, acc, act));
+  }
+  return out;
+}
+/* Cuentas cuyo rol no existe (D9): no son personas. Los nombres de las inactivas son de ejemplo. */
+const sis = (id, nom, act = 1) => ({ id, nom, corto: nom, login: norm(nom).replace(/[^a-z.]/g, ''), ced: '', mail: '', cel: '', rol: '', grupo: '', sedes: [], acc: null, act, exento: 0, sis: 1 });
+const SISTEMA = [sis(900, 'Sistema'), sis(901, 'booking'), sis(902, 'expedia'), sis(903, 'airbnb'),
+  ...['despegar', 'tripadvisor', 'hotelbeds', 'atrapalo', 'pagina anterior', 'importador', 'pruebas', 'soporte', 'temporal'].map((n, i) => sis(910 + i, n, 0))];
+const USUARIOS0 = JSON.stringify([...DESTACADOS, ...relleno(), ...SISTEMA]);
+/* Historial (D3): quién, cuándo y qué cambió. Nunca la clave. */
+const HIST0 = JSON.stringify({
+  5: [
+    { f: diasAtras(1, '09:42'), por: 1, c: ['Rol: Asesor de ventas → Coordinador de ventas'] },
+    { f: diasAtras(15, '16:05'), por: 3, c: ['Clave cambiada'] },
+    { f: diasAtras(34, '10:18'), por: 1, c: ['Sedes: se agregó Tintipán', 'Celular: 3205550100 → 3205550173'] },
+    { f: diasAtras(56, '08:03'), por: 2, c: ['Activado'] },
+    { f: diasAtras(68, '17:31'), por: 2, c: ['Desactivado'] },
+    { f: diasAtras(93, '11:26'), por: 1, c: ['Creado por Marcela Bustamante Rhenals'], alta: 1 },
+  ],
+  1: [{ f: diasAtras(40, '09:10'), por: 2, c: ['Clave cambiada'] }],
+  2: [{ f: diasAtras(22, '12:47'), por: 1, c: ['Correo: hcuello@quintadelmar.co → hernando.cuello@quintadelmar.co'] }],
+});
+let USUARIOS = JSON.parse(USUARIOS0), HIST = JSON.parse(HIST0);
+const porId = id => USUARIOS.find(u => u.id === id);
+const superAdminsActivos = () => USUARIOS.filter(u => u.rol === SA && u.act).length;
+
+/* =====================================================================
+   Estado del mockup. La vista se elige por el hash: …usuarios.html#editar
+   ===================================================================== */
+const QUIEN = {
+  sa: { id: 1, ini: 'MB', t: 'Super Admin', crear: 1 },
+  co: { id: 3, ini: 'PV', t: 'Coordinador', crear: 1 },
+  sc: { id: 4, ini: 'LM', t: 'Sin permiso de crear', crear: 0 },
+};
+const S = { quien: 'sa', vista: 'listado', pantalla: 'lista', carga: false, error: false, f: { q: '', rol: '', grupo: '', estado: 'activos' }, pag: 1, form: null, dlg: null, aviso: null, animDialogo: false, carrera: false };
+const yo = () => porId(QUIEN[S.quien].id);
+const soySA = () => S.quien === 'sa';
+const puedeCrear = () => !!QUIEN[S.quien].crear;
+/* D5: solo un Super Admin modifica a otro. */
+const puedeModificar = u => !u.sis && (soySA() || u.rol !== SA);
+const rolesQuePuedoDar = () => soySA() ? ROLES : ROLES.filter(r => r !== SA);
+/* D17: nadie se desactiva ni se cambia el rol a sí mismo; lo hace otro administrador. */
+const esYo = u => u.id === yo().id;
+const NOTA_PROPIO = 'No puedes cambiar tu propio rol ni desactivarte. Pídeselo a otro administrador.';
+
+/* =====================================================================
+   Barra del mockup
+   ===================================================================== */
+function seg(items, activo, act) {
+  return items.map(([v, t]) => `<button data-act="${act}" data-v="${v}" class="rounded px-2.5 py-1 text-[11.5px] font-medium ${String(v) === String(activo) ? 'bg-white text-neutral-900' : 'text-neutral-300 hover:text-white'}">${t}</button>`).join('');
+}
+/* [hash, botón, flujo, qué muestra] */
+const VISTAS = [
+  ['listado', 'Listado', 'Flujo 1 · Listado de usuarios', 'Activos por defecto. Están el Super Admin, el «Rol distinto en la app», el que no tiene sedes, el que nunca ha entrado y, al final, las cuentas del sistema.'],
+  ['listado-todos', 'Listado · todos', 'Flujo 1 · Listado con paginación', 'Estado «Todos»: 118 usuarios en 3 páginas de 50.'],
+  ['sin-resultados', 'Sin resultados', 'Flujo 2 · Búsqueda que no encuentra', 'Nadie coincide con lo que se buscó.'],
+  ['cargando', 'Cargando', 'Flujo 2 · Listado cargando', ''],
+  ['error-cargar', 'Error al cargar', 'Flujo 2 · El listado no cargó', ''],
+  ['nuevo', 'Nuevo usuario', 'Flujo 3 · Nuevo usuario', 'Página aparte. Clave generada a la vista y ninguna sede marcada: sale el aviso de la app.'],
+  ['nuevo-errores', 'Nuevo · con errores', 'Flujo 4 · Nuevo usuario con errores', 'El usuario de acceso ya existe, la clave tiene 7 caracteres y falta la cédula.'],
+  ['error-guardar', 'Error al guardar', 'Flujo 4 · El servidor falla al guardar', 'El formulario conserva lo escrito.'],
+  ['editar', 'Editar usuario', 'Flujo 5 · Editar usuario, con su historial', 'La clave vacía no se cambia. El historial nunca muestra la clave.'],
+  ['editar-propio', 'Editar mi propio usuario', 'Flujo 5 · Editar mi propio usuario', 'Rol y «Usuario activo» salen bloqueados; los datos y la clave sí se pueden cambiar. En el listado, su fila no ofrece «Desactivar» (D17).'],
+  ['editar-rol-distinto', 'Editar · rol distinto en la app', 'Flujo 6 · Editar a quien tiene otro rol en la app', 'Además no tiene cédula: se puede guardar sin ella, con aviso (D8).'],
+  ['desactivar', 'Desactivar', 'Flujo 7 · Desactivar: confirmación', ''],
+  ['desactivado', 'Desactivado', 'Flujo 7 · Desactivar: aviso de éxito', 'Con el filtro «Activos» la fila sale del listado y el contador baja a 33.'],
+  ['guarda-desactivar', 'Dos Super Admin a la vez · desactivar', 'Flujo 8a · Dos Super Admin se desactivan el uno al otro casi al mismo tiempo', 'Marcela y Hernando son los dos únicos Super Admin activos. Hernando desactivó a Marcela un instante antes; ella todavía no lo sabe, confirma desactivarlo a él y, como es la segunda en guardar, recibe el mensaje. En la práctica este modal solo se ve si Marcela sigue activa (por ejemplo, si Hernando le cambió el rol en lugar de desactivarla); si la desactivó, el servidor le responde el mismo mensaje y su siguiente pantalla es el inicio de sesión (D6).'],
+  ['guarda-rol', 'Dos Super Admin a la vez · cambiar rol', 'Flujo 8a · Dos Super Admin se cambian el rol el uno al otro casi al mismo tiempo', 'Hernando dejó a Marcela como Coordinador un instante antes; ella todavía no lo sabe, guarda el mismo cambio sobre él y, como es la segunda en guardar, recibe el mensaje. En la práctica la ficha vuelve en solo lectura, con este aviso y el error bajo Rol, porque Marcela ya no es Super Admin (D18).'],
+  ['coordinador-super-admin', 'Coordinador abre a un Super Admin', 'Flujo 8b · Un Coordinador abre a un Super Admin', 'Solo puede verlo (D5).'],
+  ['nuevo-coordinador', 'Coordinador · nuevo usuario', 'Flujo 8b · Un Coordinador crea un usuario', 'En la lista de roles no está Super Admin.'],
+  ['sin-permiso-crear', 'Sin permiso de crear', 'Flujo 9 · Listado sin «Nuevo usuario»', 'Ejemplo de un rol con «ver» y «editar» de Usuarios, pero sin «crear» (D10).'],
+];
+const VISTA = Object.fromEntries(VISTAS.map(v => [v[0], v]));
+function pintarBarra() {
+  document.getElementById('mk-rol').innerHTML = seg(Object.entries(QUIEN).map(([k, q]) => [k, q.t]), S.quien, 'mk-rol');
+  document.getElementById('mk-estados').innerHTML = VISTAS.map(([v, t]) =>
+    `<button data-act="mk-est" data-v="${v}" class="rounded-full border px-2.5 py-0.5 text-[11.5px] ${S.vista === v ? 'border-white bg-white text-neutral-900' : 'border-neutral-600 text-neutral-300 hover:border-neutral-400'}">${t}</button>`).join('');
+  const [, , flujo, det] = VISTA[S.vista];
+  document.getElementById('mk-nota').innerHTML = `<b class="font-semibold text-neutral-100">${flujo}.</b> ${det} <span class="text-neutral-500">· Hoy: miércoles 17 de marzo de 2027 · entra ${esc(yo().nom)} (${esc(yo().rol)})</span>`;
+}
+
+/* =====================================================================
+   Marco: sidebar inset del 058 y encabezado con migas (calcado del 064)
+   ===================================================================== */
+const MENU = [
+  ['Dashboard Ocupación', 'chartBar', 'propio'], ['Sin gestionar', 'clock'], ['Checklist', 'clipboard', 'padre'],
+  ['Gestión de Reservas', 'bell', 'padre'], ['Cotización', 'dollar'], ['Botes', 'anchor', 'padre'], ['Proyeccion de compras', 'cart'],
+  ['Ver disponibilidad', 'calPlus'], ['Calendario disponibilidad', 'calDays'], ['Asignar personal', 'userPlus'], ['Registro de huéspedes', 'users'],
+  ['Gestión de productos', 'utensils', 'padre'], ['Consumos y servicios', 'calc', 'padre'], ['Mantenimiento', 'cog', 'padre'], ['Informes', 'fileText', 'padre'],
+  ['Productos', 'pkg', 'padre'], ['Indicadores', 'chartLine', 'padre'], ['Presupuesto', 'banknote', 'padre'], ['Comisiones', 'handCoins'], ['Pagos', 'badgeDollar', 'padre'], ['Proveedores', 'wrench'],
+  ['Clientes', 'bookUser'], ['Agencias', 'idCard'], ['Cabañas', 'hotel', 'padre'], ['Prospectos', 'contact'], ['Integraciones', 'plug', 'padre'], ['Configuración', 'settings', 'abierto'],
+];
+/* Hijos del módulo 10 (DATA del 058): Usuarios (11, orden 1) y Roles (12, orden 2). Usuarios pasa al admin nuevo (D16); Roles sigue en el viejo hasta el 080. */
+const HIJOS_CONFIG = [['Usuarios', 'activo'], ['Roles']];
+const GRIS = 'text-[hsl(240_4%_66%)] hover:text-[hsl(240_4%_52%)]';
+function menuHtml() {
+  return MENU.map(([t, i, tipo]) => {
+    if (tipo === 'padre') return `<li><button class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">${ic(i)}<span class="truncate">${t}</span>${ic('chevR', 'mk-ic ml-auto')}</button></li>`;
+    if (tipo === 'propio') return `<li><a class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">${ic(i)}<span class="truncate">${t}</span></a></li>`;
+    if (tipo === 'abierto') {
+      const hijos = HIJOS_CONFIG.map(([h, a]) => a === 'activo'
+        ? `<li><a data-act="ir-lista" class="flex h-7 min-w-0 -translate-x-px cursor-pointer items-center gap-2 overflow-hidden rounded-md bg-sidebar-accent px-2 text-sm font-medium text-sidebar-accent-foreground" aria-current="page"><span class="truncate">${h}</span></a></li>`
+        : `<li><a class="flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sm hover:bg-sidebar-accent ${GRIS}" title="Abre en el admin viejo (pestaña nueva)"><span class="truncate">${h}</span></a></li>`).join('');
+      return `<li><button class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">${ic(i)}<span class="truncate">${t}</span>${ic('chevR', 'mk-ic ml-auto rotate-90')}</button>
+        <ul class="mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-2.5 py-0.5">${hijos}</ul></li>`;
+    }
+    return `<li><a class="flex h-8 w-full items-center gap-2 rounded-md p-2 text-sm ${GRIS}" title="Abre en el admin viejo (pestaña nueva)">${ic(i)}<span class="truncate">${t}</span></a></li>`;
+  }).join('');
+}
+function sidebarHtml() {
+  const [nom, ini] = [yo().nom, QUIEN[S.quien].ini];
+  return `<aside id="aside" class="sticky flex w-64 flex-none flex-col text-sidebar-foreground">
+    <div class="flex flex-col gap-2 p-2">
+      <a class="flex h-12 items-center gap-2 rounded-md p-2 text-sm hover:bg-sidebar-accent">
+        <img src="${ISO_LOGO}" alt="Quinta del Mar" class="size-7 shrink-0">
+        <span class="grid flex-1 text-left leading-tight"><span class="truncate font-semibold">SIREQ</span><span class="truncate text-xs text-muted-foreground">Quinta del Mar</span></span>
+      </a>
+    </div>
+    <div id="aside-scroll" class="no-scrollbar flex min-h-0 flex-1 flex-col overflow-auto">
+      <div class="relative flex w-full min-w-0 flex-col p-2">
+        <div class="flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70">Módulos</div>
+        <ul class="flex w-full min-w-0 flex-col gap-1">${menuHtml()}</ul>
+      </div>
+    </div>
+    <div class="flex flex-col gap-2 p-2">
+      <button class="flex h-12 w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-sidebar-accent">
+        <span class="grid h-8 w-8 place-items-center rounded-lg bg-muted text-xs font-medium text-black">${ini}</span>
+        <span class="grid flex-1 text-left text-sm leading-tight"><span class="truncate font-medium">${nom}</span></span>${ic('updown', 'ml-auto size-4')}
+      </button>
+    </div>
+  </aside>`;
+}
+function headerHtml(migas) {
+  const sep = `<li role="presentation" aria-hidden="true" class="[&>svg]:h-3.5 [&>svg]:w-3.5">${ic('chevR')}</li>`;
+  const items = migas.map((t, i) => i === migas.length - 1
+    ? `<li class="inline-flex items-center gap-1.5"><span aria-current="page" class="font-normal text-foreground">${t}</span></li>`
+    : `<li class="inline-flex items-center gap-1.5"><a ${t === 'Usuarios' ? 'data-act="ir-lista"' : ''} class="cursor-pointer transition-colors hover:text-foreground">${t}</a></li>${sep}`).join('');
+  return `<header class="flex h-16 shrink-0 items-center gap-2 border-b border-sidebar-border/70 px-4">
+    <div class="flex items-center gap-2">
+      <button class="-ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground" aria-label="Mostrar u ocultar el menú">${ic('panel')}</button>
+      <nav aria-label="breadcrumb"><ol class="flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground">${items}</ol></nav>
+    </div>
+  </header>`;
+}
+
+/* =====================================================================
+   Página «Usuarios»: listado
+   ===================================================================== */
+function encabezado() {
+  return `<div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight">Usuarios</h1>
+      <p class="mt-0.5 text-muted-foreground">Quién entra a SIREQ, al admin anterior y a la app, con qué rol y en qué sedes. Lo que cambies aquí vale en los tres.</p>
+    </div>
+    ${puedeCrear() ? `<button type="button" data-act="nuevo" class="${BTN_DEF}">${ic('plus')}Nuevo usuario</button>` : ''}
+  </div>`;
+}
+function contador() {
+  const act = USUARIOS.filter(u => u.act).length;
+  return `<p class="text-sm text-muted-foreground"><span class="font-semibold tabular-nums text-foreground">${act}</span> activos de <span class="tabular-nums">${USUARIOS.length}</span></p>`;
+}
+function selectHtml(id, chg, opciones, valor, etiqueta) {
+  return `<div class="flex items-center gap-2"><label for="${id}" class="text-sm text-muted-foreground">${etiqueta}</label><div class="relative"><select id="${id}" data-chg="${chg}" class="${SELECT}">
+    ${opciones.map(([v, t]) => `<option value="${esc(v)}" ${String(v) === String(valor) ? 'selected' : ''}>${esc(t)}</option>`).join('')}
+  </select>${ic('chevD', 'pointer-events-none absolute right-2.5 top-2.5 size-4 opacity-50')}</div></div>`;
+}
+function filtros() {
+  return `<div class="flex flex-wrap items-center gap-x-4 gap-y-2.5">
+    <div class="relative min-w-[240px] flex-1">
+      ${ic('search', 'pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground')}
+      <input id="f-q" data-inp="q" type="text" value="${esc(S.f.q)}" placeholder="Buscar por nombre, usuario o cédula…" aria-label="Buscar usuario"
+        class="h-9 w-full rounded-md border border-input bg-background pl-9 pr-9 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50">
+      ${S.f.q ? `<button type="button" data-act="limpiar-q" title="Limpiar búsqueda" class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground">${ic('x', 'h-4 w-4')}</button>` : ''}
+    </div>
+    ${selectHtml('f-rol', 'rol', [['', 'Todos los roles'], ...ROLES.map(r => [r, r])], S.f.rol, 'Rol')}
+    ${selectHtml('f-grupo', 'grupo', [['', 'Todos los grupos'], ...GRUPOS.map(g => [g, g])], S.f.grupo, 'Grupo')}
+    ${selectHtml('f-estado', 'estado', [['activos', 'Activos'], ['inactivos', 'Inactivos'], ['todos', 'Todos']], S.f.estado, 'Estado')}
+  </div>`;
+}
+const hayFiltro = () => !!(S.f.q || S.f.rol || S.f.grupo);
+function resumenFiltro() {
+  const t = [];
+  if (S.f.rol) t.push(esc(S.f.rol));
+  if (S.f.grupo) t.push(esc(S.f.grupo));
+  if (S.f.q) t.push(`«${esc(S.f.q)}»`);
+  if (!t.length) return '';
+  return `<div class="flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+    <span class="font-semibold text-foreground">Mostrando:</span><span class="text-muted-foreground">${t.join(' · ')}</span>
+    <button type="button" data-act="limpiar" class="ml-1 font-medium text-primary hover:underline">Limpiar</button></div>`;
+}
+function filtrados() {
+  const q = norm(S.f.q.trim());
+  return USUARIOS.filter(u => {
+    if (S.f.estado === 'activos' && !u.act) return false;
+    if (S.f.estado === 'inactivos' && u.act) return false;
+    if (u.sis ? (S.f.rol || S.f.grupo) : ((S.f.rol && u.rol !== S.f.rol) || (S.f.grupo && u.grupo !== S.f.grupo))) return false;
+    return !q || [u.nom, u.login, u.ced].some(x => norm(x || '').includes(q));
+  }).sort((a, b) => (a.sis - b.sis) || (a.sis ? a.id - b.id : a.nom.localeCompare(b.nom, 'es')));
+}
+const rolDistinto = u => !u.sis && 'rolApp' in u;
+function fAcceso(iso) {
+  if (!iso) return '<span class="text-muted-foreground">Nunca ha entrado</span>';
+  const d = iso.slice(0, 10), h = iso.slice(11, 16);
+  if (d === HOY) return `Hoy ${h}`;
+  if (d === diasAtras(1, '').slice(0, 10)) return `Ayer ${h}`;
+  return `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+}
+function sedesCelda(u) {
+  if (!u.sedes.length) return chip('Sin sedes', 'rosa', 'Sin sedes no puede entrar a la app');
+  if (u.sedes.length === TODAS.length) return 'Todas las sedes';
+  const n = TODAS.filter(s => u.sedes.includes(s)).map(s => SEDE_N[s]);
+  return `<span class="inline-flex items-center gap-x-1.5 whitespace-nowrap">${n.slice(0, 2).join(', ')}${n.length > 2 ? chip(`+${n.length - 2}`, 'gris', n.slice(2).join(', ')) : ''}</span>`;
+}
+const BTN_FILA = `${BTN} h-8 border border-input bg-background px-3 text-xs shadow-sm hover:bg-accent hover:text-accent-foreground`;
+function accionesFila(u) {
+  if (u.sis) return '';
+  if (!puedeModificar(u)) return `<button type="button" data-act="editar" data-v="${u.id}" class="${BTN_FILA}" title="Solo un Super Admin puede modificar a otro Super Admin" aria-label="Ver a ${esc(u.nom)}">${ic('eye', 'size-3.5')}Ver</button>`;
+  return `<div class="flex items-center justify-end gap-1">
+    <button type="button" data-act="editar" data-v="${u.id}" class="${BTN_FILA}" aria-label="Editar a ${esc(u.nom)}">${ic('pencil', 'size-3.5')}Editar</button>
+    ${esYo(u) ? '<span class="w-[78px]" aria-hidden="true"></span>' : `<button type="button" data-act="${u.act ? 'desactivar' : 'activar'}" data-v="${u.id}" class="${BTN} h-8 w-[78px] px-2 text-xs ${u.act ? 'text-neutral-600 hover:bg-accent hover:text-foreground' : 'text-primary hover:bg-primary/10'}" aria-label="${u.act ? 'Desactivar' : 'Activar'} a ${esc(u.nom)}">${u.act ? 'Desactivar' : 'Activar'}</button>`}
+  </div>`;
+}
+function filaUsuario(u) {
+  const off = u.act ? '' : 'text-muted-foreground';
+  const raya = '<span class="text-muted-foreground">—</span>';
+  if (u.sis) return `<tr class="bg-muted/20">
+      <td class="px-3 py-2.5"><p class="font-medium leading-snug ${off}">${esc(u.nom)}</p></td>
+      <td class="px-2 py-2.5" colspan="2">${chip('Cuenta del sistema', 'gris', 'No es una persona: no se edita ni se desactiva')}</td>
+      <td class="px-2 py-2.5">${raya}</td><td class="px-2 py-2.5">${raya}</td>
+      <td class="px-2 py-2.5">${u.act ? chip('Activo', 'verde') : chip('Inactivo', 'gris')}</td>
+      <td class="px-3 py-2.5"></td>
+    </tr>`;
+  const marca = rolDistinto(u) ? `<p class="mt-1">${chip('Rol distinto en la app', 'rosa', u.rolApp ? `En la app tiene el rol ${u.rolApp}` : 'En la app no tiene rol y no puede entrar')}</p>` : '';
+  return `<tr class="hover:bg-muted/40">
+    <td class="px-3 py-2.5"><p class="font-semibold leading-snug ${off}">${esc(u.nom)}</p><p class="text-xs text-muted-foreground">${esc(u.login)}</p></td>
+    <td class="px-2 py-2.5 text-[13px] ${off}">${esc(u.rol)}${marca}</td>
+    <td class="px-2 py-2.5 text-[13px] ${off}">${esc(u.grupo)}</td>
+    <td class="px-2 py-2.5 text-[13px] ${off}">${sedesCelda(u)}</td>
+    <td class="whitespace-nowrap px-2 py-2.5 text-[13px] tabular-nums ${off}">${fAcceso(u.acc)}</td>
+    <td class="px-2 py-2.5">${u.act ? chip('Activo', 'verde') : chip('Inactivo', 'gris')}</td>
+    <td class="px-3 py-2.5 text-right">${accionesFila(u)}</td>
+  </tr>`;
+}
+/* Paginación: la del mockup 063 */
+function paginacion(total) {
+  const pags = Math.max(1, Math.ceil(total / POR_PAGINA));
+  const desde = (S.pag - 1) * POR_PAGINA + 1, hasta = Math.min(total, S.pag * POR_PAGINA);
+  const btn = (t, p, on, off) => off ? `<span class="rounded-md border px-2.5 py-1 text-sm text-muted-foreground">${t}</span>`
+    : `<button data-act="pag" data-v="${p}" class="rounded-md border px-2.5 py-1 text-sm ${on ? 'bg-primary font-semibold text-primary-foreground' : 'hover:bg-muted'}">${t}</button>`;
+  let links = btn('« Anterior', S.pag - 1, false, S.pag === 1);
+  for (let i = 1; i <= pags; i++) links += btn(i, i, i === S.pag, false);
+  links += btn('Siguiente »', S.pag + 1, false, S.pag === pags);
+  return `<div class="flex flex-wrap items-center justify-between gap-3">
+    <p class="text-sm text-muted-foreground">Mostrando ${desde}–${hasta} de ${total} usuarios</p>
+    <div class="flex flex-wrap gap-1">${pags > 1 ? links : ''}</div></div>`;
+}
+function vacioFiltro() {
+  const q = S.f.q.trim();
+  return `<div class="rounded-xl border bg-card py-16 text-center">
+    <p class="font-semibold">${q ? `Ningún usuario coincide con «${esc(q)}»` : 'Ningún usuario coincide con estos filtros'}</p>
+    <p class="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">Revisa cómo está escrito, o busca por la cédula o por el usuario de acceso.${S.f.estado === 'activos' ? ' Si es alguien que ya no trabaja aquí, cambia Estado a «Todos».' : ''}</p>
+    <button type="button" data-act="limpiar" class="mt-4 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted">Limpiar filtros</button>
+  </div>`;
+}
+function tabla() {
+  const todos = filtrados();
+  if (!todos.length) return vacioFiltro();
+  const pags = Math.max(1, Math.ceil(todos.length / POR_PAGINA));
+  if (S.pag > pags) S.pag = pags;
+  const pagina = todos.slice((S.pag - 1) * POR_PAGINA, S.pag * POR_PAGINA);
+  const personas = pagina.filter(u => !u.sis), sistema = pagina.filter(u => u.sis);
+  const grupoSis = sistema.length ? `<tr class="border-t-2"><td colspan="7" class="bg-muted/40 px-3 py-2 text-xs text-muted-foreground"><span class="font-semibold uppercase tracking-wide">Cuentas del sistema</span> · No son personas: con ellas quedan registradas las reservas que llegan de otros canales. No se editan ni se desactivan.</td></tr>` : '';
+  return `<div class="overflow-hidden rounded-xl border bg-card">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead class="border-b bg-muted/40 text-xs text-muted-foreground"><tr>
+          <th scope="col" class="${TH} w-[230px] px-3">Usuario</th>
+          <th scope="col" class="${TH} w-[166px]">Rol</th>
+          <th scope="col" class="${TH} w-[150px]">Grupo</th>
+          <th scope="col" class="${TH}">Sedes</th>
+          <th scope="col" class="${TH} w-[124px]">Último acceso</th>
+          <th scope="col" class="${TH} w-[82px]">Estado</th>
+          <th scope="col" class="${TH} w-[178px] px-3"><span class="sr-only">Acciones</span></th>
+        </tr></thead>
+        <tbody class="divide-y">${personas.map(filaUsuario).join('')}${grupoSis}${sistema.map(filaUsuario).join('')}</tbody>
+      </table>
+    </div>
+  </div>
+  ${paginacion(todos.length)}`;
+}
+function cargaTabla() {
+  return `<div class="overflow-hidden rounded-xl border bg-card" aria-busy="true" aria-label="Cargando los usuarios">
+    <div class="flex gap-4 border-b bg-muted/40 px-4 py-3">${sk('h-3 w-52')}${sk('h-3 w-36')}${sk('h-3 w-36')}${sk('h-3 flex-1')}${sk('h-3 w-24')}${sk('h-3 w-16')}${sk('h-3 w-36')}</div>
+    ${Array.from({ length: 9 }, () => `<div class="flex items-center gap-4 border-b px-4 py-3.5 last:border-0"><div class="w-52 space-y-1.5">${sk('h-4 w-44')}${sk('h-3 w-24')}</div>${sk('h-4 w-36')}${sk('h-4 w-36')}<div class="flex-1">${sk('h-4 w-40')}</div>${sk('h-4 w-24')}${sk('h-5 w-16 rounded-full')}${sk('h-8 w-36')}</div>`).join('')}
+  </div>`;
+}
+function errorHtml() {
+  return `<section role="alert" class="flex flex-1 flex-col items-center justify-center rounded-xl border border-rose-200 bg-card px-6 py-16 text-center">
+    <span class="grid size-12 place-items-center rounded-full bg-rose-50 text-rose-600">${ic('alert', 'size-6')}</span>
+    <h2 class="mt-4 text-base font-semibold">No se pudieron cargar los usuarios</h2>
+    <p class="mt-1 max-w-md text-sm text-muted-foreground">El servidor respondió con un error. Intenta de nuevo; si vuelve a fallar, avisa a soporte.</p>
+    <button type="button" data-act="reintentar" class="mt-5 ${BTN_OUT}">${ic('refresh')}Reintentar</button>
+  </section>`;
+}
+function paginaLista() {
+  if (S.carga) return `${encabezado()}${sk('h-4 w-40')}<div class="flex gap-4">${sk('h-9 flex-1')}${sk('h-9 w-44')}${sk('h-9 w-48')}${sk('h-9 w-36')}</div>${cargaTabla()}`;
+  if (S.error) return `${encabezado()}${errorHtml()}`;
+  return `${encabezado()}${contador()}${filtros()}${resumenFiltro()}${tabla()}`;
+}
+
+/* =====================================================================
+   Página «Nuevo usuario» / «Editar usuario» (proyecciones/Nueva.vue)
+   ===================================================================== */
+const VACIO = () => ({ nom: '', corto: '', ced: '', mail: '', cel: '', login: '', clave: '', rol: '', grupo: '', sedes: [], exento: 0, act: 1 });
+function abrirNuevo(v = {}) {
+  S.pantalla = 'form'; S.dlg = null;
+  S.form = { id: null, v: { ...VACIO(), ...v }, err: {}, alerta: null, verClave: false, ro: false, propio: false, guardando: false, simularFallo: false };
+}
+function abrirEditar(id) {
+  const u = porId(id);
+  S.pantalla = 'form'; S.dlg = null;
+  S.form = { id, v: { nom: u.nom, corto: u.corto, ced: u.ced, mail: u.mail, cel: u.cel, login: u.login, clave: '', rol: u.rol, grupo: u.grupo, sedes: [...u.sedes], exento: u.exento, act: u.act },
+    err: {}, alerta: null, verClave: false, ro: !puedeModificar(u), propio: esYo(u), guardando: false, simularFallo: false };
+}
+const obligatorio = '<span class="text-rose-700" aria-hidden="true"> *</span>';
+function campo(f, etiqueta, { req = false, ayuda = '', tipo = 'text', ph = '', max = '', modo = '' } = {}) {
+  const F = S.form, e = F.err[f];
+  return `<div>
+    <label for="c-${f}" class="text-sm font-medium">${etiqueta}${req && !F.ro ? obligatorio : ''}</label>
+    <input id="c-${f}" data-f="${f}" type="${tipo}" value="${esc(F.v[f])}" ${ph ? `placeholder="${esc(ph)}"` : ''} ${max ? `maxlength="${max}"` : ''} ${modo ? `inputmode="${modo}"` : ''} ${F.ro ? 'disabled' : ''} ${e ? 'aria-invalid="true"' : ''} autocomplete="off"
+      class="mt-1.5 ${CONTROL} ${e ? 'border-rose-400' : 'border-input'}">
+    ${e ? `<p class="mt-1 text-sm text-rose-700">${e}</p>` : ayuda ? `<p class="mt-1 text-xs text-muted-foreground">${ayuda}</p>` : ''}
+  </div>`;
+}
+function lista(f, etiqueta, opciones, { vacio, ayuda = '', bloq = false }) {
+  const F = S.form, e = F.err[f], off = F.ro || bloq;
+  return `<div>
+    <label for="c-${f}" class="text-sm font-medium">${etiqueta}${off ? '' : obligatorio}</label>
+    <div class="relative mt-1.5"><select id="c-${f}" data-chg="form-${f}" ${off ? 'disabled' : ''} ${e ? 'aria-invalid="true"' : ''} class="${CONTROL} appearance-none pr-8 ${e ? 'border-rose-400' : 'border-input'} ${F.v[f] ? '' : 'text-muted-foreground'}">
+      <option value="">${vacio}</option>${opciones.map(o => `<option value="${esc(o)}" ${o === F.v[f] ? 'selected' : ''}>${esc(o)}</option>`).join('')}
+    </select>${ic(off ? 'lock' : 'chevD', 'pointer-events-none absolute right-2.5 top-2.5 size-4 opacity-50')}</div>
+    ${e ? `<p class="mt-1 text-sm text-rose-700">${e}</p>` : ayuda ? `<p class="mt-1 text-xs text-muted-foreground">${ayuda}</p>` : ''}
+  </div>`;
+}
+/* ui/checkbox */
+function casilla(on, off = false) {
+  return `<span role="checkbox" aria-checked="${!!on}" class="grid size-5 shrink-0 place-items-center rounded-sm border ${on ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-background'} ${off ? 'opacity-50' : ''}">${on ? ic('check', 'size-3.5 [stroke-width:3]') : ''}</span>`;
+}
+function opcion(v, on, titulo, texto, { err = '', candado = false, bloq = false } = {}) {
+  const ro = S.form.ro || bloq;
+  return `<div><button type="button" data-act="chk" data-v="${v}" ${ro ? 'disabled' : ''} class="flex w-full items-start gap-3 rounded-md border px-3 py-2.5 text-left text-sm disabled:cursor-not-allowed ${err ? 'border-rose-400' : on && !ro ? 'border-primary/40 bg-primary/5' : ''}">
+      <span class="mt-0.5">${casilla(on, ro)}</span>
+      <span class="min-w-0 flex-1"><span class="flex items-center gap-1.5 font-medium ${ro ? 'text-muted-foreground' : ''}">${titulo}${candado ? ic('lock', 'size-3.5 opacity-60') : ''}</span><span class="mt-0.5 block text-xs text-muted-foreground">${texto}</span></span>
+    </button>${err ? `<p class="mt-1 text-sm text-rose-700">${err}</p>` : ''}</div>`;
+}
+const bloque = (titulo, sub, cuerpo, der = '') => `<section class="rounded-xl border bg-card p-5 text-card-foreground">
+    <div class="flex flex-wrap items-start justify-between gap-3"><div><h2 class="text-base font-semibold leading-tight">${titulo}</h2>${sub ? `<p class="mt-0.5 text-sm text-muted-foreground">${sub}</p>` : ''}</div>${der}</div>
+    ${cuerpo}</section>`;
+function campoClave() {
+  const F = S.form, e = F.err.clave, nuevo = F.id == null;
+  const ayuda = nuevo ? 'Mínimo 8 caracteres. Anótala para entregársela: después de guardar no se vuelve a mostrar.'
+    : 'Déjala vacía para no cambiarla. Si la cambias: mínimo 8 caracteres, y anótala para entregársela.';
+  return `<div>
+    <label for="c-clave" class="text-sm font-medium">${nuevo ? 'Clave' : 'Clave nueva'}${nuevo ? obligatorio : ''}</label>
+    <div class="mt-1.5 flex gap-2">
+      <div class="relative min-w-0 flex-1">
+        <input id="c-clave" data-f="clave" type="${F.verClave ? 'text' : 'password'}" value="${esc(F.v.clave)}" ${F.ro ? 'disabled' : ''} ${e ? 'aria-invalid="true"' : ''} autocomplete="new-password" ${nuevo ? '' : 'placeholder="Sin cambios"'}
+          class="${CONTROL} pr-10 ${F.verClave ? 'font-mono tracking-wide' : ''} ${e ? 'border-rose-400' : 'border-input'}">
+        <button type="button" data-act="ver-clave" ${F.ro ? 'disabled' : ''} class="absolute right-1 top-1 grid size-7 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40" aria-label="${F.verClave ? 'Ocultar la clave' : 'Ver la clave'}" title="${F.verClave ? 'Ocultar la clave' : 'Ver la clave'}">${ic(F.verClave ? 'eyeOff' : 'eye', 'size-4')}</button>
+      </div>
+      <button type="button" data-act="generar" ${F.ro ? 'disabled' : ''} class="${BTN_OUT} shrink-0">${ic('key')}Generar clave</button>
+    </div>
+    ${e ? `<p class="mt-1 text-sm text-rose-700">${e}</p>` : `<p class="mt-1 text-xs text-muted-foreground">${ayuda}</p>`}
+  </div>`;
+}
+function bloqueSedes() {
+  const F = S.form, v = F.v, todas = v.sedes.length === TODAS.length;
+  const item = (val, on, t, extra = '') => `<button type="button" data-act="chk" data-v="${val}" ${F.ro ? 'disabled' : ''} class="flex items-center gap-2.5 rounded-md border px-3 py-2 text-left text-sm disabled:cursor-not-allowed ${F.ro ? 'text-muted-foreground' : ''} ${extra}">${casilla(on, F.ro)}${t}</button>`;
+  const cuenta = `<span class="text-sm tabular-nums text-muted-foreground">${v.sedes.length} de ${TODAS.length}</span>`;
+  return bloque('Sedes', 'Las sedes en las que trabaja. Son opcionales.',
+    `<div class="mt-4">${item('todas', todas, '<span class="font-medium">Todas las sedes</span>', 'w-full bg-muted/40')}</div>
+     <div class="mt-2 grid grid-cols-3 gap-2">${SEDES.map(([id, n]) => item(`sede:${id}`, v.sedes.includes(id), n)).join('')}</div>
+     ${v.sedes.length ? '' : `<div class="mt-3">${avisoRosa('<span class="font-semibold">Sin sedes no puede entrar a la app.</span> Marca al menos una si la va a usar.')}</div>`}`, cuenta);
+}
+function historialHtml(id) {
+  const h = HIST[id] || [];
+  const filas = h.map((x, i) => `<li class="relative pl-6 ${i < h.length - 1 ? 'pb-4' : ''}">
+      ${i < h.length - 1 ? '<span class="absolute left-[4.5px] top-4 h-full w-px bg-neutral-300"></span>' : ''}
+      <span class="absolute left-0 top-[5px] size-2.5 rounded-full border-2 border-background ${i === 0 ? 'bg-primary' : 'bg-neutral-300'} ring-1 ring-border"></span>
+      ${x.c.map(c => `<p class="text-sm font-medium leading-snug">${esc(c)}</p>`).join('')}
+      <p class="mt-0.5 text-xs tabular-nums text-muted-foreground">${x.alta ? '' : `${esc(porId(x.por).nom)} · `}${fFecha(x.f)}</p>
+    </li>`).join('');
+  return `<aside class="rounded-xl border bg-card p-5 text-card-foreground" aria-labelledby="h-t">
+    <h2 id="h-t" class="flex items-center gap-2 text-base font-semibold leading-tight">${ic('history', 'size-4 text-muted-foreground')}Historial</h2>
+    <p class="mt-0.5 text-sm text-muted-foreground">Quién cambió qué y cuándo. Lo más reciente va primero.</p>
+    ${h.length ? `<ol class="mt-4">${filas}</ol>` : `<div class="mt-4 rounded-lg border border-dashed px-4 py-6 text-center"><p class="text-sm font-medium">Sin cambios registrados</p><p class="mt-0.5 text-xs text-muted-foreground">Lo que se le cambie de ahora en adelante queda aquí.</p></div>`}
+    <p class="mt-4 border-t pt-3 text-xs text-muted-foreground">El historial empieza el día en que Usuarios pasó a SIREQ. La clave nunca se muestra: solo queda que se cambió.</p>
+  </aside>`;
+}
+function paginaForm() {
+  const F = S.form, v = F.v, u = F.id != null ? porId(F.id) : null, nuevo = !u;
+  const n = Object.keys(F.err).length;
+  const alerta = F.alerta === 'errores' ? avisoRosa(`<span class="font-semibold">No se guardó.</span> Revisa ${n === 1 ? 'el campo marcado' : `los ${n} campos marcados`} y vuelve a guardar.`)
+    : F.alerta === 'fallo' ? avisoRosa('<span class="font-semibold">No se guardó: el servidor respondió con un error.</span> Lo que escribiste sigue aquí. Vuelve a guardar; si falla otra vez, avisa a soporte.')
+    : F.alerta === 'guarda' ? avisoRosa(`<span class="font-semibold">${MSG_GUARDA}</span>`) : '';
+  const soloVer = F.ro ? `<div class="${AVISO_NEUTRO}">${ic('lock', 'mt-0.5 size-4 shrink-0')}<p><span class="font-semibold">Solo un Super Admin puede modificar a otro Super Admin.</span> Puedes ver sus datos, pero no cambiarlos.</p></div>` : '';
+  const sinCedula = u && !u.ced && !v.ced.trim() ? `<div class="mt-4">${avisoRosa('<span class="font-semibold">No tiene cédula:</span> la app no le envía notificaciones y no queda enlazado con personal. Escríbela cuando la tengas.')}</div>` : '';
+  const destino = v.rol ? `<b>${esc(v.rol)}</b>` : 'el rol que elijas';
+  const avisoRol = u && rolDistinto(u) && !F.ro && !F.propio ? `<div class="mt-4">${avisoRosa(u.rolApp
+    ? `En la app este usuario tiene hoy el rol <b>${esc(u.rolApp)}</b>. Al guardar queda como ${destino} en la app y en los dos admin.`
+    : `En la app este usuario no tiene rol y por eso no puede entrar. Al guardar queda como ${destino} en la app y en los dos admin.`)}</div>` : '';
+  const titulo = nuevo ? `<h1 class="text-xl font-semibold tracking-tight">Nuevo usuario</h1>
+      <p class="mt-0.5 text-sm text-muted-foreground">Con este usuario entra a SIREQ, al admin anterior y a la app.</p>`
+    : `<div class="flex flex-wrap items-center gap-2"><h1 class="text-xl font-semibold tracking-tight">${F.ro ? 'Usuario' : 'Editar usuario'}</h1>${u.act ? chip('Activo', 'verde') : chip('Inactivo', 'gris')}${F.propio ? chip('Tu usuario', 'gris') : ''}${rolDistinto(u) ? chip('Rol distinto en la app', 'rosa') : ''}</div>
+      <p class="mt-0.5 text-sm text-muted-foreground">${esc(u.nom)} · ${esc(u.login)}</p>`;
+  const datos = bloque('Datos', '', `${sinCedula}<div class="mt-4 grid grid-cols-2 gap-x-5 gap-y-4">
+      ${campo('nom', 'Nombre completo', { req: true, ph: 'Ej.: María Fernanda Pérez Ruiz', ayuda: 'Sale al elegir asesor y en los checklists.' })}
+      ${campo('corto', 'Nombre corto', { req: true, ph: 'Ej.: María F.', ayuda: 'Sale en sucesos e informes.' })}
+      ${campo('ced', 'Cédula', { req: nuevo || !!u.ced, ph: 'Solo números', modo: 'numeric', ayuda: 'Lo enlaza con personal y con sus ventas.' })}
+      ${campo('cel', 'Celular', { ph: '10 dígitos', max: 10, modo: 'numeric', ayuda: 'Sale en la cotización.' })}
+      ${campo('mail', 'Correo', { tipo: 'email', ph: 'nombre@correo.com', ayuda: 'Sale en la cotización.' })}
+    </div>`);
+  const acceso = bloque('Acceso', '', `<div class="mt-4 grid grid-cols-2 gap-x-5 gap-y-4">
+      ${campo('login', 'Usuario de acceso', { req: true, ph: 'Ej.: mperez', max: 20, ayuda: F.ro ? 'Lo escribe para entrar.' : 'Lo escribe para entrar. Máximo 20 caracteres, sin repetir el de otro usuario.' })}
+      ${F.ro ? '' : campoClave()}
+    </div>`);
+  const roles = rolesQuePuedoDar();
+  const rolGrupo = bloque('Rol y grupo', '', `${avisoRol}<div class="mt-4 grid grid-cols-2 gap-x-5 gap-y-4">
+      ${lista('rol', 'Rol', F.ro || F.propio ? ROLES : roles, { vacio: 'Elige el rol', bloq: F.propio, ayuda: F.ro ? '' : F.propio ? NOTA_PROPIO : soySA() ? 'Define lo que puede ver y hacer.' : 'Define lo que puede ver y hacer. Super Admin no sale en la lista: ese rol solo lo da un Super Admin.' })}
+      ${lista('grupo', 'Grupo', GRUPOS, { vacio: 'Elige el grupo', ayuda: 'Con el grupo se arman los informes de ventas.' })}
+    </div>`);
+  const otras = bloque('Reservas y estado', '', `<div class="mt-4 grid gap-2">
+      ${opcion('exento', v.exento, 'Exento de la prioridad entre sedes', 'Al reservar, el sistema pasa la reserva a la sede que ya tiene huéspedes en esas fechas, para llenarla antes de abrir otra. Con esta marca, el usuario reserva en la sede que eligió.')}
+      ${opcion('act', v.act, 'Usuario activo', F.ro ? (v.act ? 'Puede entrar a SIREQ.' : 'No puede entrar a SIREQ.') : F.propio ? NOTA_PROPIO : nuevo ? 'Puede entrar desde que lo crees. Desmárcalo si todavía no debe entrar.' : 'Si lo desmarcas, no puede entrar a SIREQ desde que guardes.', { err: F.err.act || '', candado: F.ro || F.propio, bloq: F.propio })}
+    </div>`);
+  const botones = F.ro ? `<div class="flex gap-2"><button type="button" data-act="ir-lista" class="${BTN_OUT}">${ic('chevL')}Volver a Usuarios</button></div>`
+    : `<div class="flex flex-wrap items-center gap-2">
+        <button type="button" data-act="ir-lista" class="${BTN_OUT}">Cancelar</button>
+        <button type="button" data-act="guardar" ${F.guardando ? 'disabled' : ''} class="${BTN_DEF}">${nuevo ? ic('plus') : ic('check')}${F.guardando ? (nuevo ? 'Creando…' : 'Guardando…') : (nuevo ? 'Crear usuario' : 'Guardar cambios')}</button>
+        <span class="ml-2 text-xs text-muted-foreground">Los campos con <span class="text-rose-700">*</span> son obligatorios.</span>
+      </div>`;
+  return `<div>${titulo}</div>${alerta || soloVer ? `<div class="${nuevo ? 'max-w-[764px]' : ''}">${alerta}${soloVer}</div>` : ''}
+    <div class="grid items-start gap-4 ${nuevo ? '' : 'grid-cols-[minmax(0,1fr)_340px]'}">
+      <div class="flex min-w-0 ${nuevo ? 'max-w-[764px]' : ''} flex-col gap-4">${datos}${acceso}${rolGrupo}${bloqueSedes()}${otras}${botones}</div>
+      ${nuevo ? '' : historialHtml(u.id)}
+    </div>`;
+}
+
+/* --- Validar y guardar --- */
+function validar() {
+  const F = S.form, v = F.v, u = F.id != null ? porId(F.id) : null, e = {};
+  if (!v.nom.trim()) e.nom = 'Escribe el nombre completo.';
+  if (!v.corto.trim()) e.corto = 'Escribe el nombre corto.';
+  if (!v.ced.trim() && (!u || u.ced)) e.ced = 'Escribe la cédula.';
+  if (!v.login.trim()) e.login = 'Escribe el usuario de acceso.';
+  else if (USUARIOS.some(x => x.id !== F.id && x.login.toLowerCase() === v.login.trim().toLowerCase())) e.login = 'Ya hay otro usuario con ese usuario de acceso. Escribe uno distinto.';
+  if (!u && !v.clave) e.clave = 'Escribe una clave o usa «Generar clave».';
+  else if (v.clave && v.clave.length < 8) e.clave = `La clave tiene ${v.clave.length} ${v.clave.length === 1 ? 'carácter' : 'caracteres'}: debe tener mínimo 8.`;
+  if (!v.rol) e.rol = 'Elige el rol.';
+  if (!v.grupo) e.grupo = 'Elige el grupo.';
+  return e;
+}
+/* D5: no se desactiva ni se cambia de rol al último Super Admin activo. Con D17 solo salta cuando otro Super Admin guardó un instante antes:
+   S.carrera lo simula en las dos vistas de la guarda (el servidor ya cuenta un solo Super Admin activo; esta pantalla todavía no lo sabe). */
+const rompeGuarda = (u, rol, act) => u.rol === SA && u.act && (rol !== SA || !act) && (S.carrera || superAdminsActivos() === 1);
+function cambiosDe(u, v) {
+  const c = [], par = (t, a, b) => { if ((a || '') !== (b || '')) c.push(!a ? `${t}: se agregó ${b}` : !b ? `${t}: se quitó` : `${t}: ${a} → ${b}`); };
+  par('Nombre completo', u.nom, v.nom.trim()); par('Nombre corto', u.corto, v.corto.trim()); par('Cédula', u.ced, v.ced.trim());
+  par('Celular', u.cel, v.cel.trim()); par('Correo', u.mail, v.mail.trim()); par('Usuario de acceso', u.login, v.login.trim());
+  if (v.clave) c.push('Clave cambiada');
+  if (u.rol !== v.rol) c.push(`Rol: ${u.rol} → ${v.rol}`);
+  else if (rolDistinto(u)) c.push(u.rolApp ? `Rol en la app: ${u.rolApp} → ${v.rol}` : `Rol en la app: se agregó ${v.rol}`);
+  par('Grupo', u.grupo, v.grupo);
+  TODAS.forEach(s => { const a = u.sedes.includes(s), b = v.sedes.includes(s); if (a !== b) c.push(`Sedes: se ${b ? 'agregó' : 'quitó'} ${SEDE_N[s]}`); });
+  if (!!u.exento !== !!v.exento) c.push(`Exento de la prioridad entre sedes: se ${v.exento ? 'marcó' : 'quitó'}`);
+  if (!!u.act !== !!v.act) c.push(v.act ? 'Activado' : 'Desactivado');
+  return c;
+}
+function guardarForm() {
+  const F = S.form, v = F.v, u = F.id != null ? porId(F.id) : null;
+  if (u && F.propio) { v.rol = u.rol; v.act = u.act; }
+  F.err = validar(); F.alerta = null;
+  if (Object.keys(F.err).length) { F.alerta = 'errores'; return render(); }
+  if (u && rompeGuarda(u, v.rol, v.act)) {
+    F.err = v.rol !== SA ? { rol: 'Es el único Super Admin activo: no puede cambiar de rol.' } : { act: 'Es el único Super Admin activo: no se puede desactivar.' };
+    F.alerta = 'guarda'; return render();
+  }
+  F.guardando = true; render();
+  setTimeout(() => {
+    F.guardando = false;
+    if (F.simularFallo) { F.simularFallo = false; F.alerta = 'fallo'; return render(); }
+    const datos = { nom: v.nom.trim(), corto: v.corto.trim(), ced: v.ced.trim(), mail: v.mail.trim(), cel: v.cel.trim(), login: v.login.trim(), rol: v.rol, grupo: v.grupo, sedes: TODAS.filter(s => v.sedes.includes(s)), exento: v.exento ? 1 : 0, act: v.act ? 1 : 0 };
+    if (u) {
+      const c = cambiosDe(u, v);
+      if (c.length) (HIST[u.id] = HIST[u.id] || []).unshift({ f: ahora(), por: yo().id, c });
+      Object.assign(u, datos); delete u.rolApp;
+      avisar(c.length ? `Cambios guardados: ${esc(u.nom)}` : `Sin cambios en ${esc(u.nom)}`);
+    } else {
+      const id = Math.max(...USUARIOS.filter(x => !x.sis).map(x => x.id)) + 1;
+      USUARIOS.push({ id, ...datos, acc: null, sis: 0 });
+      HIST[id] = [{ f: ahora(), por: yo().id, c: [`Creado por ${yo().nom}`], alta: 1 }];
+      avisar(`Usuario creado: ${esc(datos.nom)}`);
+    }
+    irLista(); render();
+  }, 600);
+}
+function generarClave() {
+  const abc = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  S.form.v.clave = Array.from({ length: 10 }, () => abc[Math.floor(Math.random() * abc.length)]).join('');
+  S.form.verClave = true; delete S.form.err.clave;
+}
+function marcar(v) {
+  const f = S.form.v;
+  if (v === 'act' && S.form.propio) return;
+  if (v === 'exento' || v === 'act') { f[v] = f[v] ? 0 : 1; delete S.form.err.act; }
+  else if (v === 'todas') f.sedes = f.sedes.length === TODAS.length ? [] : [...TODAS];
+  else { const id = +v.split(':')[1]; f.sedes = f.sedes.includes(id) ? f.sedes.filter(s => s !== id) : [...f.sedes, id]; }
+}
+
+/* =====================================================================
+   Activar y desactivar (catalogo/ConfirmarActivo.vue sobre ui/dialog)
+   ===================================================================== */
+function dialogoHtml() {
+  const d = S.dlg, u = porId(d.id), des = d.tipo === 'desactivar';
+  const ficha = `<div class="rounded-lg border bg-muted/40 px-3 py-2.5"><p class="text-sm font-semibold leading-snug text-foreground">${esc(u.nom)}</p><p class="text-xs text-muted-foreground">Usuario de acceso: <span class="font-medium text-foreground">${esc(u.login)}</span> · ${esc(u.rol)}</p></div>`;
+  const texto = des ? 'No podrá entrar a SIREQ desde este momento. Lo que ya registró conserva su nombre, y puedes activarlo otra vez cuando haga falta.'
+    : 'Podrá entrar a SIREQ otra vez, con la clave que tenía. Si no la recuerda, ábrelo con «Editar» y ponle una nueva.';
+  const botones = d.guarda ? `<button type="button" data-act="dlg-no" class="${BTN_OUT}">Cerrar</button>`
+    : `<button type="button" data-act="dlg-no" class="${BTN_OUT}">Cancelar</button>
+       <button type="button" data-act="dlg-si" class="${des ? `${BTN} h-9 bg-rose-600 px-4 py-2 text-white shadow hover:bg-rose-700` : BTN_DEF}">${des ? 'Desactivar' : 'Activar'}</button>`;
+  return `<div class="bajo-barra fixed inset-0 z-[70] bg-black/80 ${S.animDialogo ? 'anim-fade' : ''}" data-act="dlg-no"></div>
+    <div role="alertdialog" aria-modal="true" aria-labelledby="dl-t" aria-describedby="dl-d" class="${S.animDialogo ? 'anim-fade' : ''} fixed left-1/2 top-1/2 z-[70] grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border bg-background p-6 shadow-lg sm:rounded-lg">
+      <div class="flex flex-col gap-y-1.5 text-center sm:text-left">
+        <h2 id="dl-t" class="text-lg font-semibold leading-none tracking-tight">${des ? '¿Desactivar este usuario?' : '¿Activar este usuario?'}</h2>
+      </div>
+      ${ficha}
+      ${d.guarda ? avisoRosa(`<span class="font-semibold">${MSG_GUARDA}</span>`) : `<p id="dl-d" class="text-sm leading-relaxed text-muted-foreground">${texto}</p>`}
+      <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">${botones}</div>
+      <button data-act="dlg-no" class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2" aria-label="Cerrar">${ic('x', 'size-4')}</button>
+    </div>`;
+}
+function confirmarDialogo() {
+  const d = S.dlg, u = porId(d.id);
+  if (d.tipo === 'desactivar' && rompeGuarda(u, u.rol, 0)) { d.guarda = true; return; }
+  u.act = d.tipo === 'activar' ? 1 : 0;
+  (HIST[u.id] = HIST[u.id] || []).unshift({ f: ahora(), por: yo().id, c: [u.act ? 'Activado' : 'Desactivado'] });
+  S.dlg = null;
+  avisar(u.act ? `Se activó a ${esc(u.nom)}. Ya puede entrar a SIREQ.` : `Se desactivó a ${esc(u.nom)}. Ya no puede entrar a SIREQ.`);
+}
+/* catalogo/AvisoGuardado.vue */
+const avisoHtml = () => S.aviso ? `<div role="status" class="anim-fade fixed bottom-6 right-6 z-50 flex max-w-sm items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-lg">${ic('check', 'mt-0.5 size-4 shrink-0')}<span>${S.aviso}</span></div>` : '';
+
+/* =====================================================================
+   Render
+   ===================================================================== */
+function render() {
+  pintarBarra();
+  const stage = document.getElementById('stage');
+  const sc = window.scrollY;
+  const enfoque = document.activeElement?.id;
+  const selIni = document.activeElement?.selectionStart;
+  const menuScroll = document.getElementById('aside-scroll')?.scrollTop;
+  const enForm = S.pantalla === 'form';
+  const migas = !enForm ? ['Configuración', 'Usuarios'] : ['Configuración', 'Usuarios', S.form.id == null ? 'Nuevo usuario' : esc(porId(S.form.id).nom)];
+  stage.innerHTML = `<div class="mx-auto flex min-h-screen max-w-[1440px] bg-sidebar">${sidebarHtml()}
+      <main class="relative my-2 mr-2 flex min-h-[calc(100vh-102px)] min-w-0 flex-1 flex-col rounded-xl bg-background shadow">${headerHtml(migas)}
+        <div class="flex flex-1 flex-col gap-4 p-6">${enForm ? paginaForm() : paginaLista()}</div></main></div>
+    <div id="ov">${S.dlg ? dialogoHtml() : ''}</div>${avisoHtml()}`;
+  S.animDialogo = false;
+  ajustarAside();
+  window.scrollTo(0, sc);
+  /* Configuración es el último módulo: el menú se desplaza hasta la opción activa. */
+  const m = document.getElementById('aside-scroll');
+  if (m) m.scrollTop = menuScroll != null ? menuScroll : m.scrollHeight;
+  if (enfoque) { const el = document.getElementById(enfoque); if (el) { el.focus(); if (selIni != null && el.setSelectionRange) try { el.setSelectionRange(selIni, selIni); } catch (e) {} } }
+  document.body.style.overflow = S.dlg ? 'hidden' : '';
+}
+function ajustarAside() {
+  const a = document.getElementById('aside');
+  if (!a) return;
+  const h = document.querySelector('.mk-bar').offsetHeight;
+  a.style.top = h + 'px'; document.querySelectorAll('.bajo-barra').forEach(el => el.style.top = h + 'px'); a.style.height = `calc(100vh - ${h}px)`; a.style.alignSelf = 'flex-start';
+}
+let avisoT;
+function avisar(t, fijo = false) { S.aviso = t; clearTimeout(avisoT); if (!fijo) avisoT = setTimeout(() => { S.aviso = null; render(); }, 3800); }
+function recargar() { S.carga = true; render(); setTimeout(() => { S.carga = false; render(); }, 650); }
+function fijarVista(v) { S.vista = v; if (location.hash.slice(1) !== v) history.replaceState(null, '', '#' + v); }
+function irLista() { S.pantalla = 'lista'; S.form = null; S.dlg = null; if (S.vista !== 'sin-permiso-crear' || puedeCrear()) fijarVista('listado'); window.scrollTo(0, 0); }
+
+/* Escenarios de la barra (y del hash) */
+function escenario(v) {
+  if (!VISTA[v]) v = 'listado';
+  USUARIOS = JSON.parse(USUARIOS0); HIST = JSON.parse(HIST0);
+  clearTimeout(avisoT);
+  Object.assign(S, { quien: 'sa', vista: v, pantalla: 'lista', carga: false, error: false, f: { q: '', rol: '', grupo: '', estado: 'activos' }, pag: 1, form: null, dlg: null, aviso: null, carrera: false });
+  const ejemplo = { nom: 'Tatiana Marcela Ruiz Quintana', corto: 'Tatiana R.', ced: '1102845530', mail: 'tatiana.ruiz@quintadelmar.co', cel: '3015550133', login: 'truiz', clave: 'Kp7mWq4tZe', rol: 'Asesor de ventas', grupo: 'Grupo de Ventas', sedes: [] };
+  switch (v) {
+    case 'listado-todos': S.f.estado = 'todos'; break;
+    case 'sin-resultados': S.f.q = 'zuluaga'; break;
+    case 'cargando': S.carga = true; break;
+    case 'error-cargar': S.error = true; break;
+    case 'nuevo': abrirNuevo(ejemplo); S.form.verClave = true; break;
+    case 'nuevo-errores': abrirNuevo({ ...ejemplo, ced: '', login: 'rtordecilla', clave: 'quinta1', sedes: [4, 6, 3] }); S.form.verClave = true; S.form.err = validar(); S.form.alerta = 'errores'; break;
+    case 'error-guardar': abrirNuevo({ ...ejemplo, sedes: [4, 6, 3] }); S.form.alerta = 'fallo'; break;
+    case 'editar': abrirEditar(5); break;
+    case 'editar-rol-distinto': abrirEditar(6); break;
+    case 'desactivar': S.dlg = { tipo: 'desactivar', id: 5 }; S.animDialogo = true; break;
+    case 'desactivado': S.dlg = { tipo: 'desactivar', id: 5 }; confirmarDialogo(); avisar(S.aviso, true); break;
+    case 'editar-propio': abrirEditar(1); break;
+    case 'guarda-desactivar': S.carrera = true; S.dlg = { tipo: 'desactivar', id: 2, guarda: true }; S.animDialogo = true; break;
+    case 'guarda-rol': S.carrera = true; abrirEditar(2); S.form.v.rol = 'Coordinador'; S.form.err = { rol: 'Es el único Super Admin activo: no puede cambiar de rol.' }; S.form.alerta = 'guarda'; break;
+    case 'coordinador-super-admin': S.quien = 'co'; abrirEditar(2); break;
+    case 'nuevo-coordinador': S.quien = 'co'; abrirNuevo(); break;
+    case 'sin-permiso-crear': S.quien = 'sc'; break;
+  }
+  window.scrollTo(0, 0);
+}
+
+/* =====================================================================
+   Eventos
+   ===================================================================== */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]');
+  if (!el || el.disabled) return;
+  const v = el.dataset.v;
+  switch (el.dataset.act) {
+    case 'mk-rol': S.quien = v; S.dlg = null; if (S.pantalla === 'form') irLista(); break;
+    case 'mk-est': if (location.hash.slice(1) === v) escenario(v); else { location.hash = v; return; } break;
+    case 'reintentar': S.error = false; fijarVista('listado'); return recargar();
+    case 'ir-lista': irLista(); break;
+    case 'nuevo': if (puedeCrear()) { abrirNuevo(); fijarVista(soySA() ? 'nuevo' : 'nuevo-coordinador'); window.scrollTo(0, 0); } break;
+    case 'editar': abrirEditar(+v); fijarVista(S.form.ro ? 'coordinador-super-admin' : S.form.propio ? 'editar-propio' : 'editar'); window.scrollTo(0, 0); break;
+    case 'desactivar': case 'activar': S.dlg = { tipo: el.dataset.act, id: +v }; S.animDialogo = true; if (el.dataset.act === 'desactivar') fijarVista('desactivar'); break;
+    case 'dlg-no': S.dlg = null; fijarVista('listado'); break;
+    case 'dlg-si': confirmarDialogo(); fijarVista(S.dlg ? 'guarda-desactivar' : 'listado'); break;
+    case 'limpiar-q': S.f.q = ''; S.pag = 1; break;
+    case 'limpiar': S.f = { q: '', rol: '', grupo: '', estado: 'activos' }; S.pag = 1; fijarVista('listado'); break;
+    case 'pag': S.pag = +v; window.scrollTo(0, 0); break;
+    case 'chk': marcar(v); break;
+    case 'ver-clave': S.form.verClave = !S.form.verClave; break;
+    case 'generar': generarClave(); break;
+    case 'guardar': return guardarForm();
+    default: return;
+  }
+  render();
+});
+document.addEventListener('change', e => {
+  const c = e.target.dataset.chg;
+  if (!c) return;
+  if (c.startsWith('form-')) { const f = c.slice(5); S.form.v[f] = e.target.value; delete S.form.err[f]; }
+  else { S.f[c] = e.target.value; S.pag = 1; }
+  render();
+});
+let tq;
+document.addEventListener('input', e => {
+  const d = e.target.dataset;
+  if (d.f && S.form) { S.form.v[d.f] = e.target.value; return; }
+  if (d.inp !== 'q') return;
+  S.f.q = e.target.value; S.pag = 1;
+  clearTimeout(tq); tq = setTimeout(render, 150);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.dlg) { S.dlg = null; fijarVista('listado'); render(); } });
+window.addEventListener('resize', ajustarAside);
+window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v !== S.vista) { escenario(v); render(); } });
+
+escenario(location.hash.slice(1) || 'listado');
+render();
+</script>
+</body>
+</html>
