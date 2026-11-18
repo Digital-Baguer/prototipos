@@ -349,21 +349,24 @@ const filaCambiar = (marca=true) => `<div class="${marca?'cambia':''}" style="pa
   <p data-go="nm=abierta" style="font-size:16px;font-weight:700;color:#7633FF;padding:4px 12px;display:inline-block">${ETIQ_RENOMBRAR}</p></div>`;
 
 /* saludo real del registro (scr_012): ¡Hola {nombre}!, datos del cliente y celular verificado */
-function pantallaSaludo({nm='cerrada', volver:conV=false, conNombre=true}={}) {
-  const fila = (e,v) => `<div style="padding:15px 0;border-bottom:1px solid #D8D8D8;text-align:center"><p style="font-size:16px;font-weight:700;color:#140F26">${e}</p><p style="font-size:16px;color:#140F26">${v}</p></div>`;
+function pantallaSaludo({nm='cerrada', volver:conV=false, conNombre=true, val=['celular','correo']}={}) {
+  const fila = (e,v,visto=false,ultima=false) => `<div style="padding:15px 0;${ultima?'':'border-bottom:1px solid #D8D8D8;'}text-align:center"><p style="font-size:16px;font-weight:700;color:#140F26">${e}</p><p class="${visto?'flex items-center justify-center gap-4':''}" style="font-size:16px;color:#140F26">${v}${visto?' '+img(IMG8,'decorador-check.png',24):''}</p></div>`;
   const save = S.nm; S.nm = nm;
   const fila2 = conNombre ? filaCambiar(true) : '';
   const hoja = sheetNombre(nm);
   S.nm = save;
+  const filas = conNombre
+    ? fila('Nro de documento',D.doc) + fila('Nombre','Martha Lucía Ruiz Pérez')
+      + (val.includes('celular') ? fila('Celular verificado','300 123 4567',true) : fila('Celular',D.cel))
+      + (val.includes('correo') ? fila('Correo verificado','martha.ruiz@gmail.com',true) : fila('Correo',D.correo))
+    : fila('Nro de documento',D.doc) + fila('Nombres','Martha Lucía') + fila('Apellidos','Ruiz Pérez') + fila('Celular verificado',D.cel,true,true);
   return `<div class="relative bg-register min-h-full px-5 pb-8 pt-11 fade" style="height:100%">
     ${conV ? `<div class="h-[6px]"></div>${volver()}` : '<div class="h-[26px]"></div>'}
     <div class="flex justify-center mt-2">${img(IMG8,'info-cupo.png',48)}</div>
     <p class="h1-app mt-3 text-center" style="font-size:24px">¡Hola ${D.nombre}!</p>
     <p class="text-center mt-1" style="font-size:16px;color:#321185">Bienvenido a Quac.</p>
     <div class="mt-4 bg-white" style="border-radius:20px;padding:0 16px">
-      ${fila('Nro de documento',D.doc)}${fila('Nombres','Martha Lucía')}${fila('Apellidos','Ruiz Pérez')}
-      <div style="padding:15px 0;text-align:center;${conNombre?'border-bottom:1px solid #D8D8D8':''}"><p style="font-size:16px;font-weight:700;color:#140F26">Celular verificado</p>
-        <p class="flex items-center justify-center gap-4" style="font-size:16px;color:#140F26">${D.cel} ${img(IMG8,'decorador-check.png',24)}</p></div>
+      ${filas}
       ${fila2}
     </div>
     <p class="text-center mt-4" style="font-size:16px;color:#374957">A continuación es necesario actualizar algunos datos para activar tu aplicación.</p>
@@ -488,7 +491,7 @@ function pantallaValidar() {
     nuevo = pantallaOtp({ ...t, chipsHtml:ch, esCorreo:p==='correo', sub:S.sub, conEnlaceCorreo:p==='correo' && S.sub!=='cargando', ayuda:true, conVolver:conV }) + hojaCorreo();
   }
   else if (p==='selfie') nuevo = pantallaSelfie(S.sub, ch, {volver:conV});
-  else if (p==='saludo') nuevo = pantallaSaludo({nm:S.nm});
+  else if (p==='saludo') nuevo = pantallaSaludo({nm:S.nm, val});
   else if (p==='nacimiento' || p==='clave') nuevo = pantallaRegistro(p,{nueva:true});
   else nuevo = pantallaListo({nm:S.nm});
 
@@ -642,8 +645,8 @@ function pantallaRecorrido() {
   const A = unir([
     paso('Términos', pTerminos()), paso('Documento', pDocumento()), paso('Espera', pEspera()),
     ...validar('registro', valR),
-    paso('Saludo / datos', pantallaSaludo({nm:'cerrada'}), {go:'scr=nombre', destacar:true, nota:NOTA}),
-    ({raw: flechaP('toca Renombrar') + rama(paso('Hoja de renombrar', pantallaSaludo({nm:'editado'}), {go:'scr=nombre', nota:'Campo, teclado, Guardar y Cancelar'}), paso('Nombre guardado', pantallaSaludo({nm:'guardado'}), {go:'scr=nombre', nota:'«Celular de Martha» y aviso breve'})) + flechaP('vuelve al flujo') }),
+    paso('Saludo / datos', pantallaSaludo({nm:'cerrada', val:valR}), {go:'scr=nombre', destacar:true, nota:NOTA}),
+    ({raw: flechaP('toca Renombrar') + rama(paso('Hoja de renombrar', pantallaSaludo({nm:'editado', val:valR}), {go:'scr=nombre', nota:'Campo, teclado, Guardar y Cancelar'}), paso('Nombre guardado', pantallaSaludo({nm:'guardado', val:valR}), {go:'scr=nombre', nota:'«Celular de Martha» y aviso breve'})) + flechaP('vuelve al flujo') }),
     paso('Cumpleaños', pantallaRegistro('nacimiento',{nueva:true,mini:true}), {go:g('registro','nacimiento')}),
     paso('Clave', pantallaRegistro('clave',{mini:true}), {go:g('registro','clave')}),
     paso('Cuenta creada', conFlujo('registro',()=>pantallaListo()), {go:g('registro','listo')}),
@@ -726,7 +729,7 @@ function notas() {
       <p class="mt-2 text-slate-500">Con el api de hoy la app se comporta como la 4.0.1: celular, luego correo.</p>`);
   if (p==='nombre') return caja('Qué cambia', `<p>No hay pantalla nueva: el saludo del registro y el aviso «Dispositivo autorizado» muestran el nombre del teléfono con el nombre sugerido y un enlace «Renombrar». Tocarlo abre una hoja inferior con el campo prellenado (máximo 30 caracteres), «Guardar» y «Cancelar». Al guardar, vuelve a la misma pantalla con el nombre nuevo y el aviso «Nombre guardado».</p>
       <p class="mt-2 text-slate-500">Nunca el modelo comercial («iPhone 17»): en iPhone «${NOMBRE_TEL.ios}», en Android «${NOMBRE_TEL.android}». Si lo deja vacío y guarda, queda el sugerido. Ya renombrado, debajo se ve pequeño el modelo y el sistema.</p>`)
-    + caja('Qué decide el api', `<p>Si aparece el nombre del teléfono, el nombre sugerido y la etiqueta del enlace. «Renombrar» es el texto por defecto si el api no manda otra.</p>`)
+    + caja('Qué decide el api', `<p>Los datos que se validaron llegan completos y con la marca de verificado. Si no se validó el celular o el correo, llega enmascarado y sin visto.</p><p class="mt-2">Si aparece el nombre del teléfono, el nombre sugerido y la etiqueta del enlace. «Renombrar» es el texto por defecto si el api no manda otra.</p>`)
     + caja('Qué muestra hoy', `<p>El saludo del registro: «¡Hola {primer nombre}!», «Bienvenido a Quac.», y la tarjeta con documento, nombres, apellidos y celular verificado. El aviso «Dispositivo autorizado»: fecha y hora y una sola fila DISPOSITIVO con modelo y sistema.</p>`);
   if (p==='paso') return caja('Qué cambia', `<p>Si el api pide un paso que esta versión no conoce, la app no falla: muestra el aviso con el título, el mensaje y el botón que manda el api, y el botón abre la tienda.</p>
       <p class="mt-2 text-slate-500">Hoy, en el registro la app termina en error y al autorizar toma cualquier paso desconocido como «selfie».</p>`)
