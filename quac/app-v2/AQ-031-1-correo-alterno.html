@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AQ-031-1 · v1 · Validar identidad: recibir el código en un correo alterno desde «¿No reconoces este correo?»</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Nunito+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script>
+tailwind.config = { theme: { extend: {
+  colors: { quac:'#7633FF', quacdark:'#321185', lavender:'#E9E8F1', lila:'#C5C5FF', fondo:'#F8F8F8',
+            txt:'#140F26', muted:'#A19EB5', aldia:'#06D6A0', err:'#FF6464' },
+  fontFamily: { display:['Poppins','sans-serif'], body:['"Nunito Sans"','sans-serif'] }
+} } }
+</script>
+<style>
+  body { font-family:'Nunito Sans', sans-serif; }
+  .fade { animation: fade .22s ease-out; } @keyframes fade { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+  .sube { animation: sube .26s cubic-bezier(.16,1,.3,1); } @keyframes sube { from{transform:translateY(100%)} to{transform:none} }
+  .spin { animation: spin .9s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+  .nav-i { display:block; width:100%; text-align:left; padding:8px 10px; border-radius:8px; font-size:12.5px; font-weight:600; color:#334155; }
+  .nav-i small { display:block; font-weight:500; color:#94a3b8; font-size:11px; }
+  .nav-i.on { background:#111827; color:#fff; } .nav-i.on small { color:#d1d5db; }
+  .seg { padding:6px 10px; border-radius:8px; font-size:12px; font-weight:700; border:1px solid #e5e7eb; background:#fff; color:#374151; }
+  .seg.on { background:#111827; color:#fff; border-color:#111827; }
+  .btn-quac { height:50px; border-radius:10px; width:100%; font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; display:flex; align-items:center; justify-content:center; }
+  .btn-dark { background:#321185; color:#fff; } .btn-disabled { background:#E3E3E3; color:#979796; }
+  .bg-register { background: radial-gradient(520px 380px at -10% -8%, rgba(197,197,255,.75) 0%, rgba(233,232,241,.55) 45%, rgba(248,248,248,0) 72%), #F8F8F8; }
+  .h1-app { font-family:'Poppins',sans-serif; font-size:28px; font-weight:700; line-height:1.15; color:#321185; }
+  .h3-app { font-family:'Poppins',sans-serif; font-size:18px; font-weight:700; line-height:1.25; color:#140F26; }
+  .body-app { font-size:16px; line-height:1.4; color:#140F26; }
+  .link-app { font-size:16px; font-weight:700; color:#7633FF; }
+  .otp { height:56px; flex:1; border:1px solid #A19EB5; border-radius:10px; background:#fff; font-family:'Poppins',sans-serif; font-weight:700; font-size:22px; display:flex; align-items:center; justify-content:center; color:#140F26; }
+  .scrim { position:absolute; inset:0; z-index:20; background:rgba(0,0,0,.54); display:flex; align-items:flex-end; }
+  .sheet { background:#fff; width:100%; border-radius:28px 28px 0 0; padding:0 20px 24px; }
+  .sheet .handle { width:32px; height:4px; border-radius:2px; background:rgba(73,69,79,.4); margin:16px auto 18px; }
+  .campo { position:relative; height:56px; border:1px solid #A19EB5; border-radius:10px; background:#fff; display:flex; align-items:center; padding:0 14px; font-size:16px; color:#140F26; }
+  .campo.err { border-color:#FF6464; }
+  .campo .et { position:absolute; top:-10px; left:10px; background:#fff; padding:0 6px; font-size:12px; color:#A19EB5; }
+  .sbtn { min-height:50px; border-radius:10px; width:100%; font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; background:#7633FF; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .sbtn.off2 { background:#E3E3E3; color:#979796; }
+  .sbtn2 { min-height:44px; width:100%; font-size:16px; font-weight:700; color:#7633FF; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .cambia { outline:2px dashed #f472b6; outline-offset:5px; border-radius:6px; position:relative; }
+  .cambia::after { content:'cambia'; position:absolute; top:-17px; right:0; font-size:10px; font-weight:700; color:#be185d; background:#fdf2f8; padding:0 6px; border-radius:4px; }
+  .snack { position:absolute; left:12px; right:12px; bottom:16px; z-index:30; background:#323232; color:#fff; border-radius:6px; padding:14px 16px; font-size:14px; }
+  .velo { position:absolute; inset:0; z-index:20; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:0 20px; }
+  pre { white-space:pre-wrap; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+<div class="flex min-h-screen">
+  <aside class="w-[260px] shrink-0 bg-white border-r border-gray-200 p-4 space-y-4">
+    <div>
+      <p class="text-[11px] font-bold uppercase tracking-wide text-gray-500">AQ-031-1 · v1</p>
+      <p class="text-[14px] font-bold leading-snug mt-1">Validar identidad: código en un correo alterno</p>
+      <p class="text-[12px] text-gray-500 mt-1">Martha Ruiz no reconoce <b>ma•••@gmail.com</b> y escribe <b>martha.ruiz@hotmail.com</b>.</p>
+    </div>
+    <div>
+      <p class="text-[11px] font-bold uppercase text-gray-500 mb-1">Interruptor del flujo</p>
+      <div class="flex gap-1" id="sw"></div>
+      <p class="text-[11px] text-gray-500 mt-1">Por flujo: registro o autorización. Si la variable está vacía, queda apagado.</p>
+    </div>
+    <div>
+      <p class="text-[11px] font-bold uppercase text-gray-500 mb-1">Formulario con el interruptor encendido</p>
+      <div class="flex gap-1" id="var"></div>
+    </div>
+    <nav id="nav" class="space-y-1"></nav>
+  </aside>
+  <main class="flex-1 p-6 flex gap-6 items-start">
+    <div class="shrink-0">
+      <div class="w-[390px] h-[844px] rounded-[44px] bg-black p-[10px] shadow-xl">
+        <div id="tel" class="relative w-full h-full rounded-[36px] overflow-hidden bg-fondo"></div>
+      </div>
+      <p class="text-center text-[11px] text-gray-500 mt-2">390 × 844 · app 4.1.0</p>
+    </div>
+    <div id="lado" class="flex-1 max-w-[560px] space-y-3"></div>
+  </main>
+</div>
+<script>
+const S = { sw:'on', variante:'B', est:'abierta' };
+const ESTADOS_ON = [
+  ['abierta','Hoja abierta','el cliente escribe el correo'],
+  ['enviando','Enviando','espera la respuesta'],
+  ['enviado','Código enviado','vuelve a la pantalla del código'],
+  ['mismo','Mismo correo del sistema','compara como hoy'],
+  ['enuso','Correo de otra cédula','rechazado, Portal'],
+  ['formato','Correo mal escrito','se corrige en la hoja'],
+  ['agotado','5 intentos usados','solo el Portal'],
+  ['cupo','6 códigos en 30 min','aviso del flujo, como hoy'],
+];
+const ESTADOS_OFF = [
+  ['abierta','Hoja abierta','como hoy'],
+  ['mismo','Coincide','como hoy'],
+  ['nocoincide','No coincide','como hoy, Portal'],
+  ['agotado','5 intentos usados','como hoy'],
+];
+const P = '<span style="color:#A19EB5">';
+
+function pantallaCodigo({destino, nuevo}) {
+  return `<div class="bg-register h-full px-5 pb-8 pt-11 fade">
+    <div class="h-[26px]"></div>
+    <div class="flex justify-center"><div class="w-[150px] h-[150px] rounded-full bg-lavender flex items-center justify-center">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></div></div>
+    <div class="h-2"></div>
+    <p class="h1-app">Validar identidad</p>
+    <div class="mt-3.5 flex items-center gap-2 text-[12px] font-bold">
+      <span class="flex items-center gap-1.5 text-txt"><span class="w-5 h-5 rounded-full bg-aldia text-white flex items-center justify-center text-[11px]">✓</span>Celular</span>
+      <span class="w-6 h-px bg-aldia"></span>
+      <span class="flex items-center gap-1.5 text-quac"><span class="w-5 h-5 rounded-full bg-quac text-white flex items-center justify-center text-[11px]">2</span>Correo</span>
+    </div>
+    <div class="h-5"></div>
+    <p class="body-app ${nuevo?'cambia':''}">Te enviamos un código a <b>${destino}</b>. Una vez lo recibas, ingrésalo.</p>
+    ${nuevo ? `<p class="link-app mt-2 cambia" style="font-size:14px">Te enviamos el código a tu nuevo correo</p>` : ''}
+    <div class="h-5"></div>
+    <p class="text-[16px] font-bold text-txt">Ingresa el código de verificación</p>
+    <div class="h-3"></div>
+    <div class="flex gap-2">${['','','','','',''].map(()=>'<div class="otp"></div>').join('')}</div>
+    <div class="h-5"></div>
+    <p class="text-center text-[14px]">¿No recibiste el código? Revisa también la carpeta de spam.</p>
+    <p class="mt-1 text-center text-[14px] font-bold">Podrás reenviar el código en ${nuevo?'00:59':'00:47'}</p>
+    <div class="text-center mt-1.5"><span class="link-app inline-block px-3 py-2 cursor-pointer" onclick="ir('abierta')">¿No reconoces este correo?</span></div>
+    <div class="h-5"></div>
+    <div class="btn-quac btn-disabled">Continuar</div>
+  </div>`;
+}
+
+const campo = (v, err) => `<div class="campo ${err?'err':''}"><span class="et">Tu correo</span><span>${v||P+'nombre@correo.com</span>'}</span></div>`;
+const hoja = (cuerpo) => `<div class="scrim"><div class="sheet sube"><div class="handle"></div><p class="h3-app">¿No reconoces este correo?</p>${cuerpo}</div></div>`;
+
+function formulario(valor, {cargando=false, err=''}={}) {
+  const on = S.sw==='on', B = on && S.variante==='B';
+  const intro = B ? 'Escribe el correo donde quieres recibir el código' : 'Escribe tu correo y te decimos si es el que tenemos';
+  const rotulo = B ? 'Enviar código' : 'Comparar';
+  const sig = on ? 'enviando' : 'nocoincide';
+  return `<p class="text-[14px] mt-3 ${B?'cambia':''}">${intro}</p>
+    <div class="mt-5">${campo(valor, !!err)}</div>
+    ${err ? `<p class="text-[12px] text-err mt-1.5 ml-3.5 cambia">${err}</p>` : ''}
+    <div class="mt-5"><div class="sbtn ${B?'cambia':''}" onclick="ir('${sig}')">${cargando ? '<svg class="spin" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M12 3a9 9 0 1 0 9 9"/></svg>' : rotulo}</div></div>`;
+}
+function respuesta(msg, botones) {
+  return `<p class="text-[14px] mt-3">${msg}</p><div class="mt-6 space-y-1">${botones}</div>`;
+}
+const bPortal = `<div class="sbtn">Ir al Portal Actualización de datos</div>`;
+const bCerrar = `<div class="sbtn2" onclick="ir('cerrada')">Cerrar</div>`;
+const bEntendido = `<div class="sbtn" onclick="ir('cerrada')">Entendido</div>`;
+
+const API = {
+  abierta: null,
+  enviando: null,
+  enviado: `{
+  "coincide": false,
+  "codigo_enviado": true,
+  "correo_nuevo": true,
+  "correo_oculto": "ma•••@hotmail.com",
+  "mensaje": "Te enviamos el código a tu nuevo correo",
+  "intentos_restantes": 4
+}`,
+  mismo: `{
+  "coincide": true,
+  "mensaje": "Es el correo que tenemos. Revisa spam o promociones y toca Reenviar.",
+  "intentos_restantes": 4
+}`,
+  enuso: `{
+  "coincide": false,
+  "correo_en_uso": true,
+  "mensaje": "Este correo ya está registrado con otra cédula. Escribe otro o actualiza tus datos en el Portal Actualización de datos.",
+  "intentos_restantes": 4,
+  "portal_url": "https://clientes.quac.co"
+}`,
+  formato: `{
+  "coincide": false,
+  "correo_invalido": true,
+  "mensaje": "Revisa el correo: debe verse como nombre@correo.com",
+  "intentos_restantes": 5
+}`,
+  agotado: `{
+  "coincide": null,
+  "agotado": true,
+  "mensaje": "Ya usaste los 5 intentos. Actualiza tu correo en el Portal Actualización de datos.",
+  "portal_url": "https://clientes.quac.co"
+}`,
+  cupo: `Error 802, el mismo de hoy:
+  canal "correo", minutos que faltan 18.
+La hoja se cierra y la pantalla muestra el aviso del flujo.`,
+  nocoincide: `{
+  "coincide": false,
+  "mensaje": "No es el correo que tenemos. Actualízalo en el Portal Actualización de datos; si ya lo hiciste, toca Reenviar.",
+  "intentos_restantes": 4,
+  "portal_url": "https://clientes.quac.co"
+}`,
+};
+
+const QUE = {
+  abierta: () => S.sw==='on'
+    ? (S.variante==='B'
+      ? 'La hoja dice desde el principio que el código va al correo escrito, y el botón dice «Enviar código». El api avisa que el interruptor está encendido en el paso del correo (<code>acepta_correo_alterno: true</code>).'
+      : 'La hoja es igual que hoy. El cliente cree que va a comparar, y la respuesta le dice que el código salió al correo escrito.')
+    : 'Igual que hoy: compara y no envía nada. También pasa esto si el cliente tiene riesgo y la variable <code>_RIESGO</code> está vacía.',
+  enviando: () => 'El api valida el formato y que el correo no sea de otra cédula, gasta una comparación y uno de los 6 códigos, anula el código anterior y envía uno nuevo. Deja dos sucesos con el correo enmascarado: «el cliente agregó un correo nuevo» y «código enviado al correo alterno».',
+  enviado: () => 'La hoja se cierra sola. La pantalla del código muestra el destino nuevo, el texto «Te enviamos el código a tu nuevo correo» (ya existe en la app y hoy no lo usa ningún api) y el contador de reenvío desde cero. Cuando valida el código, el correo queda como alterno de la cuenta, y el principal y el CRM no cambian. En el registro, el alterno viaja al CRM en el atributo nuevo <code>correo_alterno</code> (comentado por ahora).',
+  mismo: () => 'Escribió ma•••@gmail.com, que es el que ya está: compara como hoy, sin guardar un alterno ni crear un suceso nuevo, y el código ya enviado sigue valiendo.',
+  enuso: () => 'El correo ya es el principal, el del CRM o el alterno de otra cédula: no se envía nada y queda un suceso. La app no cambia: muestra el mensaje, el Portal y «Cerrar». Para probar otro correo, el cliente vuelve a abrir la hoja.',
+  formato: () => 'El api valida el formato como hoy (sin DNS). El mensaje se muestra debajo del campo y la hoja sigue abierta para corregirlo. No gasta comparación.',
+  agotado: () => 'Igual que hoy: con las 5 comparaciones usadas en el intento, solo queda el botón del Portal.',
+  cupo: () => 'Igual que hoy: ese teléfono ya pidió 6 códigos al correo en 30 min. La hoja se cierra y la pantalla muestra el aviso de espera del flujo. No hay tope nuevo.',
+  nocoincide: () => 'Igual que hoy.',
+};
+
+function telefono() {
+  const e = S.est, on = S.sw==='on';
+  const base = (e==='enviado') ? pantallaCodigo({destino:'ma•••@hotmail.com', nuevo:true}) : pantallaCodigo({destino:'ma•••@gmail.com', nuevo:false});
+  let capa = '';
+  if (e==='abierta') capa = hoja(formulario(on ? 'martha.ruiz@hotmail.com' : 'martha.ruiz@hotmail.com'));
+  if (e==='enviando') capa = hoja(formulario('martha.ruiz@hotmail.com', {cargando:true}));
+  if (e==='mismo') capa = hoja(respuesta('Es el correo que tenemos. Revisa spam o promociones y toca Reenviar.', bEntendido));
+  if (e==='enuso') capa = hoja(respuesta('Este correo ya está registrado con otra cédula. Escribe otro o actualiza tus datos en el Portal Actualización de datos.', bPortal + bCerrar));
+  if (e==='formato') capa = hoja(formulario('martha.ruiz@hotmail', {err:'Revisa el correo: debe verse como nombre@correo.com'}));
+  if (e==='agotado') capa = hoja(respuesta('Ya usaste los 5 intentos. Actualiza tu correo en el Portal Actualización de datos.', bPortal));
+  if (e==='nocoincide') capa = hoja(respuesta('No es el correo que tenemos. Actualízalo en el Portal Actualización de datos; si ya lo hiciste, toca Reenviar.', bPortal + bCerrar));
+  if (e==='cupo') capa = `<div class="velo"><div class="bg-white rounded-[20px] p-6 w-full">
+      <p class="h3-app">Espera un momento</p>
+      <p class="text-[14px] mt-3">Ya enviamos varios códigos al correo desde este teléfono. Podrás pedir otro en 18 minutos.</p>
+      <div class="mt-6"><div class="sbtn" onclick="ir('cerrada')">Cerrar</div></div></div></div>`;
+  return base + capa;
+}
+
+function lado() {
+  const e = S.est;
+  const api = API[e];
+  return `<div class="bg-white rounded-xl border border-gray-200 p-4">
+      <p class="text-[11px] font-bold uppercase text-gray-500">Qué pasa</p>
+      <p class="text-[14px] mt-1.5 leading-relaxed">${(QUE[e]||(()=>'—'))()}</p></div>
+    ${api ? `<div class="bg-white rounded-xl border border-gray-200 p-4">
+      <p class="text-[11px] font-bold uppercase text-gray-500">Qué responde el api al comparar</p>
+      <pre class="text-[12px] mt-2 bg-gray-50 rounded-lg p-3 font-mono text-gray-800">${api}</pre></div>` : ''}
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+      <p class="text-[11px] font-bold uppercase text-gray-500">Cuándo sale cada camino</p>
+      <table class="w-full text-[12.5px] mt-2">
+        <tr class="text-gray-500 text-left"><th class="py-1">Interruptor</th><th>Riesgo</th><th>Escribe</th><th>Resultado</th></tr>
+        <tr class="border-t"><td class="py-1.5">vacío</td><td>—</td><td>hotmail</td><td>compara como hoy</td></tr>
+        <tr class="border-t"><td class="py-1.5">si</td><td>no</td><td>hotmail</td><td><span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold">código al alterno</span></td></tr>
+        <tr class="border-t"><td class="py-1.5">si</td><td>no</td><td>gmail (el mismo)</td><td>coincide, como hoy</td></tr>
+        <tr class="border-t"><td class="py-1.5">si</td><td>sí, <code>_RIESGO</code> vacía</td><td>hotmail</td><td>compara como hoy</td></tr>
+        <tr class="border-t"><td class="py-1.5">si</td><td>sí, <code>_RIESGO</code> = si</td><td>hotmail</td><td><span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold">código al alterno</span></td></tr>
+        <tr class="border-t"><td class="py-1.5">si</td><td>—</td><td>correo de otra cédula</td><td><span class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 font-bold">rechazado</span></td></tr>
+      </table></div>`;
+}
+
+function nav() {
+  const lista = S.sw==='on' ? ESTADOS_ON : ESTADOS_OFF;
+  if (!lista.some(x=>x[0]===S.est) && S.est!=='cerrada') S.est = 'abierta';
+  document.getElementById('nav').innerHTML = `<p class="text-[11px] font-bold uppercase text-gray-500 mb-1">Estados</p>` +
+    lista.map(([k,t,s])=>`<button class="nav-i ${S.est===k?'on':''}" onclick="ir('${k}')">${t}<small>${s}</small></button>`).join('');
+  document.getElementById('sw').innerHTML = [['on','Encendido (si)'],['off','Apagado (vacío)']].map(([k,t])=>`<button class="seg ${S.sw===k?'on':''}" onclick="S.sw='${k}';ir(S.est)">${t}</button>`).join('');
+  document.getElementById('var').innerHTML = [['B','B · dice que envía (recomendada)'],['A','A · igual que hoy']].map(([k,t])=>`<button class="seg ${S.variante===k?'on':''}" onclick="S.variante='${k}';ir(S.est)">${t}</button>`).join('');
+}
+function ir(e) { S.est = e; nav(); document.getElementById('tel').innerHTML = telefono(); document.getElementById('lado').innerHTML = lado(); }
+ir('abierta');
+</script>
+</body>
+</html>
