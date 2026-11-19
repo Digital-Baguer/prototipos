@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AQ-031-1 · v1 · Validar identidad: recibir el código en un correo alterno desde «¿No reconoces este correo?»</title>
+<title>AQ-031-1 · v2 · Validar identidad: recibir el código en un correo alterno desde «¿No reconoces este correo?»</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Nunito+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <script>
@@ -45,13 +45,19 @@ tailwind.config = { theme: { extend: {
   .snack { position:absolute; left:12px; right:12px; bottom:16px; z-index:30; background:#323232; color:#fff; border-radius:6px; padding:14px 16px; font-size:14px; }
   .velo { position:absolute; inset:0; z-index:20; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:0 20px; }
   pre { white-space:pre-wrap; }
+  .op { display:flex; align-items:center; gap:12px; border:1px solid #A19EB5; border-radius:10px; padding:12px 14px; background:#fff; cursor:pointer; flex-wrap:wrap; }
+  .op.sel { border:2px solid #7633FF; background:#F6F2FF; }
+  .op .r { width:20px; height:20px; border-radius:50%; border:2px solid #A19EB5; flex:none; display:flex; align-items:center; justify-content:center; }
+  .op.sel .r { border-color:#7633FF; } .op.sel .r::after { content:''; width:10px; height:10px; border-radius:50%; background:#7633FF; }
+  .op small { display:block; font-size:12px; color:#A19EB5; font-weight:700; }
+  .aqui { margin-left:auto; font-size:11px; font-weight:700; color:#321185; background:#E9E8F1; border-radius:6px; padding:2px 8px; }
 </style>
 </head>
 <body class="bg-gray-100 text-gray-900">
 <div class="flex min-h-screen">
   <aside class="w-[260px] shrink-0 bg-white border-r border-gray-200 p-4 space-y-4">
     <div>
-      <p class="text-[11px] font-bold uppercase tracking-wide text-gray-500">AQ-031-1 · v1</p>
+      <p class="text-[11px] font-bold uppercase tracking-wide text-gray-500">AQ-031-1 · v2</p>
       <p class="text-[14px] font-bold leading-snug mt-1">Validar identidad: código en un correo alterno</p>
       <p class="text-[12px] text-gray-500 mt-1">Martha Ruiz no reconoce <b>ma•••@gmail.com</b> y escribe <b>martha.ruiz@hotmail.com</b>.</p>
     </div>
@@ -59,10 +65,6 @@ tailwind.config = { theme: { extend: {
       <p class="text-[11px] font-bold uppercase text-gray-500 mb-1">Interruptor del flujo</p>
       <div class="flex gap-1" id="sw"></div>
       <p class="text-[11px] text-gray-500 mt-1">Por flujo: registro o autorización. Si la variable está vacía, queda apagado.</p>
-    </div>
-    <div>
-      <p class="text-[11px] font-bold uppercase text-gray-500 mb-1">Formulario con el interruptor encendido</p>
-      <div class="flex gap-1" id="var"></div>
     </div>
     <nav id="nav" class="space-y-1"></nav>
   </aside>
@@ -77,11 +79,18 @@ tailwind.config = { theme: { extend: {
   </main>
 </div>
 <script>
-const S = { sw:'on', variante:'B', est:'abierta' };
+const S = { sw:'on', variante:'B', est:'abierta', sel:null };
+const HOT = 'martha.ruiz@hotmail.com', OUT = 'martha.r@outlook.com';
 const ESTADOS_ON = [
-  ['abierta','Hoja abierta','el cliente escribe el correo'],
+  ['abierta','Sin alterno: hoja abierta','el cliente escribe el correo'],
   ['enviando','Enviando','espera la respuesta'],
   ['enviado','Código enviado','vuelve a la pantalla del código'],
+  ['retoma','Reenviar o volver a entrar','sigue en el alterno'],
+  ['elegir','Con alterno: elegir correo','principal, alterno u otro'],
+  ['otro','Escribe otro correo','reemplaza al alterno'],
+  ['alprincipal','Elige el principal','el código vuelve a gmail'],
+  ['guardado','Otro día, teléfono nuevo','alterno guardado, enmascarado'],
+  ['sincambios','2 cambios usados','ya no hay «Otro correo»'],
   ['mismo','Mismo correo del sistema','compara como hoy'],
   ['enuso','Correo de otra cédula','rechazado, Portal'],
   ['formato','Correo mal escrito','se corrige en la hoja'],
@@ -96,7 +105,7 @@ const ESTADOS_OFF = [
 ];
 const P = '<span style="color:#A19EB5">';
 
-function pantallaCodigo({destino, nuevo}) {
+function pantallaCodigo({destino, nuevo, cont}) {
   return `<div class="bg-register h-full px-5 pb-8 pt-11 fade">
     <div class="h-[26px]"></div>
     <div class="flex justify-center"><div class="w-[150px] h-[150px] rounded-full bg-lavender flex items-center justify-center">
@@ -110,14 +119,14 @@ function pantallaCodigo({destino, nuevo}) {
     </div>
     <div class="h-5"></div>
     <p class="body-app ${nuevo?'cambia':''}">Te enviamos un código a <b>${destino}</b>. Una vez lo recibas, ingrésalo.</p>
-    ${nuevo ? `<p class="link-app mt-2 cambia" style="font-size:14px">Te enviamos el código a tu nuevo correo</p>` : ''}
+    ${nuevo ? `<p class="link-app mt-2 cambia" style="font-size:14px">Te enviamos el código a tu correo alterno</p>` : ''}
     <div class="h-5"></div>
     <p class="text-[16px] font-bold text-txt">Ingresa el código de verificación</p>
     <div class="h-3"></div>
     <div class="flex gap-2">${['','','','','',''].map(()=>'<div class="otp"></div>').join('')}</div>
     <div class="h-5"></div>
     <p class="text-center text-[14px]">¿No recibiste el código? Revisa también la carpeta de spam.</p>
-    <p class="mt-1 text-center text-[14px] font-bold">Podrás reenviar el código en ${nuevo?'00:59':'00:47'}</p>
+    <p class="mt-1 text-center text-[14px] font-bold">Podrás reenviar el código en ${cont || (nuevo?'00:59':'00:47')}</p>
     <div class="text-center mt-1.5"><span class="link-app inline-block px-3 py-2 cursor-pointer" onclick="ir('abierta')">¿No reconoces este correo?</span></div>
     <div class="h-5"></div>
     <div class="btn-quac btn-disabled">Continuar</div>
@@ -144,6 +153,69 @@ const bPortal = `<div class="sbtn">Ir al Portal Actualización de datos</div>`;
 const bCerrar = `<div class="sbtn2" onclick="ir('cerrada')">Cerrar</div>`;
 const bEntendido = `<div class="sbtn" onclick="ir('cerrada')">Entendido</div>`;
 
+const op = (k, rot, correo, {aqui=false, extra=''}={}) => `<div class="op ${S.sel===k?'sel':''}" onclick="S.sel='${k}';ir(S.est==='otro'&&'${k}'!=='otro'?'elegir':('${k}'==='otro'&&S.est==='elegir'?'otro':S.est))"><span class="r"></span><span><small>${rot}</small>${correo}</span>${aqui?'<span class="aqui">código enviado aquí</span>':''}${extra}</div>`;
+function hojaElegir({alterno, restantes, destino}) {
+  const quedan = restantes===1 ? 'te queda 1 cambio' : `te quedan ${restantes} cambios`;
+  const escribe = S.sel==='otro';
+  const filaOtro = restantes<=0 ? '' : escribe
+    ? op('otro', 'Otro correo · ' + quedan, 'Escribe tu nuevo correo alterno', {extra:
+        `<div style="flex-basis:100%" onclick="event.stopPropagation()">
+           <div class="campo mt-1" style="border-color:#7633FF"><span class="et" style="background:#F6F2FF;color:#7633FF">Nuevo correo alterno</span>
+             <input type="email" value="${OUT}" placeholder="nombre@correo.com" style="width:100%;outline:none;background:transparent;font-size:16px"></div>
+           <p class="text-[12px] mt-1.5" style="color:#6b6880">Reemplaza a ${alterno} cuando valides el código.</p>
+         </div>`})
+    : op('otro', 'Otro correo · ' + quedan, '<span style="color:#A19EB5">Toca para escribir otro correo</span>');
+  return hoja(`<p class="text-[14px] mt-3 cambia">¿A cuál correo te enviamos el código?</p>
+    <div class="mt-4 space-y-2 cambia">
+      ${op('pri', 'Correo principal', 'ma•••@gmail.com', {aqui:destino==='pri'})}
+      ${op('alt', 'Correo alterno', alterno, {aqui:destino==='alt'})}
+      ${filaOtro}
+    </div>
+    <div class="mt-5"><div class="sbtn ${S.sel?'':'off2'}" onclick="ir(S.sel==='pri'?'alprincipal':'enviado')">Enviar código</div></div>
+    ${restantes>0 ? '' : `<p class="text-[13px] mt-4 text-center cambia">Ya no puedes cambiar tu correo alterno. Para cambiar tu correo principal, entra al <span class="link-app" style="font-size:13px">Portal Actualización de datos</span>.</p>`}
+    <div class="sbtn2" onclick="ir('cerrada')">Cerrar</div>`);
+}
+
+const PASO = {
+  abierta: `{
+  "correo_oculto": "ma•••@gmail.com",
+  "acepta_correo_alterno": true,
+  "correo_principal_oculto": "ma•••@gmail.com",
+  "correo_alterno": null,
+  "correo_destino": "principal",
+  "cambios_restantes": 2,
+  "portal_url": "https://clientes.quac.co"
+}`,
+  elegir: `{
+  "correo_oculto": "martha.ruiz@hotmail.com",
+  "acepta_correo_alterno": true,
+  "correo_principal_oculto": "ma•••@gmail.com",
+  "correo_alterno": "martha.ruiz@hotmail.com",
+  "correo_destino": "alterno",
+  "cambios_restantes": 2,
+  "portal_url": "https://clientes.quac.co"
+}`,
+  guardado: `{
+  "correo_oculto": "ma•••@gmail.com",
+  "acepta_correo_alterno": true,
+  "correo_principal_oculto": "ma•••@gmail.com",
+  "correo_alterno": "ma•••@hotmail.com",
+  "correo_destino": "principal",
+  "cambios_restantes": 1,
+  "portal_url": "https://clientes.quac.co"
+}`,
+  sincambios: `{
+  "correo_oculto": "ma•••@gmail.com",
+  "acepta_correo_alterno": true,
+  "correo_principal_oculto": "ma•••@gmail.com",
+  "correo_alterno": "ma•••@outlook.com",
+  "correo_destino": "principal",
+  "cambios_restantes": 0,
+  "portal_url": "https://clientes.quac.co"
+}`,
+};
+PASO.retoma = PASO.elegir; PASO.otro = PASO.elegir;
+
 const API = {
   abierta: null,
   enviando: null,
@@ -151,8 +223,50 @@ const API = {
   "coincide": false,
   "codigo_enviado": true,
   "correo_nuevo": true,
+  "correo_destino": "alterno",
+  "correo_oculto": "martha.ruiz@hotmail.com",
+  "cambios_restantes": 2,
+  "mensaje": "Te enviamos el código a tu correo alterno",
+  "intentos_restantes": 4
+}`,
+  retoma: null,
+  elegir: null,
+  otro: `La app envía { "correo": "martha.r@outlook.com" } y recibe:
+{
+  "coincide": false,
+  "codigo_enviado": true,
+  "correo_nuevo": true,
+  "correo_destino": "alterno",
+  "correo_oculto": "martha.r@outlook.com",
+  "cambios_restantes": 2,
+  "mensaje": "Te enviamos el código a tu correo alterno",
+  "intentos_restantes": 3
+}`,
+  alprincipal: `La app envía { "destino": "principal" } y recibe:
+{
+  "coincide": null,
+  "codigo_enviado": true,
+  "correo_nuevo": false,
+  "correo_destino": "principal",
+  "correo_oculto": "ma•••@gmail.com",
+  "mensaje": "Te enviamos el código a tu correo principal",
+  "intentos_restantes": 3
+}`,
+  guardado: `Si elige el alterno, la app envía { "destino": "alterno" } y recibe:
+{
+  "coincide": null,
+  "codigo_enviado": true,
+  "correo_nuevo": false,
+  "correo_destino": "alterno",
   "correo_oculto": "ma•••@hotmail.com",
-  "mensaje": "Te enviamos el código a tu nuevo correo",
+  "mensaje": "Te enviamos el código a tu correo alterno",
+  "intentos_restantes": 4
+}`,
+  sincambios: `Si una app envía un correo nuevo con los cambios agotados:
+{
+  "coincide": false,
+  "sin_cambios": true,
+  "mensaje": "Ya no puedes cambiar tu correo alterno.",
   "intentos_restantes": 4
 }`,
   mismo: `{
@@ -197,7 +311,13 @@ const QUE = {
       : 'La hoja es igual que hoy. El cliente cree que va a comparar, y la respuesta le dice que el código salió al correo escrito.')
     : 'Igual que hoy: compara y no envía nada. También pasa esto si el cliente tiene riesgo y la variable <code>_RIESGO</code> está vacía.',
   enviando: () => 'El api valida el formato y que el correo no sea de otra cédula, gasta una comparación y uno de los 6 códigos, anula el código anterior y envía uno nuevo. Deja dos sucesos con el correo enmascarado: «el cliente agregó un correo nuevo» y «código enviado al correo alterno».',
-  enviado: () => 'La hoja se cierra sola. La pantalla del código muestra el destino nuevo, el texto «Te enviamos el código a tu nuevo correo» (ya existe en la app y hoy no lo usa ningún api) y el contador de reenvío desde cero. Cuando valida el código, el correo queda como alterno de la cuenta, y el principal y el CRM no cambian. En el registro, el alterno viaja al CRM en el atributo nuevo <code>correo_alterno</code> (comentado por ahora).',
+  retoma: () => 'Mientras el intento siga vivo (24 horas en el registro, 60 minutos en la autorización), «Reenviar» y volver a entrar a la app siguen en el correo elegido. La pantalla muestra el alterno y el código que llegó ahí sigue valiendo. Un intento nuevo empieza otra vez en el principal.',
+  elegir: () => 'Cuando ya hay un alterno (escrito en este intento o guardado en la cuenta), la hoja deja elegir. La fila del correo que tiene el código vigente lleva «código enviado aquí». Ninguna fila viene marcada: el botón se enciende al tocar una. Elegir no gasta cambio. Toca «Otro correo» para ver cómo se escribe.',
+  otro: () => 'Al tocar «Otro correo» se abre el campo dentro de la fila. El correo escrito reemplaza al alterno solo cuando se valida su código; ahí se gasta el cambio. Un error de dedo no gasta cambio: lo frenan los 5 intentos y los 6 códigos de hoy.',
+  alprincipal: () => 'Martha eligió «Correo principal» en la hoja: el código vuelve a gmail, el del alterno deja de valer y la pantalla ya no muestra el aviso del alterno. No se borra nada: el alterno escrito sigue disponible en la hoja.',
+  guardado: () => 'Un mes después, en un teléfono nuevo. El código sale primero al principal, como siempre. La hoja ofrece el alterno que quedó guardado en la cuenta, enmascarado porque no se escribió en este intento. Elegirlo no gasta cambio. Le queda 1 de los 2 cambios.',
+  sincambios: () => 'La cuenta ya validó 2 alternos (hotmail y luego outlook). Desaparece «Otro correo» en cualquier teléfono. Sigue pudiendo elegir entre el principal y el alterno. El Portal solo sirve para cambiar el correo principal.',
+  enviado: () => 'La hoja se cierra sola. La pantalla del código muestra el correo alterno completo (Martha lo acaba de escribir), el texto «Te enviamos el código a tu correo alterno» y el contador de reenvío desde cero. Cuando valida el código, el correo queda como alterno de la cuenta y se gasta 1 de los 2 cambios; el principal y el CRM no cambian. En el registro, el alterno viaja al CRM en el atributo nuevo <code>correo_alterno</code> (comentado por ahora).',
   mismo: () => 'Escribió ma•••@gmail.com, que es el que ya está: compara como hoy, sin guardar un alterno ni crear un suceso nuevo, y el código ya enviado sigue valiendo.',
   enuso: () => 'El correo ya es el principal, el del CRM o el alterno de otra cédula: no se envía nada y queda un suceso. La app no cambia: muestra el mensaje, el Portal y «Cerrar». Para probar otro correo, el cliente vuelve a abrir la hoja.',
   formato: () => 'El api valida el formato como hoy (sin DNS). El mensaje se muestra debajo del campo y la hoja sigue abierta para corregirlo. No gasta comparación.',
@@ -208,9 +328,13 @@ const QUE = {
 
 function telefono() {
   const e = S.est, on = S.sw==='on';
-  const base = (e==='enviado') ? pantallaCodigo({destino:'ma•••@hotmail.com', nuevo:true}) : pantallaCodigo({destino:'ma•••@gmail.com', nuevo:false});
+  const enAlterno = ['enviado','retoma','elegir','otro'].includes(e);
+  const base = enAlterno ? pantallaCodigo({destino:HOT, nuevo:true, cont: e==='retoma'?'00:00':null}) : pantallaCodigo({destino:'ma•••@gmail.com', nuevo:false});
   let capa = '';
   if (e==='abierta') capa = hoja(formulario(on ? 'martha.ruiz@hotmail.com' : 'martha.ruiz@hotmail.com'));
+  if (e==='elegir' || e==='otro') { if (e==='otro') S.sel='otro'; capa = hojaElegir({alterno:HOT, restantes:2, destino:'alt'}); }
+  if (e==='guardado') capa = hojaElegir({alterno:'ma•••@hotmail.com', restantes:1, destino:'pri'});
+  if (e==='sincambios') { if (S.sel==='otro') S.sel=null; capa = hojaElegir({alterno:'ma•••@outlook.com', restantes:0, destino:'pri'}); }
   if (e==='enviando') capa = hoja(formulario('martha.ruiz@hotmail.com', {cargando:true}));
   if (e==='mismo') capa = hoja(respuesta('Es el correo que tenemos. Revisa spam o promociones y toca Reenviar.', bEntendido));
   if (e==='enuso') capa = hoja(respuesta('Este correo ya está registrado con otra cédula. Escribe otro o actualiza tus datos en el Portal Actualización de datos.', bPortal + bCerrar));
@@ -233,6 +357,18 @@ function lado() {
     ${api ? `<div class="bg-white rounded-xl border border-gray-200 p-4">
       <p class="text-[11px] font-bold uppercase text-gray-500">Qué responde el api al comparar</p>
       <pre class="text-[12px] mt-2 bg-gray-50 rounded-lg p-3 font-mono text-gray-800">${api}</pre></div>` : ''}
+    ${S.sw==='on' && PASO[e] ? `<div class="bg-white rounded-xl border border-gray-200 p-4">
+      <p class="text-[11px] font-bold uppercase text-gray-500">Qué manda el api en el paso del correo</p>
+      <pre class="text-[12px] mt-2 bg-gray-50 rounded-lg p-3 font-mono text-gray-800">${PASO[e]}</pre></div>` : ''}
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+      <p class="text-[11px] font-bold uppercase text-gray-500">Los 2 cambios de la cuenta</p>
+      <table class="w-full text-[12.5px] mt-2">
+        <tr class="text-gray-500 text-left"><th class="py-1">Qué hace Martha</th><th>Alterno guardado</th><th>Le quedan</th></tr>
+        <tr class="border-t"><td class="py-1.5">Escribe hotmail y no valida</td><td>ninguno</td><td>2</td></tr>
+        <tr class="border-t"><td class="py-1.5">Valida el código de hotmail</td><td>hotmail</td><td>1</td></tr>
+        <tr class="border-t"><td class="py-1.5">Otro día elige hotmail y valida</td><td>hotmail</td><td>1</td></tr>
+        <tr class="border-t"><td class="py-1.5">Escribe outlook y valida</td><td>outlook</td><td>0</td></tr>
+      </table></div>
     <div class="bg-white rounded-xl border border-gray-200 p-4">
       <p class="text-[11px] font-bold uppercase text-gray-500">Cuándo sale cada camino</p>
       <table class="w-full text-[12.5px] mt-2">
@@ -252,9 +388,8 @@ function nav() {
   document.getElementById('nav').innerHTML = `<p class="text-[11px] font-bold uppercase text-gray-500 mb-1">Estados</p>` +
     lista.map(([k,t,s])=>`<button class="nav-i ${S.est===k?'on':''}" onclick="ir('${k}')">${t}<small>${s}</small></button>`).join('');
   document.getElementById('sw').innerHTML = [['on','Encendido (si)'],['off','Apagado (vacío)']].map(([k,t])=>`<button class="seg ${S.sw===k?'on':''}" onclick="S.sw='${k}';ir(S.est)">${t}</button>`).join('');
-  document.getElementById('var').innerHTML = [['B','B · dice que envía (recomendada)'],['A','A · igual que hoy']].map(([k,t])=>`<button class="seg ${S.variante===k?'on':''}" onclick="S.variante='${k}';ir(S.est)">${t}</button>`).join('');
 }
-function ir(e) { S.est = e; nav(); document.getElementById('tel').innerHTML = telefono(); document.getElementById('lado').innerHTML = lado(); }
+function ir(e) { if (e!==S.est && !(e==='otro'||(S.est==='otro'&&e==='elegir'))) S.sel = (e==='otro'?'otro':null); S.est = e; nav(); document.getElementById('tel').innerHTML = telefono(); document.getElementById('lado').innerHTML = lado(); }
 ir('abierta');
 </script>
 </body>
