@@ -59,7 +59,7 @@ tailwind.config = { theme: { extend: {
     <li>SQL en <code>quacapi_dev</code>, en orden: primero <code>AQ-032-AQ-033-quacapi.sql</code> (crea <code>soporte_acciones</code>), después <code>AQ-032-migracion.sql</code>, pasos 1 a 4. El paso 4 debe dar 6 filas. Los dos van adjuntos en AQ-113.</li>
     <li>App 4.0.1: <code>git checkout main</code> en app-quac-v2, <code>env.json</code> con la URL de testapi. App 4.1.0: <code>git checkout release/4.1.0</code>, mismo <code>env.json</code>. La 4.1.0 manda <code>X-App-Version: 4.1.0</code>.</li>
     <li><b>Cédulas de prueba</b> (pedirlas, nunca clientes reales) y un <b>teléfono de prueba</b> donde ya se verificó otra cédula, para los casos de riesgo.</li>
-    <li>El <b>token de máquina de get-web</b> de AQ-033 para llamar al endpoint de soporte con curl o Postman. El botón de get-web no existe todavía.</li>
+    <li>El <b>token de máquina de soporte</b>, que se configura una vez en testapi (AQ-033, OPS-5): <code>php artisan passport:client --client</code> (nombre «get-web soporte»; anotar id y secreto), <code>SOPORTE_GET_CLIENT_ID=&lt;id&gt;</code> en el <code>.env</code> y <code>php artisan config:clear</code>. El token se pide con <code>POST /oauth/token</code> (<code>grant_type=client_credentials</code>, <code>client_id</code>, <code>client_secret</code>) y va como <code>Authorization: Bearer …</code>. Sin la variable, el endpoint responde 401 a todo. El botón de get-web no existe todavía: se llama con curl o Postman. Solo lo usan los casos 3, 4 y 5.</li>
     <li>Orden sugerido: caso 2 y regresión con la 4.0.1; casos 1, 3, 4, 6 y 7 con la 4.1.0; caso 3 también con la 4.0.1; caso 5 solo con curl.</li>
   </ol>
 </section>
@@ -289,7 +289,7 @@ const CASOS = [
     para: 'Al cliente no le llega el correo. Soporte lo habilita y el cliente escribe el código del SMS en la pantalla del correo. Funciona con las dos apps.',
     prep: ['<code>UPDATE quacapi_dev.var_env SET value=\'\' WHERE name=\'REGISTRO_CORREO_ACEPTA_CODIGO_SMS\';</code> (en el deploy arranca en <code>si</code>).',
       'Registro con el celular ya validado, detenido en la pantalla del correo. Anotar el <code>id</code> de <code>registros_cuenta</code>.',
-      'El token de máquina de get-web de AQ-033 para llamar al api.'],
+      'Token de soporte: <code>POST /oauth/token</code> con <code>grant_type=client_credentials</code> y el cliente de <code>SOPORTE_GET_CLIENT_ID</code> (ver «Antes de empezar»). Sin la variable en el <code>.env</code> de testapi, todo da 401.'],
     pasos: () => [
       [P({ etq:['Celular','Correo'], paso:2 }), 'El cliente está en el código del correo y el correo no le llega', 've'],
       [modal('inc', P({ etq:['Celular','Correo'], paso:2, codigo:SMS, sms:true })), 'Antes de habilitar: el código del SMS da «Código incorrecto»', 'error'],
@@ -306,7 +306,7 @@ const CASOS = [
   {
     id: 4, flujo: 'reg', titulo: 'SMS vencido: soporte manda uno nuevo',
     para: 'Si el código del SMS tiene más de 60 minutos, al habilitar sale un SMS nuevo, sin gastar el cupo del cliente.',
-    prep: ['Lo mismo del caso 3, con el código del SMS de hace más de 60 min (esperar o mover <code>otp_celular_created_at</code> en <code>quacapi_dev</code>).', 'Anotar <code>otp_celular_reenvios</code> del registro.'],
+    prep: ['El mismo token de soporte del caso 3.', 'Lo mismo del caso 3, con el código del SMS de hace más de 60 min (esperar o mover <code>otp_celular_created_at</code> en <code>quacapi_dev</code>).', 'Anotar <code>otp_celular_reenvios</code> del registro.'],
     pasos: () => [
       [curlCard('Habilitar con el SMS vencido', CUERPO('registro', 812), '200 { "resultado": "habilitado",\n      "sms": "reenviado" }'), 'La respuesta dice <code>sms: "reenviado"</code>', 'toca'],
       [smsRecibido(SMS2), 'Al celular llega un SMS nuevo con otro código', 've'],
@@ -321,7 +321,7 @@ const CASOS = [
   {
     id: 5, flujo: 'reg', titulo: 'Rechazos del endpoint de soporte',
     para: 'Cuando no hay pantalla del correo que habilitar, el api lo rechaza y no cambia nada. Se prueba solo con curl.',
-    prep: ['El mismo token de máquina del caso 3.', 'Un registro terminado, uno con el celular sin validar y uno en curso.'],
+    prep: ['El mismo token de soporte del caso 3 (cliente de <code>SOPORTE_GET_CLIENT_ID</code>).', 'Un registro terminado, uno con el celular sin validar y uno en curso.'],
     pasos: () => [
       [curlCard('Registro terminado', CUERPO('registro', 790), '409 SOPORTE_PROCESO_NO_ACTIVO\n"El proceso ya no está activo o no\ntiene un código vigente."'), 'Registro terminado: 409 1700', 'error'],
       [curlCard('Celular sin validar', CUERPO('registro', 814), '409 SOPORTE_CORREO_NO_APLICA\ndetails.motivo: "celular_sin_validar"'), 'Celular sin validar: 409 1704 con el motivo', 'error'],
