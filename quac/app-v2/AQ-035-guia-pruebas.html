@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AQ-035 · Guía visual de pruebas · un solo código por cliente</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { font-family:'Nunito Sans', sans-serif; }
+  .font-display { font-family:'Poppins', sans-serif; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .slot { width:223px; height:473px; position:relative; flex-shrink:0; }
+  .phone { width:406px; height:860px; box-sizing:border-box; border-radius:48px; border:8px solid #140F26; background:#F8F8F8; position:absolute; top:0; left:0; overflow:hidden; transform:scale(.55); transform-origin:top left; box-shadow:0 20px 50px rgba(20,15,38,.18); }
+  .pc { position:absolute; inset:0; overflow:hidden; }
+  .sb { position:absolute; top:0; left:0; right:0; height:44px; padding:0 28px; display:flex; align-items:center; justify-content:space-between; font-size:13px; font-weight:600; z-index:40; color:#140F26; }
+  .btn-quac { height:50px; border-radius:10px; width:100%; font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; display:flex; align-items:center; justify-content:center; background:#7633FF; color:#fff; }
+  .toque { border-radius:8px; box-shadow:0 0 0 4px rgba(252,211,77,.85); }
+  .nuevo { border-radius:6px; box-shadow:0 0 0 3px rgba(6,214,160,.55); }
+  .chip-t { border-radius:999px; padding:2px 10px; font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; display:inline-block; }
+  .flecha { align-self:flex-start; color:#94a3b8; font-size:22px; padding:0 2px; margin-top:210px; }
+  .tab { border:1px solid #e2e8f0; background:#fff; color:#334155; }
+  .tab.on { background:#312e81; border-color:#312e81; color:#fff; }
+  .api { background:#0f172a; color:#e2e8f0; border-radius:10px; padding:10px 12px; font-family:ui-monospace,Menlo,monospace; font-size:12px; white-space:pre-wrap; word-break:break-word; }
+  .api .k { color:#93c5fd; }
+  .caja { border:1px solid #e2e8f0; border-radius:12px; background:#fff; padding:14px 16px; }
+  .pasa { border-left:4px solid #059669; } .falla { border-left:4px solid #dc2626; } .ojo { border-left:4px solid #d97706; }
+  ol.prep li { margin:3px 0; }
+  .api-t { outline:1.5px dashed #7633FF; outline-offset:3px; border-radius:4px; }
+  .vista410 { border-left:4px solid #7633FF; background:#f5f3ff; }
+  .burbuja { background:#E9E9EB; border-radius:20px; padding:12px 16px; font-size:16px; line-height:1.35; color:#111; max-width:330px; margin-top:6px; }
+  .otp { display:flex; gap:8px; justify-content:center; margin:22px 0; }
+  .otp span { width:44px; height:54px; border:2px solid #C5C5FF; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:24px; color:#140F26; background:#fff; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<main class="px-6 py-6 md:px-8">
+
+<header>
+  <p class="text-[13px] text-slate-500">AQ-035 · paso 3 del tren de pruebas de la 4.1.0 (1: AQ-016 · 2: AQ-032 · 3: AQ-035 · 4: AQ-031-2 · 5: AQ-019) · resultados en la tarjeta de AQ-035 en Jira</p>
+  <h1 class="font-display text-[24px] font-bold text-slate-900">Guía visual de pruebas: un solo código del celular por cliente en la App Quac y en el Portal Actualización de datos</h1>
+  <p class="mt-1 text-[14px] text-slate-600">Api de la app: <code>feature/AQ-035</code> de api-quac-v2 (HEAD <code>33d5a</code>, sale de <code>release/4.1.0</code>) · Portal: <code>feature/AQ-035</code> de api-clientes-quac (HEAD <code>48220</code>, sale de <code>master</code>) · App 4.1.0: <code>release/4.1.0</code> de app-quac-v2 · App 4.0.1: <code>main</code>, la de las tiendas · Datos de ejemplo: Martha, cédula de prueba <code>0000321101</code>, celular <code>320…2794</code>, teléfono A «Motorola», teléfono B «iPhone», códigos 482921 y 305817 inventados.</p>
+  <p class="mt-2 text-[13px] text-slate-600"><span class="api-t px-1">Borde punteado</span> = texto que arma el api (la app y el Portal no lo traen). <span class="nuevo px-1">Verde</span> = lo que cambia con este REQ. <span class="toque px-1">Amarillo</span> = lo que se toca.</p>
+</header>
+
+<section class="caja mt-5">
+  <p class="font-display font-bold text-slate-900">Antes de empezar</p>
+  <ol class="prep mt-2 list-decimal pl-5 text-[14px]">
+    <li><b>Dónde se prueba:</b> el Portal no arranca en local (<code>bootstrap/</code>, <code>config/database.php</code> y <code>AppServiceProvider</code> solo existen en el servidor). Los casos se prueban en el servidor de pruebas, con las dos ramas desplegadas contra la misma base <code>quacapi</code> de pruebas.</li>
+    <li><b>Ramas:</b>
+<pre class="api mt-2"># api-quac-v2
+git fetch origin && git checkout feature/AQ-035 && composer install
+./vendor/bin/pest --filter=CodigoComun        # 63 verdes
+# api-clientes-quac (Portal)
+git fetch origin && git checkout feature/AQ-035 && composer install
+./vendor/bin/phpunit --testsuite=Unit         # 157/157</pre></li>
+    <li><b>SQL, antes de todo</b> y en la base de pruebas: primero <code>api-quac-v2/docs/deploy/AQ-035-quacapi.sql</code> (crea las dos tablas, idempotente), después <code>migracion.sql</code> de AQ-035 (dos filas en <code>var_env</code>, apagado):
+<pre class="api mt-2">-- debe dar 2 filas: CODIGO_COMUN_ACTIVO = '' y CODIGO_COMUN_VIGENCIA_MINUTOS = '60'
+SELECT name, value FROM var_env
+WHERE name IN ('CODIGO_COMUN_ACTIVO', 'CODIGO_COMUN_VIGENCIA_MINUTOS');
+
+-- encender (casos 2 a 7 y regresión)
+UPDATE var_env SET value = 'true' WHERE name = 'CODIGO_COMUN_ACTIVO';
+-- apagar (caso 1 y al terminar)
+UPDATE var_env SET value = '' WHERE name = 'CODIGO_COMUN_ACTIVO';</pre></li>
+    <li><b>Apps:</b> 4.1.0 con <code>git checkout release/4.1.0</code> y 4.0.1 con <code>git checkout main</code> en app-quac-v2, las dos contra el api de pruebas. Hacen falta <b>dos teléfonos</b> (A para el registro, B para «autorizar este equipo»).</li>
+    <li><b>Datos que hay que pedir:</b> una cédula de prueba con cuenta en el Portal y un celular que tengas en la mano. Para el caso 6, acceso a Diagnóstico de la app en get-web. Nunca clientes reales: cada envío es un SMS real (el SDK <code>Sms</code> no tiene driver falso).</li>
+    <li><b>Dónde ver el resultado:</b> los SMS en el celular; la respuesta del api en el proxy o en las herramientas del navegador (Portal: <code>POST clients/auth/validate-code-login</code>); la base en las tablas <code>codigos_comunes</code> y <code>codigos_comunes_envios</code>.</li>
+    <li><b>Orden sugerido:</b> caso 1 apagado; encender; casos 2, 3, 6 seguidos (el 6 usa el código anulado del 3); caso 4 con la vigencia en 2; casos 5 y 7; regresión con la 4.0.1; apagar.</li>
+  </ol>
+</section>
+
+<nav id="tabs" class="mt-5 flex flex-wrap gap-2"></nav>
+<section id="caso" class="mt-4"></section>
+
+<footer class="mt-8 text-[12px] text-slate-500">Sale de <code>qa.md</code> §5, §6 y §7 de AQ-035 y de los textos de las ramas: api-quac-v2 <code>feature/AQ-035</code> (<code>CodigoComunService::textosDelFallo</code>, <code>RegistroCuentaService</code>, <code>AutorizacionDispositivoService</code>, <code>PasswordController</code>, <code>Sac::ayudaCodigo</code>, <code>config/services.php</code>), api-clientes-quac <code>feature/AQ-035</code> (<code>User::sendCodeLogin</code>, <code>RuleValidateCodeLogin</code>), app-quac-v2 <code>main</code> y <code>release/4.1.0</code> (<code>scr_bloq_modal_polimorfico.dart</code>) y get-web <code>feature/AQ-033</code> (<code>acciones.vista.ts</code>). Las pantallas del Portal se dibujaron a partir de <code>ValidateToken.vue</code>, como en el antes y después. Si algo no cuadra con <code>qa.md</code>, manda <code>qa.md</code>.</footer>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let V = '410';
+const CEL = '320…2794';
+const AYUDA = 'Si no recibiste el código, comunícate con servicio al cliente al 607 700 0225. Horario: Lunes a viernes, 8:00 a. m. a 6:30 p. m. · Sábados, 8:30 a. m. a 5:30 p. m.';
+
+/* Textos de las ramas */
+const SMS = {
+  regHoy:  c => `QUAC: Tu codigo para crear tu cuenta es ${c}. Vence en 60 minutos.`,
+  porHoy:  c => `Hola Martha, su código de validación QUAC es ${c}. Úselo para confirmar su identidad.`,
+  reg:     (c, m = 60) => `QUAC: ${c} es tu codigo para crear tu cuenta en la App Quac. Vence en ${m} minutos.`,
+  aut:     (c, m = 60) => `QUAC: ${c} es tu codigo para autorizar tu celular en la App Quac. Vence en ${m} minutos.`,
+  por:     (c, m = 60) => `QUAC: ${c} es tu codigo para entrar al Portal de actualizacion de datos. Vence en ${m} minutos.`,
+  rest:    c => `QUAC: ${c} es tu codigo para restablecer tu clave de la App Quac. Vence en 30 minutos.`,
+};
+const F802 = {
+  inc: n => ({ titulo:'Código incorrecto', mensaje:`Revisa el SMS y vuelve a escribirlo. ${n === 1 ? 'Te queda 1 intento.' : `Te quedan ${n} intentos.`}`, data:{ intentos_restantes:n } }),
+  anu: { titulo:'Este código ya no sirve', mensaje:'Se escribió mal varias veces. Toca «Reenviar» para recibir uno nuevo.', data:{ intentos_restantes:0 } },
+  ven: m => ({ titulo:'El código venció', mensaje:`Pasó más de ${m} minutos. Toca «Reenviar» para recibir uno nuevo.`, data:{} }),
+};
+const P422 = {
+  inc: n => `El código es incorrecto. Revisa el SMS y vuelve a escribirlo. ${n === 1 ? 'Te queda 1 intento.' : `Te quedan ${n} intentos.`}`,
+  anu: 'Este código ya no sirve porque se escribió mal varias veces. Pide uno nuevo.',
+  ven: 'El código venció. Pide uno nuevo.',
+  hoy: 'El código ingresado es incorrecto. Verifique e intente nuevamente.',
+};
+
+const tel = (html, hora) => `<div class="phone"><div class="sb"><span class="tnum">${hora || '10:00'}</span><span class="tnum">100%</span></div><div class="pc">${html}</div></div>`;
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/* SMS al celular: lista de mensajes {h, t, n (nuevo)} */
+const pSms = (msgs) => `<div style="position:absolute;inset:0;background:#fff;padding:56px 18px 0">
+  <div class="text-center"><div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-300 text-white font-bold">Q</div><p class="mt-1 text-[13px] text-slate-600">QUAC</p></div>
+  ${msgs.map(m => `<p class="mt-4 text-center text-[12px] text-slate-400">${m.h}</p><div class="burbuja api-t ${m.n ? 'nuevo' : ''}">${m.t}</div>`).join('')}</div>`;
+
+/* App: pantalla del código del celular, con el 802 encima si hay fallo (scr_bloq_modal_polimorfico.dart) */
+const pApp = (o) => {
+  const d = (o.dig || '').padEnd(6, ' ').split('').map(c => `<span>${c.trim()}</span>`).join('');
+  let modal = '';
+  if (o.f) {
+    const titulo = V === '410' ? `<span class="api-t">${o.f.titulo}</span>` : 'Demasiados intentos';
+    modal = `<div style="position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:0 34px;z-index:50">
+      <div class="w-full bg-white rounded-[20px] p-6 text-center">
+        <p style="font-family:Poppins;font-size:21px;font-weight:700;color:#140F26">${titulo}</p>
+        <p class="mt-4" style="font-size:16px;color:#140F26"><span class="api-t ${V === '410' ? 'nuevo' : ''}">${o.f.mensaje}</span></p>
+        <p class="mt-6" style="font-size:16px;font-weight:700;color:#7633FF">Cerrar</p>
+        ${V === '410' ? `<p class="mt-2" style="font-size:12px;line-height:1.4;color:#6b6880"><span class="api-t">${AYUDA}</span></p>` : ''}
+      </div></div>`;
+  }
+  return `<div style="position:absolute;inset:0;background:#F8F8F8;padding:60px 24px 0">
+    <p style="font-size:13px;color:#6b6880;font-weight:700">${o.tel}</p>
+    <p style="font-family:Poppins;font-size:23px;font-weight:700;color:#140F26;margin-top:8px">${o.titulo || 'Validar celular'}</p>
+    <p style="font-size:15px;color:#140F26;margin-top:8px">Escribe el código que te enviamos por SMS al ${CEL}.</p>
+    <div class="otp ${o.toque === 'otp' ? 'toque' : ''}">${d}</div>
+    <div class="btn-quac ${o.toque === 'continuar' ? 'toque' : ''}">Continuar</div>
+    <p class="mt-4 text-center ${o.toque === 'reenviar' ? 'toque' : ''}" style="font-size:15px;font-weight:700;color:#7633FF;padding:4px">Reenviar</p>
+    <p class="mt-6 text-center text-[12px] text-slate-400">Pantalla de la app dibujada en simple: el texto exacto de la pantalla no cambia en este REQ</p>
+  </div>${modal}`;
+};
+const pAppOk = (telefono, txt) => `<div style="position:absolute;inset:0;background:#F8F8F8;padding:60px 24px 0">
+  <p style="font-size:13px;color:#6b6880;font-weight:700">${telefono}</p>
+  <div style="margin-top:150px;text-align:center"><div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full" style="background:#d1fae5;color:#047857;font-size:30px;font-weight:800">✓</div>
+  <p style="font-family:Poppins;font-size:19px;font-weight:700;color:#140F26;margin-top:14px">${txt}</p>
+  <p style="font-size:13px;color:#6b6880;margin-top:6px">La app pasa a la pantalla siguiente del flujo</p></div></div>`;
+
+/* Portal Actualización de datos (ValidateToken.vue) */
+const pPortalPide = (toque) => `<div style="position:absolute;inset:0;background:#fff"><div style="background:#0f3b5f;color:#fff;padding:54px 20px 14px;font-weight:800;font-size:16px">Portal Actualización de datos</div>
+  <div style="padding:22px 22px 0"><p style="font-size:18px;font-weight:800">Ingresar</p>
+  <p style="font-size:14px;color:#475569;margin-top:6px">¿Cómo quieres recibir el código? <span class="text-slate-400">(texto por confirmar)</span></p>
+  <div style="margin-top:18px;border:1px solid #cbd5e1;border-radius:10px;padding:14px;font-size:15px" class="${toque === 'sms' ? 'toque' : ''}">SMS al celular ${CEL}</div>
+  <div style="margin-top:10px;border:1px solid #cbd5e1;border-radius:10px;padding:14px;font-size:15px" class="${toque === 'email' ? 'toque' : ''}">Correo m••••@correo.com</div></div></div>`;
+const pPortal = (o) => {
+  if (o.ok) return `<div style="position:absolute;inset:0;background:#fff"><div style="background:#0f3b5f;color:#fff;padding:54px 20px 14px;font-weight:800;font-size:16px">Portal Actualización de datos</div>
+    <div style="margin-top:160px;text-align:center"><div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full" style="background:#d1fae5;color:#047857;font-size:30px;font-weight:800">✓</div><p style="font-size:18px;font-weight:800;margin-top:12px">Entró al Portal</p></div></div>`;
+  const d = (o.dig || '').padEnd(6, ' ').split('').map(c => `<span style="border-color:#cbd5e1">${c.trim()}</span>`).join('');
+  return `<div style="position:absolute;inset:0;background:#fff"><div style="background:#0f3b5f;color:#fff;padding:54px 20px 14px;font-weight:800;font-size:16px">Portal Actualización de datos</div>
+    <div style="padding:22px 22px 0"><p style="font-size:18px;font-weight:800">Confirma código de validación</p>
+    <p style="font-size:14px;color:#475569;margin-top:6px">Hemos enviado un código a tu ${o.correo ? 'correo' : `celular <b>${CEL}</b>`}. Una vez lo recibas ingrésalo.</p>
+    <div class="otp">${d}</div>
+    ${o.err ? `<div style="background:#fef2f2;color:#b91c1c;border-radius:8px;padding:10px 12px;font-size:14px"><span class="api-t nuevo">${o.err}</span></div>` : ''}
+    <div class="btn-quac" style="background:#0f3b5f;margin-top:18px">CONTINUAR</div>
+    <p class="mt-3 text-center" style="font-size:14px;font-weight:700;color:#0f3b5f">Reenviar código</p></div></div>`;
+};
+const pCorreo = (c) => `<div style="position:absolute;inset:0;background:#fff;padding:56px 22px 0;font-family:Arial,sans-serif">
+  <p style="font-size:18px">Código de acceso al Portal</p><p class="mt-1 text-[12px] text-slate-500">QUAC · para mí · <span>asunto y cuerpo de hoy, sin cambios (texto por confirmar)</span></p>
+  <p style="font-size:15px;margin-top:24px">Tu código de validación es:</p><p style="font-size:34px;font-weight:800;letter-spacing:6px;margin-top:8px">${c}</p></div>`;
+
+/* get-web · Diagnóstico de la app (AQ-033) */
+const pGet = (toque) => `<div style="position:absolute;inset:0;background:#f8fafc;padding:56px 16px 0;font-family:ui-sans-serif,system-ui,sans-serif">
+  <p style="font-size:12px;color:#64748b;font-weight:700">get-web · Diagnóstico de la app</p>
+  <p style="font-size:18px;font-weight:800;color:#0f172a;margin-top:6px">Cédula 0000321101</p>
+  <div style="margin-top:14px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;font-size:14px;color:#334155">Códigos del celular: <b>bloqueado</b> por 5 fallos</div>
+  <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+    <div style="border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;font-size:14px;font-weight:700;background:#fff">Reenviar código vigente</div>
+    <div class="${toque ? 'toque' : ''}" style="border:1.5px solid #15803d;border-radius:8px;padding:10px 12px;font-size:14px;font-weight:700;background:#fff;color:#15803d">Reiniciar límite de códigos</div>
+  </div><p class="mt-4 text-[12px] text-slate-400">Pantalla de AQ-033, sin cambios en este REQ</p></div>`;
+
+/* Consola SQL */
+const pSql = (titulo, query, resultado) => `<div style="position:absolute;inset:0;background:#0f172a;padding:54px 18px 0;color:#e2e8f0;font-family:ui-monospace,Menlo,monospace">
+  <p style="font-family:'Nunito Sans',sans-serif;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8">quacapi de pruebas · solo lectura</p>
+  <p style="font-family:'Nunito Sans',sans-serif;font-size:17px;font-weight:700;color:#fff;margin-top:6px">${titulo}</p>
+  <pre style="white-space:pre-wrap;font-size:12px;line-height:1.35;color:#93c5fd;margin-top:12px">${esc(query)}</pre>
+  <p style="font-family:'Nunito Sans',sans-serif;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8;margin-top:16px">Resultado</p>
+  <pre style="white-space:pre-wrap;font-size:12.5px;line-height:1.4;color:#86efac;margin-top:4px">${esc(resultado)}</pre></div>`;
+
+const QC = `SELECT id, celular, origen, vivo, fallos,
+       reenviado_en, validado_en, anulado_en
+FROM codigos_comunes WHERE documento = '0000321101'
+ORDER BY id DESC LIMIT 5;`;
+const QE = `SELECT e.origen, e.device_id, e.canal, e.enviado_en
+FROM codigos_comunes_envios e
+JOIN codigos_comunes c ON c.id = e.codigo_comun_id
+WHERE c.documento = '0000321101' ORDER BY e.id;`;
+const QN = `SELECT COUNT(*) FROM codigos_comunes WHERE documento = '0000321101';`;
+
+const MARCA = { toca:['bg-amber-100 text-amber-800','toca'], ve:['bg-emerald-100 text-emerald-700','debe verse'], error:['bg-red-100 text-red-700','error esperado'] };
+const api = (obj) => `<div class="api">${esc(JSON.stringify(obj, null, 2)).replace(/&quot;|"([a-z_]+)":/g, (m, k) => k ? `<span class="k">"${k}"</span>:` : m)}</div>`;
+const e802 = (f) => ({ escenario:802, titulo:f.titulo, mensaje:f.mensaje, ayuda:AYUDA, data:f.data });
+const e422 = (t) => ({ message:t, errors:{ code_login:[t] } });
+
+const CASOS = [
+  {
+    id:1, titulo:'Apagado, como hoy (criterio 13)', aplica:['410','401'],
+    para:'Con el interruptor apagado nada cambia: cada lugar manda su propio código y el Portal reusa el suyo 10 minutos.',
+    prep:['<code>CODIGO_COMUN_ACTIVO = \'\'</code>.', 'Teléfono A con la app 4.1.0 y el Portal en el navegador.'],
+    filas:() => [{ pasos:[
+      [pPortalPide('sms'), 'En el Portal, «Ingresar» y envío por SMS', 'toca', '10:00'],
+      [pSms([{ h:'10:00 · Portal', t:SMS.porHoy('558203') }]), 'Llega el SMS de hoy, que no dice para qué es', 've', '10:00'],
+      [pSms([{ h:'10:00 · Portal', t:SMS.porHoy('558203') }, { h:'10:02 · registro en A', t:SMS.regHoy('731458') }]), 'Empieza el registro en A: llega <b>otro</b> código, con el texto de hoy', 've', '10:02'],
+      [pSms([{ h:'10:00 · Portal', t:SMS.porHoy('558203') }, { h:'10:05 · Portal otra vez', t:SMS.porHoy('558203') }]), 'Pide de nuevo en el Portal antes de 10 min: llega el mismo 558203', 've', '10:05'],
+      [pSql('Tablas nuevas sin filas', QN, 'COUNT(*)  0'), 'La cédula no tiene filas en <code>codigos_comunes</code>', 've', '10:06'],
+    ] }],
+    comprobar:{ query:QN, esperado:'0.' },
+    pasa:() => ['El Portal y la app mandan códigos distintos, con los textos de hoy.', 'El Portal reusa su código dentro de los 10 minutos.', 'Las tablas nuevas siguen sin filas de la cédula.'],
+    falla:['Algún SMS ya trae el texto nuevo («… es tu codigo para …») del registro o del Portal.', 'Aparecen filas en <code>codigos_comunes</code>.'],
+    ojo:'Restablecer la clave sí manda el texto nuevo aunque esté apagado: ese cambio no depende del interruptor (caso 7).',
+  },
+  {
+    id:2, titulo:'Portal → Motorola → iPhone (criterios 1, 2 y 11)', aplica:['410','401'],
+    para:'El caso que dio origen al REQ: el mismo código llega desde los tres lugares, cada SMS con su texto, y sirve en cualquiera.',
+    prep:['<code>CODIGO_COMUN_ACTIVO = \'true\'</code>, vigencia en 60.', 'Teléfono A (Motorola) para el registro y teléfono B (iPhone) para «autorizar este equipo».'],
+    filas:() => [{ pasos:[
+      [pPortalPide('sms'), 'En el Portal, envío por SMS', 'toca', '10:00'],
+      [pSms([{ h:'10:00 · Portal', t:SMS.por('482921'), n:1 }]), 'El SMS dice que es para entrar al Portal y que vence en 60 minutos', 've', '10:00'],
+      [pSms([{ h:'10:00 · Portal', t:SMS.por('482921'), n:1 }, { h:'10:10 · registro en el Motorola', t:SMS.reg('482921'), n:1 }, { h:'10:20 · autorizar en el iPhone', t:SMS.aut('482921'), n:1 }]), 'Registro en A y autorización en B: los tres SMS traen el <b>mismo</b> número, cada uno con su texto', 've', '10:20'],
+      [pApp({ tel:'iPhone · autorizar este equipo', titulo:'Autorizar este equipo', dig:'482921', toque:'continuar' }), 'Escribe 482921 en B', 'toca', '10:21'],
+      [pAppOk('iPhone · autorizar este equipo', 'Celular validado'), 'Valida y sigue con la autorización', 've', '10:21'],
+      [pSql('Un código y tres envíos', QE, 'portal        NULL        sms  10:00\nregistro      a1b2…       sms  10:10\nautorizacion  c3d4…       sms  10:20'), 'Tres envíos; el código tiene <code>origen = portal</code>', 've', '10:22'],
+    ] }],
+    comprobar:{ query:QC + '\n\n' + QE, esperado:'1 fila viva con <code>origen = portal</code>, y 3 envíos: portal (<code>device_id</code> NULL), registro y autorizacion.' },
+    pasa:() => ['Los tres SMS traen el mismo código y cada uno dice para qué es.', 'El código sirve en B aunque se pidió en el Portal.', 'Las queries dan 1 código y 3 envíos.'],
+    falla:['Algún SMS trae un número distinto.', 'B rechaza el código.', 'Falta una fila de envío o el origen no es <code>portal</code>.'],
+  },
+  {
+    id:3, titulo:'Fallos compartidos (criterios 3 y 4)', aplica:['410','401'],
+    para:'Los 5 fallos se cuentan juntos entre la app y el Portal. Al quinto, el código deja de servir en todas partes.',
+    prep:['Encendido. Un código nuevo para la cédula (por ejemplo, «Reenviar» en el registro de A).', 'El Portal abierto en la pantalla del código.'],
+    filas:() => [
+      { t:'A · cuatro errados en la app', pasos:[
+        [pApp({ tel:'Motorola · registro', dig:'111111', f:F802.inc(4) }), '1.er errado', 'error', '10:30'],
+        [pApp({ tel:'Motorola · registro', dig:'222222', f:F802.inc(3) }), '2.º errado', 'error', '10:30'],
+        [pApp({ tel:'Motorola · registro', dig:'333333', f:F802.inc(2) }), '3.er errado', 'error', '10:31'],
+        [pApp({ tel:'Motorola · registro', dig:'444444', f:F802.inc(1) }), '4.º errado: «Te queda 1 intento.»', 'error', '10:31'],
+      ] },
+      { t:'B · el quinto, en el Portal, y el correcto en la app', pasos:[
+        [pPortal({ dig:'555555', err:P422.anu }), 'El 5.º errado, en el Portal: 422 con el código anulado', 'error', '10:32'],
+        [pApp({ tel:'Motorola · registro', dig:'482921', f:F802.anu }), 'El código correcto en la app: ya no sirve', 'error', '10:33'],
+        [pApp({ tel:'Motorola · registro', toque:'reenviar' }), 'Toca «Reenviar»', 'toca', '10:33'],
+        [pSms([{ h:'10:33 · Reenviar en el Motorola', t:SMS.reg('305817'), n:1 }]), 'Llega un número nuevo', 've', '10:33'],
+        [pSql('Código nuevo con 0 fallos', QC, 'id 2  vivo 1     fallos 0  anulado_en NULL\nid 1  vivo NULL  fallos 5  anulado_en 10:32'), 'El nuevo tiene <code>fallos = 0</code>; el viejo, anulado', 've', '10:34'],
+      ] },
+    ],
+    comprobar:{ query:QC, esperado:'El código viejo con <code>fallos = 5</code> y <code>anulado_en</code>; el nuevo con <code>vivo = 1</code> y <code>fallos = 0</code>.' },
+    respuesta:{ endpoint:'POST /api/v2/registro/validar_otp_celular · 422', json:e802(F802.inc(4)) },
+    respuesta2:{ endpoint:'POST clients/auth/validate-code-login (Portal) · 422', json:e422(P422.anu) },
+    pasa:() => ['La cuenta de intentos baja de 4 a 1 en la app.', 'El quinto, escrito en el Portal, anula el código.', 'El código correcto ya no entra en la app.', '«Reenviar» trae un número nuevo con 0 fallos.'],
+    falla:['El Portal da intentos nuevos o acepta el código.', 'La app acepta el código anulado.', '«Reenviar» manda el mismo número.'],
+    ojo:'Con la 4.0.1 el título del aviso es siempre «Demasiados intentos» y debajo va el mensaje del api: es lo esperado (criterio 15).',
+  },
+  {
+    id:4, titulo:'Vencido en el Portal (criterio 5)', aplica:['410','401'], sinApp:true,
+    para:'El Portal ya no acepta un código viejo: vence a los minutos de la vigencia, contados desde el último envío.',
+    prep:['Encendido y <code>UPDATE var_env SET value = \'2\' WHERE name = \'CODIGO_COMUN_VIGENCIA_MINUTOS\';</code>', 'Al terminar, devolverlo a <code>\'60\'</code>.'],
+    filas:() => [{ pasos:[
+      [pPortalPide('sms'), 'Pide el código por SMS en el Portal', 'toca', '11:00'],
+      [pSms([{ h:'11:00 · Portal', t:SMS.por('482921', 2), n:1 }]), 'El SMS dice «Vence en 2 minutos.»', 've', '11:00'],
+      [pPortal({ dig:'482921', err:P422.ven }), 'A los 3 minutos lo escribe: 422 y no entra', 'error', '11:03'],
+      [pSql('La hora del envío', QC, 'origen portal  reenviado_en 11:00:04'), 'Compara <code>reenviado_en</code> con la hora real', 've', '11:04'],
+    ] }],
+    comprobar:{ query:QC, esperado:'<code>reenviado_en</code> igual a la hora real del envío (hora de Colombia).' },
+    respuesta:{ endpoint:'POST clients/auth/validate-code-login (Portal) · 422', json:e422(P422.ven) },
+    pasa:() => ['El Portal responde «El código venció. Pide uno nuevo.» y no deja entrar.', '<code>reenviado_en</code> coincide con la hora real.'],
+    falla:['El Portal deja entrar con el código vencido.', '<code>reenviado_en</code> está corrido 5 h: el <code>APP_TIMEZONE</code> del servidor del Portal no es <code>America/Bogota</code>.'],
+  },
+  {
+    id:5, titulo:'El correo del Portal sigue entrando', aplica:['410','401'], sinApp:true,
+    para:'El código del correo del Portal es propio y no cambia: entra y no cuenta fallos en el código común.',
+    prep:['Encendido.', 'Anota <code>fallos</code> del código vivo de la cédula antes de empezar.'],
+    filas:() => [{ pasos:[
+      [pPortalPide('email'), 'En el Portal, envío por correo', 'toca', '11:10'],
+      [pCorreo('617044'), 'Llega el correo de hoy con su propio código', 've', '11:10'],
+      [pPortal({ dig:'617044', correo:true }), 'Lo escribe', 'toca', '11:11'],
+      [pPortal({ ok:true }), 'Entra', 've', '11:11'],
+      [pSql('Los fallos no suben', QC, 'origen …  fallos 0   (igual que antes)'), '<code>fallos</code> del código común no cambió', 've', '11:12'],
+    ] }],
+    comprobar:{ query:QC, esperado:'<code>fallos</code> igual al de antes de empezar.' },
+    pasa:() => ['El código del correo entra al Portal.', '<code>fallos</code> del código común no sube.'],
+    falla:['El código del correo no entra.', '<code>fallos</code> sube al escribir el código del correo.'],
+    ojo:'Si después pides el SMS, el código del correo deja de servir: el SMS escribe su copia en <code>clients.code_login</code> (P3, aceptado).',
+  },
+  {
+    id:6, titulo:'Soporte reinicia (criterio 10)', aplica:['410','401'],
+    para:'«Reiniciar límite de códigos» en Diagnóstico de la app también revive el código común anulado.',
+    prep:['El código anulado del caso 3 (si ya reenviaste, repite 5 errados).', 'Acceso a Diagnóstico de la app en get-web.'],
+    filas:() => [{ pasos:[
+      [pSql('Antes: anulado', QC, 'vivo NULL  fallos 5  anulado_en 10:32'), 'El código está anulado', 've', '10:40'],
+      [pGet(true), 'En Diagnóstico de la app, «Reiniciar límite de códigos»', 'toca', '10:41'],
+      [pSql('Después: vivo otra vez', QC, 'vivo 1  fallos 0  anulado_en NULL'), '<code>vivo = 1</code> y <code>fallos = 0</code>', 've', '10:42'],
+      [pApp({ tel:'Motorola · registro', dig:'000000', f:F802.inc(4) }), 'Un errado en la app vuelve a decir «Te quedan 4 intentos.»: acepta intentos otra vez', 'error', '10:43'],
+    ] }],
+    comprobar:{ query:QC, esperado:'El mismo código con <code>vivo = 1</code> y <code>fallos = 0</code>; el cupo de SMS del teléfono en 0.' },
+    pasa:() => ['El mismo código vuelve a aceptar intentos.', 'El cupo de SMS queda en 0.'],
+    falla:['El código sigue anulado después del reinicio.', 'El reinicio da error.'],
+    ojo:'«Reenviar código vigente» de soporte reenvía la copia con el texto de antes y no deja fila en <code>codigos_comunes_envios</code> (P3, aceptado).',
+  },
+  {
+    id:7, titulo:'Textos del front del Portal y SMS de restablecer (criterio 14)', aplica:['410','401'],
+    para:'El front del Portal debe pintar el <code>message</code> del 422 tal cual. Restablecer la clave manda su SMS con el texto nuevo.',
+    prep:['Las capturas del Portal de los casos 3 y 4.', 'Una cuenta de prueba en la app para «Olvidé mi contraseña».'],
+    filas:() => [{ pasos:[
+      [pPortal({ dig:'555555', err:P422.anu }), 'Caso 3: el Portal muestra el texto del api, sin cambiarlo', 've', '10:32'],
+      [pPortal({ dig:'482921', err:P422.ven }), 'Caso 4: igual con «El código venció»', 've', '11:03'],
+      [pSms([{ h:'12:00 · restablecer la clave', t:SMS.rest('903516'), n:1 }]), 'Restablecer la clave: SMS con el texto nuevo y 30 minutos', 've', '12:00'],
+    ] }],
+    comprobar:{ query:QC, esperado:'Restablecer no crea filas en <code>codigos_comunes</code>: su código no es el código común.' },
+    pasa:() => ['El Portal pinta los mensajes del 422 tal cual llegan.', 'El SMS de restablecer dice «… para restablecer tu clave de la App Quac. Vence en 30 minutos.»'],
+    falla:['El Portal muestra un texto propio en lugar del del api: se ajusta en el repo del front, no en api-clientes-quac.', 'El SMS de restablecer sigue con el texto viejo.'],
+  },
+  {
+    id:'R', titulo:'Regresión con la 4.0.1 (criterio 15)', aplica:['401'], soloV:'401',
+    para:'La app de las tiendas no cambia: con el interruptor encendido recibe el mismo código y muestra su título de siempre.',
+    prep:['App de <code>main</code> (4.0.1) contra el api de pruebas, encendido.', 'Una cédula sin código vivo.'],
+    filas:() => [{ pasos:[
+      [pSms([{ h:'13:00 · registro en la 4.0.1', t:SMS.reg('482921'), n:1 }]), 'Empieza el registro: llega el SMS con el texto nuevo', 've', '13:00'],
+      [pApp({ tel:'Motorola · app 4.0.1', dig:'111111', f:F802.inc(4) }), 'Un errado: título fijo «Demasiados intentos» y el mensaje del api', 'error', '13:01'],
+      [pApp({ tel:'Motorola · app 4.0.1', dig:'482921', toque:'continuar' }), 'El código correcto', 'toca', '13:02'],
+      [pAppOk('Motorola · app 4.0.1', 'Celular validado'), 'Valida y sigue con el registro como hoy', 've', '13:02'],
+    ] }],
+    comprobar:{ query:QC, esperado:'1 código vivo con <code>origen = registro</code> y <code>validado_en</code> con la hora.' },
+    pasa:() => ['La 4.0.1 recibe el código común y lo valida.', 'Los avisos se ven con el título de siempre, sin pantallas nuevas.'],
+    falla:['La 4.0.1 muestra un error o una pantalla distinta de la de hoy.'],
+  },
+];
+
+const CORTO = { 1:'Apagado', 2:'Portal → Motorola → iPhone', 3:'Fallos compartidos', 4:'Vencido en el Portal', 5:'Correo del Portal', 6:'Soporte reinicia', 7:'Textos y restablecer', R:'Regresión 4.0.1' };
+let actual = CASOS[0];
+const lis = xs => xs.map(x => `<li>${x}</li>`).join('');
+const figuras = pasos => pasos.map(([html, pie, m, hora], i) => `
+  ${i ? '<span class="flecha">→</span>' : ''}
+  <figure class="flex flex-col"><div class="slot">${tel(html, hora)}</div>
+    <figcaption class="mt-2 w-[223px] text-[12px] leading-snug"><b class="tnum">${i + 1}.</b> <span class="chip-t ${MARCA[m][0]}">${MARCA[m][1]}</span><p class="mt-1 text-slate-600">${pie}</p></figcaption>
+  </figure>`).join('');
+
+const pintar = (c) => {
+  actual = c;
+  if (c.soloV) V = c.soloV;
+  const filas = c.filas(V);
+  const selector = (c.soloV || c.sinApp) ? '' : `<div class="mt-4 flex items-center gap-2 text-[13px]"><span class="font-bold text-slate-700">Ver en:</span>
+    <button class="tab rounded-full px-3 py-1.5 font-bold ${V === '410' ? 'on' : ''}" data-v="410">App 4.1.0 · release/4.1.0</button>
+    <button class="tab rounded-full px-3 py-1.5 font-bold ${V === '401' ? 'on' : ''}" data-v="401">App 4.0.1 · la de las tiendas</button></div>`;
+  const nota = c.sinApp
+    ? '<div class="caja vista410 mt-3 text-[14px]">Caso del Portal y la base: no usa la app.</div>'
+    : V === '410'
+      ? '<div class="caja vista410 mt-3 text-[14px]"><b>App 4.1.0</b> (<code>release/4.1.0</code>). El aviso del código muestra el título, el mensaje y la ayuda que manda el api, y «Cerrar». Lo verde es lo que cambia con AQ-035.</div>'
+      : '<div class="caja mt-3 text-[14px]" style="border-left:4px solid #94a3b8"><b>App 4.0.1</b> (<code>main</code>, la de las tiendas). El aviso del código tiene el título fijo «Demasiados intentos» y debajo el mensaje del api, sin la ayuda. No cambia ninguna pantalla.</div>';
+  const resp = r => r ? `<div class="caja mt-3"><p class="text-[13px] font-bold text-slate-700">Respuesta real del api · <code>${r.endpoint}</code></p><div class="mt-2">${api(r.json)}</div></div>` : '';
+  $('#caso').innerHTML = `
+    <div class="caja">
+      <p class="text-[13px] text-slate-500">${c.id === 'R' ? 'Regresión' : 'Caso ' + c.id} · ${c.sinApp ? 'Portal y base' : 'app, Portal y base'}</p>
+      <p class="font-display text-[19px] font-bold text-slate-900">${c.titulo}</p>
+      <p class="mt-1 text-[14px]">${c.para}</p>
+      <p class="mt-3 text-[13px] font-bold text-slate-700">Preparar</p>
+      <ol class="prep list-decimal pl-5 text-[14px]">${lis(c.prep)}</ol>
+    </div>
+    ${selector}${nota}
+    ${filas.map(f => `${f.t ? `<p class="mt-4 text-[13px] font-bold text-slate-700">${f.t}</p>` : ''}<div class="${f.t ? 'mt-2' : 'mt-4'} flex gap-3 overflow-x-auto pb-3">${figuras(f.pasos)}</div>`).join('')}
+    <div class="mt-4 grid gap-3 md:grid-cols-2">
+      <div class="caja pasa"><p class="text-[13px] font-bold text-emerald-700">Pasa si</p><ul class="list-disc pl-5 text-[14px]">${lis(c.pasa())}</ul></div>
+      <div class="caja falla"><p class="text-[13px] font-bold text-red-700">Falla si</p><ul class="list-disc pl-5 text-[14px]">${lis(c.falla)}</ul></div>
+    </div>
+    ${c.ojo ? `<div class="caja ojo mt-3 text-[14px]"><b class="text-amber-800">No es error:</b> ${c.ojo}</div>` : ''}
+    <div class="caja mt-3"><p class="text-[13px] font-bold text-slate-700">Cómo comprobarlo en la base <span class="font-normal text-slate-500">(<code>quacapi</code> de pruebas, queries de <code>qa.md</code> §5)</span></p>
+      <pre class="api mt-2">${esc(c.comprobar.query)}</pre><p class="mt-2 text-[14px]"><b>Esperado:</b> ${c.comprobar.esperado}</p></div>
+    ${resp(c.respuesta)}${resp(c.respuesta2)}
+    <p class="mt-3 text-[13px] text-slate-500">Resultado: comentar en la tarjeta de AQ-035 «Caso ${c.id}: pasó» o «Caso ${c.id}: falló»${!c.sinApp && !c.soloV ? ', diciendo con qué app (4.0.1 o 4.1.0)' : ''}, con lo que se vio (captura del SMS, de la pantalla o resultado del query).</p>`;
+  document.querySelectorAll('#tabs .tab').forEach(b => b.classList.toggle('on', b.dataset.id === String(c.id)));
+  document.querySelectorAll('#caso [data-v]').forEach(b => b.onclick = () => { V = b.dataset.v; pintar(actual); });
+};
+
+$('#tabs').innerHTML = CASOS.map(c => `<button class="tab rounded-full px-3 py-1.5 text-[13px] font-bold" data-id="${c.id}">${c.id === 'R' ? '' : c.id + ' · '}${CORTO[c.id]}</button>`).join('');
+document.querySelectorAll('#tabs .tab').forEach(b => b.onclick = () => { if (actual.soloV) V = '410'; pintar(CASOS.find(c => String(c.id) === b.dataset.id)); });
+pintar(CASOS[0]);
+</script>
+</body>
+</html>

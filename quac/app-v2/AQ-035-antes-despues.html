@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AQ-035 · Antes y después · Un solo código por cliente</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  body{font-family:'Nunito Sans',sans-serif;background:#f3f4f6;color:#1f2937}
+  .poppins{font-family:'Poppins',sans-serif}
+  .fila{display:flex;align-items:flex-start;gap:10px;overflow-x:auto;padding:6px 2px 10px}
+  .paso{flex:0 0 auto;width:208px}
+  .tel{width:208px;height:430px;border-radius:30px;background:#111;padding:7px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+  .pant{width:100%;height:100%;border-radius:24px;overflow:hidden;background:#fff;position:relative;font-size:11px;display:flex;flex-direction:column}
+  .barra{height:20px;display:flex;justify-content:space-between;align-items:center;padding:0 14px;font-size:9px;font-weight:700;color:#111}
+  .flecha{flex:0 0 auto;align-self:center;color:#9ca3af;font-size:22px;margin-top:-40px}
+  .pie{font-size:11px;margin-top:6px;line-height:1.35}
+  .eti{display:inline-block;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:9px;margin-right:4px}
+  .e-igual{background:#e5e7eb;color:#374151}
+  .e-pasa{background:#dbeafe;color:#1e40af}
+  .e-queda{background:#fee2e2;color:#b91c1c}
+  .e-cambia{background:#15803d;color:#fff}
+  .sms{background:#e5e7eb;border-radius:12px;padding:6px 8px;margin:4px 8px;font-size:10px;line-height:1.3}
+  .sms.nuevo{background:#dcfce7}
+  .sms .h{font-size:8.5px;color:#6b7280;margin-bottom:2px}
+  .otp{display:flex;gap:4px;justify-content:center;margin:8px 0}
+  .otp span{width:22px;height:28px;border:1.5px solid #d1d5db;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .modal{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:14px}
+  .modal .caja{background:#fff;border-radius:14px;padding:14px 12px;text-align:center;width:100%}
+  .btn{display:block;text-align:center;border-radius:20px;padding:7px;font-weight:600;font-size:11px}
+  .btn-p{background:#5b2c83;color:#fff}
+  .btn-s{color:#5b2c83}
+  .sel button{border:1px solid #d1d5db;background:#fff;border-radius:18px;padding:5px 12px;font-size:12.5px;margin:3px 4px 3px 0}
+  .sel button.on{border-color:#15803d;box-shadow:0 0 0 1.5px #15803d;font-weight:700}
+  .portal-h{background:#0f3b5f;color:#fff;padding:8px 10px;font-weight:700;font-size:11px}
+</style>
+</head>
+<body class="p-5">
+
+<header class="bg-white rounded-xl shadow-sm p-4 mb-4">
+  <div class="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+    <h1 class="poppins text-lg font-semibold">AQ-035 · Antes y después</h1>
+    <span class="text-sm text-gray-600">Códigos de la app y del Portal de actualización de datos: un solo código por cliente</span>
+  </div>
+  <p class="text-xs text-gray-500 mt-1">
+    Hoy en producción: api-quac-v2 <code>master c2c17</code>, app 4.0.1 (<code>app-quac-v2 main</code>) y Portal de actualización de datos (<code>api-clientes-quac master</code>, <code>clientesquac-client bca15</code>). Con el ajuste: decisiones D1–D13 de <code>brainstorming.md</code>, sobre <code>release/4.1.0</code> (app 4.1.0).
+  </p>
+  <p class="text-xs text-gray-500 mt-1">
+    Caso real del 19-nov-2026 (cédula omitida). En 30 minutos llegaron 4 códigos distintos al mismo celular, desde un Motorola, un iPhone y el Portal, y la clienta escribía los viejos.
+    <b>Datos de ejemplo:</b> horas, códigos y celular 320…2794. Las horas reales no se pudieron leer porque la base no estuvo disponible.
+  </p>
+</header>
+
+<section class="bg-white rounded-xl shadow-sm p-4 mb-4">
+  <div class="text-xs font-bold text-gray-500 mb-1">LO QUE HACE LA CLIENTA</div>
+  <div class="sel" id="sel"></div>
+  <p id="resumen" class="text-sm mt-2 text-gray-700"></p>
+</section>
+
+<section class="bg-white rounded-xl shadow-sm p-4 mb-4">
+  <h2 class="poppins font-semibold text-sm mb-2 text-red-700">Hoy en producción</h2>
+  <div class="fila" id="hoy"></div>
+</section>
+
+<section class="bg-white rounded-xl shadow-sm p-4 mb-4">
+  <h2 class="poppins font-semibold text-sm mb-2 text-green-700">Con el ajuste</h2>
+  <div class="fila" id="ajuste"></div>
+</section>
+
+<section class="bg-white rounded-xl shadow-sm p-4 text-sm">
+  <h2 class="poppins font-semibold text-sm mb-1">La regla nueva</h2>
+  <ol class="list-decimal ml-5 text-gray-700 space-y-0.5">
+    <li>Cada cédula tiene <b>un solo código vigente por celular</b>. Lo comparten el registro y la autorización de la app en cualquier teléfono, y el Portal de actualización de datos.</li>
+    <li>Vence a los <b>60 minutos</b> (valor administrable), y cada vez que se vuelve a mandar empieza a contar de nuevo. Cada SMS dice para qué lo pidieron.</li>
+    <li>Los <b>5 fallos se cuentan juntos</b>: cambiar de teléfono no da intentos nuevos. El correo y restablecer la clave tienen su propio código, como hoy.</li>
+  </ol>
+  <p class="text-xs text-gray-500 mt-2"><b>Alcance:</b> sin cifras de producción por ahora, porque la base no estuvo disponible. Las cifras de cuántas cédulas recibieron códigos distintos al mismo celular en una hora quedan para <code>/planear</code>.
+  La pantalla del Portal está dibujada a partir de <code>ValidateToken.vue</code>, no de una foto. La app 4.0.1 muestra el título fijo «Demasiados intentos» para todo 802 (<code>scr_bloq_modal_polimorfico.dart:216</code>). Los textos nuevos los pinta la 4.1.0.</p>
+</section>
+
+<script>
+const CEL = '320…2794';
+// ---- piezas de pantalla ----
+const barra = '<div class="barra"><span>10:2x</span><span>●●● 5G</span></div>';
+function smsLista(msgs){
+  return `<div class="pant">${barra}
+    <div class="px-3 py-1 font-bold text-[12px] border-b">QUAC · 899…</div>
+    <div class="flex-1 overflow-hidden pt-1">${msgs.map(m=>`<div class="sms ${m.n?'nuevo':''}"><div class="h">${m.h}</div>${m.t}</div>`).join('')}</div></div>`;
+}
+function appCodigo(tel, digitado, modal){
+  const d = digitado.split('').map(c=>`<span>${c}</span>`).join('');
+  return `<div class="pant">${barra}
+    <div class="px-3 pt-2 text-[9px] text-gray-500">${tel}</div>
+    <div class="px-3 pt-1 poppins font-semibold text-[13px]">Validar identidad</div>
+    <div class="px-3 text-gray-600 mt-1">Te enviamos un SMS al ${CEL}. Escribe el código.</div>
+    <div class="otp">${d}</div>
+    <div class="px-3 mt-auto mb-4"><div class="btn btn-p">Continuar</div><div class="btn btn-s mt-1">Reenviar</div></div>
+    ${modal?`<div class="modal"><div class="caja"><div class="poppins font-semibold text-[12.5px] mb-1">${modal.t}</div><div class="text-gray-600 mb-3">${modal.m}</div><div class="btn btn-p">${modal.b||'Entendido'}</div></div></div>`:''}
+  </div>`;
+}
+function appOk(tel, txt){
+  return `<div class="pant">${barra}<div class="px-3 pt-2 text-[9px] text-gray-500">${tel}</div>
+    <div class="flex-1 flex flex-col items-center justify-center px-4 text-center">
+      <div class="w-12 h-12 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xl font-bold mb-2">✓</div>
+      <div class="poppins font-semibold text-[13px]">${txt}</div></div></div>`;
+}
+function portal(digitado, err, ok){
+  const d = digitado.split('').map(c=>`<span>${c}</span>`).join('');
+  if(ok) return `<div class="pant">${barra}<div class="portal-h">Portal de clientes Quac</div>
+    <div class="flex-1 flex flex-col items-center justify-center px-4 text-center"><div class="w-12 h-12 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xl font-bold mb-2">✓</div><div class="font-bold">Entró al Portal</div></div></div>`;
+  return `<div class="pant">${barra}<div class="portal-h">Portal de clientes Quac</div>
+    <div class="px-3 pt-2 font-bold text-[12px]">Confirma código de validación</div>
+    <div class="px-3 text-gray-600 mt-1">Hemos enviado un código a tu celular <b>${CEL}</b>. Una vez lo recibas ingrésalo.</div>
+    <div class="otp">${d}</div>
+    ${err?`<div class="mx-3 text-[10px] text-red-700 bg-red-50 rounded p-1.5">${err}</div>`:''}
+    <div class="px-3 mt-auto mb-4"><div class="btn btn-p">CONTINUAR</div><div class="btn btn-s mt-1">Reenviar código</div></div></div>`;
+}
+// ---- textos reales de hoy ----
+const H = {
+  reg:c=>`QUAC: Tu codigo para crear tu cuenta es ${c}. Vence en 60 minutos.`,
+  aut:c=>`QUAC: Tu codigo para autorizar este dispositivo es ${c}. Vence en 60 minutos.`,
+  por:c=>`Hola Martha, su código de validación QUAC es ${c}. Úselo para confirmar su identidad.`,
+  malApp:{t:'Demasiados intentos', m:'El código ingresado no es correcto.'},
+  malPor:'El código ingresado es incorrecto. Verifique e intente nuevamente.'
+};
+// ---- textos con el ajuste (D7, D9) ----
+const N = {
+  reg:c=>`QUAC: ${c} es tu codigo para crear tu cuenta en la App Quac. Vence en 60 minutos.`,
+  aut:c=>`QUAC: ${c} es tu codigo para autorizar tu celular en la App Quac. Vence en 60 minutos.`,
+  por:c=>`QUAC: ${c} es tu codigo para entrar al Portal de actualizacion de datos. Vence en 60 minutos.`,
+  ya:{t:'Este código ya no sirve', m:'Se escribió mal varias veces. Toca «Reenviar» para recibir uno nuevo.', b:'Reenviar'},
+  vencio:{t:'El código venció', m:'Pasó más de 60 minutos. Toca «Reenviar» para recibir uno nuevo.', b:'Reenviar'},
+  venPor:'El código venció. Pide uno nuevo.'
+};
+const smsHoy = [
+  {h:'10:00 · registro en el Motorola', t:H.reg('731458')},
+  {h:'10:10 · registro en el iPhone', t:H.reg('206914')},
+  {h:'10:20 · Portal de actualización de datos', t:H.por('558203')},
+  {h:'10:25 · autorizar en el iPhone', t:H.aut('914376')},
+];
+const smsAj = [
+  {h:'10:00 · registro en el Motorola', t:N.reg('482921'), n:1},
+  {h:'10:10 · registro en el iPhone', t:N.reg('482921'), n:1},
+  {h:'10:20 · Portal de actualización de datos', t:N.por('482921'), n:1},
+  {h:'10:25 · autorizar en el iPhone', t:N.aut('482921'), n:1},
+];
+
+const CASOS = [
+ { id:'ultimo', label:'Escribe el último código que le llegó',
+   res:'Hoy el último código solo sirve en el teléfono que lo pidió. Con el ajuste todos los SMS traen el mismo código y sirve en cualquier lado.',
+   hoy:[
+     [smsLista(smsHoy),'igual','Cuatro SMS, cuatro códigos distintos.'],
+     [appCodigo('Motorola · registro','914376',H.malApp),'queda','En el Motorola escribe el último (914376), que es del iPhone: «Demasiados intentos».'],
+   ],
+   aj:[
+     [smsLista(smsAj),'cambia','Cuatro SMS con el mismo código, cada uno dice para qué es.'],
+     [appCodigo('Motorola · registro','482921'),'pasa','Escribe el 482921.'],
+     [appOk('Motorola · registro','Celular validado'),'cambia','Sigue con el registro.'],
+   ]},
+ { id:'primero', label:'Escribe en el iPhone el primer código, el del Motorola',
+   res:'Hoy cada teléfono tiene su propio código y el del primer SMS no sirve en el iPhone. Con el ajuste el iPhone reusa el mismo código.',
+   hoy:[
+     [smsLista(smsHoy),'igual','El primer SMS trae el 731458.'],
+     [appCodigo('iPhone · registro','731458',H.malApp),'queda','El iPhone esperaba el 206914: «Demasiados intentos». Le queda un intento menos.'],
+   ],
+   aj:[
+     [smsLista(smsAj),'cambia','El iPhone reusó el código del Motorola y la hora volvió a contar.'],
+     [appCodigo('iPhone · registro','482921'),'pasa','Escribe el del primer SMS.'],
+     [appOk('iPhone · registro','Celular validado'),'cambia','Sigue con el registro.'],
+   ]},
+ { id:'portal', label:'Escribe en la app el código que le llegó del Portal',
+   res:'Hoy el código del Portal solo sirve en el Portal. Con el ajuste es el mismo de la app.',
+   hoy:[
+     [smsLista(smsHoy),'igual','El SMS del Portal trae el 558203 y no dice para qué es.'],
+     [appCodigo('iPhone · autorizar','558203',H.malApp),'queda','La app no conoce el código del Portal: «Demasiados intentos».'],
+   ],
+   aj:[
+     [smsLista(smsAj),'cambia','El SMS del Portal dice «para entrar al Portal de actualizacion de datos» y trae el mismo código.'],
+     [appCodigo('iPhone · autorizar','482921'),'pasa','Escribe el del SMS del Portal.'],
+     [appOk('iPhone · autorizar','Celular autorizado'),'cambia','Sigue con la autorización.'],
+   ]},
+ { id:'fallos', label:'Lo escribe mal 5 veces en el Motorola y abre el iPhone',
+   res:'Hoy el iPhone le da otros 5 intentos con un código nuevo. Con el ajuste los fallos se cuentan juntos y el iPhone le pide reenviar.',
+   hoy:[
+     [appCodigo('Motorola · registro','111111',H.malApp),'igual','Quinto fallo: el código del Motorola se anula.'],
+     [smsLista([smsHoy[0],{h:'10:10 · registro en el iPhone',t:H.reg('206914')}]),'pasa','El iPhone pide y le llega otro código.'],
+     [appCodigo('iPhone · registro','206914'),'pasa','Tiene 5 intentos nuevos.'],
+   ],
+   aj:[
+     [appCodigo('Motorola · registro','111111',N.ya),'cambia','Quinto fallo: «Este código ya no sirve».'],
+     [appCodigo('iPhone · registro','482921',N.ya),'cambia','En el iPhone, el mismo aviso desde el primer intento.'],
+     [smsLista([{h:'10:12 · Reenviar en el iPhone',t:N.reg('305817'),n:1}]),'cambia','Toca «Reenviar»: llega un código nuevo con 5 intentos para todos.'],
+   ]},
+ { id:'vencio', label:'Pasa más de una hora y lo escribe en el Portal',
+   res:'Hoy el Portal acepta un código viejo porque no revisa cuándo vence. Con el ajuste el código vence a la hora del último envío.',
+   hoy:[
+     [smsLista([{h:'10:20 · Portal de actualización de datos',t:H.por('558203')}]),'igual','A las 10:20 llega el código del Portal.'],
+     [portal('558203'),'pasa','A las 11:40 lo escribe.'],
+     [portal('',null,true),'queda','Entra con un código de hace 80 minutos: el SMS no decía cuándo vencía y el Portal no lo revisa.'],
+   ],
+   aj:[
+     [smsLista([{h:'10:20 · Portal de actualización de datos',t:N.por('482921'),n:1}]),'cambia','El SMS dice que vence en 60 minutos.'],
+     [portal('482921',N.venPor),'cambia','A las 11:40: «El código venció. Pide uno nuevo.»'],
+     [smsLista([{h:'11:41 · Reenviar código',t:N.por('760243'),n:1}]),'cambia','Pide otro y le llega uno nuevo.'],
+   ]},
+];
+const ETI = {igual:['e-igual','igual'],pasa:['e-pasa','pasa'],queda:['e-queda','se queda aquí'],cambia:['e-cambia','cambia con el ajuste']};
+function pinta(el, pasos){
+  el.innerHTML = pasos.map((p,i)=>`${i?'<div class="flecha">→</div>':''}<div class="paso"><div class="tel">${p[0]}</div><div class="pie"><span class="eti ${ETI[p[1]][0]}">${i+1} · ${ETI[p[1]][1]}</span>${p[2]}</div></div>`).join('');
+}
+function elegir(id){
+  const c = CASOS.find(x=>x.id===id);
+  document.querySelectorAll('#sel button').forEach(b=>b.classList.toggle('on', b.dataset.id===id));
+  document.getElementById('resumen').textContent = c.res;
+  pinta(document.getElementById('hoy'), c.hoy);
+  pinta(document.getElementById('ajuste'), c.aj);
+}
+document.getElementById('sel').innerHTML = CASOS.map(c=>`<button data-id="${c.id}">${c.label}</button>`).join('');
+document.querySelectorAll('#sel button').forEach(b=>b.onclick=()=>elegir(b.dataset.id));
+elegir('ultimo');
+</script>
+</body>
+</html>
