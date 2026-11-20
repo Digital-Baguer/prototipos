@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AQ-031-2 · Guía visual de pruebas · el aviso de teléfono autorizado espera el nombre</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = { theme: { extend: {
+  colors: { quac:'#7633FF', quacdark:'#321185', lavender:'#E9E8F1', lila:'#C5C5FF', txt:'#140F26', muted:'#A19EB5', aldia:'#06D6A0', err:'#FF6464' },
+  fontFamily: { display:['Poppins','sans-serif'] }
+} } }
+</script>
+<style>
+  body { font-family:'Nunito Sans', sans-serif; }
+  .font-display { font-family:'Poppins', sans-serif; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .slot { width:223px; height:473px; position:relative; flex-shrink:0; }
+  .phone { width:406px; height:860px; box-sizing:border-box; border-radius:48px; border:8px solid #140F26; background:#F8F8F8; position:absolute; top:0; left:0; overflow:hidden; transform:scale(.55); transform-origin:top left; box-shadow:0 20px 50px rgba(20,15,38,.18); }
+  .pc { position:absolute; inset:0; overflow:hidden; }
+  .sb { position:absolute; top:0; left:0; right:0; height:44px; padding:0 28px; display:flex; align-items:center; justify-content:space-between; font-size:13px; font-weight:600; z-index:40; color:#140F26; }
+  .btn-quac { height:50px; border-radius:10px; width:100%; font-family:'Poppins',sans-serif; font-weight:700; font-size:16px; display:flex; align-items:center; justify-content:center; background:#321185; color:#fff; }
+  .btn-primary { background:#7633FF; }
+  .toque { border-radius:8px; box-shadow:0 0 0 4px rgba(252,211,77,.85); }
+  .nuevo { border-radius:6px; box-shadow:0 0 0 3px rgba(6,214,160,.55); padding:0 3px; }
+  .chip-t { border-radius:999px; padding:2px 10px; font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; display:inline-block; }
+  .flecha { align-self:flex-start; color:#94a3b8; font-size:22px; padding:0 2px; margin-top:210px; }
+  .tab { border:1px solid #e2e8f0; background:#fff; color:#334155; }
+  .tab.on { background:#312e81; border-color:#312e81; color:#fff; }
+  .api { background:#0f172a; color:#e2e8f0; border-radius:10px; padding:10px 12px; font-family:ui-monospace,Menlo,monospace; font-size:12px; white-space:pre-wrap; word-break:break-word; }
+  .api .k { color:#93c5fd; } .api .n { color:#86efac; }
+  .caja { border:1px solid #e2e8f0; border-radius:12px; background:#fff; padding:14px 16px; }
+  .pasa { border-left:4px solid #059669; } .falla { border-left:4px solid #dc2626; } .ojo { border-left:4px solid #d97706; }
+  ol.prep li { margin:3px 0; }
+  .api-t { outline:1.5px dashed #7633FF; outline-offset:3px; border-radius:4px; }
+  .vista410 { border-left:4px solid #7633FF; background:#f5f3ff; }
+  .burbuja { background:#E9E9EB; border-radius:20px; padding:12px 16px; font-size:17px; line-height:1.35; color:#111; max-width:330px; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<main class="px-6 py-6 md:px-8">
+
+<header>
+  <p class="text-[13px] text-slate-500">AQ-031-2 · tarjeta AQ-112 · paso 3 del tren de pruebas de la 4.1.0 (1: AQ-016 / AQ-111 · 2: AQ-032 / AQ-113 · 3: AQ-031-2 / AQ-112 · 4: AQ-019 / AQ-109 y AQ-110)</p>
+  <h1 class="font-display text-[24px] font-bold text-slate-900">Guía visual de pruebas: el aviso de teléfono autorizado espera unos minutos el nombre que el cliente le pone al teléfono</h1>
+  <p class="mt-1 text-[14px] text-slate-600">Api: testapi en <code>feature/AQ-031-2</code> de api-quac-v2 (ya fusionada con <code>release/4.1.0</code>) · Tarea: <code>feature/AQ-031-2</code> de api-crontab-v2 (Task142, cada minuto) · App 4.0.1: <code>main</code> (4.0.1+59, la de las tiendas) · App 4.1.0: <code>release/4.1.0</code> de app-quac-v2 (4.1.0+60) · Las dos apps contra el mismo testapi · Datos de ejemplo: Martha, cédula de prueba <code>0000123456</code>, celular terminado en <code>4567</code>, teléfono «iPhone (iOS 26.6)», autorizado a las <b>10:00 a. m.</b> con la espera en <b>5 minutos</b></p>
+  <p class="mt-2 text-[13px] text-slate-600"><span class="api-t px-1">Borde punteado</span> = texto que arma el api o la tarea (la app no lo trae). <span class="nuevo">Verde</span> = lo que cambia con este REQ. <span class="toque px-1">Amarillo</span> = lo que se toca.</p>
+</header>
+
+<section class="caja mt-5">
+  <p class="font-display font-bold text-slate-900">Antes de empezar</p>
+  <ol class="prep mt-2 list-decimal pl-5 text-[14px]">
+    <li><b>Testapi en la rama:</b> en api-quac-v2, <code>git fetch origin</code> y <code>git checkout feature/AQ-031-2</code>. Ya trae <code>release/4.1.0</code> (AQ-031, AQ-026, AQ-032 y el api de AQ-033). En <code>quacapi_dev</code>, el <code>migracion.sql</code> de AQ-031-2, bloque por bloque (corre el paso 1: debe dar 0 filas; no es idempotente; el paso 3 debe dar 2 filas del índice):
+<pre class="api mt-2">ALTER TABLE autorizaciones_dispositivo
+  ADD COLUMN aviso_vence_at   DATETIME NULL COMMENT 'AQ-031-2: desde cuando se puede enviar el aviso',
+  ADD COLUMN aviso_enviado_at DATETIME NULL COMMENT 'AQ-031-2: cuando se envio; NULL = pendiente',
+  ADD INDEX idx_aviso_pendiente (aviso_enviado_at, aviso_vence_at);</pre></li>
+    <li><b>Crontab de pruebas:</b> en api-crontab-v2, <code>git fetch origin</code> y <code>git checkout feature/AQ-031-2</code>. En su <code>.env</code>, <code>WHATSAPP_TEMPLATE_AUTORIZADO_DISPOSITIVO</code> con el mismo valor que tiene el api, y <code>php artisan config:cache</code>. Sin esa variable la tarea no manda el WhatsApp. Con <code>php artisan tinker</code>: <code>config('app.timezone')</code> debe dar <code>America/Bogota</code> y <code>DB::connection('quac')->getDatabaseName()</code> debe dar <code>quacapi_dev</code>. La Task142 corre cada minuto: el scheduler del ambiente de pruebas tiene que estar andando.</li>
+    <li><b>Apps:</b> 4.0.1: <code>git checkout main</code> en app-quac-v2. 4.1.0: <code>git checkout release/4.1.0</code>. Las dos con el <code>env.json</code> de testapi. La 4.0.1 no tiene «Renombrar»; la 4.1.0 sí.</li>
+    <li><b>Encender y apagar la espera</b> (se lee en cada autorización, sin caché y sin reiniciar; la espera queda fijada en la autorización: cambiar la variable no mueve los avisos ya pendientes):
+<pre class="api mt-2">-- encender, 5 minutos
+INSERT INTO quacapi_dev.var_env (name, value, comments, created_at, updated_at)
+VALUES ('AVISO_DISPOSITIVO_ESPERA_MIN','5','AQ-031-2',NOW(),NOW());
+-- cambiar el valor (mayor a 30 = 30)
+UPDATE quacapi_dev.var_env SET value='5' WHERE name='AVISO_DISPOSITIVO_ESPERA_MIN';
+-- apagar: sin fila, vacía, 0 o un texto que no es número = el aviso sale al instante, como hoy
+DELETE FROM quacapi_dev.var_env WHERE name='AVISO_DISPOSITIVO_ESPERA_MIN';</pre></li>
+    <li><b>Datos que hay que pedir</b> (nunca clientes reales): una cédula de prueba con celular y correo a los que se tenga acceso, y una cuenta de prueba a la que le cambiaron el celular (fila en <code>users_cupo_celular_historial</code> con <code>valor_anterior</code> distinto de <code>users.cupo_celular</code>) para el caso 6. Cada caso arranca con una autorización nueva: un teléfono o emulador que la cuenta aún no tenga autorizado. Cada autorización manda SMS, WhatsApp y correo de verdad.</li>
+    <li><b>Dónde ver el resultado:</b> en la base <code>quacapi_dev</code>, tabla <code>autorizaciones_dispositivo</code>: <code>aviso_vence_at</code> (desde cuándo puede salir), <code>aviso_enviado_at</code> (cuándo salió; vacía = pendiente) y <code>avisos_json</code> (una entrada por canal). Cada caso trae su query de visto bueno de <code>qa.md</code> §5. El texto exacto de cada aviso se lee en el celular, en el WhatsApp y en el correo.</li>
+    <li><b>Orden sugerido:</b> caso 1 con la 4.1.0; caso 2 con las dos apps y, con la 4.1.0, dejar «Dispositivo autorizado» abierto para el caso 3 (mismo teléfono); caso 4 con la 4.1.0; casos 5 y 6 con las dos apps; caso 7 con solo SQL; al final, la regresión con la 4.0.1.</li>
+  </ol>
+</section>
+
+<nav id="tabs" class="mt-5 flex flex-wrap gap-2"></nav>
+
+<section id="caso" class="mt-4"></section>
+
+<footer class="mt-8 text-[12px] text-slate-500">Sale de <code>qa.md</code> §5, §6 y §7 de AQ-031-2 y de los textos de las ramas: api <code>feature/AQ-031-2</code> (<code>AvisoTelefonoAutorizado.php</code>, <code>NombreTelefono.php</code>, <code>autorizacion_dispositivo.blade.php</code>, <code>casos.json</code>, <code>EnviarAvisoDispositivoJob.php</code>, <code>AutorizacionDispositivoService::renombrar</code>), crontab <code>feature/AQ-031-2</code> (<code>EnviarAvisosPendientes.php</code>, Task142 en <code>routes/console.php</code>) y app <code>release/4.1.0</code> (<code>scr_024_resultado_modal.dart</code>, <code>hoja_renombrar_telefono.dart</code>). El cuerpo de la plantilla de WhatsApp vive en el proveedor, no en el código: texto por confirmar. Si algo no cuadra con <code>qa.md</code>, manda <code>qa.md</code>.</footer>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let V = '410';
+
+/* Datos de ejemplo */
+const NOM = 'iPhone de Martha';
+const SUG = 'iPhone (iOS 26.6)';
+const JUNTO = `«${NOM}» · ${SUG}`;          /* SMS y correo (NombreTelefono::paraAviso) */
+const WA_JUNTO = `${NOM} - ${SUG}`;          /* WhatsApp: sin « » ni · */
+const FECHA = '19/11/2026', HORA = '10:00 am';
+
+const tel = (html, hora) => `<div class="phone"><div class="sb"><span class="tnum">${hora}</span><span class="tnum">100%</span></div><div class="pc">${html}</div></div>`;
+
+/* 1. App · «Dispositivo autorizado» (scr_024_resultado_modal.dart). 4.1.0: nombre + «Renombrar»; 4.0.1: modelo y sistema */
+const pModal = (o) => {
+  const valor = o.v === '410'
+    ? `<div style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px"><div><p style="font-size:11px;font-weight:800;color:#6b6880;letter-spacing:.4px">DISPOSITIVO</p><p style="font-size:15px;font-weight:700;color:#140F26">${o.nombre}</p></div><span class="${o.toque === 'renombrar' ? 'toque' : ''}" style="font-size:15px;font-weight:700;color:#7633FF;padding:2px 6px">Renombrar</span></div>`
+    : `<div style="padding:10px 14px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><p style="font-size:11px;font-weight:800;color:#6b6880;letter-spacing:.4px;margin-top:2px">DISPOSITIVO</p><div style="text-align:right"><p style="font-size:15px;font-weight:700;color:#140F26">iPhone</p><p style="font-size:13px;color:#6b6880">iOS 26.6</p></div></div>`;
+  return `<div style="position:absolute;inset:0;background:#F8F8F8"></div>
+  <div style="position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:0 40px">
+  <div class="w-full bg-white rounded-[20px] p-6 text-center">
+    <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full" style="background:#E9E8F1"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="m9.5 12.5 2 2 3.5-4"/></svg></div>
+    <p class="mt-3" style="font-family:Poppins;font-size:22px;font-weight:700;color:#140F26">Dispositivo autorizado</p>
+    <div class="mt-4 text-left" style="background:#E9E8F1;border-radius:14px">
+      <div style="padding:10px 14px"><p style="font-size:11px;font-weight:800;color:#6b6880;letter-spacing:.4px">FECHA Y HORA</p><p style="font-size:15px;font-weight:700;color:#140F26">19 de noviembre de 2026 · 10:00 a. m.</p></div>
+      <div style="height:1px;background:#e4e3ee"></div>
+      ${valor}
+    </div>
+    ${o.aviso ? '<p class="mt-2 text-[14px]" style="color:#6b6880"><span class="api-t">Nombre guardado</span></p>' : ''}
+    <p class="mt-4" style="font-size:16px;color:#140F26">Ya puedes usar QUAC en este dispositivo.</p>
+    <div class="mt-5"><div class="btn-quac ${o.toque === 'inicio' ? 'toque' : ''}">Ir al inicio</div></div></div></div>`;
+};
+
+/* 2. App 4.1.0 · hoja «Nombre del teléfono» (hoja_renombrar_telefono.dart) */
+const pHoja = (o) => pModal({ v:'410', nombre:o.antes || SUG }) + `<div style="position:absolute;inset:0;background:rgba(0,0,0,.35)"></div>
+  <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:28px 28px 0 0;padding:12px 20px 28px">
+    <div style="width:36px;height:4px;border-radius:2px;background:#cbd5e1;margin:0 auto 14px"></div>
+    <p style="font-family:Poppins;font-size:19px;font-weight:700;color:#321185">Nombre del teléfono</p>
+    <p style="font-size:14px;color:#140F26;margin-top:8px">Así lo reconocerás en «Mis dispositivos».</p>
+    <div style="margin-top:18px;position:relative;border:1px solid #A19EB5;border-radius:10px;height:56px;display:flex;align-items:center;padding:0 14px;font-size:16px;color:#140F26"><span style="position:absolute;top:-9px;left:10px;background:#fff;padding:0 4px;font-size:12px;color:#6b6880">Nombre</span>${o.texto}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12.5px;color:#6b6880"><span>Máximo 30 caracteres.</span><span class="tnum">${o.texto.length}/30</span></div>
+    <div class="btn-quac btn-primary toque" style="margin-top:20px">Guardar</div>
+    <p style="text-align:center;margin-top:12px;font-size:15px;font-weight:700;color:#7633FF">Cancelar</p></div>`;
+
+/* 3. SMS al celular (AvisoTelefonoAutorizado::sms) */
+const smsTexto = (nombre, enlace) => `QUAC: Hoy ${FECHA} a las ${HORA} se autorizó un teléfono nuevo (${nombre}) para entrar a tu cuenta. Si fuiste tú, no hagas nada. Si no fuiste tú, ${enlace ? 'bloquéalo aquí: quac.co/s/x7Kp2, ' : ''}llama al 6077000225 opción 2 o escríbenos al WhatsApp 312 460 5748.`;
+const pSms = (o) => `<div style="position:absolute;inset:0;background:#fff;padding:56px 18px 0">
+  <div class="text-center"><div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-300 text-white font-bold">Q</div><p class="mt-1 text-[13px] text-slate-600">QUAC</p></div>
+  <p class="mt-5 text-center text-[12px] text-slate-400">Mensaje de texto · hoy ${o.llega}</p>
+  <div class="mt-2 burbuja api-t">${o.marca ? smsTexto(`<span class="nuevo">${o.nombre}</span>`, o.enlace) : smsTexto(o.nombre, o.enlace)}</div></div>`;
+
+/* 4. WhatsApp: el cuerpo de la plantilla vive en el proveedor; la tarea manda tres variables */
+const pWa = (o) => `<div style="position:absolute;inset:0;background:#ECE5DD">
+  <div style="background:#075E54;color:#fff;padding:50px 18px 12px;font-weight:700;font-size:17px">QUAC<span style="display:block;font-weight:400;font-size:12px;opacity:.8">cuenta de empresa</span></div>
+  <p class="mt-4 text-center text-[12px] text-slate-500">WhatsApp · hoy ${o.llega}</p>
+  <div class="mx-3 mt-2 rounded-xl bg-white p-4 shadow-sm">
+    <p style="font-size:12px;font-weight:800;color:#6b6880">Plantilla de WhatsApp · texto por confirmar</p>
+    <p style="font-size:13px;color:#6b6880;margin-top:2px">El cuerpo vive en el proveedor. La tarea manda estas tres variables:</p>
+    <div style="font-size:15px;color:#111;margin-top:12px;line-height:1.9">
+      <p><span style="color:#6b6880;font-size:12px">1 · fecha</span><br><span class="api-t">${FECHA}</span></p>
+      <p><span style="color:#6b6880;font-size:12px">2 · hora</span><br><span class="api-t">${HORA}</span></p>
+      <p><span style="color:#6b6880;font-size:12px">3 · teléfono</span><br><span class="api-t">${o.marca ? `<span class="nuevo">${o.nombre}</span>` : o.nombre}</span></p>
+    </div>
+    ${o.enlace ? '<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:10px;text-align:center;font-size:14px;font-weight:700;color:#0a7cff">Botón con el enlace de bloqueo<br><span style="font-weight:400;font-size:12px;color:#6b6880">texto del botón por confirmar</span></div>' : ''}
+  </div></div>`;
+
+/* 5. Correo (autorizacion_dispositivo.blade.php) */
+const pCorreo = (o) => `<div style="position:absolute;inset:0;background:#fff;padding:54px 22px 0;font-family:Arial,sans-serif;color:#1a1a1a">
+  <p style="font-size:19px;line-height:1.25"><span class="api-t">Se autorizó un teléfono nuevo en tu cuenta QUAC</span></p>
+  <p class="mt-2 text-[12px] text-slate-500">contacto · ${o.llega} · para mí</p>
+  <p style="color:#6A1B9A;font-size:22px;font-weight:bold;margin-top:22px">Hola, MARTHA</p>
+  <p style="font-size:15px;margin-top:12px;line-height:1.4">El ${FECHA} a las ${HORA} se autorizó un teléfono nuevo en tu cuenta QUAC:</p>
+  <p style="background:#F5F5F5;padding:12px 16px;border-left:4px solid #6A1B9A;font-weight:bold;font-size:15px;margin-top:12px"><span class="api-t ${o.marca ? 'nuevo' : ''}">${o.nombre}</span></p>
+  <p style="font-size:15px;margin-top:12px;line-height:1.4">El código de verificación llegó al celular terminado en <b>4567</b>.</p>
+  <p style="font-size:18px;font-weight:bold;margin-top:20px">Si fuiste tú</p>
+  <p style="font-size:15px;margin-top:6px;line-height:1.4">Listo, no necesitas hacer nada. Ya puedes usar la app desde ese teléfono.</p>
+  <p style="font-size:18px;font-weight:bold;margin-top:20px">¿No reconoces este teléfono?</p>
+  <p style="font-size:15px;margin-top:6px;line-height:1.4">Comunícate con servicio al cliente: llama al <b style="color:#6A1B9A">6077000225 opción 2</b> o escríbenos al WhatsApp <b style="color:#6A1B9A">312 460 5748</b>.</p></div>`;
+
+/* 6. Todavía no llega nada */
+const pNada = () => `<div style="position:absolute;inset:0;background:#fff;padding:56px 18px 0">
+  <p class="text-center text-[12px] text-slate-400">Mensajes · WhatsApp · Correo</p>
+  <div class="mt-40 text-center"><svg class="mx-auto" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#A19EB5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+  <p class="mt-3 text-[16px] font-bold text-slate-500">Sin avisos nuevos de QUAC</p></div></div>`;
+
+/* 7. Consola SQL sobre quacapi_dev */
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const pSql = (titulo, query, resultado) => `<div style="position:absolute;inset:0;background:#0f172a;padding:54px 18px 0;color:#e2e8f0;font-family:ui-monospace,Menlo,monospace">
+  <p style="font-family:'Nunito Sans',sans-serif;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8">quacapi_dev · solo lectura</p>
+  <p style="font-family:'Nunito Sans',sans-serif;font-size:17px;font-weight:700;color:#fff;margin-top:6px">${titulo}</p>
+  <pre style="white-space:pre-wrap;font-size:12.5px;line-height:1.35;color:#93c5fd;margin-top:12px">${esc(query)}</pre>
+  <p style="font-family:'Nunito Sans',sans-serif;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8;margin-top:16px">Resultado</p>
+  <pre style="white-space:pre-wrap;font-size:13px;line-height:1.4;color:#86efac;margin-top:4px">${esc(resultado)}</pre></div>`;
+
+const MARCA = {
+  toca: ['bg-amber-100 text-amber-800', 'toca'],
+  ve:   ['bg-emerald-100 text-emerald-700', 'debe verse'],
+  error:['bg-red-100 text-red-700', 'error esperado'],
+};
+
+const api = (obj) => {
+  const j = JSON.stringify(obj, null, 2)
+    .replace(/"([a-z_]+)":/g, '<span class="k">"$1"</span>:');
+  return `<div class="api">${j}</div>`;
+};
+
+/* Queries de visto bueno: qa.md §5 */
+const Q1 = `SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'autorizaciones_dispositivo'
+  AND COLUMN_NAME IN ('aviso_vence_at', 'aviso_enviado_at');`;
+const Q3 = `SELECT COUNT(*) AS autorizadas, SUM(aviso_enviado_at IS NOT NULL) AS con_marca,
+       SUM(aviso_vence_at IS NOT NULL) AS con_espera
+FROM autorizaciones_dispositivo
+WHERE resultado = 'autorizado' AND autorizado_at >= NOW() - INTERVAL 1 HOUR;`;
+const Q4 = `SELECT COUNT(*) AS atrasados, MIN(aviso_vence_at) AS el_mas_viejo
+FROM autorizaciones_dispositivo
+WHERE aviso_enviado_at IS NULL AND aviso_vence_at < NOW() - INTERVAL 3 MINUTE;`;
+const Q5 = `SELECT id, autorizado_at, aviso_vence_at, aviso_enviado_at,
+       TIMESTAMPDIFF(SECOND, autorizado_at, aviso_enviado_at) AS seg_hasta_envio,
+       JSON_LENGTH(avisos_json) AS canales,
+       JSON_EXTRACT(avisos_json, '$[*].canal') AS por_canal, JSON_EXTRACT(avisos_json, '$[*].ok') AS ok
+FROM autorizaciones_dispositivo
+WHERE aviso_vence_at IS NOT NULL
+  AND documento = '0000123456'   -- la cédula de prueba
+ORDER BY id DESC LIMIT 10;`;
+const QFILA = `SELECT id, autorizado_at, aviso_vence_at, aviso_enviado_at,
+       JSON_LENGTH(avisos_json) AS canales
+FROM autorizaciones_dispositivo
+WHERE documento = '0000123456'   -- la cédula de prueba
+ORDER BY id DESC LIMIT 1;`;
+
+const RESP_NOMBRE = (nombre) => ({ status:'success', data:{ nombre, mensaje:'Nombre guardado' } });
+
+const NOAPLICA_410 = 'Este caso no aplica a la 4.0.1: no tiene «Renombrar». Se prueba solo con la 4.1.0. Con la 4.0.1, lo que se prueba es el caso 2 y la regresión.';
+
+const CASOS = [
+  {
+    id: 1, titulo: 'El aviso lleva el nombre', aplica: ['410'], noAplica: NOAPLICA_410,
+    para: 'Con la espera encendida, el aviso no sale al autorizar; cuando el cliente guarda el nombre, sale en el minuto siguiente con ese nombre y con la hora de la autorización.',
+    prep: ['Espera en 5 (ver «Antes de empezar», punto 4) y la tarea corriendo cada minuto.',
+      'App 4.1.0 con la cédula de prueba, autorizando un teléfono nuevo. Anotar la hora de la autorización.',
+      'Dejar abierto «Dispositivo autorizado» hasta tocar «Renombrar».'],
+    filas: (v) => [{ pasos: [
+      [pModal({ v:'410', nombre:SUG, toque:'renombrar' }), 'Autoriza a las 10:00. «Dispositivo autorizado» muestra «iPhone (iOS 26.6)» y «Renombrar». No llega ningún aviso. Toca «Renombrar»', 'toca', '10:00'],
+      [pHoja({ texto:NOM }), 'Cambia el nombre a «iPhone de Martha» y toca «Guardar»', 'toca', '10:01'],
+      [pModal({ v:'410', nombre:NOM, aviso:true }), 'Muestra el nombre nuevo y «Nombre guardado». Todavía no llega ningún aviso: lo envía la tarea', 've', '10:01'],
+      [pSms({ nombre:JUNTO, llega:'10:02 a. m.', marca:true }), 'SMS antes de las 10:03, con «iPhone de Martha» · iPhone (iOS 26.6) y la hora de la autorización (10:00 am), no la del envío', 've', '10:02'],
+      [pWa({ nombre:WA_JUNTO, llega:'10:02 a. m.', marca:true }), 'WhatsApp: la variable 3 es «iPhone de Martha - iPhone (iOS 26.6)», sin « » ni ·', 've', '10:02'],
+      [pCorreo({ nombre:JUNTO, llega:'10:02 a. m.', marca:true }), 'Correo con el mismo nombre que el SMS y la hora de la autorización', 've', '10:02'],
+    ] }],
+    comprobar: { query: Q5, esperado: 'canales = 3 (sms, whatsapp, correo) y ok en true. aviso_vence_at quedó en la hora de guardar el nombre (no en autorizado_at + 5 min). seg_hasta_envio = lo que tardó el cliente en guardar más hasta un minuto: muy por debajo de 300.' },
+    respuesta: { endpoint: 'PUT /v2/auth/dispositivo/nombre (al tocar «Guardar»)', json: RESP_NOMBRE(NOM) },
+    pasa: () => ['Al autorizar (10:00) no llega SMS, WhatsApp ni correo, y la fila queda con <code>aviso_vence_at</code> = autorización + 5 min y <code>aviso_enviado_at</code> vacía.', 'Antes de 2 minutos de guardar llegan los tres canales, con «iPhone de Martha» · iPhone (iOS 26.6) (SMS y correo) y <code>iPhone de Martha - iPhone (iOS 26.6)</code> (WhatsApp).', 'Los tres dicen la hora de la autorización (10:00 am).'],
+    falla: ['Llega algún aviso en el momento de autorizar.', 'El aviso sale con «iPhone (iOS 26.6)» a secas pese a haber guardado el nombre.', 'El aviso dice la hora del envío en vez de la de la autorización.', 'Pasan más de 2 minutos desde «Guardar» sin aviso, o algún canal llega dos veces.'],
+    ojo: 'Renombrar no envía: solo adelanta el pendiente. El aviso sale en la siguiente corrida de la tarea, hasta un minuto después. Y el WhatsApp no lleva « » ni ·: dice <code>iPhone de Martha - iPhone (iOS 26.6)</code>; el SMS y el correo sí los llevan.',
+  },
+  {
+    id: 2, titulo: 'Sin renombrar', aplica: ['410', '401'],
+    para: 'Si el cliente no le pone nombre, el aviso sale al cumplirse la espera, con el nombre de siempre y la hora de la autorización.',
+    prep: ['Espera en 5 y la tarea corriendo cada minuto.', 'Autorizar un teléfono nuevo y no tocar el nombre: con la 4.1.0, sin entrar a «Renombrar»; la 4.0.1 no lo tiene. Anotar la hora de la autorización.', 'Con la 4.1.0, dejar «Dispositivo autorizado» abierto: se usa en el caso 3.'],
+    filas: (v) => [{ pasos: [
+      [pModal({ v, nombre:SUG, toque: v === '401' ? 'inicio' : null }), v === '410' ? 'Autoriza a las 10:00. Muestra «iPhone (iOS 26.6)» y «Renombrar»; no se toca. No llega ningún aviso' : 'Autoriza a las 10:00. La 4.0.1 muestra «iPhone» y «iOS 26.6», sin «Renombrar». Toca «Ir al inicio»', v === '401' ? 'toca' : 've', '10:00'],
+      [pNada(), 'A las 10:03 todavía no llega nada por ningún canal', 've', '10:03'],
+      [pSms({ nombre:SUG, llega:'10:06 a. m.' }), 'SMS entre 10:05 y 10:07, con «iPhone (iOS 26.6)» y la hora 10:00 am', 've', '10:06'],
+      [pWa({ nombre:SUG, llega:'10:06 a. m.' }), 'WhatsApp en el mismo rango, con la variable 3 «iPhone (iOS 26.6)»', 've', '10:06'],
+      [pCorreo({ nombre:SUG, llega:'10:06 a. m.' }), 'Correo en el mismo rango, con «iPhone (iOS 26.6)»', 've', '10:06'],
+    ] }],
+    comprobar: { query: Q5, esperado: 'canales = 3 y ok en true. aviso_vence_at = autorizado_at + 5 min. seg_hasta_envio entre 300 y 420.' },
+    pasa: () => ['A los 3 minutos no ha llegado nada.', 'Entre 5 y 7 minutos después de autorizar llegan SMS, WhatsApp y correo con «iPhone (iOS 26.6)» y la hora de la autorización.', 'La fila queda con <code>aviso_enviado_at</code> y tres entradas en <code>avisos_json</code>.'],
+    falla: ['Llega algún aviso antes de los 5 minutos.', 'Pasan más de 7 minutos sin aviso: corre el query 4 de <code>qa.md</code> (atrasados) y revisa la Task142.', 'Algún canal llega dos veces.'],
+  },
+  {
+    id: 3, titulo: 'Un aviso por autorización', aplica: ['410'], noAplica: NOAPLICA_410,
+    para: 'Renombrar después de que el aviso ya salió no lo repite: hay un solo aviso por autorización.',
+    prep: ['El caso 2 hecho con la 4.1.0: los tres avisos ya llegaron y «Dispositivo autorizado» sigue abierto. Si se cerró, repetir el caso 2: en la 4.1.0 no hay otro lugar para renombrar (Mis dispositivos es AQ-019).'],
+    filas: (v) => [{ pasos: [
+      [pModal({ v:'410', nombre:SUG, toque:'renombrar' }), 'Con los tres avisos del caso 2 ya recibidos, toca «Renombrar»', 'toca', '10:08'],
+      [pHoja({ texto:NOM }), 'Escribe «iPhone de Martha» y toca «Guardar»', 'toca', '10:08'],
+      [pModal({ v:'410', nombre:NOM, aviso:true }), 'Muestra el nombre nuevo y «Nombre guardado»', 've', '10:08'],
+      [pNada(), 'Pasados 3 minutos no llega ningún SMS, WhatsApp ni correo más', 've', '10:11'],
+    ] }],
+    comprobar: { query: Q5, esperado: 'La misma fila del caso 2: aviso_enviado_at igual que antes de renombrar y canales = 3 (no 6).' },
+    pasa: () => ['No llega ningún aviso nuevo por ningún canal.', '<code>aviso_enviado_at</code> y <code>avisos_json</code> (3 entradas) no cambian.'],
+    falla: ['Llega un segundo SMS, WhatsApp o correo con el nombre nuevo.', '<code>canales</code> sube a 6.'],
+    ojo: 'Renombrar no envía: solo adelanta un aviso pendiente. Con el aviso ya enviado, no hay nada que adelantar.',
+  },
+  {
+    id: 4, titulo: 'Nombre con teléfono o enlace', aplica: ['410'], noAplica: NOAPLICA_410,
+    para: 'Si el nombre trae 7 o más dígitos o un enlace, el aviso sale solo con «iPhone (iOS 26.6)»; la app sigue mostrando el nombre escrito.',
+    prep: ['Espera en 5 y la tarea corriendo. Autorizar un teléfono nuevo con la 4.1.0.', 'Renombrar a «Soporte 300,123,4567».', 'Repetir con otra autorización nueva, renombrando a «entra a quac.co».'],
+    filas: (v) => [
+      { t: 'Primera vuelta: «Soporte 300,123,4567»', pasos: [
+        [pHoja({ texto:'Soporte 300,123,4567' }), 'Escribe «Soporte 300,123,4567» y toca «Guardar»', 'toca', '10:01'],
+        [pModal({ v:'410', nombre:'Soporte 300,123,4567', aviso:true }), 'La app muestra el nombre tal como se escribió y «Nombre guardado»', 've', '10:01'],
+        [pSms({ nombre:SUG, llega:'10:02 a. m.', marca:true }), 'SMS antes de las 10:03, solo con «iPhone (iOS 26.6)»: sin el número', 've', '10:02'],
+        [pWa({ nombre:SUG, llega:'10:02 a. m.', marca:true }), 'WhatsApp: la variable 3 es solo «iPhone (iOS 26.6)»', 've', '10:02'],
+        [pCorreo({ nombre:SUG, llega:'10:02 a. m.', marca:true }), 'Correo solo con «iPhone (iOS 26.6)»', 've', '10:02'],
+      ] },
+      { t: 'Segunda vuelta, con otra autorización: «entra a quac.co»', pasos: [
+        [pHoja({ texto:'entra a quac.co' }), 'Escribe «entra a quac.co» y toca «Guardar»', 'toca', '10:21'],
+        [pModal({ v:'410', nombre:'entra a quac.co', aviso:true }), 'La app muestra «entra a quac.co»', 've', '10:21'],
+        [pSms({ nombre:SUG, llega:'10:22 a. m.', marca:true }), 'SMS solo con «iPhone (iOS 26.6)»; WhatsApp y correo igual que arriba', 've', '10:22'],
+      ] },
+    ],
+    comprobar: { query: Q5, esperado: 'canales = 3 y ok en true, con seg_hasta_envio de pocos minutos (el aviso salió al renombrar). El nombre filtrado solo se nota en el texto del aviso.' },
+    respuesta: { endpoint: 'PUT /v2/auth/dispositivo/nombre (la respuesta no filtra el nombre)', json: RESP_NOMBRE('Soporte 300,123,4567') },
+    pasa: () => ['El SMS, el WhatsApp y el correo salen solo con «iPhone (iOS 26.6)», sin el número ni el dominio, antes de 2 minutos de guardar.', '«Dispositivo autorizado» y la respuesta del api muestran el nombre tal como se escribió.', 'Lo mismo con «entra a quac.co».'],
+    falla: ['Algún canal trae el número o el dominio.', 'La app muestra «iPhone (iOS 26.6)» en vez del nombre escrito.', 'El aviso no sale.'],
+    ojo: 'El filtro prefiere callar un nombre a dejar pasar un teléfono o un enlace: «Casa 12/34/567», «Sr . Luis» o «Ana.Maria» también salen sin el nombre.',
+  },
+  {
+    id: 5, titulo: 'Regresión: espera apagada', aplica: ['410', '401'],
+    para: 'Sin la variable, el aviso sale al instante por los tres canales, como hoy, y la fila queda marcada como enviada.',
+    prep: ['Apagar la espera: <code>DELETE FROM quacapi_dev.var_env WHERE name=\'AVISO_DISPOSITIVO_ESPERA_MIN\';</code> (ver «Antes de empezar», punto 4).', 'Autorizar un teléfono nuevo con la 4.0.1 y repetir con la 4.1.0.'],
+    filas: (v) => [{ pasos: [
+      [pModal({ v, nombre:SUG, toque:'inicio' }), 'Autoriza a las 10:00 y toca «Ir al inicio»', 'toca', '10:00'],
+      [pSms({ nombre:SUG, llega:'10:00 a. m.' }), 'SMS al instante, con «iPhone (iOS 26.6)»', 've', '10:00'],
+      [pWa({ nombre:SUG, llega:'10:00 a. m.' }), 'WhatsApp al instante', 've', '10:00'],
+      [pCorreo({ nombre:SUG, llega:'10:00 a. m.' }), 'Correo al instante', 've', '10:00'],
+    ] }],
+    comprobar: { query: Q3, esperado: 'con_marca = autorizadas (las posteriores al deploy) y con_espera = 0.' },
+    pasa: () => ['Los tres canales llegan en el momento de autorizar, como hoy.', 'La fila queda con <code>aviso_enviado_at</code> y <code>aviso_vence_at</code> vacía (query 3).'],
+    falla: ['El aviso se demora varios minutos.', '<code>con_espera</code> sale mayor que 0.'],
+  },
+  {
+    id: 6, titulo: 'Regresión: celular anterior distinto', aplica: ['410', '401'],
+    para: 'Con la espera encendida, si le cambiaron el celular al cliente, el aviso con el enlace de bloqueo sale al instante y renombrar después no envía nada.',
+    prep: ['Espera en 5 y la tarea corriendo.', 'Una cuenta de prueba cuyo celular anterior (<code>users_cupo_celular_historial.valor_anterior</code>) es distinto del actual (<code>users.cupo_celular</code>).', 'Autorizar un teléfono nuevo con esa cuenta, con las dos apps. El aviso va al celular anterior.'],
+    filas: (v) => [{ pasos: [
+      [pModal({ v, nombre:SUG, toque: v === '410' ? null : 'inicio' }), 'Autoriza a las 10:00', v === '410' ? 've' : 'toca', '10:00'],
+      [pSms({ nombre:SUG, llega:'10:00 a. m.', enlace:true }), 'SMS al instante, al celular anterior, con el enlace «bloquéalo aquí»', 've', '10:00'],
+      [pWa({ nombre:SUG, llega:'10:00 a. m.', enlace:true }), 'WhatsApp al instante, con el botón del enlace de bloqueo', 've', '10:00'],
+      [pCorreo({ nombre:SUG, llega:'10:00 a. m.' }), 'Correo al instante, sin enlace', 've', '10:00'],
+      ...(v === '410' ? [
+        [pHoja({ texto:NOM }), 'Con la 4.1.0: toca «Renombrar», escribe «iPhone de Martha» y toca «Guardar»', 'toca', '10:01'],
+        [pNada(), 'A las 10:04 no llega ningún aviso más', 've', '10:04'],
+      ] : []),
+    ] }],
+    comprobar: { query: QFILA, esperado: 'aviso_vence_at vacía y aviso_enviado_at con la hora de la autorización (salió al instante); canales = 3, sin cambios tras renombrar.' },
+    pasa: () => ['El SMS con el enlace de bloqueo, el WhatsApp y el correo salen a las 10:00 con «iPhone (iOS 26.6)».', 'La fila queda con <code>aviso_vence_at</code> vacía y <code>aviso_enviado_at</code> con fecha.', T('Con la 4.0.1 no hay «Renombrar»: no se prueba ese paso.', 'Renombrar después no envía nada más.')],
+    falla: ['El aviso espera los 5 minutos.', 'El SMS sale sin el enlace de bloqueo.', 'Guardar un nombre después manda otro aviso.'],
+  },
+  {
+    id: 7, titulo: 'Autorizaciones anteriores al deploy', aplica: ['410', '401'], sinApp: true,
+    para: 'Las autorizaciones que ya existían no tienen fecha de espera: la tarea nunca les manda aviso. Se prueba solo con SQL, sin app.',
+    prep: ['La tabla ya con las dos columnas nuevas y filas anteriores a este REQ (<code>aviso_vence_at</code> NULL).', 'La Task142 corriendo en el crontab de pruebas.'],
+    filas: (v) => [{ pasos: [
+      [pSql('Las columnas existen', Q1, 'aviso_vence_at    datetime  YES\naviso_enviado_at  datetime  YES'), 'Corre el query 1: dos filas, <code>datetime</code> y <code>YES</code>', 'toca', ''],
+      [pSql('Query 4 · atrasados', Q4, 'atrasados      0\nel_mas_viejo  NULL'), 'Corre el query 4: 0 atrasados', 've', ''],
+      [pNada(), 'Espera 2 minutos (dos corridas de la Task142) y repite el query 4: sigue en 0 y no llega ningún aviso de las autorizaciones viejas', 've', ''],
+    ] }],
+    comprobar: { query: Q4, esperado: 'atrasados = 0. Si crece, la tarea no está corriendo: revisar LogTask142.' },
+    pasa: () => ['El query 4 da 0, antes y después de esperar dos corridas de la tarea.', 'No llega ningún SMS, WhatsApp ni correo de autorizaciones anteriores.'],
+    falla: ['El query 4 da más de 0.', 'Llega un aviso de una autorización anterior a este REQ.'],
+    ojo: '<code>php artisan schedule:list</code> revienta en api-crontab-v2 por otra tarea que tiene <code>*/5</code>, ajena a este REQ. La Task142 está bien registrada.',
+  },
+  {
+    id: 'R', titulo: 'Regresión con la 4.0.1', aplica: ['401'], soloV: '401',
+    para: 'La app de las tiendas no cambia: con la espera apagada el aviso sale al instante, y con la espera en 5 sale al vencer, con el nombre sugerido.',
+    prep: ['La app de <code>main</code> (4.0.1+59) contra testapi.', 'Primero sin la fila de la variable (apagada); después con la fila en 5. Una autorización nueva en cada una.'],
+    filas: (v) => [
+      { t: 'A · espera apagada (sin fila): el aviso sale al instante, como hoy', pasos: [
+        [pModal({ v:'401', nombre:SUG, toque:'inicio' }), 'Autoriza a las 10:00. La 4.0.1 muestra «iPhone» y «iOS 26.6»; toca «Ir al inicio»', 'toca', '10:00'],
+        [pSms({ nombre:SUG, llega:'10:00 a. m.' }), 'SMS al instante', 've', '10:00'],
+        [pWa({ nombre:SUG, llega:'10:00 a. m.' }), 'WhatsApp al instante', 've', '10:00'],
+        [pCorreo({ nombre:SUG, llega:'10:00 a. m.' }), 'Correo al instante', 've', '10:00'],
+      ] },
+      { t: 'B · espera en 5: la 4.0.1 no renombra, el aviso sale al vencer la espera, con el nombre sugerido', pasos: [
+        [pModal({ v:'401', nombre:SUG, toque:'inicio' }), 'Autoriza a las 10:00 y toca «Ir al inicio»', 'toca', '10:00'],
+        [pNada(), 'A las 10:03 todavía no llega nada', 've', '10:03'],
+        [pSms({ nombre:SUG, llega:'10:06 a. m.' }), 'SMS 5 o 6 minutos después, con «iPhone (iOS 26.6)» y la hora 10:00 am', 've', '10:06'],
+        [pWa({ nombre:SUG, llega:'10:06 a. m.' }), 'WhatsApp en el mismo rango', 've', '10:06'],
+        [pCorreo({ nombre:SUG, llega:'10:06 a. m.' }), 'Correo en el mismo rango', 've', '10:06'],
+      ] },
+    ],
+    comprobar: { query: Q5, esperado: 'Para B: canales = 3, aviso_vence_at = autorizado_at + 5 min y seg_hasta_envio entre 300 y 360. Para A: con_espera = 0 en el query 3.' },
+    pasa: () => ['A: los tres canales llegan al instante, igual que hoy.', 'B: nada hasta los 5 minutos; luego los tres canales con «iPhone (iOS 26.6)», 5 o 6 minutos después de autorizar.', 'La 4.0.1 no muestra ninguna pantalla distinta.'],
+    falla: ['En A, el aviso se demora.', 'En B, el aviso sale al instante o pasan más de 7 minutos sin aviso.', 'La app muestra un error o una pantalla distinta de la de hoy.'],
+  },
+];
+
+/* T(a, b): texto según la versión (a = 4.0.1, b = 4.1.0) */
+function T(a, b) { return V === '410' ? b : a; }
+
+const CORTO = { 1:'El aviso lleva el nombre', 2:'Sin renombrar', 3:'Un aviso por autorización', 4:'Nombre con teléfono o enlace', 5:'Espera apagada', 6:'Celular anterior distinto', 7:'Autorizaciones anteriores', R:'Regresión 4.0.1' };
+
+let actual = CASOS[0];
+const lis = (xs) => xs.map(x => `<li>${x}</li>`).join('');
+const figuras = (pasos) => pasos.map(([html, pie, m, hora], i) => `
+    ${i ? '<span class="flecha">→</span>' : ''}
+    <figure class="flex flex-col">
+      <div class="slot">${tel(html, hora)}</div>
+      <figcaption class="mt-2 w-[223px] text-[12px] leading-snug">
+        <b class="tnum">${i + 1}.</b> <span class="chip-t ${MARCA[m][0]}">${MARCA[m][1]}</span>
+        <p class="mt-1 text-slate-600">${pie}</p>
+      </figcaption>
+    </figure>`).join('');
+
+const pintar = (c) => {
+  actual = c;
+  if (c.soloV) V = c.soloV;
+  const aplica = c.aplica.includes(V);
+  const filas = aplica ? c.filas(V) : null;
+  const selector = (c.soloV || c.sinApp) ? '' : `<div class="mt-4 flex items-center gap-2 text-[13px]"><span class="font-bold text-slate-700">Ver en:</span>
+      <button class="tab rounded-full px-3 py-1.5 font-bold ${V === '410' ? 'on' : ''}" data-v="410">App 4.1.0 · release/4.1.0</button>
+      <button class="tab rounded-full px-3 py-1.5 font-bold ${V === '401' ? 'on' : ''}" data-v="401">App 4.0.1 · la de las tiendas</button></div>`;
+  const nota = c.sinApp
+    ? '<div class="caja vista410 mt-3 text-[14px]">Caso solo de api y base: se prueba con SQL, sin app. Las pantallas son la consola de <code>quacapi_dev</code>.</div>'
+    : V === '410'
+      ? '<div class="caja vista410 mt-3 text-[14px]"><b>App 4.1.0</b> (<code>release/4.1.0</code>, 4.1.0+60) contra testapi. «Dispositivo autorizado» trae «Renombrar»: el cliente puede ponerle nombre y el aviso llega con ese nombre. Lo verde es lo que cambia con AQ-031-2.</div>'
+      : '<div class="caja mt-3 text-[14px]" style="border-left:4px solid #94a3b8"><b>App 4.0.1</b> (<code>main</code>, 4.0.1+59, la de las tiendas) contra testapi. No tiene «Renombrar»: con la espera en 5, el aviso sale al vencer la espera con «iPhone (iOS 26.6)». No cambia ninguna pantalla de la app.</div>';
+
+  const cuerpo = aplica ? `
+    ${filas.map(f => `${f.t ? `<p class="mt-4 text-[13px] font-bold text-slate-700">${f.t}</p>` : ''}
+      <div class="${f.t ? 'mt-2' : 'mt-4'} flex gap-3 overflow-x-auto pb-3">${figuras(f.pasos)}</div>`).join('')}
+    <div class="mt-4 grid gap-3 md:grid-cols-2">
+      <div class="caja pasa"><p class="text-[13px] font-bold text-emerald-700">Pasa si</p><ul class="list-disc pl-5 text-[14px]">${lis(c.pasa())}</ul></div>
+      <div class="caja falla"><p class="text-[13px] font-bold text-red-700">Falla si</p><ul class="list-disc pl-5 text-[14px]">${lis(c.falla)}</ul></div>
+    </div>
+    ${c.ojo ? `<div class="caja ojo mt-3 text-[14px]"><b class="text-amber-800">No es error:</b> ${c.ojo}</div>` : ''}
+    <div class="caja mt-3"><p class="text-[13px] font-bold text-slate-700">Cómo comprobarlo en la base <span class="font-normal text-slate-500">(<code>quacapi_dev</code>, query de visto bueno de <code>qa.md</code> §5)</span></p>
+      <pre class="api mt-2">${esc(c.comprobar.query)}</pre>
+      <p class="mt-2 text-[14px]"><b>Esperado:</b> ${c.comprobar.esperado}</p></div>
+    ${c.respuesta ? `<div class="caja mt-3"><p class="text-[13px] font-bold text-slate-700">Respuesta real del api · <code>${c.respuesta.endpoint}</code></p><div class="mt-2">${api(c.respuesta.json)}</div></div>` : ''}
+    <p class="mt-3 text-[13px] text-slate-500">Resultado: comentar en AQ-112 «Caso ${c.id}: pasó» o «Caso ${c.id}: falló»${c.aplica.length === 2 && !c.sinApp ? ', diciendo con qué app (4.0.1 o 4.1.0)' : ''}, con lo que se vio (captura del aviso o resultado del query).</p>`
+  : `<div class="caja ojo mt-4 text-[14px]"><b class="text-amber-800">No aplica a la 4.0.1.</b> ${c.noAplica}</div>
+    <div class="mt-4 flex gap-3 overflow-x-auto pb-3">${figuras([[pModal({ v:'401', nombre:SUG }), 'La 4.0.1 muestra «iPhone» y «iOS 26.6», sin «Renombrar»: no hay nombre que guardar', 've', '10:00']])}</div>
+    <p class="mt-3 text-[13px] text-slate-500">Nada que reportar con la 4.0.1 en este caso.</p>`;
+
+  $('#caso').innerHTML = `
+    <div class="caja">
+      <p class="text-[13px] text-slate-500">${c.id === 'R' ? 'Regresión' : 'Caso ' + c.id} · ${c.sinApp ? 'api y base' : '«Dispositivo autorizado» y los tres avisos'}</p>
+      <p class="font-display text-[19px] font-bold text-slate-900">${c.titulo}</p>
+      <p class="mt-1 text-[14px]">${c.para}</p>
+      <p class="mt-3 text-[13px] font-bold text-slate-700">Preparar</p>
+      <ol class="prep list-decimal pl-5 text-[14px]">${lis(c.prep)}</ol>
+    </div>
+    ${selector}
+    ${nota}
+    ${cuerpo}`;
+  document.querySelectorAll('#tabs .tab').forEach(b => b.classList.toggle('on', b.dataset.id === String(c.id)));
+  document.querySelectorAll('#caso [data-v]').forEach(b => b.onclick = () => { V = b.dataset.v; pintar(actual); });
+};
+
+$('#tabs').innerHTML = CASOS.map(c => `<button class="tab rounded-full px-3 py-1.5 text-[13px] font-bold" data-id="${c.id}">${c.id === 'R' ? '' : c.id + ' · '}${CORTO[c.id]}</button>`).join('');
+document.querySelectorAll('#tabs .tab').forEach(b => b.onclick = () => { if (actual.soloV) V = '410'; pintar(CASOS.find(c => String(c.id) === b.dataset.id)); });
+pintar(CASOS[0]);
+</script>
+</body>
+</html>
