@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AQ-019 · Mis dispositivos: mostrar y renombrar el nombre del teléfono</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&family=Poppins:wght@300;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body{font-family:'Nunito Sans',sans-serif}
+  .pop{font-family:Poppins,sans-serif}
+  .tel{width:390px;height:844px;background:#F8F8F8;border-radius:36px;overflow:hidden;position:relative;box-shadow:0 0 0 10px #140F26,0 20px 50px rgba(0,0,0,.25)}
+  .scroll{height:100%;overflow-y:auto;padding:20px}
+  .lucide{width:20px;height:20px}
+  .dato .lucide{width:15px;height:15px}
+</style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+<div class="flex gap-8 p-8 items-start">
+  <!-- Navegación -->
+  <aside class="w-72 shrink-0">
+    <h1 class="pop text-lg font-bold text-gray-900 leading-tight">AQ-019 · Mis dispositivos</h1>
+    <p class="text-sm text-gray-600 mt-1 mb-4">Mostrar el nombre que el cliente le puso al teléfono y renombrar «Este teléfono» desde aquí.</p>
+    <nav id="nav" class="flex flex-col gap-1 text-sm"></nav>
+    <div class="mt-6 text-xs text-gray-500 space-y-2">
+      <p><b class="text-gray-700">Qué cambia:</b> con nombre propio, la tarjeta lo muestra como título y debajo, en gris, el nombre sugerido. La tarjeta de «Este teléfono» lleva el enlace «Renombrar», que abre la misma hoja del modal «Dispositivo autorizado».</p>
+      <p><b class="text-gray-700">Sin cambios:</b> encabezado, textos de ayuda, datos de cada tarjeta, «Quitar este teléfono», carga y error de carga.</p>
+      <p>Datos de ejemplo.</p>
+    </div>
+  </aside>
+
+  <!-- Teléfono -->
+  <div>
+    <p id="titulo" class="pop font-bold text-gray-900 mb-1"></p>
+    <p id="nota" class="text-sm text-gray-600 mb-4 max-w-[390px]"></p>
+    <div class="tel"><div class="scroll" id="pantalla"></div><div id="hoja"></div></div>
+  </div>
+</div>
+
+<script>
+const ESTADOS = [
+  {id:'varios', t:'1 · Varios teléfonos, dos con nombre', n:'Cada teléfono se nombra desde él mismo. Martha nombró este; su hija nombró el iPad desde el iPad. El Android viejo nadie lo nombró: se ve con el nombre sugerido, como hoy, y solo se puede nombrar desde ese teléfono.'},
+  {id:'sinnombre', t:'2 · Este teléfono sin nombre', n:'Así se ven todos el día del deploy: ninguno tiene nombre. Solo cambia el enlace «Renombrar».'},
+  {id:'hoja', t:'3 · Hoja «Nombre del teléfono»', n:'Toca «Renombrar». Es la misma hoja de AQ-031: prellenada con el nombre que se ve, máximo 30.'},
+  {id:'hojavacia', t:'4 · Hoja con el campo vacío', n:'Si guarda vacío, el teléfono vuelve al nombre sugerido.'},
+  {id:'guardando', t:'5 · Guardando', n:'Botón gris con el indicador mientras responde el api.'},
+  {id:'errorhoja', t:'6 · Error al guardar', n:'La hoja sigue abierta con el texto que manda el api, en rojo.'},
+  {id:'guardado', t:'7 · Nombre guardado', n:'Se cierra la hoja y la tarjeta muestra el nombre nuevo con el sugerido debajo. El fondo lila solo marca en el mockup lo que cambió; en la app no va.'},
+  {id:'uno', t:'8 · Solo este teléfono', n:'Sin otros teléfonos: misma tarjeta con «Renombrar» y la línea de pie de hoy.'},
+  {id:'v401', t:'9 · App 4.0.1 (sin actualizar)', n:'La app vieja pinta el nombre que llega en el mismo campo de hoy. No ve la línea gris ni «Renombrar».'},
+  {id:'carga', t:'10 · Cargando (sin cambios)', n:'Igual que hoy.'},
+  {id:'error', t:'11 · Error al cargar (sin cambios)', n:'Igual que hoy.'},
+];
+
+const TEL = {
+  actual:{nombre:'Celular de Martha', sug:'Android (Android 16)', actual:true, aut:'12 oct 2026 · 8:03 p. m.', ing:'Hoy · 9:40 a. m.', compra:['$189.900 · Stirpe Unicentro','11 nov 2026']},
+  viejo:{nombre:null, sug:'Android (Android 13)', aut:'3 mar 2026 · 10:15 a. m.', ing:'28 sep 2026 · 6:42 p. m.', compra:['$74.900 · Typer Centro Mayor','2 sep 2026']},
+  ipad:{nombre:null, sug:'iPad (iOS 26.6.1)', aut:'20 ago 2026 · 4:30 p. m.', ing:null, compra:null},
+};
+
+const ic = n => `<i data-lucide="${n}"></i>`;
+
+function dato(icono, etiqueta, valor, detalle){
+  return `<div class="dato flex items-start text-[12.5px] leading-[1.35]">
+    <span class="text-[#A19EB5] mt-[1px] mr-2">${ic(icono)}</span>
+    <span class="w-[92px] shrink-0 text-[#A19EB5]">${etiqueta}</span>
+    <span class="flex-1">${valor===null?'<span class="text-[#A19EB5]">Sin ingresos registrados</span>':`<span class="font-semibold text-[#140F26]">${valor}</span>`}${detalle?`<br><span class="text-[#A19EB5]">${detalle}</span>`:''}</span>
+  </div>`;
+}
+
+function tarjeta(t, o={}){
+  const v401 = o.v401;
+  const titulo = t.nombre || t.sug;
+  const sugerido = (!v401 && t.nombre) ? `<div class="text-[12.5px] text-[#A19EB5] leading-[1.35] ${o.nuevo?'bg-[#7633FF]/10 rounded px-1 -mx-1':''}">${t.sug}</div>` : '';
+  const renombrar = (!v401 && t.actual) ? `<button onclick="ir('hoja')" class="text-[14px] font-bold text-[#7633FF] py-1 shrink-0 ml-2">Renombrar</button>` : '';
+  return `<div class="bg-white rounded-2xl p-4 ${t.actual?'ring-2 ring-[#7633FF]/40':''}">
+    <div class="flex items-center">
+      <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${t.actual?'bg-[#7633FF]/10 text-[#7633FF]':'bg-[#E9E8F1] text-[#321185]'}">${ic('smartphone')}</div>
+      <div class="ml-3 flex-1 min-w-0">
+        <div class="text-[15px] font-extrabold text-[#140F26] truncate ${o.nuevo?'bg-[#7633FF]/10 rounded px-1 -mx-1':''}">${titulo}</div>
+        ${sugerido}
+        ${t.actual?`<span class="inline-block mt-[2px] px-2 py-[2px] rounded-full bg-[#7633FF]/10 text-[10.5px] font-extrabold tracking-[.4px] text-[#7633FF]">ESTE TELÉFONO</span>`:''}
+      </div>
+      ${renombrar}
+    </div>
+    <div class="mt-3 space-y-[6px]">
+      ${dato('shield-check','Autorizado',t.aut)}
+      ${dato('log-in','Último ingreso',t.ing)}
+      ${t.compra?dato('shopping-bag','Última compra',t.compra[0],t.compra[1]):''}
+    </div>
+    ${t.actual
+      ? `<p class="mt-3 text-[11.5px] leading-[1.35] text-[#A19EB5]">Para salir de este teléfono usa «Cerrar sesión» en el menú Más.</p>`
+      : `<button class="mt-3 w-full h-11 rounded-[10px] border-2 border-[#FF6464] text-[#FF6464] pop text-[14px] font-bold tracking-[.6px]">Quitar este teléfono</button>`}
+  </div>`;
+}
+
+function encabezado(){
+  return `<button class="flex items-center gap-[10px] px-1 py-2 text-[16px] text-[#7633FF]">${ic('arrow-left')}Volver</button>
+  <div class="mt-4 text-[11px] font-bold tracking-[1.2px] text-[#A19EB5]">SEGURIDAD</div>
+  <h2 class="pop text-[24px] font-extrabold leading-[1.15] text-[#321185]">Mis dispositivos</h2>
+  <p class="mt-3 mb-5 text-[14px] leading-[1.35] text-[#140F26]">Estos son los teléfonos que pueden entrar a tu cuenta QUAC. Si no reconoces alguno, quítalo.</p>`;
+}
+
+const ayuda = `<div class="mt-3 bg-[#E9E8F1]/70 rounded-2xl p-4 flex">
+  <span class="text-[#321185] shrink-0">${ic('info')}</span>
+  <div class="ml-3 text-[12.5px] leading-[1.35] text-[#140F26]">
+    <div class="font-extrabold">¿No reconoces un teléfono?</div>
+    <div class="mt-1">Quítalo y cambia tu contraseña. Así nadie más puede entrar desde ese teléfono.</div>
+    <a class="inline-block mt-1 py-1 font-bold text-[#7633FF] underline">Cambiar contraseña</a>
+  </div></div>`;
+const soloEste = `<p class="mt-3 px-6 py-1 text-center text-[12.5px] leading-[1.35] text-[#A19EB5]">Tu cuenta solo está autorizada en este teléfono.</p>`;
+
+function lista(tels, o={}){
+  return encabezado() + `<div class="space-y-3">${tels.map(t=>tarjeta(t,o)).join('')}</div>` + (tels.length>1?ayuda:soloEste);
+}
+
+function hoja(valor, modo){
+  const n = valor.length;
+  const ayudaCampo = n===0 ? 'Si lo dejas vacío y guardas, queda el nombre sugerido.' : 'Máximo 30 caracteres.';
+  const boton = modo==='guardando'
+    ? `<button class="w-full h-[50px] rounded-[10px] bg-[#E3E3E3] flex items-center justify-center"><span class="w-[22px] h-[22px] border-[3px] border-white border-t-transparent rounded-full animate-spin"></span></button>`
+    : `<button onclick="ir('${n===0?'sinnombre':'guardado'}')" class="w-full h-[50px] rounded-[10px] bg-[#7633FF] pop text-[16px] font-bold tracking-[1.2px] text-white">Guardar</button>`;
+  return `<div class="absolute inset-0 bg-black/40"></div>
+  <div class="absolute left-0 right-0 bottom-0 bg-white rounded-t-[28px] px-5 pb-6">
+    <div class="w-8 h-1 bg-[#A19EB5]/60 rounded-full mx-auto my-4"></div>
+    <div class="pop text-[18px] font-bold text-[#140F26]">Nombre del teléfono</div>
+    <p class="mt-2 text-[14px] text-[#140F26]">Así lo reconocerás en «Mis dispositivos».</p>
+    <div class="mt-5 relative">
+      <span class="absolute -top-2 left-3 bg-white px-1 text-[12px] text-[#7633FF]">Nombre</span>
+      <div class="border-2 border-[#7633FF] rounded-[10px] px-4 py-[14px] text-[16px] text-[#140F26] h-[52px]">${valor}<span class="inline-block w-[1.5px] h-[18px] bg-[#7633FF] align-middle animate-pulse"></span></div>
+    </div>
+    <div class="mt-[6px] flex justify-between text-[12.5px] text-[#A19EB5]"><span>${ayudaCampo}</span><span>${n}/30</span></div>
+    ${modo==='error'?`<p class="mt-2 text-[14px] text-[#FF6464]">No pudimos guardar el nombre. Inténtalo de nuevo.</p>`:''}
+    <div class="mt-5">${boton}</div>
+    <button onclick="ir('varios')" class="mt-1 w-full h-11 text-[16px] font-bold text-[#7633FF]">Cancelar</button>
+  </div>`;
+}
+
+const esqueleto = () => `<div class="bg-white rounded-2xl p-4"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-[#E9E8F1]"></div><div class="w-40 h-4 rounded bg-[#E9E8F1]"></div></div><div class="mt-3 space-y-2"><div class="w-56 h-3 rounded bg-[#E9E8F1]"></div><div class="w-48 h-3 rounded bg-[#E9E8F1]"></div><div class="w-52 h-3 rounded bg-[#E9E8F1]"></div></div></div>`;
+
+function render(id){
+  const e = ESTADOS.find(x=>x.id===id);
+  document.getElementById('titulo').textContent = e.t;
+  document.getElementById('nota').textContent = e.n;
+  const sinNombre = {...TEL.actual, nombre:null};
+  let p = '', h = '';
+  switch(id){
+    case 'varios': p = lista([TEL.actual, TEL.viejo, {...TEL.ipad, nombre:'iPad de Sofía'}]); break;
+    case 'sinnombre': p = lista([sinNombre, TEL.viejo, TEL.ipad]); break;
+    case 'hoja': p = lista([sinNombre, TEL.viejo, TEL.ipad]); h = hoja('Android (Android 16)'); break;
+    case 'hojavacia': p = lista([sinNombre, TEL.viejo, TEL.ipad]); h = hoja(''); break;
+    case 'guardando': p = lista([sinNombre, TEL.viejo, TEL.ipad]); h = hoja('Celular de Martha','guardando'); break;
+    case 'errorhoja': p = lista([sinNombre, TEL.viejo, TEL.ipad]); h = hoja('Celular de Martha','error'); break;
+    case 'guardado': p = encabezado() + `<div class="space-y-3">${tarjeta(TEL.actual,{nuevo:true})}${tarjeta(TEL.viejo)}${tarjeta(TEL.ipad)}</div>` + ayuda; break;
+    case 'uno': p = lista([TEL.actual]); break;
+    case 'v401': p = lista([TEL.actual, TEL.viejo, TEL.ipad], {v401:true}); break;
+    case 'carga': p = encabezado() + `<div class="space-y-2" aria-label="Cargando dispositivos">${esqueleto()}${esqueleto()}</div>`; break;
+    case 'error': p = encabezado() + `<div class="bg-white rounded-2xl px-5 py-8 text-center"><div class="w-16 h-16 rounded-full bg-[#FF6464]/10 text-[#FF6464] mx-auto flex items-center justify-center">${ic('circle-alert')}</div><div class="mt-4 pop text-[19px] font-bold leading-[1.2] text-[#321185]">No pudimos cargar tus dispositivos</div><p class="mt-2 text-[16px] text-[#140F26]">Revisa tu conexión e inténtalo de nuevo.</p><button class="mt-6 w-full h-[50px] rounded-[10px] bg-[#7633FF] pop text-[16px] font-bold tracking-[1.2px] text-white">Reintentar</button></div>`; break;
+  }
+  document.getElementById('pantalla').innerHTML = p;
+  document.getElementById('hoja').innerHTML = h;
+  document.querySelectorAll('#nav button').forEach(b=>{
+    const on = b.dataset.id===id;
+    b.className = 'text-left px-3 py-2 rounded-lg ' + (on?'bg-gray-900 text-white':'text-gray-700 hover:bg-gray-200');
+  });
+  lucide.createIcons();
+}
+function ir(id){ render(id); }
+document.getElementById('nav').innerHTML = ESTADOS.map(e=>`<button data-id="${e.id}" onclick="ir('${e.id}')">${e.t}</button>`).join('');
+render('varios');
+</script>
+</body>
+</html>

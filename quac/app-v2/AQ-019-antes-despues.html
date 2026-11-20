@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AQ-019 · Antes y después · Mis dispositivos muestra el nombre que el cliente le puso al teléfono</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&family=Poppins:wght@300;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body{font-family:'Nunito Sans',sans-serif}
+  .pop{font-family:Poppins,sans-serif}
+  .tnum{font-variant-numeric:tabular-nums}
+  .slot{width:223px;height:473px;position:relative;flex-shrink:0}
+  .phone{width:406px;height:860px;box-sizing:border-box;border-radius:48px;border:8px solid #140F26;background:#F8F8F8;position:absolute;top:0;left:0;overflow:hidden;transform:scale(.55);transform-origin:top left;box-shadow:0 20px 50px rgba(20,15,38,.18)}
+  .scroll{height:100%;overflow:hidden;padding:20px}
+  .lucide{width:20px;height:20px}
+  .dato .lucide{width:15px;height:15px}
+  .cambia{outline:3px dashed #10b981;outline-offset:3px;border-radius:16px}
+  .falta{outline:3px dashed #FF6464;outline-offset:3px;border-radius:16px}
+  .chip-t{border-radius:999px;padding:2px 10px;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;display:inline-block}
+  .flecha{align-self:flex-start;color:#94a3b8;font-size:22px;padding:0 2px;margin-top:210px}
+  .tab{border:1px solid #e2e8f0;background:#fff;color:#334155}
+  .tab.on{background:#312e81;border-color:#312e81;color:#fff}
+</style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-700">
+
+<header class="sticky top-0 z-50 border-b border-indigo-200 bg-indigo-50/95 px-6 py-3 backdrop-blur">
+  <p class="text-[12px] font-bold text-indigo-900">AQ-019 · Mis dispositivos: mostrar el nombre que el cliente le puso al teléfono y dejar renombrarlo · <code>feature/AQ-019</code> en api-quac-v2 (<code>611e7</code>, nace de <code>release/4.1.0</code>) y app-quac-v2 (<code>54ab4</code>, nace de <code>feature/AQ-031</code>) · origen: desde la 4.1.0 el cliente le pone nombre al teléfono, pero Mis dispositivos no lo muestra · la clienta «Martha», sus teléfonos, fechas y compras son de ejemplo</p>
+  <div class="mt-2 flex flex-wrap items-center gap-2 text-[13px]"><span class="font-bold text-indigo-900">Lo que hace el cliente</span>
+    <div class="flex flex-wrap gap-1 rounded-lg bg-indigo-100 p-1" id="tabsCaso"></div></div>
+</header>
+
+<main class="px-6 py-5">
+  <div id="resumen" class="mb-4 rounded-xl bg-white p-4 shadow-sm"></div>
+
+  <section class="mb-6">
+    <div class="mb-2 flex items-center gap-3"><span class="chip-t bg-red-100 text-red-700">Hoy en la 4.1.0</span><span id="txtHoy" class="text-sm text-slate-500"></span></div>
+    <div id="filaHoy" class="flex items-start gap-2 overflow-x-auto pb-2"></div>
+  </section>
+  <section>
+    <div class="mb-2 flex items-center gap-3"><span class="chip-t bg-emerald-100 text-emerald-700">Con el ajuste</span><span id="txtFix" class="text-sm text-slate-500"></span></div>
+    <div id="filaFix" class="flex items-start gap-2 overflow-x-auto pb-2"></div>
+  </section>
+
+  <section class="mt-6 grid gap-4 md:grid-cols-3">
+    <div class="rounded-xl bg-white p-4 shadow-sm text-sm">
+      <p class="pop font-bold" style="color:#140F26">La regla nueva</p>
+      <ol class="mt-1 list-decimal space-y-0.5 pl-5">
+        <li>Si el teléfono tiene nombre del cliente, ese es el título y el nombre sugerido va debajo, en gris.</li>
+        <li>Si no tiene nombre, o el nombre es igual al sugerido, la tarjeta se ve como hoy: una sola línea.</li>
+        <li>«Renombrar» sale solo en «Este teléfono». Los demás se nombran desde ellos mismos.</li>
+      </ol>
+    </div>
+    <div class="rounded-xl bg-white p-4 shadow-sm text-sm">
+      <p class="pop font-bold" style="color:#140F26">Alcance</p>
+      <p class="mt-1"><b class="tnum">740.217</b> teléfonos autorizados el 19-nov. Ninguno tiene nombre propio todavía (<b class="tnum">0</b> de <b class="tnum">909.654</b> filas): el nombre empieza con la 4.1.0.</p>
+      <p class="mt-2">El día del deploy del api la lista se ve igual que hoy. Cambia a medida que los clientes nombran sus teléfonos.</p>
+      <p class="mt-2 text-slate-500">No resuelve: renombrar otro teléfono de la lista ni llenar el nombre de los teléfonos que ya existen.</p>
+    </div>
+    <div class="rounded-xl bg-white p-4 shadow-sm text-sm">
+      <p class="pop font-bold" style="color:#140F26">Lo que no cambia</p>
+      <ul class="mt-1 list-disc space-y-0.5 pl-5">
+        <li>El encabezado, los textos de ayuda y los datos de cada tarjeta.</li>
+        <li>«Quitar este teléfono» y sus correos.</li>
+        <li>La hoja «Nombre del teléfono» y el modal «Dispositivo autorizado» de AQ-031.</li>
+        <li>El aviso de teléfono autorizado.</li>
+        <li>La carga y el error de carga.</li>
+      </ul>
+    </div>
+  </section>
+  <p class="mt-4 text-[12px] text-slate-500">Pie: «Hoy» es la versión 4.1.0 sin este REQ (api <code>release/4.1.0</code>, app <code>feature/AQ-031</code>), que aún no está en producción. En producción está la 4.0.1, donde todavía no se puede poner nombre: es la opción «Lo ve en la app 4.0.1». Las pantallas salen del mockup aprobado y del código de las ramas. El contorno punteado solo marca en este documento lo que cambia; en la app no va.</p>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const ic = n => `<i data-lucide="${n}"></i>`;
+
+function dato(icono, etiqueta, valor, detalle){
+  return `<div class="dato flex items-start text-[12.5px] leading-[1.35]">
+    <span class="text-[#A19EB5] mt-[1px] mr-2">${ic(icono)}</span>
+    <span class="w-[92px] shrink-0 text-[#A19EB5]">${etiqueta}</span>
+    <span class="flex-1">${valor===null?'<span class="text-[#A19EB5]">Sin ingresos registrados</span>':`<span class="font-semibold text-[#140F26]">${valor}</span>`}${detalle?`<br><span class="text-[#A19EB5]">${detalle}</span>`:''}</span>
+  </div>`;
+}
+
+function tarjeta(t, o={}){
+  const v401 = o.v401;
+  const titulo = t.nombre || t.sug;
+  const sugerido = (!v401 && t.nombre) ? `<div class="text-[12.5px] text-[#A19EB5] leading-[1.35] ${o.nuevo?'bg-[#7633FF]/10 rounded px-1 -mx-1':''}">${t.sug}</div>` : '';
+  const renombrar = (!v401 && t.actual) ? `<button class="text-[14px] font-bold text-[#7633FF] py-1 shrink-0 ml-2">Renombrar</button>` : '';
+  return `<div class="bg-white rounded-2xl p-4 ${t.actual?'ring-2 ring-[#7633FF]/40':''}">
+    <div class="flex items-center">
+      <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${t.actual?'bg-[#7633FF]/10 text-[#7633FF]':'bg-[#E9E8F1] text-[#321185]'}">${ic('smartphone')}</div>
+      <div class="ml-3 flex-1 min-w-0">
+        <div class="text-[15px] font-extrabold text-[#140F26] truncate ${o.nuevo?'bg-[#7633FF]/10 rounded px-1 -mx-1':''}">${titulo}</div>
+        ${sugerido}
+        ${t.actual?`<span class="inline-block mt-[2px] px-2 py-[2px] rounded-full bg-[#7633FF]/10 text-[10.5px] font-extrabold tracking-[.4px] text-[#7633FF]">ESTE TELÉFONO</span>`:''}
+      </div>
+      ${renombrar}
+    </div>
+    <div class="mt-3 space-y-[6px]">
+      ${dato('shield-check','Autorizado',t.aut)}
+      ${dato('log-in','Último ingreso',t.ing)}
+      ${t.compra?dato('shopping-bag','Última compra',t.compra[0],t.compra[1]):''}
+    </div>
+    ${t.actual
+      ? `<p class="mt-3 text-[11.5px] leading-[1.35] text-[#A19EB5]">Para salir de este teléfono usa «Cerrar sesión» en el menú Más.</p>`
+      : `<button class="mt-3 w-full h-11 rounded-[10px] border-2 border-[#FF6464] text-[#FF6464] pop text-[14px] font-bold tracking-[.6px]">Quitar este teléfono</button>`}
+  </div>`;
+}
+
+function encabezado(){
+  return `<button class="flex items-center gap-[10px] px-1 py-2 text-[16px] text-[#7633FF]">${ic('arrow-left')}Volver</button>
+  <div class="mt-4 text-[11px] font-bold tracking-[1.2px] text-[#A19EB5]">SEGURIDAD</div>
+  <h2 class="pop text-[24px] font-extrabold leading-[1.15] text-[#321185]">Mis dispositivos</h2>
+  <p class="mt-3 mb-5 text-[14px] leading-[1.35] text-[#140F26]">Estos son los teléfonos que pueden entrar a tu cuenta QUAC. Si no reconoces alguno, quítalo.</p>`;
+}
+
+const ayuda = `<div class="mt-3 bg-[#E9E8F1]/70 rounded-2xl p-4 flex">
+  <span class="text-[#321185] shrink-0">${ic('info')}</span>
+  <div class="ml-3 text-[12.5px] leading-[1.35] text-[#140F26]">
+    <div class="font-extrabold">¿No reconoces un teléfono?</div>
+    <div class="mt-1">Quítalo y cambia tu contraseña. Así nadie más puede entrar desde ese teléfono.</div>
+    <a class="inline-block mt-1 py-1 font-bold text-[#7633FF] underline">Cambiar contraseña</a>
+  </div></div>`;
+const soloEste = `<p class="mt-3 px-6 py-1 text-center text-[12.5px] leading-[1.35] text-[#A19EB5]">Tu cuenta solo está autorizada en este teléfono.</p>`;
+
+function lista(tels, o={}){
+  return encabezado() + `<div class="space-y-3">${tels.map(t=>tarjeta(t,o)).join('')}</div>` + (tels.length>1?ayuda:soloEste);
+}
+
+function hoja(valor, modo){
+  const n = valor.length;
+  const ayudaCampo = n===0 ? 'Si lo dejas vacío y guardas, queda el nombre sugerido.' : 'Máximo 30 caracteres.';
+  const boton = modo==='guardando'
+    ? `<button class="w-full h-[50px] rounded-[10px] bg-[#E3E3E3] flex items-center justify-center"><span class="w-[22px] h-[22px] border-[3px] border-white border-t-transparent rounded-full animate-spin"></span></button>`
+    : `<button class="w-full h-[50px] rounded-[10px] bg-[#7633FF] pop text-[16px] font-bold tracking-[1.2px] text-white">Guardar</button>`;
+  return `<div class="absolute inset-0 bg-black/40"></div>
+  <div class="absolute left-0 right-0 bottom-0 bg-white rounded-t-[28px] px-5 pb-6">
+    <div class="w-8 h-1 bg-[#A19EB5]/60 rounded-full mx-auto my-4"></div>
+    <div class="pop text-[18px] font-bold text-[#140F26]">Nombre del teléfono</div>
+    <p class="mt-2 text-[14px] text-[#140F26]">Así lo reconocerás en «Mis dispositivos».</p>
+    <div class="mt-5 relative">
+      <span class="absolute -top-2 left-3 bg-white px-1 text-[12px] text-[#7633FF]">Nombre</span>
+      <div class="border-2 border-[#7633FF] rounded-[10px] px-4 py-[14px] text-[16px] text-[#140F26] h-[52px]">${valor}<span class="inline-block w-[1.5px] h-[18px] bg-[#7633FF] align-middle animate-pulse"></span></div>
+    </div>
+    <div class="mt-[6px] flex justify-between text-[12.5px] text-[#A19EB5]"><span>${ayudaCampo}</span><span>${n}/30</span></div>
+    ${modo==='error'?`<p class="mt-2 text-[14px] text-[#FF6464]">No pudimos guardar el nombre. Inténtalo de nuevo.</p>`:''}
+    <div class="mt-5">${boton}</div>
+    <button class="mt-1 w-full h-11 text-[16px] font-bold text-[#7633FF]">Cancelar</button>
+  </div>`;
+}
+
+
+const SUG = 'Android (Android 16)';
+const A = (nombre) => ({nombre, sug:SUG, actual:true, aut:'12 oct 2026 · 8:03 p. m.', ing:'Hoy · 9:40 a. m.', compra:['$189.900 · Stirpe Unicentro','11 nov 2026']});
+const VIEJO = {nombre:null, sug:'Android (Android 13)', aut:'3 mar 2026 · 10:15 a. m.', ing:'28 sep 2026 · 6:42 p. m.', compra:['$74.900 · Typer Centro Mayor','2 sep 2026']};
+const IPAD = (nombre) => ({nombre, sug:'iPad (iOS 26.6.1)', aut:'20 ago 2026 · 4:30 p. m.', ing:null, compra:null});
+
+const tel = (html, hoja='') => `<div class="phone"><div class="scroll">${html}</div>${hoja}</div>`;
+/* marca = clase de contorno para la primera tarjeta */
+function pLista(tels, o={}){
+  const cuerpo = tels.map((t,i)=>{ const h = tarjeta(t,o); return i===0 && o.marca ? `<div class="${o.marca}">${h}</div>` : h; }).join('');
+  return tel(encabezado() + `<div class="space-y-3">${cuerpo}</div>` + ayuda, o.hoja||'');
+}
+/* modal «Dispositivo autorizado» (AQ-031) */
+const pModal = (nombre) => tel('', `<div class="absolute inset-0 bg-black/45 flex items-center justify-center px-10">
+  <div class="w-full bg-white rounded-[20px] p-6 text-center">
+    <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#E9E8F1] text-[#7633FF]">${ic('smartphone')}</div>
+    <p class="pop mt-3 text-[22px] font-bold text-[#140F26]">Dispositivo autorizado</p>
+    <div class="mt-4 text-left bg-[#E9E8F1] rounded-[14px]">
+      <div class="px-[14px] py-[10px]"><p class="text-[11px] font-extrabold tracking-[.4px] text-[#6b6880]">FECHA Y HORA</p><p class="text-[15px] font-bold text-[#140F26]">12 de octubre de 2026 · 8:03 p. m.</p></div>
+      <div class="h-px bg-[#e4e3ee]"></div>
+      <div class="px-[14px] py-[10px] flex justify-between items-center gap-2"><div><p class="text-[11px] font-extrabold tracking-[.4px] text-[#6b6880]">DISPOSITIVO</p><p class="text-[15px] font-bold text-[#140F26]">${nombre}</p></div><span class="text-[15px] font-bold text-[#7633FF]">Renombrar</span></div>
+    </div>
+    <p class="mt-4 text-[16px] text-[#140F26]">Ya puedes usar QUAC en este dispositivo.</p>
+    <div class="mt-5 h-[50px] rounded-[10px] bg-[#321185] pop text-[16px] font-bold text-white flex items-center justify-center">Ir al inicio</div></div></div>`);
+
+const HOY = {v401:true};            /* la lista de hoy: sin línea gris ni «Renombrar» */
+const hoyLista = (marca) => pLista([A(null), VIEJO, IPAD(null)], {...HOY, marca});
+const IG = ['igual','bg-slate-200 text-slate-700'], PA = ['pasa','bg-slate-200 text-slate-700'],
+      QU = ['se queda aquí','bg-red-100 text-red-700'], CA = ['cambia con el ajuste','bg-emerald-600 text-white'];
+
+const CASOS = [
+  { id:'nombrado', t:'Le puso nombre al autorizar', tipo:'arregla',
+    res:'Martha autoriza su Android nuevo y en «Dispositivo autorizado» lo nombra «Celular de Martha». Hoy Mis dispositivos sigue mostrando «Android (Android 16)». Con el ajuste, el nombre es el título y el sugerido va debajo.',
+    hoy:'la lista no lee el nombre', fix:'la lista muestra el nombre',
+    h:[ [pModal('Celular de Martha'), PA, 'Guarda «Celular de Martha» en «Dispositivo autorizado».'],
+        [hoyLista('falta'), QU, 'Mis dispositivos dice «Android (Android 16)». El nombre que puso no aparece.'] ],
+    f:[ [pModal('Celular de Martha'), IG, 'Guarda «Celular de Martha» en «Dispositivo autorizado».'],
+        [pLista([A('Celular de Martha'), VIEJO, IPAD(null)], {marca:'cambia'}), CA, 'Título «Celular de Martha», debajo en gris «Android (Android 16)», y el enlace «Renombrar».'] ] },
+  { id:'renombrar', t:'Quiere renombrar desde Mis dispositivos', tipo:'arregla',
+    res:'Martha no le puso nombre al autorizar y lo quiere hacer después. Hoy no hay dónde: el enlace solo sale una vez, en «Dispositivo autorizado». Con el ajuste, «Este teléfono» tiene «Renombrar».',
+    hoy:'no hay cómo renombrar después', fix:'«Renombrar» abre la hoja de AQ-031',
+    h:[ [hoyLista('falta'), QU, 'La tarjeta de «Este teléfono» no tiene enlace para renombrar.'] ],
+    f:[ [pLista([A(null), VIEJO, IPAD(null)], {marca:'cambia'}), CA, 'La tarjeta de «Este teléfono» trae «Renombrar».'],
+        [pLista([A(null), VIEJO, IPAD(null)], {hoja:hoja('Celular de Martha')}), CA, 'La hoja abre con el nombre que se ve. Escribe «Celular de Martha» (17/30) y guarda.'],
+        [pLista([A('Celular de Martha'), VIEJO, IPAD(null)], {marca:'cambia'}), CA, 'La hoja se cierra y la tarjeta muestra el nombre nuevo con el sugerido debajo.'] ] },
+  { id:'varios', t:'Varios teléfonos con nombre', tipo:'arregla',
+    res:'Martha nombró su Android. Su hija nombró el iPad «iPad de Sofía» desde el iPad. El Android viejo nadie lo nombró. Hoy los tres salen con el nombre sugerido. Con el ajuste, cada uno sale con su nombre y solo «Este teléfono» se renombra desde aquí.',
+    hoy:'tres tarjetas con el nombre sugerido', fix:'cada teléfono con su nombre',
+    h:[ [hoyLista('falta'), QU, '«Android (Android 16)», «Android (Android 13)» e «iPad (iOS 26.6.1)».'] ],
+    f:[ [pLista([A('Celular de Martha'), VIEJO, IPAD('iPad de Sofía')], {marca:'cambia'}), CA, '«Celular de Martha» e «iPad de Sofía» con su sugerido en gris. El Android viejo, igual que hoy. El iPad no tiene «Renombrar».'] ] },
+  { id:'vacio', t:'Borra el nombre', tipo:'arregla',
+    res:'Martha ya no quiere el nombre. Toca «Renombrar», borra el campo y guarda. El teléfono vuelve al nombre sugerido, sin segunda línea.',
+    hoy:'no hay cómo cambiar el nombre', fix:'vacío vuelve al nombre sugerido',
+    h:[ [hoyLista('falta'), QU, 'El nombre guardado no se ve ni se puede quitar desde aquí.'] ],
+    f:[ [pLista([A('Celular de Martha'), VIEJO, IPAD(null)]), CA, 'Toca «Renombrar».'],
+        [pLista([A('Celular de Martha'), VIEJO, IPAD(null)], {hoja:hoja('')}), CA, 'Borra el campo (0/30) y guarda.'],
+        [pLista([A(null), VIEJO, IPAD(null)], {marca:'cambia'}), CA, 'La tarjeta vuelve a «Android (Android 16)», sin línea gris.'] ] },
+  { id:'sineditar', t:'Guarda sin editar', tipo:'borde',
+    res:'Martha toca «Renombrar» y guarda sin cambiar nada: queda guardado el mismo texto del sugerido. La tarjeta no lo repite en gris: una sola línea.',
+    hoy:'no hay enlace', fix:'no se repite el mismo texto',
+    h:[ [hoyLista(''), IG, 'Una línea: «Android (Android 16)».'] ],
+    f:[ [pLista([A(null), VIEJO, IPAD(null)], {hoja:hoja(SUG)}), CA, 'La hoja abre con «Android (Android 16)» (20/30). Guarda sin editar.'],
+        [pLista([A(null), VIEJO, IPAD(null)], {marca:'cambia'}), IG, 'Una línea: «Android (Android 16)». Solo se suma «Renombrar».'] ] },
+  { id:'sinnombre', t:'Nadie le puso nombre', tipo:'igual',
+    res:'Así se ven todos los teléfonos el día del deploy: ninguno tiene nombre. Los títulos son los de hoy. Lo único nuevo es el enlace «Renombrar» en «Este teléfono».',
+    hoy:'el nombre sugerido como título', fix:'igual, con el enlace «Renombrar»',
+    h:[ [hoyLista(''), IG, 'Tres tarjetas con el nombre sugerido.'] ],
+    f:[ [pLista([A(null), VIEJO, IPAD(null)]), IG, 'Los mismos títulos, sin línea gris. Se suma «Renombrar» en «Este teléfono».'] ] },
+  { id:'v401', t:'Lo ve en la app 4.0.1', tipo:'arregla',
+    res:'Martha nombró su Android desde la 4.1.0 y abre Mis dispositivos en otro teléfono que no ha actualizado. La 4.0.1 también ve el nombre, porque llega en el mismo campo de hoy. No pinta la línea gris ni «Renombrar».',
+    hoy:'la 4.0.1 ve el nombre sugerido', fix:'la 4.0.1 ve el nombre, sin actualizar la app',
+    h:[ [hoyLista('falta'), QU, '«Android (Android 16)».'] ],
+    f:[ [pLista([A('Celular de Martha'), VIEJO, IPAD(null)], {...HOY, marca:'cambia'}), CA, '«Celular de Martha» como título. Sin línea gris ni «Renombrar».'] ] },
+];
+
+const fila = (ps) => ps.map((s, k) => (k ? '<span class="flecha">→</span>' : '') + `<div class="flex flex-col"><div class="slot">${s[0]}</div>
+  <p class="mt-2 w-[223px] text-[12px]"><b class="tnum">${k + 1}.</b> <span class="chip-t ${s[1][1]}">${s[1][0]}</span><br>${s[2]}</p></div>`).join('');
+const TIT = { arregla:'Se arregla', borde:'Caso borde', igual:'No cambia' };
+let casoId = CASOS.some(c => c.id === location.hash.slice(1)) ? location.hash.slice(1) : 'nombrado';
+function pintar() {
+  $('#tabsCaso').innerHTML = CASOS.map(c => `<button data-c="${c.id}" class="tab rounded-md px-3 py-1 font-semibold ${c.id === casoId ? 'on' : ''}">${c.t}</button>`).join('');
+  document.querySelectorAll('#tabsCaso .tab').forEach(b => b.onclick = () => { casoId = b.dataset.c; pintar(); });
+  const c = CASOS.find(x => x.id === casoId);
+  $('#resumen').innerHTML = `<p class="pop font-bold" style="color:#140F26">${TIT[c.tipo]} · ${c.t.toLowerCase()}</p><p class="mt-1 text-sm">${c.res}</p>`;
+  $('#txtHoy').textContent = c.hoy;
+  $('#txtFix').textContent = c.fix;
+  $('#filaHoy').innerHTML = fila(c.h);
+  $('#filaFix').innerHTML = fila(c.f);
+  lucide.createIcons();
+}
+pintar();
+</script>
+</body>
+</html>
