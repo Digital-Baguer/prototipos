@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOP-012 · Guía visual de pruebas · Informe de inconsistencias</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={theme:{extend:{colors:{secondary:'hsl(161.38 93.55% 30.39%)',muted:'hsl(0 0% 96.1%)','muted-foreground':'hsl(0 0% 45.1%)',input:'hsl(0 0% 89.8%)',border:'hsl(0 0% 92.8%)'}}}};
+</script>
+<style>
+  html,body{font-family:ui-sans-serif,system-ui,sans-serif;font-size:16px}
+  .tnum{font-variant-numeric:tabular-nums}
+  .slot{position:relative;flex-shrink:0}
+  .win{width:1440px;position:absolute;top:0;left:0;transform-origin:top left;background:#fff;border:2px solid #a3a3a3;border-radius:10px;overflow:hidden;box-shadow:0 12px 36px rgba(0,0,0,.18)}
+  .mov{width:390px;position:absolute;top:0;left:0;transform-origin:top left;background:#fff;border:8px solid #18181b;border-radius:44px;overflow:hidden;box-sizing:content-box;box-shadow:0 12px 36px rgba(0,0,0,.18)}
+  .rt{outline:6px solid rgba(250,204,21,.95);outline-offset:3px;border-radius:8px}
+  .rv{outline:6px solid rgba(5,150,105,.85);outline-offset:3px;border-radius:8px}
+  .mov .rt,.mov .rv{outline-width:4px;outline-offset:2px}
+  .chip-t{border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;display:inline-flex;align-items:center;gap:4px}
+  .tab{border:1px solid #e2e8f0;background:#fff;color:#334155}
+  .tab.on{background:hsl(161.38 93.55% 30.39%);border-color:hsl(161.38 93.55% 30.39%);color:#fff}
+  .caja{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:14px 16px}
+  .pasa{border-left:4px solid #059669}.falla{border-left:4px solid #dc2626}.ojo{border-left:4px solid #d97706}
+  .nota-v{border-left:4px solid hsl(161.38 93.55% 30.39%);background:#ecfdf5}
+  pre.cod{background:#0f172a;color:#e2e8f0;border-radius:10px;padding:10px 12px;font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap;word-break:break-word}
+  .p-dt th{background:#fff;color:#334155;font-weight:600;text-align:left;padding:.75rem 1rem;border-bottom:1px solid #e2e8f0;white-space:nowrap;font-size:13px}
+  .p-dt td{padding:.75rem 1rem;border-bottom:1px solid #e2e8f0;color:#334155;font-size:14px}
+  ol.prep li{margin:3px 0}
+  .sel-nativo{appearance:none}
+</style>
+</head>
+<body class="bg-neutral-50 text-neutral-800">
+<main class="px-6 py-6 md:px-8">
+
+<header>
+  <p class="text-[13px] text-neutral-500">SOP-012 · sin tren de pruebas (un solo repo, get-web) · resultados en la tarjeta de SOP-012 en Jira</p>
+  <h1 class="text-[24px] font-bold text-neutral-900">Guía visual de pruebas: «Consulta de planes» pasa a «Informe de inconsistencias» dentro de QUAC › Planes</h1>
+  <p class="mt-1 text-[14px] text-neutral-600">Rama de get-web: <code>feature/SOP-012</code> (código en <code>1f412</code>, encima solo la bitácora) · Base: <code>master</code> · No hay api ni app que cambien: todo se ve en get-web, de escritorio (1440 px) y, en el caso 5, a 390 px. · Datos de ejemplo: usuaria «Usuaria Ejemplo», cédula de prueba <code>0000321101</code>, documento 1042, plan <code>585116</code> (el del caso de regresión), tienda y cliente inventados.</p>
+  <p class="mt-2 text-[13px] text-neutral-600"><span class="rt px-1">Amarillo</span> = lo que se toca o escribe. <span class="rv px-1">Verde</span> = lo que debe verse. Las pantallas se dibujaron a partir del mockup aprobado <code>SOP-012-informe-de-inconsistencias.html</code> y de los textos del código de la rama.</p>
+</header>
+
+<section class="caja mt-5">
+  <p class="font-bold text-neutral-900">Antes de empezar</p>
+  <ol class="prep mt-2 list-decimal pl-5 text-[14px]">
+    <li><b>Deploy de get-web:</b> la rama <code>feature/SOP-012</code> desplegada en el ambiente donde se prueba (o en local, con <code>.env</code> y una base <code>get</code> con las filas del paso 2).
+<pre class="cod mt-2"># get-web
+git fetch origin && git checkout feature/SOP-012
+npm ci && npm run build
+npm run test:front:sop010-detalle-documento      # 6/6
+git grep -n "Consulta de Planes" -- resources/js  # vacío</pre></li>
+    <li><b>SQL en <code>get</code> (los casos 2 y 3 lo necesitan):</b> <code>registro-menu.sql</code>, en la carpeta del REQ (<code>docs/proyectos/SOP-migracion-quac-soporte/requirements/SOP-012/</code>), base <code>get</code>. Sin DDL, idempotente. Sin él, el lateral sigue diciendo «Consulta de planes»: no es bug del código. La comprobación está en las pestañas 2 y 3.</li>
+    <li><b>Usuarios de prueba (solicitarlos):</b> uno con rol <b>21, 25 o 43</b> (ve Documentos digitales e Informe) y otro con rol <b>30 o 37</b> (solo Informe). Para el caso 3, además, uno sin el permiso <code>acceso:quac.planes.index</code> ni el de Documentos digitales.</li>
+    <li><b>Dónde se entra:</b> get-web › QUAC › Planes, dirección <code>/quac/planes</code>. El lateral va expandido (no contraído) salvo en el caso 5, que usa el menú móvil.</li>
+    <li><b>Tamaños:</b> casos 1 a 4 y regresión a 1440 px de ancho; caso 5 a 390 px (herramientas del navegador, modo móvil).</li>
+    <li><b>Datos reales:</b> nunca. Autorizar por override o cargar al CRM solo con un plan de prueba acordado (regresión).</li>
+  </ol>
+</section>
+
+<nav id="tabs" class="mt-5 flex flex-wrap gap-2"></nav>
+<div id="sel" class="mt-3"></div>
+<section id="caso" class="mt-4"></section>
+
+<footer class="mt-8 text-[12px] text-neutral-500">Sale de <code>qa.md</code> de SOP-012 §6 (casos) y §7 (no es error), y de los textos de la rama <code>feature/SOP-012</code> de get-web: <code>resources/js/pages/quac/planes/Index.vue</code>, <code>documentosDigitales/detalleDocumento.vista.ts</code>, <code>documentosDigitales/Index.vue</code>, <code>documentosDigitales/Detalle.vue</code>, <code>components/TablaPlanes.vue</code> y <code>registro-menu.sql</code>. Si algo no cuadra con <code>qa.md</code>, manda <code>qa.md</code>.</footer>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const ICONOS = {
+  'search': '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+  'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+  'house': '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  'package': '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/>',
+  'layout-dashboard': '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+  'undo-2': '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>',
+  'wallet': '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  'credit-card': '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
+  'settings': '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  'panel-left-close': '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>',
+  'file-text': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  'file-x': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m14.5 12.5-5 5"/><path d="m9.5 12.5 5 5"/>',
+  'scan-face': '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/>',
+  'menu': '<line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/>',
+  'eye': '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+  'arrow-left': '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  'arrow-right': '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  'circle-check': '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  'circle-x': '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+  'triangle-alert': '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  'mouse-pointer-click': '<path d="M14 4.1 12 6"/><path d="m5.1 8-2.9-.8"/><path d="m6 12-1.9 2"/><path d="M7.2 2.2 8 5.1"/><path d="M9.037 9.69a.498.498 0 0 1 .653-.653l11 4.5a.5.5 0 0 1-.074.949l-4.349 1.041a1 1 0 0 0-.74.739l-1.04 4.35a.5.5 0 0 1-.95.074z"/>',
+  'x': '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'
+};
+const I = (n, c = 'h-4 w-4') => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${c}">${ICONOS[n] || ''}</svg>`;
+const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/* ---------- textos del código de la rama ---------- */
+const T = {
+  informe: 'Informe de inconsistencias',
+  informeHoy: 'Consulta de Planes QUAC',
+  sub: 'Buscar, verificar y gestionar planes de pago',
+  descInforme: 'Planes cuyo pagaré no se generó porque no cuadran con el CRM: por tipo de error y cómo autorizarlos.',
+  descDoc: 'Pagarés de los planes: estado, carga al CRM y PDF firmado.',
+  descGrupo: 'Planes QUAC: los pagarés firmados, su carga al CRM y los planes con inconsistencias.',
+  descGrupoHoy: 'Planes QUAC: los pagarés firmados y su carga al CRM.',
+  sinPdf: 'No hay PDF: el pagaré no se generó y por eso no se ha cargado al CRM. Los planes con error se revisan en '
+};
+const CAT = [['612','Fecha 1ra cuota inconsistente','La fecha de primera cuota del plan no coincide con la de la transaccion.',1],['588','Nro. cuotas inconsistente','Las cuotas del plan de pago no coinciden con las registradas en la transaccion.',1],['471','Estrategia inconsistente','El tipo de interes del plan no coincide con la transaccion registrada.',1],['402','Transaccion no encontrada','No existe registro en transactions ni transactions_store para asociar el plan.',0],['309','Plan eliminado (404)','El plan ya no existe en el servicio de cartera. Fueron anulados o cancelados.',0],['46','Otro error','Error no clasificado.',0]];
+
+/* ---------- piezas de pantalla ---------- */
+const rg = (s, k) => s.ring && s.ring[k] ? (s.ring[k] === 'v' ? ' rv' : ' rt') : '';
+const itemMenu = (ic, txt, act, extra = '') => act
+  ? `<a class="relative flex h-8 items-center gap-3 rounded-lg bg-white/10 px-3 font-medium text-white${extra}"><span class="absolute left-0 top-[7px] h-[18px] w-[2px] rounded-sm bg-[#34d399]"></span>${I(ic, 'h-4 w-4 text-[#34d399]')}<span class="truncate font-medium">${txt}</span></a>`
+  : `<a class="flex h-8 items-center gap-3 rounded-lg px-3 text-[#a1a1aa]${extra}">${I(ic, 'h-4 w-4 text-[#71717a]')}<span class="truncate font-medium">${txt}</span></a>`;
+const grupoMenu = (ic, txt, n, abierto, act, extra = '') => `<button type="button" class="relative flex h-8 w-full items-center gap-3 rounded-lg px-3 text-left font-medium ${act ? 'bg-white/10 text-white' : 'text-[#a1a1aa]'}${extra}">${I(ic, 'h-4 w-4 ' + (act ? 'text-[#34d399]' : 'text-[#71717a]'))}<span class="flex-1 truncate font-medium">${txt}</span><span class="ml-auto rounded-full bg-[#27272a] px-1.5 text-[11px] text-[#71717a]">${n}</span>${I(abierto ? 'chevron-down' : 'chevron-right', 'h-3.5 w-3.5 text-[#71717a]')}</button>`;
+const topMenu = (ic, t, a, extra = '') => `<a class="relative mx-2 flex h-8 items-center gap-2 rounded-md px-2 ${a ? 'font-semibold text-[#fafafa]' : 'text-[#a1a1aa]'}${extra}">${I(ic, 'h-4 w-4 ' + (a ? 'text-[#34d399]' : 'text-[#71717a]'))}${t}${I(a ? 'chevron-down' : 'chevron-right', 'ml-auto h-4 w-4 text-[#71717a]')}</a>`;
+
+/* s: { ver:'con'|'hoy', usr:'ambos'|'solo'|'ninguno', pan:bool, pant:'inicio'|'informe'|'lista'|'detalle', ring:{} } */
+function lateral(s) {
+  const con = s.ver === 'con';
+  const enInf = s.pant === 'informe', enDoc = s.pant === 'lista' || s.pant === 'detalle';
+  const verInf = s.usr !== 'ninguno', verDoc = s.usr === 'ambos';
+  let h = topMenu('layout-dashboard', 'Dashboard') + topMenu('package', 'Pedidos') + topMenu('wallet', 'QUAC', 1) + '<div class="mx-3.5 my-2 flex flex-col gap-1 border-l border-[#3f3f46] px-2.5 py-0.5 text-[13px]">';
+  let items = [];
+  if (!con) {
+    if (verInf) h += itemMenu('file-text', 'Consulta de planes', enInf, rg(s, 'suelta'));
+    h += grupoMenu('scan-face', 'Validación de fotos', 3) + grupoMenu('credit-card', 'Pagos Portal/App', 1);
+    if (verDoc) { h += grupoMenu('file-text', 'Planes', 1, false, enDoc, rg(s, 'grupo')); items = [['Documentos digitales', T.descDoc, enDoc, 0, 'doc']]; }
+  } else {
+    h += grupoMenu('scan-face', 'Validación de fotos', 3) + grupoMenu('credit-card', 'Pagos Portal/App', 1);
+    if (verInf) {
+      h += grupoMenu('file-text', 'Planes', verDoc ? 2 : 1, false, enInf || enDoc, rg(s, 'grupo'));
+      if (verDoc) items.push(['Documentos digitales', T.descDoc, enDoc, 0, 'doc']);
+      items.push([T.informe, T.descInforme, enInf, 1, 'inf']);
+    }
+  }
+  h += '</div>' + topMenu('settings', 'Configuración');
+  const desc = con ? T.descGrupo : T.descGrupoHoy;
+  const panel = (s.pan && items.length) ? `<div class="absolute inset-0 z-40 bg-black/10"></div><aside class="absolute left-0 top-0 bottom-0 z-50 flex w-[300px] flex-col border-l border-[#27272a] bg-[#1f1f23] shadow-[8px_0_24px_rgba(0,0,0,.25)]"><div class="flex items-center justify-between px-4 pt-4 pb-1 text-lg font-semibold text-white"><span>Planes</span>${I('undo-2', 'h-5 w-5 text-[#a1a1aa]')}</div><div class="px-4 pb-3 text-xs text-[#a1a1aa]">QUAC › Planes</div><div class="border-t border-[#27272a]">${items.map(x => `<a class="relative block border-b border-[#27272a] px-4 py-2.5${x[2] ? ' bg-white/10' : ''}${rg(s, x[4])}">${x[2] ? '<span class="absolute top-[12px] left-0 h-[18px] w-[3px] rounded-sm bg-[#34d399]"></span>' : ''}<div class="text-sm font-medium ${x[2] ? 'text-white' : 'text-[#e4e4e7]'}">${x[0]}</div><div class="mt-0.5 text-[12.5px] text-[#a1a1aa]">${x[1]}</div></a>`).join('')}</div><p class="mx-4 mt-4 text-[11px] leading-snug text-[#71717a]${rg(s, 'descGrupo')}">Descripción del grupo: «${desc}»</p></aside>` : '';
+  return { menu: h, panel };
+}
+
+function migasHtml(s, mov) {
+  let p = s.pant === 'detalle' ? ['QUAC', 'Planes', 'Documentos digitales', 'Documento 1042']
+    : s.pant === 'lista' ? ['QUAC', 'Planes', 'Documentos digitales']
+    : s.pant === 'informe' ? (s.ver === 'hoy' ? ['QUAC', 'Consulta de Planes'] : ['QUAC', 'Planes', T.informe]) : [];
+  const sep = `<li>${I('chevron-right', 'h-3.5 w-3.5')}</li>`;
+  return `<ol class="flex items-center ${mov ? 'gap-1.5 text-[13px]' : 'gap-2.5 text-sm'} text-neutral-500${rg(s, 'migas')}"><li>${I('house', 'h-4 w-4')}</li>${p.map((x, i) => sep + `<li class="${i === p.length - 1 ? 'text-neutral-900' : ''}">${x}</li>`).join('')}</ol>`;
+}
+
+function vistaInforme(s) {
+  const t = s.ver === 'hoy' ? T.informeHoy : T.informe;
+  let h = `<section class="px-8 py-6 bg-white border-b border-gray-200"><div class="flex items-center"><h1 class="!mb-0 text-2xl font-semibold text-gray-900${rg(s, 'titulo')}">${t}</h1></div><p class="text-base text-gray-600">${T.sub}</p></section><div class="p-6 space-y-4">`;
+  if (s.plan) {
+    h += '<div class="rounded-lg border border-dashed border-gray-300 bg-white px-4 py-3 text-xs text-gray-500">Indicadores de arriba: no cambian (en la pantalla real se ven antes del formulario).</div>';
+  } else {
+    h += `<div class="rounded-xl shadow-sm border border-gray-200 overflow-hidden"><div class="bg-slate-800 px-8 pt-6 pb-8 relative"><div class="mb-6"><p class="text-[11px] text-slate-400 uppercase tracking-[0.2em] font-medium">Estado de pagares</p><h2 class="text-xl font-bold mt-1 text-slate-100">Pagares con inconsistencias</h2></div><div class="flex items-end justify-between"><div><div class="text-7xl font-extrabold text-white leading-none tracking-tight">2428</div><div class="text-sm text-slate-400 mt-2">documentos pendientes con error</div></div><div class="flex gap-3">${[['457','Autorizados','text-blue-300'],['150','Bloqueados','text-slate-300'],['1821','Pendientes','text-yellow-300']].map(c => `<div class="bg-white/10 border border-white/10 rounded-lg px-5 py-3 text-center min-w-[80px]"><div class="text-2xl font-bold ${c[2]}">${c[0]}</div><div class="text-[10px] text-slate-400 uppercase font-medium mt-0.5">${c[1]}</div></div>`).join('')}</div></div><div class="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 via-orange-500 to-amber-500"></div></div><div class="bg-white px-8 py-6"><h3 class="text-[11px] font-semibold text-gray-400 uppercase tracking-[0.15em] mb-4">Detalle por tipo de error</h3><div class="space-y-2.5${rg(s, 'indic')}">${CAT.slice(0, 3).map(c => `<div class="flex items-center rounded-lg px-5 py-3 ${c[3] ? 'bg-orange-50/40' : 'bg-gray-50/60'}"><div class="w-1 h-10 rounded-full mr-4 ${c[3] ? 'bg-orange-400' : 'bg-gray-300'}"></div><span class="text-3xl font-extrabold text-slate-800 w-14 text-right tabular-nums">${c[0]}</span><div class="ml-5"><div class="text-sm font-semibold text-slate-800">${c[1]}</div><div class="text-xs text-gray-500 mt-0.5">${c[2]}</div></div></div>`).join('')}<p class="px-5 text-xs text-gray-400">… y los tipos 402, 309 y 46, sin cambios.</p></div></div></div>`;
+  }
+  h += `<div class="rounded-lg border bg-white p-4"><div class="flex flex-wrap items-end gap-4"><div class="flex-1 min-w-[180px] max-w-xs"><label class="mb-1 block text-xs font-medium">Nro de documento del cliente</label><input class="h-9 w-full rounded-md border border-input px-3 text-sm" placeholder="Ej: 0000321101"></div><div class="flex-1 min-w-[120px] max-w-[180px]"><label class="mb-1 block text-xs font-medium">Nro de plan</label><input class="h-9 w-full rounded-md border border-input px-3 text-sm${rg(s, 'plan')}" placeholder="Ej: 585116" value="${s.plan ? '585116' : ''}"></div><div class="min-w-[150px]"><label class="mb-1 block text-xs font-medium">Estado</label><select class="h-9 w-full rounded-md border border-input bg-white px-3 text-sm"><option>Todos</option></select></div><div class="min-w-[200px]"><label class="mb-1 block text-xs font-medium">Categoria de error</label><select class="h-9 w-full rounded-md border border-input bg-white px-3 text-sm"><option>Todas</option></select></div><button class="h-9 rounded-md bg-neutral-900 px-4 text-sm font-medium text-white${rg(s, 'consultar')}">Consultar</button><button class="h-9 rounded-md border px-4 text-sm">Limpiar</button></div></div>`;
+  if (s.plan) {
+    h += `<div class="rounded-lg border bg-white overflow-hidden${rg(s, 'tabla')}"><table class="p-dt w-full"><thead><tr>${['PLAN','FECHA','CLIENTE','TIENDA','FACTURA','TOTAL','ESTRATEGIA','CUOTAS','ESTADO','PDF'].map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody><tr><td class="font-semibold">585116</td><td>fecha</td><td>Cliente Ejemplo</td><td>Tienda Ejemplo</td><td>factura</td><td>$ total</td><td><span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">Estandar</span></td><td>cuotas</td><td><span class="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">Error</span></td><td class="text-gray-400">${I('file-x', 'h-4 w-4')}</td></tr></tbody></table></div><p class="text-xs text-gray-500">Fila de ejemplo: las columnas son las de <code>TablaPlanes.vue</code>; los valores salen del plan real que se consulte.</p>`;
+  }
+  return h + '</div>';
+}
+
+function vistaLista(s) {
+  return `<section class="px-8 py-6 bg-white border-b border-gray-200"><h1 class="!mb-0 text-2xl font-semibold text-gray-900">Documentos digitales</h1></section><div class="p-6 space-y-4"><div class="flex gap-2 text-sm">${['Todos', 'Cargados al CRM', 'Sin cargar'].map((x, i) => `<span class="rounded-md border px-3 py-1.5 ${i === 2 ? 'bg-neutral-900 text-white border-neutral-900' : 'bg-white text-neutral-700'}">${x}</span>`).join('')}</div><div class="rounded-lg border bg-white overflow-hidden"><table class="p-dt w-full"><thead><tr>${['ID', 'Cédula', 'Plan', 'Cliente', 'Fecha', 'Estado', 'Cargado al CRM', ''].map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody><tr><td>1042</td><td>0000321101</td><td>585116</td><td>Cliente Ejemplo</td><td>fecha</td><td><span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">Sin cargar</span></td><td class="text-gray-500">No</td><td class="text-right"><div class="inline-flex gap-2"><span class="inline-flex h-8 items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2.5 text-sm text-gray-400">${I('file-x')} Sin PDF</span><span class="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-white${rg(s, 'ojo')}">${I('eye')}</span></div></td></tr></tbody></table></div></div>`;
+}
+
+function vistaDetalle(s) {
+  const destino = s.ver === 'hoy' ? 'Consulta de Planes.' : `<span class="${s.ring && s.ring.frase ? (s.ring.frase === 'v' ? 'rv' : 'rt') : ''}">Informe de inconsistencias.</span>`;
+  return `<div class="space-y-6 p-6"><div class="flex flex-wrap items-center justify-between gap-3"><div class="flex items-center gap-3"><span class="inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm">${I('arrow-left')} Volver</span><h1 class="!mb-0 text-xl font-semibold text-gray-900">Documento 1042</h1></div><span class="inline-flex h-9 items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-4 text-sm text-gray-400">${I('file-x')} Sin PDF</span></div><div class="rounded-lg border border-gray-200 bg-white p-4"><div class="flex flex-wrap items-center gap-3"><span class="text-xs text-gray-500">Estado</span><span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">Sin cargar</span><span class="ml-3 text-xs text-gray-500">Cargado al CRM</span><span class="text-sm text-gray-500">No</span><span class="ml-3 text-xs text-gray-500">Creado</span><span class="text-sm text-gray-900 tabular-nums">fecha y hora</span></div><p class="mt-3 text-sm text-gray-600">${T.sinPdf}${destino}</p></div><p class="rounded-md border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-500">El detalle real trae además Cliente, Aceptación y Respuesta del CRM (SOP-010): no cambian. El texto del estado lo manda el servidor.</p></div>`;
+}
+
+const URLS = { inicio: '', informe: '/quac/planes', lista: '/quac/planes/documentos-digitales', detalle: '/quac/planes/documentos-digitales/1042' };
+const TABS = { inicio: 'Dashboard', informe: T.informe, lista: 'Documentos digitales', detalle: 'Documento 1042' };
+
+function desk(s) {
+  s = Object.assign({ ver: 'con', usr: 'ambos', pan: false, pant: 'informe', ring: {} }, s);
+  const L = lateral(s);
+  const vista = s.pant === 'informe' ? vistaInforme(s) : s.pant === 'lista' ? vistaLista(s) : s.pant === 'detalle' ? vistaDetalle(s) : '';
+  const tabTxt = s.pant === 'informe' && s.ver === 'hoy' ? T.informeHoy : TABS[s.pant];
+  const bar = `<div class="flex items-center gap-3 bg-neutral-200 px-4 py-2"><div class="flex gap-1.5"><span class="h-3 w-3 rounded-full bg-neutral-400"></span><span class="h-3 w-3 rounded-full bg-neutral-400"></span><span class="h-3 w-3 rounded-full bg-neutral-400"></span></div><span class="rounded-t-md bg-white px-4 py-1 text-xs text-neutral-700${rg(s, 'tabt')}">${tabTxt}</span><span class="ml-2 flex-1 rounded-md bg-white px-3 py-1 text-xs text-neutral-600${rg(s, 'url')}">…${URLS[s.pant] || '/'}</span></div>`;
+  return `<div class="win" style="transform:scale(.47)">${bar}<div class="flex min-h-[900px] h-[900px]"><aside class="relative flex w-[272px] shrink-0 flex-col bg-[#18181b]"><div class="flex h-14 shrink-0 items-center justify-between border-b border-[#27272a] px-4"><div class="flex items-center gap-2"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fafafa] text-[13px] font-black text-neutral-900">g</span><span class="text-lg font-bold tracking-tight text-white">get</span></div>${I('panel-left-close', 'h-[18px] w-[18px] text-[#a1a1aa]')}</div><nav class="flex flex-col gap-1 p-2 pt-3 text-sm">${L.menu}</nav></aside><main class="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-white">${L.panel}<header class="flex min-h-16 shrink-0 items-center border-b border-[hsl(0_0%_91%)] px-8 py-4"><div class="flex w-full items-center justify-between gap-4"><div class="relative flex h-12 w-[448px] items-center rounded-md border border-input pl-12 text-sm text-neutral-400"><span class="absolute left-0 top-0 flex h-12 w-12 items-center justify-center">${I('search', 'h-5 w-5')}</span>Filtrar menú...</div><div class="flex items-center gap-2 px-2"><span class="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold text-neutral-700">UE</span><div class="text-left text-sm leading-tight"><div class="font-medium">Usuaria Ejemplo</div><div class="text-xs text-neutral-500">usuaria@empresa-ejemplo.co</div></div></div></div></header><div class="border-b border-border bg-white px-8 py-2">${migasHtml(s, false)}</div><div class="flex-1 overflow-hidden bg-gray-50">${vista}</div></main></div></div>`;
+}
+
+/* móvil 390 px */
+function movil(s) {
+  s = Object.assign({ ver: 'con', menu: false, ring: {} }, s);
+  const con = s.ver === 'con';
+  const t = con ? T.informe : T.informeHoy;
+  const hdr = `<div class="flex h-14 items-center gap-3 border-b border-neutral-200 bg-white px-4"><span class="inline-flex h-9 w-9 items-center justify-center rounded-md border${rg(s, 'hamb')}">${I('menu', 'h-5 w-5')}</span><span class="text-base font-bold">get</span></div>`;
+  const cuerpo = `<div class="border-b border-border bg-white px-4 py-2">${migasHtml({ ver: s.ver, pant: 'informe', ring: s.ring }, true)}</div><section class="border-b border-gray-200 bg-white px-4 py-4"><h1 class="!mb-0 text-xl font-semibold text-gray-900">${t}</h1><p class="text-sm text-gray-600">${T.sub}</p></section><div class="space-y-3 p-4"><div class="rounded-lg border bg-white p-4"><label class="mb-1 block text-xs font-medium">Nro de plan</label><input class="h-9 w-full rounded-md border px-3 text-sm" placeholder="Ej: 585116"><button class="mt-3 h-9 w-full rounded-md bg-neutral-900 text-sm font-medium text-white">Consultar</button></div><p class="text-center text-xs text-gray-400">el resto de la pantalla, sin cambios</p></div>`;
+  let menu = '';
+  if (s.menu) {
+    const filaPl = (txt, extra = '', act = false) => `<a class="flex min-h-8 items-center rounded-lg px-3 py-1.5 text-[13px] ${act ? 'bg-white/10 font-medium text-white' : 'text-[#a1a1aa]'}${extra}">${txt}</a>`;
+    const planes = con
+      ? `<button class="flex h-8 w-full items-center gap-3 rounded-lg bg-white/10 px-3 text-left font-medium text-white${rg(s, 'grupo')}">${I('file-text', 'h-4 w-4 text-[#34d399]')}<span class="flex-1">Planes</span><span class="rounded-full bg-[#27272a] px-1.5 text-[11px] text-[#71717a]">2</span>${I('chevron-down', 'h-3.5 w-3.5 text-[#71717a]')}</button><div class="ml-6 flex flex-col gap-1 border-l border-[#3f3f46] pl-2.5">${filaPl('Documentos digitales')}${filaPl(T.informe, rg(s, 'inf'), true)}</div>`
+      : `${filaPl('Consulta de planes', rg(s, 'suelta'), true)}${grupoMenu('file-text', 'Planes', 1, false, false)}`;
+    menu = `<div class="absolute inset-0 z-40 bg-black/30"></div><aside class="absolute left-0 top-0 bottom-0 z-50 flex w-[300px] flex-col bg-[#18181b]"><div class="flex h-14 items-center justify-between border-b border-[#27272a] px-4"><span class="text-lg font-bold text-white">get</span>${I('x', 'h-5 w-5 text-[#a1a1aa]')}</div><nav class="flex flex-col gap-1 p-2 pt-3 text-sm">${topMenu('layout-dashboard', 'Dashboard')}${topMenu('package', 'Pedidos')}${topMenu('wallet', 'QUAC', 1)}<div class="mx-3.5 my-2 flex flex-col gap-1 border-l border-[#3f3f46] px-2.5 py-0.5 text-[13px]">${grupoMenu('scan-face', 'Validación de fotos', 3)}${grupoMenu('credit-card', 'Pagos Portal/App', 1)}${planes}</div>${topMenu('settings', 'Configuración')}</nav></aside>`;
+  }
+  return `<div class="mov" style="transform:scale(.72)"><div class="relative h-[760px] overflow-hidden bg-gray-50">${hdr}${cuerpo}${menu}</div></div>`;
+}
+
+/* ---------- casos ---------- */
+const slotD = h => `<div class="slot" style="width:677px;height:440px">${h}</div>`;
+const slotM = h => `<div class="slot" style="width:${(390 + 16) * .72}px;height:${(760 + 16) * .72}px">${h}</div>`;
+const MARCA = { toca: ['bg-amber-100 text-amber-800', 'mouse-pointer-click', 'Toca'], ve: ['bg-emerald-100 text-emerald-800', 'eye', 'Debe verse'], err: ['bg-red-100 text-red-800', 'triangle-alert', 'Error esperado'] };
+const SQL3 = `-- Las tres filas del grupo Planes
+SELECT menu_id, parent_id, menu_display_name, menu_order, menu_description
+  FROM \`get\`.menu WHERE menu_id IN (60, 96, 97);`;
+
+const CASOS = [
+  { id: 1, corto: 'Pantalla con nombre nuevo', titulo: 'Pantalla con nombre nuevo',
+    para: 'Comprobar que la pantalla de siempre ya se llama «Informe de inconsistencias» en las migas, el encabezado y la pestaña del navegador, y que sigue cargando igual.',
+    prep: ['Cualquier usuario con rol 21, 25, 30, 37 o 43.', 'Tener a mano la dirección <code>/quac/planes</code> guardada (la dirección no cambia).'],
+    pasos: V => [
+      [slotD(desk({ ver: V, pant: 'informe', ring: { url: 't' } })), 'Abre <code>/quac/planes</code> desde el enlace guardado.', 'toca'],
+      [slotD(desk({ ver: V, pant: 'informe', ring: { migas: 'v', titulo: 'v', tabt: 'v', indic: 'v' } })), V === 'con' ? 'Migas <b>QUAC › Planes › Informe de inconsistencias</b> (sin «Planes» repetido), título del encabezado y de la pestaña «Informe de inconsistencias», subtítulo «Buscar, verificar y gestionar planes de pago». Indicadores y tabla cargan como antes.' : 'Así se ve hoy en master: migas QUAC › Consulta de Planes y título «Consulta de Planes QUAC». Solo para comparar.', 've']
+    ],
+    pasa: ['Las migas son «QUAC › Planes › Informe de inconsistencias», con «Planes» una sola vez.', 'El título del encabezado y el de la pestaña dicen «Informe de inconsistencias».', 'El subtítulo sigue siendo «Buscar, verificar y gestionar planes de pago».', 'Los indicadores y la tabla cargan igual que antes.'],
+    falla: ['Aparece «Consulta de Planes» o «Consulta de Planes QUAC» en migas, título o pestaña.', '«Planes» sale repetido en las migas.', 'Los indicadores o la tabla no cargan, o cambió su contenido.'],
+    ojo: 'En Configuración › permisos el módulo 14 sigue llamándose «Consulta Planes QUAC»: es deuda aceptada (D4), no se prueba aquí. El navegador puede añadir el nombre de la aplicación al título de la pestaña.'
+  },
+  { id: 2, corto: 'Grupo con dos ítems', titulo: 'Grupo Planes con dos ítems',
+    para: 'Comprobar que, con el SQL aplicado, quien ve las dos pantallas encuentra en el grupo QUAC › Planes primero Documentos digitales y segundo Informe de inconsistencias, cada uno con su descripción.',
+    prep: ['Rol 21, 25 o 43, lateral expandido.', '<code>registro-menu.sql</code> corrido en la base <code>get</code> del ambiente (si no, el lateral sigue diciendo «Consulta de planes»: es de la base, no del código).'],
+    pasos: V => [
+      [slotD(desk({ ver: V, pant: 'inicio', ring: { grupo: 't' } })), 'En el lateral, abre <b>QUAC</b> y toca el grupo <b>Planes</b>' + (V === 'con' ? ' (muestra un 2)' : '') + '.', 'toca'],
+      [slotD(desk({ ver: V, pant: 'inicio', pan: true, ring: { doc: 'v', inf: 'v', descGrupo: 'v' } })), V === 'con' ? 'El panel lateral muestra <b>Documentos digitales</b> primero e <b>Informe de inconsistencias</b> segundo, cada uno con su descripción, y la descripción nueva del grupo.' : 'Hoy el grupo Planes solo tiene Documentos digitales. Solo para comparar.', 've'],
+      [slotD(desk({ ver: V, pant: 'inicio', ring: { suelta: 'v' } })), V === 'con' ? 'Bajo QUAC ya <b>no</b> aparece «Consulta de planes» suelta: solo Validación de fotos, Pagos Portal/App y Planes.' : 'Hoy «Consulta de planes» cuelga suelta de QUAC.', 've']
+    ],
+    pasa: ['El grupo Planes muestra Documentos digitales primero e Informe de inconsistencias segundo.', 'Cada ítem trae su descripción y el grupo la nueva: «' + T.descGrupo + '».', '«Consulta de planes» ya no aparece suelta bajo QUAC.'],
+    falla: ['El orden es el inverso.', 'Falta el ítem Informe de inconsistencias en el grupo, o sigue «Consulta de planes» suelta bajo QUAC con el SQL ya aplicado.', 'Faltan las descripciones.'],
+    ojo: 'Con el código desplegado y sin el SQL el lateral sigue diciendo «Consulta de planes»: no es bug del binario. Corre <code>registro-menu.sql</code> y vuelve a probar.',
+    sql: { query: SQL3, esperado: 'fila 60: padre <b>96</b>, orden <b>2</b>, nombre «Informe de inconsistencias» · fila 96: padre 35, descripción «' + T.descGrupo + '» · fila 97: padre 96, «Documentos digitales».' }
+  },
+  { id: 3, corto: 'Grupo con un ítem', titulo: 'Grupo Planes con un solo ítem',
+    para: 'Comprobar que quien solo tiene permiso para el Informe ve el grupo con un único ítem, y que quien no tiene el permiso no ve ni el ítem ni el grupo.',
+    prep: ['Un usuario con rol 30 o 37 (solo Informe) y otro sin el permiso del Informe ni de Documentos digitales.', 'El SQL de <code>registro-menu.sql</code> corrido.'],
+    pasos: V => [
+      [slotD(desk({ ver: V, usr: 'solo', pant: 'inicio', ring: { grupo: 't', suelta: 't' } })), V === 'con' ? 'Con rol 30 o 37, abre <b>QUAC</b> y toca el grupo <b>Planes</b> (muestra un 1).' : 'Hoy con rol 30 o 37 solo se ve «Consulta de planes» suelta. Solo para comparar.', 'toca'],
+      [slotD(desk({ ver: V, usr: 'solo', pant: 'inicio', pan: true, ring: { inf: 'v' } })), V === 'con' ? 'El panel muestra un solo ítem: <b>Informe de inconsistencias</b>, con su descripción.' : 'Hoy no hay grupo Planes para este rol.', 've'],
+      [slotD(desk({ ver: V, usr: 'ninguno', pant: 'inicio' })), 'Con un usuario sin el permiso: bajo QUAC no hay grupo Planes ni «Consulta de planes».', 've']
+    ],
+    pasa: ['Rol 30 o 37: el grupo Planes aparece con un solo ítem, Informe de inconsistencias.', 'Un usuario sin el permiso del Informe y sin el de Documentos digitales no ve ni el ítem ni el grupo.'],
+    falla: ['El grupo Planes no aparece para el rol 30 o 37.', 'El usuario sin permiso ve el grupo o el ítem.', 'Quien tiene solo el Informe ve también Documentos digitales.'],
+    ojo: 'Sin el SQL el lateral sigue con «Consulta de planes» suelta: es de la base, no del binario.',
+    sql: { query: SQL3 + '\n\n-- Nadie gana ni pierde acceso: los roles no cambian\nSELECT menu_id, GROUP_CONCAT(role_id ORDER BY role_id) AS roles\n  FROM `get`.menu_roles WHERE menu_id IN (60, 97) GROUP BY menu_id;', esperado: 'igual antes y después: <b>60 → 21,25,30,37,43</b> · <b>97 → 21,25,43</b>.' }
+  },
+  { id: 4, corto: 'Texto de Documentos digitales', titulo: 'Texto de Documentos digitales que remite al Informe',
+    para: 'Comprobar que el detalle de un documento sin PDF remite a la pantalla con su nombre nuevo.',
+    prep: ['Rol 21, 25 o 43.', 'Un documento sin PDF (pestaña «Sin cargar»; en la fila aparece «Sin PDF»). El de la ilustración, 1042, es de ejemplo.'],
+    pasos: V => [
+      [slotD(desk({ ver: V, pant: 'lista', ring: { ojo: 't' } })), 'En QUAC › Planes › Documentos digitales, pestaña «Sin cargar», toca el ojo («Ver detalle») de un documento con «Sin PDF».', 'toca'],
+      [slotD(desk({ ver: V, pant: 'detalle', ring: { frase: 'v' } })), V === 'con' ? 'La frase termina en «…Los planes con error se revisan en <b>Informe de inconsistencias</b>.»' : 'Hoy termina en «…se revisan en Consulta de Planes.» Solo para comparar.', 've']
+    ],
+    pasa: ['La explicación dice: «' + T.sinPdf + 'Informe de inconsistencias.»'],
+    falla: ['La frase nombra «Consulta de Planes».', 'Cambió cualquier otro texto o dato del detalle (Cliente, Aceptación, Respuesta del CRM).'],
+    ojo: null
+  },
+  { id: 5, corto: 'Móvil 390 px', titulo: 'Móvil, 390 px',
+    para: 'Comprobar que en el menú móvil el grupo Planes sale en línea con sus ítems y que la miga de tres niveles no desborda la pantalla.',
+    prep: ['Rol 21, 25 o 43, y el SQL corrido.', 'Navegador en modo móvil a 390 px de ancho.'],
+    movil: true,
+    pasos: V => [
+      [slotM(movil({ ver: V, ring: { hamb: 't' } })), 'Toca el ícono de menú.', 'toca'],
+      [slotM(movil({ ver: V, menu: true, ring: { grupo: 'v', inf: 'v', suelta: 'v' } })), V === 'con' ? 'En QUAC, el grupo <b>Planes</b> se despliega en línea con Documentos digitales e <b>Informe de inconsistencias</b> debajo (sin panel lateral). Toca el Informe.' : 'Hoy «Consulta de planes» suelta bajo QUAC. Solo para comparar.', 've'],
+      [slotM(movil({ ver: V, ring: { migas: 'v' } })), V === 'con' ? 'La miga <b>QUAC › Planes › Informe de inconsistencias</b> cabe sin desbordar: sin barra de desplazamiento horizontal y sin tapar el título.' : 'Hoy la miga tiene dos niveles. Solo para comparar.', 've']
+    ],
+    pasa: ['El menú móvil muestra el grupo Planes con sus ítems en línea.', 'La miga de 3 niveles no genera desplazamiento horizontal ni tapa el título.'],
+    falla: ['Aparece un panel lateral en lugar del despliegue en línea.', 'La miga se sale de la pantalla o la página se desplaza de lado.'],
+    ojo: 'El dibujo es una aproximación del menú móvil; compara el orden y los nombres, no el estilo exacto.'
+  },
+  { id: 6, corto: 'Regresión', titulo: 'Regresión: la pantalla hace lo mismo',
+    para: 'Comprobar que consultar un plan en error da el mismo resultado que antes del cambio. Solo cambió el nombre, no lo que hace la pantalla.',
+    prep: ['Usuario con rol 21, 25, 30, 37 o 43.', 'Consultar el plan <code>585116</code> (en error): solo se consulta.', 'Autorizar por override o cargar al CRM solo con un plan de prueba acordado, nunca con uno real de cliente.'],
+    pasos: V => [
+      [slotD(desk({ ver: V, pant: 'informe', plan: true, ring: { plan: 't', consultar: 't' } })), 'Escribe <code>585116</code> en «Nro de plan» y toca <b>Consultar</b>.', 'toca'],
+      [slotD(desk({ ver: V, pant: 'informe', plan: true, ring: { tabla: 'v' } })), 'Aparece el plan 585116 con estado <b>Error</b>, con las mismas columnas y el mismo resultado que antes del cambio.', 've']
+    ],
+    pasa: ['La consulta del plan 585116 devuelve el mismo resultado que con el nombre anterior.', 'Con un plan de prueba acordado, autorizar por override o cargar al CRM funciona igual.'],
+    falla: ['El plan no aparece, cambia su estado o sus columnas.', 'Autorizar o cargar al CRM da un error nuevo.'],
+    ojo: 'El motivo de bloqueo guardado («Upload fallido desde modulo Consulta de Planes», de <code>PlanesService.php:131</code>) sigue con el nombre viejo, en los bloqueos viejos y en los nuevos: deuda aceptada (D4).'
+  }
+];
+
+/* ---------- pintar ---------- */
+let V = 'con';
+let actual = CASOS[0];
+const lis = xs => xs.map(x => `<li>${x}</li>`).join('');
+const figuras = pasos => pasos.map(([html, pie, m], i) => `
+  ${i ? `<span class="self-center text-neutral-400">${I('arrow-right', 'h-6 w-6')}</span>` : ''}
+  <figure class="flex flex-col">${html}
+    <figcaption class="mt-2 text-[13px] leading-snug" style="max-width:${html.indexOf('class="mov"') >= 0 ? 292 : 677}px"><b class="tnum">${i + 1}.</b> <span class="chip-t ${MARCA[m][0]}">${I(MARCA[m][1], 'h-3 w-3')}${MARCA[m][2]}</span><p class="mt-1 text-neutral-600">${pie}</p></figcaption>
+  </figure>`).join('');
+
+function pintar(c) {
+  actual = c;
+  $('#sel').innerHTML = `<div class="flex flex-wrap items-center gap-2 text-[13px]"><span class="font-bold text-neutral-700">Ver como:</span>
+    <button class="tab rounded-full px-3 py-1.5 font-bold ${V === 'con' ? 'on' : ''}" data-v="con">Con el cambio · <code>feature/SOP-012</code> (se prueba)</button>
+    <button class="tab rounded-full px-3 py-1.5 font-bold ${V === 'hoy' ? 'on' : ''}" data-v="hoy">Hoy · master (solo para comparar)</button></div>`;
+  const nota = V === 'con'
+    ? '<div class="caja nota-v mt-3 text-[14px]"><b>Con el cambio</b> (<code>feature/SOP-012</code>): lo que debe verse en el ambiente de pruebas. El contenido de la pantalla (indicadores, consulta, tabla, Excel, autorización) no cambia.</div>'
+    : '<div class="caja mt-3 text-[14px]" style="border-left:4px solid #94a3b8"><b>Hoy</b> (<code>master</code>): así se ve antes del cambio. No se prueba en esta tarjeta; sirve para comparar.</div>';
+  const sql = c.sql ? `<div class="caja mt-3"><p class="text-[13px] font-bold text-neutral-700">Cómo comprobarlo en la base <span class="font-normal text-neutral-500">(<code>get</code>, queries de <code>qa.md</code> §5, después de <code>registro-menu.sql</code>)</span></p><pre class="cod mt-2">${esc(c.sql.query)}</pre><p class="mt-2 text-[14px]"><b>Esperado:</b> ${c.sql.esperado}</p></div>` : '';
+  $('#caso').innerHTML = `
+    <div class="caja">
+      <p class="text-[13px] text-neutral-500">${c.id === 6 ? 'Regresión' : 'Caso ' + c.id} · ${c.movil ? 'get-web a 390 px' : 'get-web a 1440 px'}</p>
+      <p class="text-[19px] font-bold text-neutral-900">${c.titulo}</p>
+      <p class="mt-1 text-[14px]">${c.para}</p>
+      <p class="mt-3 text-[13px] font-bold text-neutral-700">Preparar</p>
+      <ol class="prep list-decimal pl-5 text-[14px]">${lis(c.prep)}</ol>
+    </div>
+    ${nota}
+    <div class="mt-4 flex flex-wrap gap-3 pb-3">${figuras(c.pasos(V))}</div>
+    <div class="mt-4 grid gap-3 md:grid-cols-2">
+      <div class="caja pasa"><p class="text-[13px] font-bold text-emerald-700">Pasa si</p><ul class="list-disc pl-5 text-[14px]">${lis(c.pasa)}</ul></div>
+      <div class="caja falla"><p class="text-[13px] font-bold text-red-700">Falla si</p><ul class="list-disc pl-5 text-[14px]">${lis(c.falla)}</ul></div>
+    </div>
+    ${c.ojo ? `<div class="caja ojo mt-3 text-[14px]"><b class="text-amber-800">No es error:</b> ${c.ojo}</div>` : ''}
+    ${sql}
+    <p class="mt-3 text-[13px] text-neutral-500">Resultado: comentar en la tarjeta de SOP-012 «${c.id === 6 ? 'Regresión' : 'Caso ' + c.id}: pasó» o «${c.id === 6 ? 'Regresión' : 'Caso ' + c.id}: falló», con el rol del usuario y lo que se vio (captura de la pantalla o resultado del query).</p>`;
+  document.querySelectorAll('#tabs .tab').forEach(b => b.classList.toggle('on', b.dataset.id === String(c.id)));
+  document.querySelectorAll('#sel [data-v]').forEach(b => b.onclick = () => { V = b.dataset.v; pintar(actual); });
+}
+
+$('#tabs').innerHTML = CASOS.map(c => `<button class="tab rounded-full px-3 py-1.5 text-[13px] font-bold" data-id="${c.id}">${c.id === 6 ? '' : c.id + ' · '}${c.corto}</button>`).join('');
+document.querySelectorAll('#tabs .tab').forEach(b => b.onclick = () => pintar(CASOS.find(c => String(c.id) === b.dataset.id)));
+pintar(CASOS[0]);
+</script>
+</body>
+</html>
