@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AQ-033 · Guía visual de pruebas · QUAC › Diagnóstico de la app</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+html,body{font-family:ui-sans-serif,system-ui,sans-serif;font-size:16px}
+.nums{font-variant-numeric:tabular-nums}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:9999px;padding:2px 10px;font-size:12px;font-weight:500;white-space:nowrap}
+.chip-gris{background:#f5f5f5;color:#525252}.chip-verde{background:#ecfdf5;color:#047857}.chip-negro{background:#171717;color:#fff}.chip-rosa{background:#fdf2f8;color:#be185d}
+.btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:6px;border:1px solid #d4d4d4;background:#fff;font-size:14px;font-weight:500;color:#171717;white-space:nowrap}
+.btn.rec{border:2px solid #34d399;font-weight:600}
+.btn.lleno{background:#171717;color:#fff;border-color:#171717}
+.btn.apagado{opacity:.45}
+.toque{box-shadow:0 0 0 4px rgba(252,211,77,.9);border-radius:8px}
+.mira{box-shadow:0 0 0 3px rgba(23,23,23,.55);border-radius:8px}
+.paso-chip{border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;display:inline-block}
+.c-toca{background:#fef3c7;color:#92400e}.c-ver{background:#e5e5e5;color:#171717}.c-error{background:#fce7f3;color:#9d174d}
+.tab{border:1px solid #d4d4d4;background:#fff;color:#404040;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:500}
+.tab.on{background:#171717;border-color:#171717;color:#fff}
+.caja{border:1px solid #e5e5e5;border-radius:12px;background:#fff;padding:14px 16px}
+.pasa{border-left:4px solid #059669}.falla{border-left:4px solid #be185d}.ojo{border-left:4px solid #737373}
+.api{background:#171717;color:#e5e5e5;border-radius:10px;padding:10px 12px;font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap;word-break:break-word}
+.marco{border:1px solid #d4d4d4;border-radius:10px;overflow:hidden;background:#fafafa}
+.marco-barra{display:flex;align-items:center;gap:6px;background:#e5e5e5;padding:6px 10px;font-size:11px;color:#525252}
+.marco-barra i{width:8px;height:8px;border-radius:9999px;background:#a3a3a3;display:inline-block}
+.marco-url{margin-left:8px;flex:1;background:#fff;border-radius:6px;padding:2px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.velo{background:rgba(0,0,0,.72);padding:18px;display:flex;justify-content:center}
+ol.prep li{margin:4px 0}
+code{font-size:.9em;background:#f5f5f5;border-radius:4px;padding:0 4px}
+.api code{background:transparent;padding:0}
+</style>
+</head>
+<body class="bg-neutral-100 text-neutral-900 antialiased">
+<main class="px-5 py-6 md:px-8">
+
+<header>
+  <p class="text-[13px] text-neutral-500">AQ-033 · get-web sale primero en solo consulta; los botones se encienden después con el api de la 4.1.0 · resultados en la tarjeta de AQ-033 en Jira</p>
+  <h1 class="text-[24px] font-bold tracking-tight">Guía visual de pruebas: QUAC › Diagnóstico de la app</h1>
+  <p class="mt-1 text-[14px] text-neutral-600">get-web: <code>feature/AQ-033</code> (HEAD <code>2452e</code>, sale de <code>master</code>) · api-quac-v2: <code>release/4.1.0</code> (ya trae AQ-033, <code>19f4e</code>) · Datos de ejemplo: todos inventados (cédulas 1900000001 a 1900000006, celulares 300 000 17xx, correos <code>@example.com</code>).</p>
+  <p class="mt-2 text-[13px] text-neutral-600"><span class="toque px-1">Amarillo</span> = lo que se toca. <span class="mira px-1">Contorno negro</span> = lo que hay que mirar. El contorno verde de un botón es de la pantalla real: marca la acción recomendada.</p>
+</header>
+
+<section class="caja mt-5">
+  <p class="font-semibold">Antes de empezar</p>
+  <ol class="prep mt-2 list-decimal pl-5 text-[14px]">
+    <li><b>Ramas y pruebas automáticas:</b>
+<pre class="api mt-2"># get-web
+git fetch origin && git checkout feature/AQ-033
+composer install && npm ci && npm run build
+php artisan test --filter=DiagnosticoApp        # 208 en verde; corre en sqlite
+npm run test:front:aq033-diagnostico-app        # en verde
+npx vue-tsc --noEmit                            # 170 errores, los mismos de master
+
+# api-quac-v2: la release ya trae AQ-033 y el endpoint de AQ-032
+git fetch origin && git checkout release/4.1.0
+composer install
+php artisan test --filter='Soporte|ResetearIntentos'   # necesita MySQL; 67 de soporte en verde</pre></li>
+    <li><b>SQL, antes de abrir la pantalla</b> (lo corre el arquitecto; los archivos van adjuntos en la tarjeta):
+      <ul class="mt-1 list-disc pl-5">
+        <li>OPS-1: <code>migracion.sql</code>, sección OPS-AQ-033-1. Índice <code>idx_documento_created</code> en <code>log_activity</code> de <code>quacapi</code> y <code>quacapi_dev</code>.</li>
+        <li>OPS-3: <code>migracion.sql</code>, primera parte. Tabla <code>get.quac_diagnostico_app_accesos</code>.</li>
+        <li>OPS-2 §3a: <code>registro-menu.sql</code>. Módulo, cuatro operaciones, pantalla oculta y consultar a los roles 37, 25 y 21. La §3b (verla en el menú) va después del deploy.</li>
+      </ul>
+<pre class="api mt-2">-- Debe dar, además de PRIMARY, idx_documento_created (documento,created_at) en cada base
+SELECT table_schema, index_name, GROUP_CONCAT(column_name ORDER BY seq_in_index) AS columnas
+FROM information_schema.statistics
+WHERE table_schema IN ('quacapi','quacapi_dev') AND table_name = 'log_activity'
+GROUP BY table_schema, index_name;</pre>
+      Sin el índice, cada búsqueda recorre 1,44 millones de filas. Sin el módulo registrado, cualquier usuario entra a la ruta.</li>
+    <li><b>Permisos que hay que pedir:</b> un usuario con solo <code>consultar_diagnostico_app</code> (caso 4), uno con <code>actuar_diagnostico_app</code>, uno con <code>autorizar_diagnostico_app</code> (casos 5 a 7) y uno con <code>ver_confidencial_diagnostico_app</code> (caso 8). Todos necesitan además consultar y la pantalla en <code>menu_roles</code>; sin eso, 403.</li>
+    <li><b>Acciones (casos 5, 6 y 7):</b> necesitan <code>SOPORTE_APP_ACCIONES=true</code> en el <code>.env</code> de get-web y el api de <code>release/4.1.0</code> levantado en local, con <code>SOPORTE_GET_CLIENT_ID</code> en su <code>.env</code>. El api v2 no está en DEV. La receta (MySQL efímero, <code>php -S</code>, envíos a un stub) está en <code>plan.md</code>, evidencia de T7, T8 y T17.</li>
+    <li><b>Nunca clientes reales de PROD:</b> reenviar manda un SMS de verdad y autorizar le avisa al titular. Usa cédulas de prueba.</li>
+    <li><b>Dónde ver el resultado:</b> la pantalla <code>/quac/diagnostico-app</code>; la respuesta de get-web en la pestaña Red del navegador; el rastro en <code>quacapi.soporte_acciones</code>.</li>
+    <li><b>Orden sugerido:</b> casos 1 a 4 con el interruptor apagado o encendido (solo leen); encender; casos 5, 6 y 7; caso 8; regresión.</li>
+  </ol>
+</section>
+
+<nav id="tabs" class="mt-5 flex flex-wrap gap-2"></nav>
+<section id="caso" class="mt-4"></section>
+
+<footer class="mt-8 text-[12px] text-neutral-500">Sale de <code>qa.md</code> §2 a §7 de AQ-033 y de los textos de la rama <code>feature/AQ-033</code> de get-web (<code>resources/js/pages/quac/diagnosticoApp/</code>, <code>app/Services/Quac/DiagnosticoApp/</code> y <code>DiagnosticoAppController</code>). Las pantallas van reducidas y solo con la parte que importa en cada paso; la pantalla completa está en el mockup <code>AQ-033-diagnostico-app-v2.html</code>.</footer>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const ic = (n, c = 'h-4 w-4') => `<i data-lucide="${n}" class="${c}"></i>`;
+const chip = (t, x, i) => `<span class="chip chip-${t}">${i ? ic(i, 'h-3 w-3') : ''}${x}</span>`;
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/* ---------- Piezas de la pantalla (textos de la rama) ---------- */
+const marco = (html, url = '/quac/diagnostico-app') => `<div class="marco"><div class="marco-barra"><i></i><i></i><i></i><span class="marco-url">get · ${url}</span></div><div class="p-3">${html}</div></div>`;
+
+const pestanas = (lista, activa) => `<div class="flex items-end gap-1 border-b border-neutral-200 text-[13px]">${lista.map((t, i) => `<span class="rounded-t-lg border border-b-0 px-3 py-2 ${i === activa ? 'border-neutral-200 bg-white font-medium text-neutral-950' : 'border-transparent text-neutral-500'}">${i === 0 ? ic('search', 'mr-1 inline h-3.5 w-3.5') : ''}${t}${i > 0 ? ic('x', 'ml-2 inline h-3 w-3') : ''}</span>`).join('')}</div>`;
+
+const buscar = (dato, toque) => `<div class="rounded-lg border bg-white p-4">
+  <div class="text-lg font-semibold">Diagnóstico de la app</div>
+  <p class="text-sm text-neutral-500">Busca al cliente para ver sus equipos y en qué paso se quedó.</p>
+  <div class="mt-3 flex items-end gap-2"><div class="flex-1"><div class="text-xs font-medium text-neutral-700">Número de documento, celular o correo</div>
+  <div class="mt-1 flex h-9 items-center gap-2 rounded-md border border-neutral-300 px-3 text-sm ${toque === 'campo' ? 'toque' : ''}">${ic('search', 'h-4 w-4 text-neutral-400')}<span class="${dato ? '' : 'text-neutral-400'}">${dato || 'Número de documento, celular o correo'}</span></div></div>
+  <span class="btn lleno ${toque === 'boton' ? 'toque' : ''}">Buscar</span></div></div>`;
+
+const datosCliente = c => `<div class="rounded-lg border bg-white p-4"><div class="flex items-center gap-3">
+  <span class="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-900 text-xs font-semibold text-white">${c.ini}</span>
+  <div><div class="font-semibold">${c.nombre}</div><div class="text-sm text-neutral-500">CC <span class="nums">${c.cc}</span> · ${c.estado}</div></div></div>
+  <div class="mt-3 grid grid-cols-3 gap-3 text-sm"><div><div class="text-xs text-neutral-500">Celular de los códigos</div><div class="nums">${c.cel}</div></div><div><div class="text-xs text-neutral-500">Correo</div><div>${c.correo}</div></div><div><div class="text-xs text-neutral-500">Cupo disponible</div><div class="nums">${c.cupo}</div></div></div></div>`;
+
+/* equipos: [{nombre, detalle, chip:[tono,texto,icono], que, det, ultimo, atender, toque, mira}] */
+const tablaEquipos = (eqs) => `<div class="rounded-lg border bg-white"><div class="px-4 pt-3"><div class="font-semibold">Equipos</div><p class="text-xs text-neutral-500">${eqs.length === 1 ? 'Un equipo' : eqs.length + ' equipos'} con la app. El que necesita atención va primero.</p></div>
+  <table class="mt-2 w-full text-left text-[13px]"><thead><tr class="border-y bg-neutral-50 text-xs text-neutral-500"><th class="px-4 py-2 font-medium">Equipo</th><th class="font-medium">Estado</th><th class="font-medium">Qué pasa</th><th class="font-medium">Último contacto</th><th></th></tr></thead><tbody>
+  ${eqs.map(e => `<tr class="border-b last:border-0"><td class="px-4 py-2"><div class="font-medium">${e.nombre}</div><div class="text-xs text-neutral-500">${e.detalle}</div></td>
+    <td>${chip(...e.chip)}</td><td class="${e.mira ? 'mira' : ''} pr-2"><div class="${e.atender ? 'font-medium' : 'text-neutral-700'}">${e.que}</div>${e.det ? `<div class="text-xs text-neutral-500">${e.det}</div>` : ''}</td>
+    <td class="nums text-neutral-600">${e.ultimo}</td><td class="pr-3 text-right">${e.atender ? `<span class="btn rec !h-8 ${e.toque ? 'toque' : ''}">Atender ${ic('chevron-right')}</span>` : `<span class="${e.toque ? 'toque' : ''} inline-block p-1">${ic('chevron-right', 'h-4 w-4 text-neutral-400')}</span>`}</td></tr>`).join('')}
+  </tbody></table></div>`;
+
+const gestion = (filas, mira) => `<div class="rounded-lg border bg-white ${mira ? 'mira' : ''}"><div class="px-4 pt-3 font-semibold">Gestión de soporte</div>
+  ${filas.length ? `<table class="mt-2 w-full text-left text-[13px]"><thead><tr class="border-y bg-neutral-50 text-xs text-neutral-500"><th class="px-4 py-2 font-medium">Hora</th><th class="font-medium">Quién</th><th class="font-medium">Qué hizo</th><th class="font-medium">Motivo</th><th class="font-medium">Resultado</th></tr></thead><tbody>
+  ${filas.map(f => `<tr class="border-b last:border-0"><td class="nums px-4 py-2">${f[0]}</td><td>${f[1]}</td><td><div>${f[2]}</div><div class="text-xs text-neutral-500">${f[3]}</div></td><td class="text-neutral-600">${f[4]}</td><td>${chip('verde', f[5])}</td></tr>`).join('')}</tbody></table>`
+  : `<p class="px-4 py-4 text-sm text-neutral-500">Nadie de soporte ha actuado sobre este cliente</p>`}</div>`;
+
+const ultimo = filas => `<div class="rounded-lg border bg-white"><div class="flex items-center justify-between px-4 pt-3"><div class="font-semibold">Lo último que pasó</div><span class="text-xs font-medium underline">Ver todo el movimiento</span></div>
+  <div class="px-4 py-2 text-[13px]">${filas.map(f => `<div class="flex items-center justify-between gap-3 border-b py-1.5 last:border-0"><div><div>${f[0]}</div><div class="nums text-xs text-neutral-500">${f[1]}</div></div>${f[2] ? chip(...f[2]) : ''}</div>`).join('')}</div></div>`;
+
+/* Ventana del equipo. o: {nombre, sub, chip, tono, icono, titulo, queHacer, etiqueta(bool), vence, codigos, chipLim, botones:[{t,i,rec,toque}], autorizar:{toque}|null, notaLider, aviso, nota, pasos:[{t,e,d,cod,etq,mira}], miraRecuadro} */
+const TONO = { negro: 'border-neutral-900 bg-white', gris: 'border-neutral-200 bg-white', verde: 'border-emerald-200 bg-emerald-50/60', rosa: 'border-pink-200 bg-pink-50' };
+const TONO_IC = { negro: 'bg-neutral-900 text-white', gris: 'bg-neutral-100 text-neutral-600', verde: 'bg-emerald-600 text-white', rosa: 'bg-pink-600 text-white' };
+const PUNTO = { ok: `<span class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white">${ic('check', 'h-3.5 w-3.5')}</span>`, curso: `<span class="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-900"><span class="h-2 w-2 rounded-full bg-white"></span></span>`, pend: `<span class="h-6 w-6 rounded-full border-2 border-neutral-200 bg-white"></span>` };
+const ventana = o => `<div class="velo"><div class="w-full rounded-xl bg-neutral-50 shadow-xl">
+  <div class="flex items-center justify-between gap-3 rounded-t-xl border-b bg-white px-4 py-3"><div class="flex items-center gap-3"><span class="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-900 text-white">${ic('smartphone', 'h-5 w-5')}</span><div><div class="font-semibold">${o.nombre}</div><div class="text-xs text-neutral-500">${o.sub}</div></div>${chip(...o.chip)}</div><span class="btn !h-8">${ic('x')}Cerrar</span></div>
+  <div class="space-y-3 p-4">
+    <div class="rounded-xl border-2 p-4 ${TONO[o.tono]} ${o.miraRecuadro ? 'mira' : ''}"><div class="flex flex-wrap items-start gap-3">
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${TONO_IC[o.tono]}">${ic(o.icono, 'h-5 w-5')}</span>
+      <div class="min-w-0 flex-1 basis-56"><div class="text-lg font-semibold tracking-tight">${o.titulo}</div>
+        ${o.queHacer ? `${o.etiqueta ? `<div class="mt-1 text-[11px] font-medium uppercase tracking-wide text-neutral-500">Qué hacer</div>` : ''}<p class="text-sm text-neutral-700 ${o.etiqueta ? '' : 'mt-1'}">${o.queHacer}</p>` : ''}
+        ${o.botones && o.botones.length ? `<div class="mt-3 flex flex-wrap gap-2">${o.botones.map(b => `<span class="btn ${b.rec ? 'rec' : ''} ${b.toque ? 'toque' : ''}">${ic(b.i)}${b.t}</span>`).join('')}</div>` : ''}
+        ${o.notaLider ? `<p class="mt-2 text-xs text-neutral-500">Autorizar sin códigos lo hace el líder de soporte.</p>` : ''}
+        ${o.autorizar ? `<div class="mt-3 flex flex-wrap items-center gap-3 border-t pt-3"><span class="btn ${o.autorizar.toque ? 'toque' : ''}">${ic('shield-check')}Autorizar este equipo</span><span class="text-xs text-neutral-500">Salta los códigos. Queda registrado y le avisamos al cliente.</span></div>` : ''}
+        ${o.aviso ? `<div class="mira mt-3 flex items-start gap-2 rounded-md border bg-neutral-100 px-3 py-2 text-sm text-neutral-700">${ic('info', 'mt-0.5 h-4 w-4 shrink-0 text-neutral-500')}<span>${o.aviso}</span></div>` : ''}
+        ${o.nota ? `<p class="mt-2 text-xs text-neutral-500">${o.nota}</p>` : ''}</div>
+      <div class="nums shrink-0 space-y-1 text-right text-xs text-neutral-600">${o.chipLim ? chip('rosa', 'Límite de códigos alcanzado') : ''}${o.vence ? `<div>${o.vence}</div>` : ''}${o.codigos ? `<div>${o.codigos}</div>` : ''}</div></div></div>
+    ${o.pasos ? `<div class="rounded-lg border bg-white"><div class="flex gap-5 border-b px-4 text-[13px]"><span class="border-b-2 border-emerald-600 py-2 font-medium">Pasos</span><span class="py-2 text-neutral-500">Movimiento de este equipo</span><span class="py-2 text-neutral-500">Datos del equipo</span></div>
+      <div class="p-4"><div class="text-sm font-semibold">${o.tituloPasos || 'Autorización de este teléfono'}</div><div class="mt-3 space-y-3">${o.pasos.map(p => `<div class="flex gap-3 ${p.mira ? 'mira p-1' : ''}">${PUNTO[p.e]}<div class="text-[13px]"><div class="${p.e === 'curso' ? 'font-semibold' : p.e === 'pend' ? 'text-neutral-500' : 'font-medium'}">${p.t}${p.e === 'curso' ? ' <span class="text-xs font-normal text-neutral-500">va aquí</span>' : ''} ${p.etq ? chip('negro', p.etq) : ''}</div><div class="text-xs text-neutral-500">${p.d}</div>${p.cod ? `<div class="mt-1 inline-flex items-center gap-1 rounded-md bg-neutral-100 px-2 py-1 text-xs">${ic('key-round', 'h-3 w-3')}<span class="nums">${p.cod}</span></div>` : ''}</div></div>`).join('')}</div></div></div>` : ''}
+  </div></div></div>`;
+
+/* Diálogo con motivo. o: {titulo, desc, antes, motivo, otro:{texto, ayuda, falta, contador}, despues, error, confirmar, apagado, toque} */
+const dialogo = o => `<div class="velo"><div class="w-full max-w-md rounded-lg border bg-white p-5 shadow-lg">
+  <div class="text-lg font-semibold">${o.titulo}</div>${o.desc ? `<p class="mt-1 text-sm text-neutral-500">${o.desc}</p>` : ''}
+  ${o.antes || ''}
+  <div class="mt-3"><div class="text-sm font-medium">Motivo <span class="text-pink-700">*</span></div><div class="mt-1 flex h-9 items-center justify-between rounded-md border border-neutral-300 px-3 text-sm ${o.toque === 'motivo' ? 'toque' : ''}"><span class="${o.motivo ? '' : 'text-neutral-400'}">${o.motivo || 'Elige un motivo'}</span>${ic('chevron-down', 'h-4 w-4 text-neutral-400')}</div></div>
+  ${o.otro ? `<div class="mt-3"><div class="text-sm font-medium">Escribe el motivo <span class="text-pink-700">*</span></div><div class="mt-1 min-h-[56px] rounded-md border border-neutral-300 px-3 py-2 text-sm ${o.toque === 'otro' ? 'toque' : ''}">${o.otro.texto}</div><div class="mt-1 flex justify-between text-xs ${o.otro.falta ? 'mira text-pink-700' : 'text-neutral-500'}"><span>${o.otro.ayuda}</span><span class="nums">${o.otro.contador}</span></div></div>` : ''}
+  ${o.despues || ''}
+  ${o.error ? `<div class="mira mt-3 flex items-start gap-2 rounded-md border border-pink-200 bg-pink-50 px-3 py-2 text-sm text-pink-800">${ic('circle-x', 'mt-0.5 h-4 w-4 shrink-0')}<span>${o.error}</span></div>` : ''}
+  <div class="mt-4 flex justify-end gap-2"><span class="btn">Cancelar</span><span class="btn lleno ${o.apagado ? 'apagado mira' : ''} ${o.toque === 'confirmar' ? 'toque' : ''}">${o.confirmar}</span></div></div></div>`;
+
+const toast = t => `<div class="mira mt-3 ml-auto flex max-w-sm items-start gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm shadow">${ic('circle-check', 'mt-0.5 h-4 w-4 shrink-0 text-emerald-600')}<span>${t}</span></div>`;
+const canales = (elegido, toque) => `<div class="mt-3"><div class="text-sm font-medium">Canal <span class="text-pink-700">*</span></div><div class="mt-1 grid grid-cols-2 gap-2 text-[13px]">${[['SMS', 'message-circle', '300 000 1703'], ['WhatsApp', 'message-circle', '300 000 1703'], ['Llamada', 'phone', '300 000 1703'], ['Correo', 'mail', 'c•••@example.com']].map(c => `<div class="flex items-start gap-2 rounded-md border px-2 py-1.5 ${c[0] === elegido ? 'border-neutral-900' : 'border-neutral-200'} ${c[0] === toque ? 'toque' : ''}"><span class="mt-1 h-3 w-3 rounded-full border ${c[0] === elegido ? 'border-4 border-neutral-900' : 'border-neutral-400'}"></span><span><span class="flex items-center gap-1 font-medium">${ic(c[1], 'h-3.5 w-3.5')}${c[0]}</span><span class="nums text-xs text-neutral-500">${c[2]}</span></span></div>`).join('')}</div></div>`;
+const cajaCodigo = t => `<div class="mt-3 flex items-center gap-2 rounded-md bg-neutral-100 px-3 py-2 text-sm">${ic('key-round')}<span class="nums">${t}</span></div>`;
+const menuQuac = () => `<div class="rounded-lg bg-[#18181b] p-3 text-[13px] text-[#a1a1aa]"><div class="flex h-8 items-center gap-2 px-2 font-semibold text-white">${ic('wallet', 'h-4 w-4 text-[#34d399]')}QUAC</div><div class="ml-4 border-l border-[#3f3f46] pl-2">
+  ${['Consulta de Planes', 'Validación de fotos', 'Pagos Portal/App'].map(t => `<div class="flex h-8 items-center px-3">${t}</div>`).join('')}<div class="mira flex h-8 items-center gap-2 rounded-lg bg-white/10 px-3 font-medium text-white">${ic('smartphone', 'h-4 w-4 text-[#34d399]')}Diagnóstico de la app</div></div>
+  <p class="mt-2 px-2 text-[11px] text-neutral-500">Los demás ítems del menú son de ejemplo: deben verse como estaban.</p></div>`;
+
+/* ---------- Datos de ejemplo ---------- */
+const ANA = { ini: 'AP', nombre: 'Ana Prueba', cc: '1900000001', estado: 'Cuenta activa desde 3-mar-2025', cel: '300 000 1701', correo: 'a•••@example.com', cupo: '$ 1.500.000' };
+const CARLA = { ini: 'CP', nombre: 'Carla Prueba', cc: '1900000003', estado: 'Cuenta activa desde 9-ene-2026', cel: '300 000 1703', correo: 'c•••@example.com', cupo: '$ 600.000' };
+const DIANA = { ini: 'DP', nombre: 'Diana Prueba', cc: '1900000004', estado: 'Sin cuenta todavía', cel: '300 000 1704', correo: 'd•••@example.com', cupo: '—' };
+const eqAna = x => ({ nombre: 'moto g54 5G', detalle: 'Android 14, app 4.1.0', chip: ['negro', 'Autorizándose'], que: 'Esperando que escriba el código', det: 'Va en «Código del celular», vence a las 9:46 a. m.', ultimo: 'hoy 9:14 a. m.', atender: true, ...x });
+const eqViejo = { nombre: 'Redmi Note 13', detalle: 'Android 14, app 4.0.1', chip: ['verde', 'Autorizado'], que: 'Sin pendientes', det: '', ultimo: 'ayer 6:40 p. m.', atender: false };
+const pasosAna = (cod, x = {}) => [{ t: 'Código del celular', e: 'curso', d: '1 envío del mismo código, ninguno escrito', cod, mira: x.miraCod }, { t: 'Código del correo', e: 'pend', d: 'Se envía cuando escriba el del celular' }, { t: 'Selfie', e: 'pend', d: 'No la pide en este intento' }, { t: 'Equipo autorizado', e: 'pend', d: 'Aún no llega' }];
+const vAna = x => ({ nombre: 'moto g54 5G', sub: 'Android 14, app 4.1.0. Equipo de Ana, CC 1900000001.', chip: ['negro', 'Autorizándose'], tono: 'negro', icono: 'hourglass', titulo: 'Esperando que escriba el código', etiqueta: true, queHacer: 'Reenvía el código vigente por otro canal o compara la hora con el SMS que tiene', vence: 'Vence a las 9:46 a. m.', codigos: 'Códigos pedidos: 1 de 6', pasos: pasosAna('Código vigente ••••47 · generado 9:14 a. m.'), ...x });
+const B_REENVIAR = (rec = true, toque) => ({ t: 'Reenviar código vigente', i: 'send', rec, toque });
+const cuerpoCliente = (c, eqs, g, u) => `<div class="space-y-3">${pestanas(['Buscar cliente', `${c.cc} · ${c.nombre.split(' ')[0]}`], 1)}${datosCliente(c)}${tablaEquipos(eqs)}${g}${u || ''}</div>`;
+
+/* ---------- Casos (qa.md §6, mismo orden y número) ---------- */
+const paso = (tipo, frase, html) => ({ tipo, frase, html });
+const CASOS = [
+{ id: '1', nombre: '1 · Buscar por cédula', para: 'Soporte escribe una cédula y ve de una vez la pestaña del cliente, con el equipo que necesita atención primero.',
+  prep: ['Una cédula de prueba con cuenta en la app y un intento de autorizar abierto (entra con cédula y clave en un teléfono que no esté autorizado).', 'Un usuario de get con <code>consultar_diagnostico_app</code>.'],
+  pasos: [
+    paso('toca', 'Entra a QUAC › Diagnóstico de la app, escribe la cédula y toca «Buscar».', marco(`<div class="space-y-3">${pestanas(['Buscar cliente'], 0)}${buscar('1900000001', 'boton')}</div>`)),
+    paso('ver', 'Se abre sola la pestaña «{cédula} · {nombre}» con los datos del cliente y la tabla «Equipos». El equipo que pide atención va primero, con «Atender» en contorno verde.', marco(cuerpoCliente(ANA, [eqAna({ mira: true }), eqViejo], '', ''))),
+    paso('ver', 'Debajo están «Gestión de soporte» (vacía hasta la primera acción) y «Lo último que pasó», en lista de una línea por fila.', marco(`<div class="space-y-3">${gestion([])}${ultimo([['Inició sesión desde un equipo nuevo', 'hoy 9:14:20 a. m. · moto g54 5G · App', ['gris', 'Intento abierto']], ['Código del celular · nuevo', 'hoy 9:14:25 a. m. · moto g54 5G · Infobip · SMS', ['gris', 'Sin estado']]])}</div>`)),
+  ],
+  pasa: 'La pestaña abre sin pasar por una lista; se ven los datos del cliente, «Equipos», «Gestión de soporte» y «Lo último que pasó»; solo un equipo lleva «Atender».',
+  falla: 'Sale una lista de resultados con un solo cliente, la pestaña queda en «Consultando la cuenta, los equipos y los envíos…» o dos equipos llevan «Atender».',
+  noError: ['Los equipos salen con el modelo y no con un nombre: el nombre lo pone la app de la 4.1.0 (AQ-019) y hoy no hay ninguno.', '«Sin estado» en SMS, WhatsApp y llamada es correcto hasta que salga AQ-028. El correo sí dice «Aceptado por el servidor».', '«Lo último que pasó» es una lista compacta, no la tabla de cinco columnas del mockup.', 'Una cédula que nunca abrió la app: «No encontramos un cliente de la app con «…»» y «Revisa el dato o busca por cédula. Si nunca abrió la app, no aparece aquí.».'] },
+
+{ id: '2', nombre: '2 · Celular compartido', para: 'Un celular que está en dos cédulas muestra la lista y no abre ninguna pestaña sola.',
+  prep: ['Un celular de prueba registrado en dos cédulas con cuenta en la app.'],
+  pasos: [
+    paso('toca', 'Escribe el celular y toca «Buscar».', marco(`<div class="space-y-3">${pestanas(['Buscar cliente'], 0)}${buscar('300 000 1702', 'boton')}</div>`)),
+    paso('ver', 'Sale «2 clientes coinciden con «…»», una fila por cliente. Ninguna pestaña se abre sola.', marco(`<div class="space-y-3">${pestanas(['Buscar cliente'], 0)}<p class="mira px-1 text-sm"><b>2 clientes coinciden</b> con «300 000 1702». Un mismo celular puede estar en varias cédulas.</p>${resultados(false, true)}</div>`)),
+    paso('toca', 'Toca «Abrir» en uno. Se abre su pestaña. Vuelve a «Buscar cliente» y busca el mismo celular.', marco(`<div class="space-y-3">${pestanas(['Buscar cliente', '1900000002 · Beto'], 1)}${datosCliente({ ini: 'BP', nombre: 'Beto Prueba', cc: '1900000002', estado: 'Cuenta activa desde 12-ago-2025', cel: '300 000 1702', correo: 'b•••@example.com', cupo: '$ 850.000' })}</div>`)),
+    paso('ver', 'La fila del que ya abriste dice «Ya está abierto». Al tocarla, va a su pestaña y no crea otra.', marco(`<div class="space-y-3">${pestanas(['Buscar cliente', '1900000002 · Beto'], 0)}${resultados(true, false)}</div>`)),
+  ],
+  pasa: 'Con dos clientes sale la lista; el que ya está abierto dice «Ya está abierto» y no se duplica la pestaña.',
+  falla: 'Se abre sola una pestaña, o al tocar «Ya está abierto» aparece una segunda pestaña del mismo cliente.',
+  noError: ['Las pestañas no se conservan al recargar la página: es así (excluido de este REQ).', 'Bajo «Equipos», con más de un equipo, sale «La app todavía no informa si es el mismo celular.».'] },
+
+{ id: '3', nombre: '3 · Ventana del equipo', para: 'Al tocar un equipo se abre su ventana con qué hacer, los pasos y el código vigente enmascarado.',
+  prep: ['El cliente del caso 1, con el intento en «Código del celular».', 'Un usuario con <code>actuar_diagnostico_app</code> y el interruptor encendido, para ver el botón y los dos últimos dígitos.'],
+  pasos: [
+    paso('toca', 'En la pestaña del cliente, toca «Atender» o la fila del equipo.', marco(tablaEquipos([eqAna({ toque: true }), eqViejo]))),
+    paso('ver', 'Recuadro «Esperando que escriba el código», «Códigos pedidos: N de 6» y «Reenviar código vigente» en contorno verde.', marco(ventana(vAna({ miraRecuadro: true, botones: [B_REENVIAR()], notaLider: true, pasos: null })))),
+    paso('ver', 'En «Pasos», bajo el paso en curso: «Código vigente ••••47 · generado …». En ninguna parte salen los seis dígitos.', marco(ventana(vAna({ botones: [B_REENVIAR()], notaLider: true, pasos: pasosAna('Código vigente ••••47 · generado 9:14 a. m.', { miraCod: true }) })))),
+    paso('toca', 'Tecla Esc. La ventana cierra y la pestaña del cliente queda igual.', marco(tablaEquipos([eqAna({}), eqViejo]))),
+  ],
+  pasa: 'La ventana abre con el recuadro, los pasos y el código en máscara de dos dígitos; Esc la cierra sin cambiar la pestaña.',
+  falla: 'Se ven los seis dígitos del código en la pantalla o en la respuesta de la pestaña Red, o hay dos botones en verde.',
+  noError: ['«Códigos pedidos: N de 6» es aproximado: get-web lo calcula desde <code>log_activity</code>; el contador real está en Redis del api.', 'A 390 px la tercera pestaña («Datos del equipo») no asoma: hay que deslizar.', 'Las pantallas del teléfono que salen a la derecha de «Pasos» son HTML fijo; pueden diferir de la app publicada.'] },
+
+{ id: '4', nombre: '4 · Solo consulta', para: 'Quien solo puede consultar no ve dígitos ni botones, y con el interruptor apagado nadie ve botones.',
+  prep: ['Un usuario con solo <code>consultar_diagnostico_app</code>.', 'Para la segunda parte: <code>SOPORTE_APP_ACCIONES=false</code> en el <code>.env</code> de get-web y un usuario con actuar.'],
+  pasos: [
+    paso('ver', 'Con el usuario de solo consulta: «••••••» en vez de «••••47», ningún botón y el aviso gris.', marco(ventana(vAna({ aviso: 'Tu usuario solo puede consultar. Las acciones las hace soporte nivel 2', pasos: pasosAna('•••••• · generado 9:14 a. m.', { miraCod: true }) })))),
+    paso('ver', 'Con <code>SOPORTE_APP_ACCIONES=false</code>, cualquier usuario: ningún botón y este aviso.', marco(ventana(vAna({ aviso: 'Las acciones de soporte se activan pronto. Por ahora esta pantalla es de consulta.', pasos: null })))),
+  ],
+  pasa: 'Sin permiso de actuar no hay dígitos ni botones; con el interruptor apagado nadie ve botones y sale el aviso.',
+  falla: 'Un usuario de solo consulta ve «••••47» o algún botón; o con el interruptor apagado sale un botón.',
+  noError: ['El mismo aviso gris sale también arriba de la pestaña del cliente.', 'Un usuario sin <code>consultar_diagnostico_app</code> no entra: «Tu usuario no tiene permiso para consultar esta pantalla.».'],
+  api: `GET /quac/diagnostico-app/cliente?documento=1900000001   (usuario de solo consulta)
+…
+"codigo": { "mascara": "••••••", "generado_at": "9:14 a. m." }
+// con actuar o autorizar: "mascara": "••••47". Nunca viajan los seis dígitos.` },
+
+{ id: '5', nombre: '5 · Reenviar y reiniciar con 6 de 6', para: 'Con el cliente en el límite, soporte reenvía el mismo código sin gastar cupo y reinicia el límite.',
+  prep: ['Interruptor encendido y el api de <code>release/4.1.0</code> levantado.', 'Un cliente de prueba que pidió 6 códigos en el mismo intento (toca «Reenviar» en la app hasta que no deje).', 'Un usuario con <code>actuar_diagnostico_app</code>.'],
+  pasos: [
+    paso('ver', 'Recuadro rosa «Llegó al límite de códigos hasta las …» con «Reiniciar límite de códigos» en verde. «Reenviar código vigente» sale en gris.', marco(ventana({ nombre: 'Galaxy A15', sub: 'Android 14, app 4.1.0. Equipo de Carla, CC 1900000003.', chip: ['negro', 'Autorizándose'], tono: 'rosa', icono: 'ban', titulo: 'Llegó al límite de códigos hasta las 10:02 a. m.', etiqueta: true, queHacer: 'Reinicia el límite y reenvía el código por otro canal', chipLim: true, vence: 'Vence a las 10:02 a. m.', codigos: 'Códigos pedidos: 6 de 6', botones: [B_REENVIAR(false, true), { t: 'Reiniciar límite de códigos', i: 'lock-open', rec: true }], notaLider: true, miraRecuadro: true }))),
+    paso('toca', 'Toca «Reenviar código vigente», elige «SMS» y un motivo, y toca «Reenviar».', marco(dialogo({ titulo: 'Reenviar código vigente', desc: 'Le llega el mismo código que ya tiene para autorizar el Galaxy A15 (código del celular). No se genera uno nuevo, no cuenta en su límite de códigos y no tiene tope.', antes: cajaCodigo('Código vigente ••••17 · generado 9:30 a. m. · vence a las 10:02 a. m.') + canales('SMS', 'SMS'), motivo: 'El cliente dice que no le llegó el código', confirmar: 'Reenviar', toque: 'confirmar' }))),
+    paso('ver', 'Aviso verde con la hora. Al celular llega el mismo código. El contador sigue en 6 de 6 y hay fila nueva en «Gestión de soporte» con «Enviado».', marco(`${gestion([['hoy 9:59 a. m.', 'esoporte', 'Reenvió el código vigente por SMS', 'Galaxy A15', 'El cliente dice que no le llegó el código', 'Enviado']], true)}${toast('Código reenviado por SMS a las 9:59 a. m. Es el mismo código de las 9:30 a. m.')}`)),
+    paso('toca', 'Abre otra vez el equipo, toca «Reiniciar límite de códigos», elige un motivo y confirma.', marco(dialogo({ titulo: 'Reiniciar límite de códigos', desc: 'El cliente ya pidió 6 de 6 códigos en 30 minutos. Al reiniciar, puede pedir códigos ya, sin esperar hasta las 10:02 a. m. El código vigente no cambia.', motivo: 'Pidió varios códigos y no le llegó ninguno', confirmar: 'Reiniciar límite de códigos', toque: 'confirmar' }))),
+    paso('ver', 'Pasa a «Códigos pedidos: 0 de 6», el recuadro vuelve a «Esperando que escriba el código» y el código vigente es el mismo (••••17).', marco(ventana({ nombre: 'Galaxy A15', sub: 'Android 14, app 4.1.0. Equipo de Carla, CC 1900000003.', chip: ['negro', 'Autorizándose'], tono: 'negro', icono: 'hourglass', titulo: 'Esperando que escriba el código', etiqueta: true, queHacer: 'Reenvía el código vigente por otro canal o compara la hora con el SMS que tiene', vence: 'Vence a las 10:02 a. m.', codigos: 'Códigos pedidos: 0 de 6', botones: [B_REENVIAR()], notaLider: true, miraRecuadro: true, pasos: [{ t: 'Código del celular', e: 'curso', d: '6 envíos del mismo código, ninguno escrito', cod: 'Código vigente ••••17 · generado 9:30 a. m.', mira: true }, { t: 'Código del correo', e: 'pend', d: 'Se envía cuando escriba el del celular' }] }) + toast('Límite reiniciado. El cliente ya puede pedir códigos.'))),
+    paso('error', 'Si eliges un canal apagado en el api, el diálogo no se cierra y dice esto. Elige otro canal.', marco(dialogo({ titulo: 'Reenviar código vigente', antes: canales('Llamada'), motivo: 'El cliente pidió recibirlo por otro canal', error: 'Ese canal está apagado por ahora. Elige otro canal.', confirmar: 'Reenviar' }))),
+  ],
+  pasa: 'El código que llega es el mismo; reenviar no mueve el contador; reiniciar lo deja en 0 de 6 sin cambiar el código; cada acción deja su fila en «Gestión de soporte».',
+  falla: 'Llega un código distinto, el contador sube al reenviar, o no aparece la fila en «Gestión de soporte».',
+  noError: ['«Reiniciar límite de códigos» solo sale cuando el equipo llegó al límite. El mockup lo dibuja siempre; se decidió dejarlo así.', 'Reiniciar no deja fila en el movimiento, solo en «Gestión de soporte». Reenviar sale en los dos.', 'Si el proceso venció mientras tenías el diálogo abierto: «El proceso ya no está activo. Vuelve a buscar al cliente para ver en qué va.».'],
+  api: `POST /quac/diagnostico-app/reenviar            → 200
+{ "mensaje": "Código reenviado por SMS a las 9:59 a. m. Es el mismo código de las 9:30 a. m." }
+
+POST /quac/diagnostico-app/reiniciar-limite    → 200
+{ "mensaje": "Límite reiniciado. El cliente ya puede pedir códigos." }
+
+Canal apagado                                  → 422
+{ "error": "Ese canal está apagado por ahora. Elige otro canal." }
+Proceso que ya no está vivo                    → 409
+{ "error": "El proceso ya no está activo. Vuelve a buscar al cliente para ver en qué va." }
+
+-- El rastro
+SELECT id, usuario_get, accion, resultado, created_at
+FROM quacapi.soporte_acciones ORDER BY id DESC LIMIT 5;   -- enviado, reiniciado` },
+
+{ id: '6', nombre: '6 · Aceptar el código del SMS en el correo', para: 'Al cliente no le llega el correo: quien puede autorizar deja que el código del SMS sirva en el paso del correo.',
+  prep: ['Interruptor encendido y el api de <code>release/4.1.0</code> levantado.', 'Un proceso de prueba con el celular validado y el correo pendiente (registro o autorización).', 'Un usuario con <code>autorizar_diagnostico_app</code> y otro con solo actuar.'],
+  pasos: [
+    paso('ver', 'Con el usuario que autoriza: el botón sale en contorno gris. «Reenviar código vigente» sigue siendo el verde.', marco(ventana(vDiana({ botones: [B_REENVIAR(), { t: 'Aceptar el código del SMS en el correo', i: 'message-square-text', toque: true }], autorizar: {} })))),
+    paso('toca', 'Toca el botón, elige «No le llega el correo» y confirma con «Aceptar el código del SMS».', marco(dialogo({ titulo: 'Aceptar el código del SMS en el correo', desc: 'Diana podrá escribir en el paso del correo el mismo código que le llegó por SMS. Si ese código ya venció, le enviamos uno nuevo por SMS.', antes: `<div class="mt-3 flex items-start gap-2 rounded-md bg-neutral-100 px-3 py-2 text-sm">${ic('info', 'mt-0.5 h-4 w-4 shrink-0')}<span>El correo queda sin verificar. Queda registrado quién lo hizo y por qué.</span></div>`, motivo: 'No le llega el correo', confirmar: 'Aceptar el código del SMS', toque: 'confirmar' }))),
+    paso('ver', 'El recuadro cambia y el paso «Código del correo» lleva la etiqueta «Acepta el código del SMS». Ningún botón queda en verde.', marco(ventana(vDiana({ titulo: 'Puede usar el código del SMS en el paso del correo', icono: 'message-square-text', queHacer: 'Dile que escriba en «Código del correo» el mismo código que le llegó por SMS.', miraRecuadro: true, botones: [B_REENVIAR(false)], autorizar: {}, etq: 'Acepta el código del SMS' })) + toast('Listo. Diana ya puede escribir en «Código del correo» el código que le llegó por SMS.'))),
+    paso('ver', 'En «Gestión de soporte»: fila «Aceptó el código del SMS en el correo» con «Habilitado». En la app, el código del SMS pasa el paso del correo.', marco(gestion([['hoy 2:24 p. m.', 'elider', 'Aceptó el código del SMS en el correo', 'moto g54 5G', 'No le llega el correo', 'Habilitado']], true))),
+    paso('ver', 'Con el usuario que solo tiene actuar: el botón no existe.', marco(ventana(vDiana({ botones: [B_REENVIAR()], notaLider: true, pasos: null })))),
+  ],
+  pasa: 'Solo quien autoriza ve el botón; tras confirmar, el paso del correo lleva la etiqueta, queda la fila «Habilitado» y en la app el código del SMS sirve en el correo.',
+  falla: 'Un usuario con solo actuar ve el botón, la etiqueta no aparece, o la app rechaza el código del SMS en el paso del correo.',
+  noError: ['Si el código del SMS ya venció, el aviso dice «Listo. Le enviamos un SMS nuevo a Diana: ese código sirve en «Código del correo».».', 'Cuando la cuenta ya quedó creada, la etiqueta «Con el código del SMS, correo sin verificar» deja de verse; queda la fila en «Gestión de soporte».', 'Las reglas de cuándo aplica son de AQ-032, no de este REQ.'],
+  api: `POST /quac/diagnostico-app/aceptar-sms-correo   → 200
+{ "mensaje": "Listo. Diana ya puede escribir en «Código del correo» el código que le llegó por SMS." }
+
+Si hubo que mandar un SMS nuevo y no salió      → 502
+{ "error": "No pudimos enviarle el SMS nuevo. No quedó activado; intenta de nuevo." }` },
+
+{ id: '7', nombre: '7 · Autorizar y el motivo «Otro»', para: 'El líder autoriza un equipo sin códigos, solo después de confirmar que validó la identidad, y el motivo «Otro» exige 10 caracteres.',
+  prep: ['Interruptor encendido y el api de <code>release/4.1.0</code> levantado.', 'Un cliente de prueba con un intento de autorizar abierto y otro teléfono ya autorizado.', 'Un usuario con <code>autorizar_diagnostico_app</code>.'],
+  pasos: [
+    paso('toca', 'En la ventana del equipo, toca «Autorizar este equipo» (abajo, separado de los demás).', marco(ventana(vAna({ botones: [B_REENVIAR()], autorizar: { toque: true }, pasos: null })))),
+    paso('ver', 'Sin marcar «Confirmo que validé la identidad del titular», «Autorizar sin códigos» sigue apagado aunque haya motivo.', marco(dialogo({ titulo: 'Autorizar este equipo', desc: 'El cliente podrá entrar a la app en este equipo sin escribir más códigos.', antes: fichaEquipo(), motivo: 'El cliente llamó a la línea y validé su identidad', despues: confirmo(false), confirmar: 'Autorizar sin códigos', apagado: true }))),
+    paso('error', 'Elige «Otro» y escribe 9 caracteres: «Faltan 1 caracteres» y el botón sigue apagado.', marco(dialogo({ titulo: 'Autorizar este equipo', antes: '', motivo: 'Otro', otro: { texto: 'De viajes', ayuda: 'Faltan 1 caracteres', falta: true, contador: '9 / 255' }, despues: confirmo(true), confirmar: 'Autorizar sin códigos', apagado: true }))),
+    paso('toca', 'Completa el motivo (10 o más), marca la casilla y toca «Autorizar sin códigos».', marco(dialogo({ titulo: 'Autorizar este equipo', antes: '', motivo: 'Otro', otro: { texto: 'El cliente está de viaje y solo tiene señal de datos', ayuda: 'De 10 a 255 caracteres', falta: false, contador: '51 / 255' }, despues: confirmo(true), confirmar: 'Autorizar sin códigos', toque: 'confirmar' }))),
+    paso('ver', 'El equipo pasa a «Autorizado», sale el aviso y el otro teléfono sigue «Autorizado». Al cliente le llega el aviso de equipo nuevo por SMS y correo.', marco(tablaEquipos([{ nombre: 'moto g54 5G', detalle: 'Android 14, app 4.1.0', chip: ['verde', 'Autorizado'], que: 'Sin pendientes', det: '', ultimo: 'hoy 9:25 a. m.', atender: false, mira: true }, eqViejo]) + gestion([['hoy 9:25 a. m.', 'elider', 'Autorizó el equipo', 'moto g54 5G', 'El cliente está de viaje y solo tiene señal de datos', 'Autorizado']]) + toast('Equipo autorizado. Al cliente le llega el aviso de equipo nuevo por SMS y correo.'))),
+  ],
+  pasa: 'Sin la casilla no se puede autorizar; «Otro» exige de 10 a 255 caracteres; al confirmar, el equipo queda «Autorizado», el cliente recibe el aviso y los otros teléfonos no cambian.',
+  falla: 'El botón se enciende sin la casilla o con menos de 10 caracteres, otro teléfono pierde la autorización, o no llega el aviso al cliente.',
+  noError: ['«Faltan 1 caracteres» está escrito así en la pantalla (sin singular).', 'Si el aviso no sale: «Equipo autorizado. No pudimos avisarle al cliente: díselo tú.». El equipo sí quedó autorizado.', 'En «Pasos», los códigos que el cliente no escribió dicen «Lo saltó soporte»: autorizar no los da por validados.', 'Un usuario con actuar sin autorizar ve «Autorizar sin códigos lo hace el líder de soporte.» y no ve el botón.'],
+  api: `POST /quac/diagnostico-app/autorizar-equipo   → 200
+{ "mensaje": "Equipo autorizado. Al cliente le llega el aviso de equipo nuevo por SMS y correo." }
+
+Fila en «Lo último que pasó»: «Autorizado por soporte · Por elider · …»` },
+
+{ id: '8', nombre: '8 · Detalle confidencial', para: 'Solo quien tiene el permiso ve el código completo de un envío, con motivo, y la apertura queda registrada aparte.',
+  prep: ['Un cliente de prueba con un envío de código en su movimiento.', 'Un usuario con <code>ver_confidencial_diagnostico_app</code> y otro sin ese permiso.', 'OPS-3 aplicado (tabla <code>get.quac_diagnostico_app_accesos</code>).'],
+  pasos: [
+    paso('toca', 'Abre «Ver todo el movimiento» y toca «Ver detalle» en un envío con código.', marco(`<div class="rounded-lg border bg-white p-3 text-[13px]"><div class="font-semibold">Movimiento de Ana</div><div class="mt-2 flex items-center justify-between border-b py-2"><div><div>Código del celular · nuevo</div><div class="nums text-xs text-neutral-500">hoy 9:14:25 a. m. · moto g54 5G · Infobip · SMS</div></div><div class="flex items-center gap-2">${chip('gris', 'Sin estado')}<span class="btn toque !h-8">Ver detalle</span></div></div><div class="flex items-center justify-between py-2"><div><div>Inició sesión desde un equipo nuevo</div><div class="nums text-xs text-neutral-500">hoy 9:14:20 a. m. · moto g54 5G · App</div></div>${chip('gris', 'Intento abierto')}</div></div>`)),
+    paso('ver', 'Primero pide el motivo, con el aviso de que queda registrado.', marco(dialogo({ titulo: 'Detalle confidencial', desc: 'Código del celular · nuevo · hoy 9:14:25 a. m.', antes: `<div class="mt-3 flex items-start gap-2 rounded-md bg-neutral-100 px-3 py-2 text-sm">${ic('info', 'mt-0.5 h-4 w-4 shrink-0')}<span>Vas a ver el código completo y la respuesta del proveedor. Queda registrado quién lo abrió, cuándo y por qué.</span></div>`, motivo: 'El cliente dice que el código no le sirve', confirmar: 'Ver detalle', toque: 'confirmar' }))),
+    paso('ver', 'Luego muestra el código completo, el destino y la respuesta del proveedor.', marco(`<div class="velo"><div class="w-full max-w-md rounded-lg border bg-white p-5 text-sm shadow-lg"><div class="text-lg font-semibold">Detalle confidencial</div><p class="text-neutral-500">Código del celular · nuevo</p>
+      <div class="mt-3 grid grid-cols-2 gap-3"><div><div class="text-xs text-neutral-500">Canal</div>SMS</div><div><div class="text-xs text-neutral-500">Destino</div><span class="nums">300 000 1701</span></div><div><div class="text-xs text-neutral-500">Fecha</div><span class="nums">hoy · 9:14:25 a. m.</span></div><div class="mira"><div class="text-xs text-neutral-500">Código enviado</div><span class="nums font-semibold">482947</span></div><div><div class="text-xs text-neutral-500">Id del mensaje del proveedor</div>Sin guardar</div></div>
+      <div class="mt-3 text-xs text-neutral-500">Respuesta del proveedor</div><div>Hoy no guardamos la respuesta de Infobip.</div><p class="mt-3 text-xs text-neutral-500">Esta apertura quedó registrada en Accesos confidenciales.</p><div class="mt-3 text-right"><span class="btn">Cerrar</span></div></div></div>`)),
+    paso('ver', 'La apertura sale en «Accesos confidenciales» y no en «Gestión de soporte».', marco(`<div class="space-y-3"><div class="mira rounded-lg border bg-white"><div class="px-4 pt-3"><div class="font-semibold">Accesos confidenciales</div><p class="text-xs text-neutral-500">Solo lo ve quien puede abrir el detalle confidencial.</p></div><table class="mt-2 w-full text-left text-[13px]"><thead><tr class="border-y bg-neutral-50 text-xs text-neutral-500"><th class="px-4 py-2 font-medium">Hora</th><th class="font-medium">Quién</th><th class="font-medium">Qué abrió</th><th class="font-medium">Motivo</th></tr></thead><tbody><tr><td class="nums px-4 py-2">hoy 9:40 a. m.</td><td>econfidencial</td><td>Código del celular · nuevo</td><td class="text-neutral-600">El cliente dice que el código no le sirve</td></tr></tbody></table></div>${gestion([])}</div>`)),
+    paso('ver', 'Con un usuario sin el permiso: no hay «Ver detalle» ni la sección «Accesos confidenciales».', marco(`<div class="rounded-lg border bg-white p-3 text-[13px]"><div class="font-semibold">Movimiento de Ana</div><div class="mt-2 flex items-center justify-between py-2"><div><div>Código del celular · nuevo</div><div class="nums text-xs text-neutral-500">hoy 9:14:25 a. m. · moto g54 5G · Infobip · SMS</div></div>${chip('gris', 'Sin estado')}</div></div>`)),
+  ],
+  pasa: 'Pide motivo antes de mostrar; muestra el código completo; la apertura queda en «Accesos confidenciales»; sin el permiso no existen «Ver detalle» ni la sección.',
+  falla: 'Muestra el código sin pedir motivo, la apertura no queda registrada, o un usuario sin permiso ve «Ver detalle».',
+  noError: ['En SMS, WhatsApp y llamada dice «Hoy no guardamos la respuesta de Infobip.»: llega con AQ-028.', 'Si no se pudo guardar la apertura, no muestra el código: «No pudimos registrar el acceso. Intenta de nuevo.».', 'El texto exacto de la columna «Qué abrió» puede variar según el envío (texto por confirmar en pantalla).'],
+  api: `-- La apertura queda aquí, no en soporte_acciones
+SELECT * FROM get.quac_diagnostico_app_accesos ORDER BY id DESC LIMIT 5;` },
+
+{ id: 'R', nombre: 'Regresión', para: 'Lo que no debe cambiar en get, y el ajuste del 20-nov para los pasos que no llevan código.',
+  prep: ['Un usuario sin <code>consultar_diagnostico_app</code> y uno con el permiso.', 'Un registro de prueba que ya validó el celular y el correo y va en «Fecha de nacimiento» (o un intento en selfie o clave).'],
+  pasos: [
+    paso('ver', 'El menú QUAC conserva sus ítems de siempre y suma «Diagnóstico de la app» (después de OPS-2 §3b). Las demás pantallas de QUAC abren igual.', marco(menuQuac(), '/')),
+    paso('ver', 'Con el proceso en fecha de nacimiento, selfie o clave, la fila dice «Avanzando en la app» y lleva «Atender».', marco(tablaEquipos([{ nombre: 'moto g54 5G', detalle: 'Android 14, app anterior a 4.0.1', chip: ['negro', 'Creando la cuenta'], que: 'Avanzando en la app', det: 'Va en «Fecha de nacimiento», vence a las 3:15 p. m.', ultimo: 'hoy 2:20 p. m.', atender: true, mira: true }]))),
+    paso('ver', 'Su ventana dice en qué paso va. Antes decía «Sin pendientes · No hay teléfonos bloqueados ni procesos abiertos.» (fix <code>2452e</code>).', marco(ventana({ nombre: 'moto g54 5G', sub: 'Android 14, app anterior a 4.0.1. Equipo de Elena, CC 1900000006.', chip: ['negro', 'Creando la cuenta'], tono: 'verde', icono: 'circle-check', titulo: 'Avanzando en la app', queHacer: 'Va en «Fecha de nacimiento». Ese paso no lleva código: no hay nada que reenviar ni reiniciar.', nota: 'Crear cuenta lo termina el cliente en la app. Aquí puedes reenviarle el código vigente o reiniciar su límite de códigos.', vence: 'Vence a las 3:15 p. m.', codigos: 'Códigos pedidos: 0 de 6', miraRecuadro: true, tituloPasos: 'Creación de la cuenta desde este teléfono', pasos: [{ t: 'Código del celular', e: 'ok', d: 'Lo escribió a las 2:18 p. m.' }, { t: 'Código del correo', e: 'ok', d: 'Lo escribió a las 2:21 p. m.' }, { t: 'Saludo', e: 'ok', d: 'Lo ve al validar los dos códigos' }, { t: 'Fecha de nacimiento', e: 'curso', d: '' }, { t: 'Clave', e: 'pend', d: 'Aún no llega' }] }))),
+    paso('ver', 'Un equipo autorizado y sin proceso sigue diciendo «Sin pendientes».', marco(tablaEquipos([eqViejo]))),
+  ],
+  pasa: 'El resto de get y del menú QUAC no cambió; el equipo en un paso sin código dice «Avanzando en la app» y en qué paso va; el autorizado sin proceso dice «Sin pendientes».',
+  falla: 'Otra pantalla de QUAC dejó de abrir, un usuario sin permiso entra a la ruta, o la ventana vuelve a decir «No hay teléfonos bloqueados ni procesos abiertos» con un proceso en curso.',
+  noError: ['La línea gris de abajo («Aquí puedes reenviarle el código vigente o reiniciar su límite de códigos») sale en todos los pasos del registro; en estos no aplica y no se tocó.', 'En estos pasos no sale ningún botón de reenviar ni de reiniciar: no hay código en curso.'] },
+];
+
+function resultados(abierto, mira) {
+  const f = (ini, n, cc, correo, pend, ab) => `<tr class="border-b last:border-0"><td class="px-4 py-2"><div class="flex items-center gap-2"><span class="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-xs font-semibold">${ini}</span><div><div class="font-medium">${n}</div><div class="nums text-xs text-neutral-500">CC ${cc}</div></div></div></td><td class="nums">300 000 1702</td><td>${correo}</td><td>1 equipo</td><td>${chip('verde', pend)}</td><td class="pr-3 text-right"><span class="${ab ? 'mira text-neutral-500' : 'font-medium'} ${!ab && mira && ini === 'BP' ? 'toque' : ''} inline-flex items-center gap-1 px-1">${ab ? 'Ya está abierto' : 'Abrir'} ${ic('chevron-right')}</span></td></tr>`;
+  return `<div class="rounded-lg border bg-white"><table class="w-full text-left text-[13px]"><thead><tr class="border-b bg-neutral-50 text-xs text-neutral-500"><th class="px-4 py-2 font-medium">Cliente</th><th class="font-medium">Celular</th><th class="font-medium">Correo</th><th class="font-medium">Equipos</th><th class="font-medium">Qué tiene pendiente</th><th></th></tr></thead><tbody>${f('BP', 'Beto Prueba', '1900000002', 'b•••@example.com', 'Sin pendientes', abierto)}${f('BP', 'Berta Prueba', '1900000005', 'be•••@example.com', 'Sin pendientes', false)}</tbody></table></div>`;
+}
+function vDiana(x) {
+  const etq = x.etq; delete x.etq;
+  return { nombre: 'moto g54 5G', sub: 'Android 14, app 4.1.0. Equipo de Diana, CC 1900000004.', chip: ['negro', 'Creando la cuenta'], tono: 'negro', icono: 'hourglass', titulo: 'Esperando que escriba el código', etiqueta: true, queHacer: 'Reenvía el código vigente por otro canal o compara la hora con el SMS que tiene', vence: 'Vence a las 3:05 p. m.', codigos: 'Códigos pedidos: 2 de 6', tituloPasos: 'Creación de la cuenta desde este teléfono',
+    pasos: [{ t: 'Código del celular', e: 'ok', d: 'Lo escribió a las 2:18 p. m.' }, { t: 'Código del correo', e: 'curso', d: '1 envío del mismo código, ninguno escrito', cod: 'Código vigente ••••64 · generado 2:19 p. m.', etq, mira: !!etq }, { t: 'Saludo', e: 'pend', d: 'Lo ve al validar los dos códigos' }, { t: 'Fecha de nacimiento', e: 'pend', d: 'Aún no llega' }, { t: 'Clave', e: 'pend', d: 'Aún no llega' }], ...x };
+}
+function fichaEquipo() { return `<div class="mt-3 space-y-1 rounded-md bg-neutral-100 px-3 py-2 text-[13px]"><div class="flex justify-between"><span class="text-neutral-500">Equipo</span><span>moto g54 5G · Android 14</span></div><div class="flex justify-between"><span class="text-neutral-500">Identificador</span><span class="nums">00000000…000000</span></div><div class="flex justify-between"><span class="text-neutral-500">Primer contacto</span><span class="nums">hoy 9:14 a. m. · IP 10.0.17.1</span></div></div>`; }
+function confirmo(ok) { return `<div class="mt-3 flex items-start gap-2 text-sm ${ok ? '' : 'mira p-1'}"><span class="mt-0.5 flex h-4 w-4 items-center justify-center rounded border ${ok ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-neutral-400'}">${ok ? ic('check', 'h-3 w-3') : ''}</span><span>Confirmo que validé la identidad del titular <span class="text-pink-700">*</span></span></div><div class="mt-2 flex items-start gap-2 rounded-md bg-neutral-100 px-3 py-2 text-xs text-neutral-700">${ic('bell', 'mt-0.5 h-3.5 w-3.5 shrink-0')}<span>Al cliente le llega el aviso de equipo nuevo por SMS y correo, con el enlace "No fui yo". Sus otros teléfonos siguen autorizados.</span></div>`; }
+
+/* ---------- Pintar ---------- */
+const CHIP = { toca: ['c-toca', 'Toca'], ver: ['c-ver', 'Debe verse'], error: ['c-error', 'Error esperado'] };
+let actual = '1';
+function pintar() {
+  $('#tabs').innerHTML = CASOS.map(c => `<button class="tab ${c.id === actual ? 'on' : ''}" data-id="${c.id}">${c.nombre}</button>`).join('');
+  const c = CASOS.find(x => x.id === actual);
+  $('#caso').innerHTML = `
+    <div class="caja"><p class="text-[15px]"><b>Para qué:</b> ${c.para}</p>
+      <p class="mt-2 text-[14px] font-semibold">Preparar</p><ol class="prep list-decimal pl-5 text-[14px]">${c.prep.map(p => `<li>${p}</li>`).join('')}</ol></div>
+    <div class="mt-4 grid gap-4 xl:grid-cols-2">${c.pasos.map((p, i) => `<div class="min-w-0"><p class="mb-2 text-[14px]"><span class="nums mr-1 font-semibold">${i + 1}.</span><span class="paso-chip ${CHIP[p.tipo][0]}">${CHIP[p.tipo][1]}</span> ${p.frase}</p>${p.html}</div>`).join('')}</div>
+    <div class="mt-4 grid gap-3 md:grid-cols-2"><div class="caja pasa"><b>Pasa si</b><p class="mt-1 text-[14px]">${c.pasa}</p></div><div class="caja falla"><b>Falla si</b><p class="mt-1 text-[14px]">${c.falla}</p></div></div>
+    ${c.noError ? `<div class="caja ojo mt-3"><b>No es error</b><ul class="mt-1 list-disc pl-5 text-[14px]">${c.noError.map(n => `<li>${n}</li>`).join('')}</ul></div>` : ''}
+    ${c.api ? `<div class="mt-3"><p class="mb-1 text-[13px] font-semibold">Respuesta de get-web (pestaña Red) y comprobación</p><pre class="api">${esc(c.api)}</pre></div>` : ''}
+    <div class="caja mt-3 text-[14px]"><b>Cómo reportar en la tarjeta:</b> «Caso ${c.id === 'R' ? 'de regresión' : c.id}: pasa» o «Caso ${c.id === 'R' ? 'de regresión' : c.id}: falla en el paso N», con la captura de la pantalla y, si hubo error, la respuesta de la pestaña Red. Antes de reportar un fallo, revisa «No es error» y <code>qa.md</code> §7.</div>`;
+  if (window.lucide) lucide.createIcons();
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-id]'); if (b) { actual = b.dataset.id; pintar(); window.scrollTo({ top: $('#tabs').offsetTop - 12 }); } });
+pintar();
+</script>
+</body>
+</html>
