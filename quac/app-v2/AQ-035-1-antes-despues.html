@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AQ-035-1 · Antes y después · Portal Actualización de datos: código común en «Cambiar correo» y «Actualizar datos básicos»</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&family=Poppins:wght@300;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  body{font-family:'Nunito Sans',sans-serif}
+  .pop{font-family:Poppins,sans-serif}
+  .tnum{font-variant-numeric:tabular-nums}
+  .slot{width:223px;height:473px;position:relative;flex-shrink:0}
+  .phone{width:406px;height:860px;box-sizing:border-box;border-radius:48px;border:8px solid #140F26;background:#F2F2F7;position:absolute;top:0;left:0;overflow:hidden;transform:scale(.55);transform-origin:top left;box-shadow:0 20px 50px rgba(20,15,38,.18)}
+  .lucide{width:20px;height:20px}
+  .cambia{outline:3px dashed #10b981;outline-offset:3px;border-radius:18px}
+  .falta{outline:3px dashed #FF6464;outline-offset:3px;border-radius:18px}
+  .chip-t{border-radius:999px;padding:2px 10px;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;display:inline-block}
+  .flecha{align-self:flex-start;color:#94a3b8;font-size:22px;padding:0 2px;margin-top:210px}
+  .tab{border:1px solid #e2e8f0;background:#fff;color:#334155}
+  .tab.on{background:#312e81;border-color:#312e81;color:#fff}
+  .burbuja{background:#E5E5EA;color:#000;border-radius:20px;padding:12px 16px;font-size:17px;line-height:1.3;max-width:300px}
+</style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-700">
+
+<header class="sticky top-0 z-50 border-b border-indigo-200 bg-indigo-50/95 px-6 py-3 backdrop-blur">
+  <p class="text-[12px] font-bold text-indigo-900">AQ-035-1 · Portal Actualización de datos: usar el código común en «Cambiar correo» y «Actualizar datos básicos» · <code>feature/AQ-035-1</code> en api-clientes-quac, nace de <code>feature/AQ-035-master</code> (<code>44933</code>) · tarjeta del padre AQ-114 · origen: caso 1090388506 del 19-nov, con 4 códigos distintos al mismo celular en 30 min · la clienta «Martha», los códigos y las horas son de ejemplo</p>
+  <div class="mt-2 flex flex-wrap items-center gap-2 text-[13px]"><span class="font-bold text-indigo-900">Lo que hace la clienta</span>
+    <div class="flex flex-wrap gap-1 rounded-lg bg-indigo-100 p-1" id="tabsCaso"></div></div>
+</header>
+
+<main class="px-6 py-5">
+  <div id="resumen" class="mb-4 rounded-xl bg-white p-4 shadow-sm"></div>
+
+  <section class="mb-6">
+    <div class="mb-2 flex items-center gap-3"><span class="chip-t bg-red-100 text-red-700">Hoy en producción</span><span id="txtHoy" class="text-sm text-slate-500"></span></div>
+    <div id="filaHoy" class="flex items-start gap-2 overflow-x-auto pb-2"></div>
+  </section>
+  <section>
+    <div class="mb-2 flex items-center gap-3"><span class="chip-t bg-emerald-100 text-emerald-700">Con el ajuste</span><span id="txtFix" class="text-sm text-slate-500"></span></div>
+    <div id="filaFix" class="flex items-start gap-2 overflow-x-auto pb-2"></div>
+  </section>
+
+  <section class="mt-6 grid gap-4 md:grid-cols-3">
+    <div class="rounded-xl bg-white p-4 shadow-sm text-sm">
+      <p class="pop font-bold" style="color:#140F26">La regla nueva</p>
+      <ol class="mt-1 list-decimal space-y-0.5 pl-5">
+        <li>«Cambiar correo» y «Actualizar datos básicos» mandan al celular el mismo código común que el ingreso al Portal y la App Quac.</li>
+        <li>Ese código vence a los 60 minutos y los 5 fallos se cuentan entre todas las pantallas.</li>
+        <li>Con el interruptor apagado, todo funciona como hoy.</li>
+      </ol>
+    </div>
+    <div class="rounded-xl bg-white p-4 shadow-sm text-sm">
+      <p class="pop font-bold" style="color:#140F26">Alcance</p>
+      <p class="mt-1">En PROD, la App Quac usa el código común desde el 23-nov a las 08:54: <b class="tnum">87</b> autorizaciones y <b class="tnum">4</b> registros hasta las 09:44. El Portal todavía no tiene ningún código con origen «portal»: el ingreso del Portal (AQ-035) y estos dos flujos llegan en el mismo PR.</p>
+      <p class="mt-2 text-slate-500">No resuelve: «Cambiar celular» (el código va a un número sin verificar), el código que llega al correo nuevo y el aviso «ya se usó».</p>
+    </div>
+    <div class="rounded-xl bg-white p-4 shadow-sm text-sm">
+      <p class="pop font-bold" style="color:#140F26">Lo que no cambia</p>
+      <ul class="mt-1 list-disc space-y-0.5 pl-5">
+        <li>Las pantallas del Portal y el orden de los pasos.</li>
+        <li>El código que llega al correo nuevo en «Cambiar correo».</li>
+        <li>La validación facial después del código.</li>
+        <li>Los datos que se actualizan en el CRM.</li>
+      </ul>
+    </div>
+  </section>
+  <p class="mt-4 text-[12px] text-slate-500">Pie: «Hoy» es producción el 23-nov: Portal en <code>master</code> (<code>9104c</code>), sin AQ-035, y App Quac con el código común encendido (<code>CODIGO_COMUN_ACTIVO = true</code>, vigencia 60). «Con el ajuste» es el Portal con AQ-035 y AQ-035-1. Los SMS salen del código de esas ramas. La respuesta del Portal se muestra como recuadro porque el front del Portal no está en este repo: es el mensaje que devuelve el back. El contorno punteado solo marca en este documento lo que cambia.</p>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const ic = n => `<i data-lucide="${n}"></i>`;
+
+const TXT = {
+  portalHoy: c => `Hola Martha, su código de validación QUAC es ${c}. Úselo para confirmar su identidad.`,
+  correoHoy: c => `Hola Martha, su código de validación QUAC es ${c}. Úselo para confirmar su identidad.`,
+  datosHoy:  c => `Tu código de actualización de datos es: ${c}`,
+  appComun:  c => `QUAC: ${c} es tu codigo para autorizar tu celular en la App Quac. Vence en 60 minutos.`,
+  portalNew: c => `QUAC: ${c} es tu codigo para entrar al Portal de actualizacion de datos. Vence en 60 minutos.`,
+  correoNew: c => `QUAC: ${c} es tu codigo para autorizar el cambio de correo en el Portal de actualizacion de datos. Vence en 60 minutos. No lo compartas.`,
+  datosNew:  c => `QUAC: ${c} es tu codigo para actualizar tus datos basicos en el Portal de actualizacion de datos. Vence en 60 minutos. No lo compartas.`,
+};
+
+// Una pantalla = hilo de SMS de «QUAC» hasta ese momento + respuesta del Portal o de la app (opcional)
+function pantalla(p){
+  const sms = p.sms.map(s => `
+    <div class="text-center text-[12px] text-[#8E8E93] mt-3 mb-1">Hoy ${s.h}</div>
+    <div class="burbuja ${s.marca||''}">${s.t}</div>`).join('');
+  const resp = p.resp ? `
+    <div class="absolute left-4 right-4 bottom-6 rounded-2xl bg-white p-4 shadow-lg ${p.resp.marca||''}">
+      <div class="flex items-center gap-2 text-[13px] font-bold ${p.resp.ok?'text-emerald-700':'text-[#FF6464]'}">${ic(p.resp.ok?'circle-check':'circle-alert')}${p.resp.quien}</div>
+      <div class="mt-1 text-[15px] leading-[1.35] text-[#140F26]">${p.resp.t}</div>
+    </div>` : '';
+  return `<div class="slot"><div class="phone">
+    <div class="h-[110px] bg-[#F9F9F9] border-b border-[#d1d1d6] flex flex-col items-center justify-end pb-3">
+      <div class="w-11 h-11 rounded-full bg-[#A19EB5] text-white flex items-center justify-center font-bold">Q</div>
+      <div class="text-[13px] mt-1 text-[#140F26]">QUAC</div>
+    </div>
+    <div class="px-4 pb-40">${sms}</div>
+    ${resp}
+  </div></div>`;
+}
+
+const ETQ = {
+  igual:  ['igual','bg-slate-200 text-slate-700'],
+  pasa:   ['pasa','bg-sky-100 text-sky-800'],
+  queda:  ['se queda aquí','bg-red-100 text-red-700'],
+  cambia: ['cambia con el ajuste','bg-emerald-600 text-white'],
+};
+function fila(pasos){
+  return pasos.map((p,i)=>`
+    ${i?'<div class="flecha">→</div>':''}
+    <div class="flex flex-col gap-2">
+      ${pantalla(p)}
+      <div class="w-[223px] text-[12px] leading-snug">
+        <span class="font-bold text-slate-800">${i+1}.</span>
+        <span class="chip-t ${ETQ[p.e][1]}">${ETQ[p.e][0]}</span>
+        <div class="mt-1">${p.pie}</div>
+      </div>
+    </div>`).join('');
+}
+
+const CASOS = [
+ { id:'correo', nombre:'Cambia el correo y luego autoriza la app',
+   resumen:'Martha entra al Portal, cambia su correo y a los dos minutos autoriza la App Quac en el mismo celular. Hoy recibe tres códigos distintos; con el ajuste, el del cambio de correo es el mismo que le llega a la app.',
+   txtHoy:'tres códigos distintos en 7 minutos', txtFix:'dos SMS y el código vivo es uno solo',
+   hoy:[
+    {e:'igual', sms:[{h:'10:00',t:TXT.portalHoy('422514')}], resp:{ok:true,quien:'Portal',t:'Entra al Portal con 422514.'}, pie:'Entra al Portal con su código propio.'},
+    {e:'pasa', sms:[{h:'10:00',t:TXT.portalHoy('422514')},{h:'10:05',t:TXT.correoHoy('781203')}], pie:'Después del código del correo nuevo, le llega otro código al celular, con el mismo texto que el de entrar.'},
+    {e:'queda', sms:[{h:'10:00',t:TXT.portalHoy('422514')},{h:'10:05',t:TXT.correoHoy('781203'),marca:'falta'},{h:'10:07',t:TXT.appComun('640118'),marca:'falta'}], pie:'La app le manda un tercer código. Tiene 781203 y 640118 vivos y no sabe cuál va en cada lado.'},
+   ],
+   fix:[
+    {e:'cambia', sms:[{h:'10:00',t:TXT.portalNew('422514'),marca:'cambia'}], resp:{ok:true,quien:'Portal',t:'Entra al Portal con 422514 (AQ-035).'}, pie:'Entra con el código común. Al usarlo, ya no sirve.'},
+    {e:'cambia', sms:[{h:'10:00',t:TXT.portalNew('422514')},{h:'10:05',t:TXT.correoNew('553901'),marca:'cambia'}], pie:'El SMS del cambio de correo trae un código común nuevo y dice para qué es y cuánto dura.'},
+    {e:'cambia', sms:[{h:'10:00',t:TXT.portalNew('422514')},{h:'10:05',t:TXT.correoNew('553901')},{h:'10:07',t:TXT.appComun('553901'),marca:'cambia'}], resp:{ok:true,quien:'Portal y App Quac',t:'553901 sirve una vez, en el Portal o en la app.'}, pie:'La app le manda el mismo 553901. Hay un solo código vivo.'},
+   ]},
+ { id:'datos', nombre:'Actualiza sus datos básicos',
+   resumen:'Martha entra al Portal y cambia su dirección. Hoy le llega un código con otro texto, que no dice de dónde viene; con el ajuste, es el código común con el formato de los demás SMS de QUAC.',
+   txtHoy:'código propio, sin decir para qué ni cuánto dura', txtFix:'código común, para qué es y cuánto dura',
+   hoy:[
+    {e:'igual', sms:[{h:'10:00',t:TXT.portalHoy('422514')}], resp:{ok:true,quien:'Portal',t:'Entra al Portal con 422514.'}, pie:'Entra al Portal.'},
+    {e:'pasa', sms:[{h:'10:00',t:TXT.portalHoy('422514')},{h:'10:10',t:TXT.datosHoy('905372'),marca:'falta'}], resp:{ok:true,quien:'Portal',t:'Se ha actualizado la información correctamente'}, pie:'Llega otro código con tildes y sin «QUAC». Funciona, pero no vence ni cuenta fallos.'},
+   ],
+   fix:[
+    {e:'cambia', sms:[{h:'10:00',t:TXT.portalNew('422514')}], resp:{ok:true,quien:'Portal',t:'Entra al Portal con 422514 (AQ-035).'}, pie:'Entra con el código común.'},
+    {e:'cambia', sms:[{h:'10:00',t:TXT.portalNew('422514')},{h:'10:10',t:TXT.datosNew('553901'),marca:'cambia'}], resp:{ok:true,quien:'Portal',t:'Se ha actualizado la información correctamente'}, pie:'El código común nuevo, con el texto de D2. Al escribirlo, la dirección se actualiza en el CRM.'},
+   ]},
+ { id:'vencido', nombre:'Escribe el código dos horas después',
+   resumen:'Martha pide el código del cambio de correo a las 10:05 y lo escribe a las 12:10. Hoy el código no vence y el correo cambia; con el ajuste, vence a los 60 minutos y le pide uno nuevo.',
+   txtHoy:'el código no vence', txtFix:'vence a los 60 minutos, como el de entrar',
+   hoy:[
+    {e:'pasa', sms:[{h:'10:05',t:TXT.correoHoy('781203')}], pie:'Le llega el código del cambio de correo.'},
+    {e:'pasa', sms:[{h:'10:05',t:TXT.correoHoy('781203')}], resp:{ok:true,quien:'Portal · 12:10',t:'Código validado con éxito, por favor complete la validación facial para actualizar su correo electrónico.',marca:'falta'}, pie:'Dos horas después, el código sigue sirviendo.'},
+   ],
+   fix:[
+    {e:'cambia', sms:[{h:'10:05',t:TXT.correoNew('553901')}], pie:'El SMS dice que vence en 60 minutos.'},
+    {e:'cambia', sms:[{h:'10:05',t:TXT.correoNew('553901')}], resp:{ok:false,quien:'Portal · 12:10',t:'El código venció. Pide uno nuevo.',marca:'cambia'}, pie:'Vencido: no suma fallo. Al pedir otro, llega un código común nuevo.'},
+   ]},
+ { id:'fallos', nombre:'Se equivoca en la app y luego en el Portal',
+   resumen:'Martha escribió mal 3 veces el código en la app y luego se equivoca en «Cambiar correo». Hoy el Portal tiene su propio código y no cuenta fallos; con el ajuste, los fallos se suman entre la app y el Portal.',
+   txtHoy:'intentos sin límite en el Portal', txtFix:'5 fallos en total entre la app y el Portal',
+   hoy:[
+    {e:'pasa', sms:[{h:'10:07',t:TXT.appComun('640118')},{h:'10:09',t:TXT.correoHoy('781203')}], pie:'Dos códigos distintos: 3 fallos en la app sobre 640118.'},
+    {e:'queda', sms:[{h:'10:07',t:TXT.appComun('640118')},{h:'10:09',t:TXT.correoHoy('781203')}], resp:{ok:false,quien:'Portal',t:'El código ingresado no es correcto.',marca:'falta'}, pie:'Escribe 640118 en el Portal: no es el suyo. Puede seguir probando sin límite.'},
+   ],
+   fix:[
+    {e:'cambia', sms:[{h:'10:07',t:TXT.appComun('553901')},{h:'10:09',t:TXT.correoNew('553901')}], pie:'Un solo código. Ya lleva 3 fallos en la app.'},
+    {e:'cambia', sms:[{h:'10:07',t:TXT.appComun('553901')},{h:'10:09',t:TXT.correoNew('553901')}], resp:{ok:false,quien:'Portal',t:'El código es incorrecto. Revisa el SMS y vuelve a escribirlo. Te queda 1 intento.',marca:'cambia'}, pie:'Cuarto fallo, contado junto con la app. El quinto anula el código.'},
+   ]},
+ { id:'apagado', nombre:'Interruptor apagado',
+   resumen:'Con CODIGO_COMUN_ACTIVO apagado, el Portal funciona como hoy en las dos pantallas: su propio código, el texto de hoy, sin vencimiento ni conteo de fallos.',
+   txtHoy:'', txtFix:'igual que hoy',
+   hoy:[
+    {e:'igual', sms:[{h:'10:05',t:TXT.correoHoy('781203')}], pie:'Cambiar correo: código propio.'},
+    {e:'igual', sms:[{h:'10:05',t:TXT.correoHoy('781203')},{h:'10:10',t:TXT.datosHoy('905372')}], pie:'Datos básicos: código propio.'},
+   ],
+   fix:[
+    {e:'igual', sms:[{h:'10:05',t:TXT.correoHoy('781203')}], pie:'Sale el SMS de hoy.'},
+    {e:'igual', sms:[{h:'10:05',t:TXT.correoHoy('781203')},{h:'10:10',t:TXT.datosHoy('905372')}], pie:'Sale el SMS de hoy. No se crea código común.'},
+   ]},
+];
+
+let actual = CASOS[0].id;
+function pintar(){
+  const c = CASOS.find(x=>x.id===actual);
+  $('#tabsCaso').innerHTML = CASOS.map(x=>`<button data-id="${x.id}" class="tab ${x.id===actual?'on':''} rounded-md px-3 py-1 font-semibold">${x.nombre}</button>`).join('');
+  $('#resumen').innerHTML = `<p class="pop font-bold" style="color:#140F26">${c.nombre}</p><p class="mt-1 text-sm">${c.resumen}</p>`;
+  $('#txtHoy').textContent = c.txtHoy; $('#txtFix').textContent = c.txtFix;
+  $('#filaHoy').innerHTML = fila(c.hoy); $('#filaFix').innerHTML = fila(c.fix);
+  document.querySelectorAll('#tabsCaso button').forEach(b=>b.onclick=()=>{actual=b.dataset.id;pintar();});
+  lucide.createIcons();
+}
+pintar();
+</script>
+</body>
+</html>
