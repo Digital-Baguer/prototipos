@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Release 4.1.0 del api · qué pasó, qué se probó y qué sigue · 22-nov-2026</title>
+<style>
+  :root { --tinta:#1d1b2e; --suave:#5b5873; --linea:#e4e2ee; --fondo:#f7f6fb; --morado:#4b2bd6; --verde:#0f8a5f; --ambar:#a15c00; --rojo:#b42318; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--tinta); background:#fff; line-height:1.5; }
+  header { background:var(--tinta); color:#fff; padding:32px 48px; }
+  header h1 { margin:0 0 6px; font-size:26px; }
+  header p { margin:0; color:#cfcbe6; }
+  main { padding:24px 48px 64px; }
+  section { margin-top:36px; }
+  h2 { font-size:20px; margin:0 0 12px; padding-bottom:6px; border-bottom:2px solid var(--linea); }
+  h3 { font-size:16px; margin:20px 0 8px; }
+  .resumen { background:var(--fondo); border-left:4px solid var(--morado); padding:16px 20px; font-size:16px; }
+  .resumen strong { color:var(--morado); }
+  table { width:100%; border-collapse:collapse; font-size:14px; margin:8px 0 4px; }
+  th, td { text-align:left; vertical-align:top; padding:8px 10px; border-bottom:1px solid var(--linea); }
+  th { background:var(--fondo); font-weight:600; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12.5px; background:var(--fondo); padding:1px 5px; border-radius:4px; }
+  pre { background:var(--tinta); color:#f1efff; padding:14px 16px; border-radius:8px; overflow-x:auto; font-size:12.5px; }
+  .ok { color:var(--verde); font-weight:600; }
+  .no { color:var(--rojo); font-weight:600; }
+  .pend { color:var(--ambar); font-weight:600; }
+  ol.linea { list-style:none; padding:0; margin:0; border-left:2px solid var(--linea); }
+  ol.linea li { position:relative; padding:0 0 18px 22px; }
+  ol.linea li::before { content:""; position:absolute; left:-7px; top:6px; width:12px; height:12px; border-radius:50%; background:var(--morado); }
+  ol.linea .fecha { font-weight:600; color:var(--morado); }
+  .pregunta { border:1px solid var(--linea); border-radius:8px; padding:16px 20px; }
+  .pregunta p { margin:6px 0; }
+  .nota { color:var(--suave); font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Release 4.1.0 del api: qué pasó, qué se probó y qué sigue</h1>
+  <p>App Quac · api-quac-v2 y Portal Actualización de datos · 22 de noviembre de 2026 · tarjeta Jira AQ-118</p>
+</header>
+<main>
+
+<div class="resumen">
+  <strong>En una frase:</strong> la release 4.1.0 del api rompía la app 4.0.1 que está en las tiendas por dos respuestas de <strong>AQ-031</strong>, no por AQ-035. Se corrigió con un solo cambio, se probó en el ambiente de pruebas con las dos apps (4.0.1 y 4.1.0) y con el Portal, y <strong>la release puede pasar completa a <code>master</code></strong>. No hace falta subir REQ por REQ.
+</div>
+
+<section>
+  <h2>1. Qué pasó, en orden</h2>
+  <ol class="linea">
+    <li><span class="fecha">19 y 20-nov ·</span> Los REQ del tren 4.1.0 se fueron juntando en la rama <code>release/4.1.0</code> del api: AQ-016, 026, 031, 031-2, 032, 033, 035 y el restablecer clave de los devs (AQ-034). El plan era subir esa rama entera a <code>master</code> junto con la app 4.1.0.</li>
+    <li><span class="fecha">20-nov ·</span> Al juntar los REQ, algunos merges se dañaron y se perdió código. Se rehízo la release desde la última versión de cada REQ (fix de AQ-016, <code>a35a4</code>). No fue que un REQ borrara a otro: fallaron las mezclas.</li>
+    <li><span class="fecha">20-nov ·</span> Se probó en el teléfono la release con la <strong>app 4.0.1 de tiendas</strong> y la app se rompía. Como lo último probado era AQ-035, se pensó que AQ-035 no podía ir a <code>master</code>, y se rehízo aparte sobre <code>master</code> (<code>feature/AQ-035-master</code>), que quedó aprobada.</li>
+    <li><span class="fecha">20 y 21-nov ·</span> Al revisar el código de la app 4.0.1 (rama <code>main</code>) contra la release se encontró la causa real: <strong>dos respuestas de AQ-031</strong>. AQ-035 estaba bien.</li>
+    <li><span class="fecha">22-nov ·</span> Se corrigió AQ-031 (<code>84bbb</code>, ya en <code>release/4.1.0</code>), se desplegó la release en el servidor de pruebas, se aplicó en <code>quacapi_dev</code> el SQL que faltaba y se probó todo con las dos apps y el Portal. Quedó en la tarjeta <strong>AQ-118</strong>.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>2. ¿Por qué parecía que AQ-035 no podía ir a master?</h2>
+  <div class="pregunta">
+    <p><strong>AQ-035 no era lo que rompía.</strong> Cuando se probó, AQ-035 estaba montada sobre la release, que ya traía AQ-031. La falla venía de AQ-031 y por eso parecía de AQ-035.</p>
+    <p>AQ-035 no podía subir sola a <code>master</code> porque se construyó encima de la release: usa la lista de pasos y los textos nuevos de AQ-031 y AQ-032. Por eso se intentó rehacerla sobre <code>master</code>.</p>
+    <p>Ahora que AQ-031 está corregida, <strong>AQ-035 sube con la release</strong>, en su versión de la release, que es la más completa. En el api, <code>feature/AQ-035-master</code> ya no se usa. En el Portal sí: <code>feature/AQ-035-master</code> es la rama limpia para su <code>master</code>.</p>
+  </div>
+</section>
+
+<section>
+  <h2>3. Qué rompía la app 4.0.1 y cómo se corrigió</h2>
+  <table>
+    <tr><th>Momento</th><th>Qué mandaba la release</th><th>Qué hacía la app 4.0.1</th></tr>
+    <tr><td>Login en un teléfono nuevo</td><td>Un campo <code>user</code> con solo el tipo de documento</td><td class="no">Se cerraba: esperaba el documento dentro de <code>user</code></td></tr>
+    <tr><td>Código del celular al autorizar</td><td><code>siguiente: 'autorizado'</code>, porque <code>AUTORIZACION_PASOS=celular</code> ya está en PROD</td><td class="no">Se quedaba quieta: no conoce ese valor</td></tr>
+  </table>
+  <p><strong>Corrección (<code>84bbb</code>):</strong> si la app no dice que es la versión 4.1.0 o mayor (encabezado <code>X-App-Version</code>), el api le responde <strong>igual que <code>master</code></strong>, sin lista de pasos y sin ese <code>user</code>. La 4.1.0 no cambia.</p>
+  <p><strong>Por qué no lo vio ningún test:</strong> la prueba de compatibilidad de AQ-032 comparaba la 4.0.1 contra la release, que ya traía AQ-031, y no contra <code>master</code>. Se corrigió, y se agregó un test que compara contra <code>master</code> con los interruptores de PROD. La suite completa queda con los mismos rojos que antes, que dependen de datos y del CRM.</p>
+</section>
+
+<section>
+  <h2>4. Qué se probó (22-nov, ambiente de pruebas)</h2>
+  <p class="nota">Probado en el servidor de pruebas del api con <code>release/4.1.0</code> <code>84bbb</code>, la base <code>quacapi_dev</code>, el Portal el Portal de pruebas y una cuenta de prueba con cupo. Interruptores: <code>AUTORIZACION_PASOS=celular</code>, <code>REGISTRO_PASOS=celular,correo</code>, <code>CODIGO_COMUN_ACTIVO=true</code>.</p>
+  <table>
+    <tr><th>Flujo</th><th>App 4.0.1 (tiendas)</th><th>App 4.1.0</th></tr>
+    <tr><td>Registro completo</td><td class="ok">✓ 8 pasos, igual que master</td><td class="ok">✓ «Validar identidad» celular → correo, resumen con «Renombrar»</td></tr>
+    <tr><td>Restablecer clave</td><td class="ok">✓ por correo</td><td class="ok">✓ por correo, y reenvío por SMS con los medios nuevos</td></tr>
+    <tr><td>Login en un teléfono nuevo</td><td class="ok">✓ llega a «Autorizar dispositivo» (antes se cerraba)</td><td class="ok">✓ «Validar identidad», un paso</td></tr>
+    <tr><td>Autorizar con el código del celular</td><td class="ok">✓ entra al inicio (antes se quedaba quieta)</td><td class="ok">✓ «Dispositivo autorizado» y «Renombrar»</td></tr>
+    <tr><td>Código común (AQ-035)</td><td class="ok">✓</td><td class="ok">✓</td></tr>
+  </table>
+  <h3>Código común entre la app y el Portal (AQ-035)</h3>
+  <table>
+    <tr><th>Prueba</th><th>Resultado</th></tr>
+    <tr><td>El Portal pide el código y después la app lo pide para autorizar</td><td class="ok">✓ Llega el mismo código a los dos y la app autoriza con él</td></tr>
+    <tr><td>La app pide el código y después el Portal lo pide por SMS</td><td class="ok">✓ El Portal reusa el mismo código y entra con él</td></tr>
+    <tr><td>Un código ya usado en un lado, escrito en el otro</td><td class="ok">✓ Se rechaza sin contar fallo; «Reenviar» trae uno nuevo</td></tr>
+  </table>
+  <p class="nota">Las capturas están adjuntas en AQ-118: una lámina de la 4.0.1 y otra de la 4.1.0.</p>
+</section>
+
+<section>
+  <h2>5. Estado de los REQ del tren</h2>
+  <table>
+    <tr><th>Dónde está</th><th>REQ</th></tr>
+    <tr><td class="ok">Ya en PROD (<code>master</code>)</td><td>AQ-013, 014, 016 (base), 021, 022, 023, 024, 025, 029, 030, 009-1 y 009-3</td></tr>
+    <tr><td class="ok">En la release, probados, listos para <code>master</code></td><td>AQ-016 (ajuste del correo), 026, 031 con el fix, 031-2, 032, 033, 034 (restablecer de los devs) y 035</td></tr>
+    <tr><td class="pend">Terminados pero fuera de la release (api)</td><td><strong>AQ-019</strong> (nombre del teléfono en Mis dispositivos) y <strong>AQ-031-1</strong> (correo alterno). Su parte de la app ya está en la rama de release de la app, así que <strong>hay que subirlos antes de publicar la app 4.1.0</strong>. La 4.0.1 no los usa</td></tr>
+    <tr><td>Sin empezar</td><td>AQ-028 y AQ-010 (cambio definitivo de la app vieja a la nueva)</td></tr>
+  </table>
+  <h3>Qué no se probó y si bloquea</h3>
+  <table>
+    <tr><th>Qué</th><th>¿Bloquea subir la release a master?</th></tr>
+    <tr><td>AQ-026 (heredar la autorización): se prueba al actualizar desde la app vieja a la 4.1.0</td><td>No. Sí antes de publicar la app 4.1.0</td></tr>
+    <tr><td>AQ-016 con un correo que cambie en el CRM</td><td>No</td></tr>
+    <tr><td>AQ-032 con riesgo (pide selfie)</td><td>No</td></tr>
+    <tr><td>AQ-033 (Diagnóstico de la app en get)</td><td>No</td></tr>
+    <tr><td>AQ-035: fallos compartidos, código vencido, ingreso por correo al Portal, reinicio desde soporte</td><td>No</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>6. Qué queda igual a propósito</h2>
+  <ul>
+    <li>En el Portal, <strong>«Cambiar correo», «Cambiar celular» y «Actualizar datos básicos»</strong> siguen con su propio código por SMS, no con el código común. Así se decidió en AQ-035. Pasar «Cambiar correo» al código común sería otro REQ (AQ-035-1), que no se ha abierto. «Cambiar celular» no puede usarlo, porque el código va a un número que todavía no está verificado.</li>
+    <li>La app 4.0.1 recibe algunos campos de más (<code>ayuda</code>, <code>mensaje</code>, <code>validacion</code>). Los ignora y no rompen nada.</li>
+  </ul>
+  <h3>Observaciones que no bloquean</h3>
+  <ul>
+    <li><strong>Front del Portal:</strong> cuando el código ya se usó en la app, el aviso dice «El código ingresado es incorrecto». Debería decir que ya se usó y que pida uno nuevo.</li>
+    <li><strong>App 4.1.0:</strong> en restablecer la clave, después de reenviar por SMS, la pantalla sigue diciendo «hemos enviado a tu correo».</li>
+    <li><strong>App 4.0.1:</strong> después de restablecer la clave pide tocar «No soy…». Es de la propia 4.0.1 y también pasa con <code>master</code>.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>7. Qué sigue</h2>
+  <h3>Paso 1 · Subir la release a PROD (AQ-118)</h3>
+  <ol>
+    <li>En <code>quacapi</code> (PROD), correr el SQL de AQ-031-2. Ya se corrió en <code>quacapi_dev</code>; en PROD falta, y sin él autorizar un teléfono da error 500.
+<pre>ALTER TABLE autorizaciones_dispositivo
+  ADD COLUMN aviso_vence_at   DATETIME NULL COMMENT 'AQ-031-2: desde cuando se puede enviar el aviso',
+  ADD COLUMN aviso_enviado_at DATETIME NULL COMMENT 'AQ-031-2: cuando se envio; NULL = pendiente',
+  ADD INDEX idx_aviso_pendiente (aviso_enviado_at, aviso_vence_at);</pre>
+      La versión completa, con la comprobación antes y después, está en AQ-118.</li>
+    <li>PR de <strong>api-quac-v2</strong>: <code>release/4.1.0</code> (<code>84bbb</code>) → <code>master</code>.</li>
+    <li>PR del <strong>Portal (api-clientes-quac)</strong>: <code>feature/AQ-035-master</code> (<code>44933</code>) → <code>master</code>. No usar <code>fix/AQ-035-sms-cambio-correo</code>: trae 45 commits ajenos de <code>develop</code>.</li>
+    <li>Deploy del api y del Portal. El api se despliega con <code>php8.4</code>, refrescando la caché y reiniciando <code>php8.4-fpm</code>.</li>
+    <li>Probar en PROD con la app 4.0.1 de tiendas: login en un teléfono nuevo y código del celular.</li>
+  </ol>
+  <p class="nota">No hay que encender ningún interruptor. <code>CODIGO_COMUN_ACTIVO</code> sigue apagado en PROD; encenderlo es otra decisión.</p>
+  <h3>Paso 2 · Antes de publicar la app 4.1.0 en las tiendas</h3>
+  <ol>
+    <li>Mezclar en el api <strong>AQ-019</strong> y <strong>AQ-031-1</strong>, probarlos igual que hoy (dos apps en el ambiente de pruebas) y subirlos a <code>master</code>.</li>
+    <li>Probar AQ-026 actualizando desde la app vieja.</li>
+    <li>Corregir el texto de restablecer la clave en la 4.1.0.</li>
+    <li>Publicar la app 4.1.0.</li>
+  </ol>
+  <h3>Lo que aprendimos para los próximos REQ</h3>
+  <ul>
+    <li>Todo cambio del api debe funcionar con la app que está en las tiendas el día que sale, vaya por release o directo a <code>master</code>. Cada REQ del api lleva un criterio con test: «la versión de tiendas recibe lo mismo que hoy».</li>
+    <li>Las pruebas de compatibilidad se comparan contra <code>master</code>, nunca contra la release.</li>
+    <li>Antes del PR de una release, se prueba en el ambiente de pruebas con la app de tiendas y con la nueva.</li>
+  </ul>
+</section>
+
+</main>
+</body>
+</html>
