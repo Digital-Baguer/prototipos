@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AQ-028 · Guía visual de pruebas · estado de cada envío y celular bloqueado por Infobip</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+html,body{font-family:ui-sans-serif,system-ui,sans-serif;font-size:16px}
+.nums{font-variant-numeric:tabular-nums}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:9999px;padding:2px 10px;font-size:12px;font-weight:500;white-space:nowrap}
+.chip-gris{background:#f5f5f5;color:#525252}.chip-verde{background:#ecfdf5;color:#047857}.chip-negro{background:#171717;color:#fff}.chip-rosa{background:#fdf2f8;color:#be185d}
+.btn{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:6px;border:1px solid #d4d4d4;background:#fff;font-size:13px;font-weight:500;color:#171717;white-space:nowrap}
+.btn.rec{border-color:#34d399;box-shadow:0 0 0 1px #34d399}
+.tab{border:1px solid #d4d4d4;background:#fff;color:#404040;border-radius:6px;padding:6px 12px;font-size:13px;font-weight:500}
+.tab.on{background:#171717;border-color:#171717;color:#fff}
+.caja{border:1px solid #e5e5e5;border-radius:12px;background:#fff;padding:14px 16px}
+.pasa{border-left:4px solid #059669}.falla{border-left:4px solid #be185d}.ojo{border-left:4px solid #737373}
+.tag{display:inline-block;border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.t-toca{background:#171717;color:#fff}.t-ver{background:#ecfdf5;color:#047857}.t-err{background:#fdf2f8;color:#be185d}.t-cmd{background:#f5f5f5;color:#404040}
+.term{background:#0f172a;color:#e2e8f0;border-radius:10px;padding:10px 12px;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.term .c{color:#94a3b8}.term .k{color:#93c5fd}.term .n{color:#86efac}
+.paso{flex:1 1 300px;min-width:280px;max-width:520px}
+.paso.ancho{flex-basis:560px;max-width:none}
+.flecha{align-self:center;color:#a3a3a3}
+.toque{box-shadow:0 0 0 3px rgba(52,211,153,.9);border-radius:6px}
+.api-t{outline:1.5px dashed #7633FF;outline-offset:3px;border-radius:4px}
+/* App Quac */
+.slot{width:250px;height:540px;position:relative;margin:0 auto}
+.phone{font-family:'Nunito Sans',sans-serif;color:#140F26;width:390px;height:844px;border-radius:40px;border:9px solid #0f172a;background:#F8F8F8;position:absolute;top:0;left:0;overflow:hidden;transform:scale(.64);transform-origin:top left}
+.h3-app{font-family:'Poppins',sans-serif;font-size:18px;font-weight:700;line-height:1.25;color:#140F26}
+.body-app{font-size:16px;line-height:1.4;color:#140F26}
+.link-app{font-size:16px;font-weight:700;color:#7633FF}
+.velo{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:0 20px}
+.otp{height:56px;flex:1;border:1px solid #A19EB5;border-radius:10px;background:#fff}
+code{font-family:ui-monospace,Menlo,monospace;font-size:.88em;background:#f5f5f5;border-radius:4px;padding:1px 5px}
+.term code{background:none;padding:0}
+ol.prep li{margin:4px 0}
+[title]{cursor:help}
+</style>
+</head>
+<body class="bg-neutral-50 text-neutral-800 antialiased">
+<main class="px-6 py-6 md:px-8">
+
+<header>
+  <p class="text-[13px] text-neutral-500">AQ-028 · tarjeta de Jira por crear · paso 14 del tren 4.1.0, fase 3 · no bloquea la app 4.1.0</p>
+  <h1 class="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">Guía visual de pruebas: el api guarda qué respondió Infobip en cada envío</h1>
+  <p class="mt-1 text-sm text-neutral-600">Api: <code>testapi-v2</code> en <code>feature/AQ-028</code> (<code>910d8</code>) con el paquete <code>communication-sdk</code> v1.8.0 · get-web: <code>feature/AQ-028</code> (<code>99068</code>), ambiente de pruebas · App: la 4.1.0 de pruebas; la app no cambia, el título y el texto de los avisos los manda el api.</p>
+  <p class="mt-1 text-sm text-neutral-600">Datos de ejemplo de esta guía: cédula <span class="nums">1000000001</span>, celular <span class="nums">320 •••• 2350</span>, correo <span class="nums">fe•••@hotmail.com</span>. En tu prueba usa una cédula de prueba con un celular tuyo.</p>
+</header>
+
+<section class="caja mt-5">
+  <p class="font-semibold text-neutral-900">Antes de empezar</p>
+  <ol class="prep mt-2 list-decimal pl-5 text-sm">
+    <li>Paquete: tag <code>v1.8.0</code> publicado. En el api: <code>git fetch origin</code>, <code>git checkout feature/AQ-028</code> y <code>composer update baguer/communication-sdk</code>. Sin el paquete nuevo ningún código sale.</li>
+    <li>En <code>quacapi_dev</code>, antes de levantar el api: correr <code>migracion.sql</code> (crea <code>envios_mensajes</code>) y crear en <code>var_env</code> las variables <code>INFOBIP_WEBHOOK_URL_BASE</code> e <code>INFOBIP_WEBHOOK_TOKEN</code>. El valor del token lo entrega el arquitecto; no va en la tarjeta ni en esta guía.</li>
+    <li>Al usuario con que get-web lee <code>quacapi_dev</code>: permiso de lectura sobre <code>envios_mensajes</code>.</li>
+    <li>get-web: <code>git checkout feature/AQ-028</code>, <code>npm ci</code>, <code>npm run build</code>. Menú QUAC › Diagnóstico de la app, permiso <code>consultar_diagnostico_app</code>, ambiente de pruebas.</li>
+    <li>App 4.1.0 compilada contra <code>testapi-v2</code>, en un teléfono o emulador.</li>
+    <li>Una <b>cédula de prueba</b> con un celular y un correo tuyos. No usar clientes reales: los casos 2 y 3 frenan los SMS de ese número de verdad.</li>
+    <li>Una terminal con <code>curl</code> y una consola de MySQL sobre <code>quacapi_dev</code>. En la terminal: <code>export TOKEN=…</code> con el valor de <code>INFOBIP_WEBHOOK_TOKEN</code>.</li>
+  </ol>
+</section>
+
+<nav id="tabs" class="mt-5 flex flex-wrap gap-2"></nav>
+<section id="caso" class="mt-4"></section>
+
+<footer class="mt-8 text-xs text-neutral-500">Sale de <code>qa.md</code> §6 de AQ-028 y de los textos del api y de get-web en la rama. Los textos con borde punteado morado los manda el api. Si algo de esta guía no cuadra con <code>qa.md</code>, manda <code>qa.md</code>.</footer>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+const ic=(n,c='h-4 w-4')=>`<i data-lucide="${n}" class="${c}"></i>`;
+const chip=(t,x,i,ayuda)=>`<span class="chip chip-${t}"${ayuda?` title="${ayuda}"`:''}>${i?ic(i,'h-3 w-3'):''}${x}</span>`;
+
+/* Chips, notas y ayudas: movimiento.vista.ts (get-web feature/AQ-028) */
+const ST={
+  entregado:['verde','Entregado','check','Llegó al celular o al buzón.'],
+  en_camino:['negro','En camino','loader','Infobip lo recibió y aún no confirma. Suele cambiar en segundos o minutos.'],
+  no_entregado:['gris','No entregado',null,'No llegó esta vez: celular apagado, sin señal o fuera de servicio. Un reenvío puede llegar.'],
+  sin_respuesta:['gris','Sin respuesta',null,'Pasaron 48 h y Infobip no informó el resultado.'],
+  bloqueado:['rosa','Bloqueado por Infobip','ban','El número está en la lista negra de Infobip (2052). La app deja de mandar por ese medio hasta que un reenvío de soporte llegue.'],
+  no_enviado:['rosa','No se envió','ban','La app no lo mandó porque ese medio está bloqueado por Infobip. No gastó intento.'],
+  aceptado_servidor:['verde','Aceptado por el servidor',null,'Llamadas y reenvíos de correo: el proveedor lo aceptó. No informa si llegó.'],
+  sin_estado:['gris','Sin estado',null,'No hay respuesta del proveedor guardada para este envío.'],
+};
+const st=k=>chip(...ST[k]);
+
+/* ── App Quac: pantalla del código y aviso (título y texto del api: ErrorCode 808 y 809) ── */
+const pantallaSms=(toque)=>`<div class="px-6 pt-20">
+  <p class="h3-app" style="font-size:24px;color:#321185">Ingresa el código</p>
+  <p class="body-app mt-3">Te enviamos un SMS al 320 •••• 2350.</p>
+  <div class="mt-8 flex gap-2">${[1,2,3,4,5,6].map(()=>'<div class="otp"></div>').join('')}</div>
+  <p class="mt-6 text-center link-app"><span class="${toque?'toque px-2 py-1':''}">Reenviar código</span></p></div>`;
+const svgBan=`<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>`;
+const modal=(titulo,texto)=>`<div class="velo"><div class="w-full rounded-[20px] bg-white p-6">
+  <div class="flex items-center gap-2">${svgBan}<p class="h3-app flex-1"><span class="api-t">${titulo}</span></p></div>
+  <p class="body-app mt-4"><span class="api-t">${texto}</span></p>
+  <p class="mt-6 text-center link-app">Cerrar</p></div></div>`;
+const T808='No pudimos enviarte el código por SMS al 320 •••• 2350 porque tu número está bloqueado para recibir mensajes. Pide el código por correo o comunícate con servicio al cliente para que lo habiliten. No gastaste ningún intento.';
+const tel=(html)=>`<div class="slot"><div class="phone"><div class="flex h-11 items-center justify-between px-7 text-[13px] font-semibold"><span>9:41</span><span>100%</span></div><div class="relative" style="height:calc(100% - 44px);margin-top:-44px">${html}</div></div></div>`;
+
+/* ── get-web: Diagnóstico de la app (recuadro y tabla de movimiento) ── */
+const TONO={negro:'border-neutral-900 bg-white',verde:'border-emerald-200 bg-emerald-50/60',rosa:'border-pink-200 bg-pink-50'};
+const TONO_IC={negro:'bg-neutral-900 text-white',verde:'bg-emerald-600 text-white',rosa:'bg-pink-600 text-white'};
+/* Textos: VeredictoDiagnosticoApp.php (medio_bloqueado_infobip y medio_ya_llega) y acciones.vista.ts */
+const recuadro=(k,o={})=>{
+  const v=k==='rosa'
+    ?{tono:'rosa',icono:'ban',titulo:'El SMS no le llega: su celular está bloqueado por Infobip',hacer:'Infobip tiene el 320 •••• 2350 en lista negra (código 2052) desde las 3:13 p. m. La app ya no le manda SMS y le pidió usar otro medio. Pida a quien administra Infobip que quite el número de la lista y luego toque «Reenviar código vigente» por SMS. Si llega, el SMS vuelve a funcionar para el cliente.'}
+    :{tono:'verde',icono:'check',titulo:'El SMS ya le llega',hacer:'El reenvío de las 4:40 p. m. llegó. El celular dejó de estar bloqueado y la app vuelve a mandarle SMS.'};
+  const botones=o.sinBoton?'<p class="mt-3 text-xs text-neutral-500">Sin código vigente: no sale el botón «Reenviar código vigente».</p>'
+    :k==='rosa'?`<div class="mt-3 flex flex-wrap gap-2"><button class="btn rec ${o.toque?'toque':''}">${ic('send')}Reenviar código vigente</button></div>`:'';
+  return `<div class="rounded-xl border-2 ${TONO[v.tono]} p-4 ${o.movil?'max-w-[300px]':''}">
+    <div class="flex ${o.movil?'flex-col':''} items-start gap-3">
+      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${TONO_IC[v.tono]}">${ic(v.icono,'h-5 w-5')}</span>
+      <div class="min-w-0 flex-1"><p class="text-[17px] font-semibold leading-snug tracking-tight">${v.titulo}</p>
+        <p class="mt-1 text-[11px] uppercase tracking-wide text-neutral-500">Qué hacer</p>
+        <p class="mt-1 text-sm text-neutral-700">${v.hacer}</p>${botones}</div></div></div>`;
+};
+/* fila: [hora, título, por dónde, estado, nota] */
+const tabla=(filas)=>`<div class="overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+  <table class="w-full text-[13px]"><thead><tr class="border-b border-neutral-200 text-left text-xs text-neutral-500">
+  <th class="px-3 py-2 font-medium">Hora</th><th class="px-3 py-2 font-medium">Qué pasó</th><th class="px-3 py-2 font-medium">Por dónde</th><th class="px-3 py-2 font-medium">Estado</th></tr></thead><tbody>
+  ${filas.map(f=>`<tr class="border-b border-neutral-100 align-top last:border-0"><td class="nums whitespace-nowrap px-3 py-2 font-medium">${f[0]}</td>
+  <td class="px-3 py-2 font-medium text-neutral-900">${f[1]}</td><td class="px-3 py-2 text-neutral-700">${f[2]}</td>
+  <td class="px-3 py-2">${st(f[3])}${f[4]?`<div class="mt-1 max-w-[38ch] text-xs text-neutral-500">${f[4]}</div>`:''}</td></tr>`).join('')}</tbody></table></div>`;
+const NOTA={
+  entregado:h=>`Infobip lo entregó a las ${h}`,
+  en_camino:'Infobip lo recibió; aún no confirma la entrega',
+  no_entregado:'Infobip: el celular no respondió (apagado o sin señal)',
+  sin_respuesta:'Pasaron 48 h y Infobip no informó el resultado',
+  bloqueado:h=>`Infobip: número en lista negra (2052) · ${h}`,
+  no_enviado:'El celular está bloqueado por Infobip. No se gastó intento',
+  llamada:'El proveedor de llamadas la aceptó; no informa si contestó',
+  smtp:'El servidor de correo lo aceptó; no informa si llegó',
+};
+const term=t=>`<div class="term">${t}</div>`;
+
+/* curl del webhook (qa.md §6). El token nunca se escribe: va en $TOKEN */
+const curl=(grupo,error,extra='?t=$TOKEN',id='&lt;message_id&gt;')=>term(
+`curl -s -X POST "$API/v2/webhooks/infobip/estado-envio${extra}" \\
+  -H 'Content-Type: application/json' \\
+  -d '{"results":[{"messageId":"${id}","status":{"groupName":"${grupo}"},"error":${error},"doneAt":"2026-11-23T15:13:04.000+0000"}]}'`);
+const E2052='{"id":2052,"name":"EC_DESTINATION_BLACKLISTED","description":"Destination address blacklisted"}';
+
+/* paso: {tag:'toca'|'ver'|'err'|'cmd', pie, html, ancho} */
+const CASOS=[
+{n:1,corto:'El SMS llega y se ve',titulo:'El SMS llega y se ve en Diagnóstico',
+ para:'Comprobar que cada envío deja su fila y que Infobip informa el resultado al webhook. Es la prueba real de que el balanceador deja pasar el POST de Infobip.',
+ prep:['Cédula de prueba con tu celular. Teléfono sin autorizar para esa cédula.','Diagnóstico de la app abierto con esa cédula.'],
+ pasos:[
+  {tag:'toca',pie:'En la app, inicia sesión y pide el código para autorizar el teléfono por SMS.',html:tel(pantallaSms())},
+  {tag:'cmd',pie:'En <code>quacapi_dev</code>: la fila nace «en camino» con el id de Infobip.',html:term(`<span class="c">-- la fila del envío</span>
+SELECT id, proceso, canal, estado, message_id, enviado_en, estado_en
+FROM envios_mensajes WHERE documento = '1000000001' ORDER BY id DESC LIMIT 1;
+<span class="c">-- autorizacion | sms | en_camino | (id de Infobip) | hora | NULL</span>`)},
+  {tag:'ver',ancho:1,pie:'En menos de un minuto, sin tocar nada, el envío pasa a «Entregado» con la hora. Recarga Diagnóstico.',html:tabla([['3:13 p. m.','Código enviado','Infobip · SMS','entregado',NOTA.entregado('3:13:05 p. m.')]])},
+ ],
+ pasa:'La fila pasa sola de <code>en_camino</code> a <code>entregado</code> con <code>estado_en</code>, y Diagnóstico muestra el chip verde «Entregado».',
+ falla:'La fila se queda «En camino» varios minutos: Infobip no está llegando al webhook (balanceador, URL base o token mal). No hay fila: el api no está en la rama o falta la tabla.',
+ noError:'Si faltan las variables de <code>var_env</code>, el SMS igual llega al celular, pero la fila se queda «En camino» para siempre.'},
+
+{n:2,corto:'Celular bloqueado (2052)',titulo:'Celular bloqueado por Infobip: el caso que originó el REQ',
+ para:'Con el SMS de un número bloqueado por Infobip (código 2052), la app deja de enviar por SMS, avisa al cliente y no le gasta intentos. El correo sigue saliendo.',
+ prep:['El caso 1 hecho. Copia el <code>message_id</code> de ese SMS.','<code>$TOKEN</code> cargado en la terminal.'],
+ pasos:[
+  {tag:'cmd',ancho:1,pie:'Simula el reporte de Infobip con el 2052 sobre el SMS del caso 1. Responde <code>{"ok":true}</code> y la fila queda <code>bloqueado</code>, <code>codigo_error = 2052</code>.',html:curl('REJECTED',E2052)},
+  {tag:'toca',pie:'En la app, toca «Reenviar código» por SMS.',html:tel(pantallaSms(true))},
+  {tag:'err',pie:'Aviso con el título y el texto que manda el api. El SMS no sale.',html:tel(pantallaSms()+modal('Tu celular no está recibiendo SMS',T808))},
+  {tag:'ver',ancho:1,pie:'En Diagnóstico: el intento frenado y el SMS bloqueado. El contador de códigos pedidos no sube.',html:tabla([['3:15 p. m.','Pidió un código','Infobip · SMS','no_enviado',NOTA.no_enviado],['3:13 p. m.','Código enviado','Infobip · SMS','bloqueado',NOTA.bloqueado('3:13:04 p. m.')]])},
+  {tag:'ver',ancho:1,pie:'Pide el código por correo: llega normal. El bloqueo es solo del SMS.',html:tabla([['3:16 p. m.','Código enviado','Correo','entregado',NOTA.entregado('3:16:10 p. m.')]])},
+ ],
+ api:`HTTP 422
+{
+  <span class="k">"escenario"</span>: <span class="n">808</span>,
+  <span class="k">"titulo"</span>: "Tu celular no está recibiendo SMS",
+  <span class="k">"mensaje"</span>: "${T808}"
+}`,
+ pasa:'La app muestra «Tu celular no está recibiendo SMS», hay una fila nueva <code>no_enviado</code>, el contador de intentos queda igual y el correo llega.',
+ falla:'La app dice «código enviado», el SMS vuelve a salir o el intento se descuenta.',
+ noError:'La fila del intento se titula «Pidió un código»; el mockup decía «Pidió reenviar el código». Por WhatsApp el título es «Tu celular no está recibiendo WhatsApp».'},
+
+{n:3,corto:'Soporte lo destraba',titulo:'Soporte lo destraba con «Reenviar código vigente»',
+ para:'Soporte ve el bloqueo en Diagnóstico y lo levanta reenviando por SMS. Cuando ese reenvío llega, la app vuelve a enviar SMS al cliente.',
+ prep:['El caso 2 hecho, con el código de autorización todavía vigente.','Como el número de prueba no está en la lista negra de verdad, el reenvío de soporte sí llega.'],
+ pasos:[
+  {tag:'ver',ancho:1,pie:'Diagnóstico: recuadro rosa con la hora del bloqueo y «Reenviar código vigente» resaltado.',html:recuadro('rosa')},
+  {tag:'toca',ancho:1,pie:'Toca «Reenviar código vigente» y elige SMS. Sí sale, aunque el medio esté bloqueado.',html:recuadro('rosa',{toque:1})},
+  {tag:'ver',ancho:1,pie:'Cuando Infobip confirma la entrega, el recuadro pasa a verde.',html:recuadro('verde')+'<div class="mt-3"></div>'+tabla([['4:40 p. m.','Reenvió el código vigente por SMS','Infobip · SMS','entregado',NOTA.entregado('4:40:06 p. m.')]])},
+  {tag:'toca',pie:'En la app, «Reenviar código» por SMS: ahora sale normal, sin aviso.',html:tel(pantallaSms(true))},
+ ],
+ pasa:'Recuadro rosa → reenvío de soporte entregado → recuadro verde «El SMS ya le llega», y el siguiente «Reenviar código» del cliente por SMS sale.',
+ falla:'El reenvío de soporte responde 808, el recuadro sigue rosa después de la entrega, o la app sigue frenando el SMS.',
+ noError:'El recuadro verde sale en todos los equipos del cliente y no vence por tiempo; cualquier otro aviso del equipo (límite de códigos, código pendiente) lo tapa. <b>Texto por confirmar:</b> <code>qa.md</code> dice que la fila del reenvío trae «El SMS vuelve a funcionar»; en el código de la rama la fila dice «Infobip lo entregó a las…» y esa frase está en el recuadro rosa.'},
+
+{n:4,corto:'Solo el 2052 bloquea',titulo:'Regresión: solo el 2052 bloquea',
+ para:'Un SMS que no se entregó por celular apagado o sin señal no frena los siguientes. Los flujos de siempre siguen funcionando.',
+ prep:['Pide un SMS nuevo y copia su <code>message_id</code>.'],
+ pasos:[
+  {tag:'cmd',ancho:1,pie:'Simula «no entregado» sobre ese SMS.',html:curl('UNDELIVERABLE','{"id":0}')},
+  {tag:'ver',ancho:1,pie:'La fila queda «No entregado», no «Bloqueado por Infobip».',html:tabla([['5:02 p. m.','Código enviado','Infobip · SMS','no_entregado',NOTA.no_entregado]])},
+  {tag:'toca',pie:'«Reenviar código» por SMS: sale normal y llega.',html:tel(pantallaSms(true))},
+ ],
+ pasa:'El reenvío por SMS sale. Además, un registro de cuenta y un «Restablecer contraseña» completos, por SMS y por correo, terminan bien.',
+ falla:'La app muestra el aviso «Tu celular no está recibiendo SMS» después de un «No entregado».'},
+
+{n:5,corto:'Webhook cerrado',titulo:'El webhook no acepta llamadas sin el token',
+ para:'El webhook es público. Sin el token correcto no cambia nada; con un id que no existe, tampoco.',
+ prep:['El <code>message_id</code> de cualquier envío y su estado actual anotado.'],
+ pasos:[
+  {tag:'err',ancho:1,pie:'Sin <code>?t=</code>: responde 401 y la fila no cambia.',html:curl('REJECTED',E2052,'')},
+  {tag:'err',ancho:1,pie:'Con otro token: 401 y la fila no cambia.',html:curl('REJECTED',E2052,'?t=otro-valor')},
+  {tag:'ver',ancho:1,pie:'Con el token correcto y un id inventado: 200 <code>{"ok":true}</code> y no cambia ninguna fila.',html:curl('DELIVERED','{"id":0}','?t=$TOKEN','id-que-no-existe')},
+ ],
+ pasa:'401 en los dos primeros, 200 en el tercero, y el estado de la fila es el mismo que anotaste.',
+ falla:'Cualquiera de los dos primeros cambia la fila o responde 200.'},
+
+{n:6,corto:'Restablecer: log limpio',titulo:'«Restablecer contraseña» deja el log limpio',
+ para:'El registro de «Restablecer contraseña» ya no guarda el correo completo, la ficha del usuario ni el código que escribió el cliente.',
+ prep:['Cédula de prueba con cuenta creada.'],
+ pasos:[
+  {tag:'toca',pie:'En la app: «Restablecer contraseña», pide el código por correo y escribe uno incorrecto.',html:tel(pantallaSms().replace('Te enviamos un SMS al 320 •••• 2350.','Escribe un código incorrecto, por ejemplo 000000.'))},
+  {tag:'ver',ancho:1,pie:'En <code>quacapi_dev</code>, las filas nuevas de ese proceso.',html:term(`SELECT suceso, respuesta FROM log_activity
+WHERE documento = '1000000001' AND proceso = 'Restablecer contraseña'
+ORDER BY id DESC LIMIT 5;
+<span class="c">-- suceso:    … fe•••@hotmail.com …        (correo enmascarado)
+-- respuesta: {"canal":"correo","resultado":"…"}   (sin nombre, celular ni correo)
+-- el código 000000 no aparece en ninguna columna</span>`)},
+ ],
+ pasa:'<code>suceso</code> trae el correo enmascarado, <code>respuesta</code> solo trae canal y resultado, y el código escrito no está.',
+ falla:'Aparece el correo completo, el nombre del cliente o el código escrito.',
+ noError:'Las filas anteriores al despliegue no se limpian: siguen con los datos completos.'},
+
+{n:7,corto:'Llamada y reenvío de correo',titulo:'La llamada y el reenvío de correo solo dicen si el proveedor los aceptó',
+ para:'Estos dos no pasan por el webhook: no tienen estado final.',
+ prep:['Un proceso de autorización o de registro en curso.'],
+ pasos:[
+  {tag:'toca',pie:'En la app, pide el código por llamada. Luego, en el paso del correo, toca «Reenviar código».',html:tel(pantallaSms(true))},
+  {tag:'ver',ancho:1,pie:'Las dos filas quedan con el chip verde «Aceptado por el servidor».',html:tabla([['5:20 p. m.','Código enviado','Correo','aceptado_servidor',NOTA.smtp],['5:18 p. m.','Código enviado','Infobip · llamada','aceptado_servidor',NOTA.llamada]])},
+ ],
+ pasa:'Las dos filas dicen «Aceptado por el servidor» y no cambian después.',
+ falla:'Salen «Sin estado» o «En camino».',
+ noError:'«Por dónde» dice «Infobip · llamada» y el detalle dice «El proveedor de llamadas la aceptó». El primer texto viene de AQ-033.'},
+
+{n:8,corto:'Pantallas por revisar',titulo:'Pantallas que la auditoría no vio',
+ para:'Cinco comprobaciones cortas de Diagnóstico que nadie ha visto todavía con datos reales.',
+ prep:['Los casos 1 a 3 hechos, para tener envíos con estado.'],
+ pasos:[
+  {tag:'ver',pie:'(a) Pasa el cursor por cada chip: sale qué significa. Pruébalo aquí encima de los chips.',html:`<div class="flex flex-wrap gap-2 rounded-xl border border-neutral-200 bg-white p-4">${Object.keys(ST).map(st).join('')}</div>`},
+  {tag:'ver',ancho:1,pie:'(b) Un envío anterior al despliegue sigue en «Sin estado».',html:tabla([['20-nov 11:05 a. m.','Código enviado','Infobip · SMS','sin_estado',null]])},
+  {tag:'cmd',ancho:1,pie:'(c) Envejece una fila «en camino» de <code>quacapi_dev</code> y recarga: pasa a «Sin respuesta».',html:term(`UPDATE envios_mensajes SET enviado_en = NOW() - INTERVAL 3 DAY
+WHERE id = &lt;id de una fila en_camino de tu cédula de prueba&gt;;`)+'<div class="mt-3"></div>'+tabla([['20-nov 5:30 p. m.','Código enviado','Infobip · SMS','sin_respuesta',NOTA.sin_respuesta]])},
+  {tag:'ver',ancho:1,pie:'(d) SMS bloqueado y sin código vigente: el recuadro rosa sale con su texto, sin el botón resaltado.',html:recuadro('rosa',{sinBoton:1})},
+  {tag:'ver',pie:'(e) A 390 px de ancho, el recuadro rosa y el verde se apilan sin desbordar.',html:recuadro('verde',{movil:1})},
+ ],
+ pasa:'Las cinco se ven como aquí.',
+ falla:'Un chip sin ayuda, un envío viejo con estado inventado, una fila de 3 días que sigue «En camino», un botón «Reenviar código vigente» sin código que reenviar, o texto cortado a 390 px.',
+ noError:'A 390 px, la columna «Estado» de la tabla de movimiento queda a la derecha y hay que deslizar la tabla. Ya pasaba en AQ-033. La fila de (c) se envejece con hora de 3 días atrás: puede dejar de emparejarse con su envío y salir «Sin estado»; si pasa, anótalo en la tarjeta.'},
+
+{n:'R',corto:'Regresión · app publicada',titulo:'Regresión con la app publicada (4.0.1)',
+ para:'La app que está en las tiendas debe seguir funcionando igual contra el api con AQ-028.',
+ prep:['La app 4.0.1 de las tiendas apuntando a <code>testapi-v2</code>, o la compilación de <code>main</code> contra ese api.'],
+ pasos:[
+  {tag:'toca',pie:'Recorre completos: crear cuenta, autorizar un teléfono y restablecer la contraseña, por SMS y por correo.',html:tel(pantallaSms())},
+  {tag:'ver',ancho:1,pie:'Cada código y cada aviso de teléfono nuevo deja su fila con estado.',html:tabla([['6:01 p. m.','Código enviado','Infobip · SMS','entregado',NOTA.entregado('6:01:04 p. m.')],['6:00 p. m.','Aviso de equipo nuevo con el enlace «No fui yo»','Correo','entregado',NOTA.entregado('6:00:20 p. m.')]])},
+ ],
+ pasa:'Los tres flujos terminan como antes y los envíos quedan registrados.',
+ falla:'Un flujo se corta, un código no llega o la app muestra un error que antes no salía.',
+ noError:'<b>Texto por confirmar:</b> con la 4.0.1, el aviso del 808 puede salir con el título genérico de la app y no con «Tu celular no está recibiendo SMS»; el texto sí es el del api. No se verificó en la rama de la app.'},
+];
+
+const TAG={toca:['t-toca','toca'],ver:['t-ver','debe verse'],err:['t-err','error esperado'],cmd:['t-cmd','en la terminal']};
+let C=0;
+function pintar(){
+  $('#tabs').innerHTML=CASOS.map((c,i)=>`<button class="tab ${i===C?'on':''}" data-i="${i}">${c.n==='R'?'':c.n+'. '}${c.corto}</button>`).join('');
+  const c=CASOS[C];
+  $('#caso').innerHTML=`
+  <div class="caja">
+    <p class="text-lg font-semibold text-neutral-900">${c.n==='R'?'':'Caso '+c.n+' · '}${c.titulo}</p>
+    <p class="mt-1 text-sm text-neutral-700">${c.para}</p>
+    <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">Preparar</p>
+    <ul class="mt-1 list-disc pl-5 text-sm">${c.prep.map(p=>`<li>${p}</li>`).join('')}</ul>
+  </div>
+  <div class="mt-4 flex flex-wrap items-stretch gap-3">
+    ${c.pasos.map((p,i)=>`${i?`<div class="flecha hidden lg:block">${ic('arrow-right','h-5 w-5')}</div>`:''}
+    <div class="paso ${p.ancho?'ancho':''} caja"><div class="flex items-center gap-2"><span class="nums text-xs font-semibold text-neutral-500">${i+1}</span><span class="tag ${TAG[p.tag][0]}">${TAG[p.tag][1]}</span></div>
+      <p class="mt-2 text-sm text-neutral-800">${p.pie}</p><div class="mt-3">${p.html}</div></div>`).join('')}
+  </div>
+  <div class="mt-4 grid gap-3 md:grid-cols-2">
+    <div class="caja pasa"><p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Pasa si</p><p class="mt-1 text-sm">${c.pasa}</p></div>
+    <div class="caja falla"><p class="text-xs font-semibold uppercase tracking-wide text-pink-700">Falla si</p><p class="mt-1 text-sm">${c.falla}</p></div>
+  </div>
+  ${c.noError?`<div class="caja ojo mt-3"><p class="text-xs font-semibold uppercase tracking-wide text-neutral-600">No es error</p><p class="mt-1 text-sm">${c.noError}</p></div>`:''}
+  ${c.api?`<div class="mt-3"><p class="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Respuesta del api</p>${term(c.api)}</div>`:''}
+  <p class="mt-4 text-sm text-neutral-600">Cómo reportarlo en la tarjeta: «Caso ${c.n}: pasa» o «Caso ${c.n}: falla», con la captura de la pantalla y, si aplica, la fila de <code>envios_mensajes</code>.</p>`;
+  document.querySelectorAll('#tabs .tab').forEach(b=>b.onclick=()=>{C=+b.dataset.i;pintar()});
+  lucide.createIcons();
+}
+pintar();
+</script>
+</body>
+</html>

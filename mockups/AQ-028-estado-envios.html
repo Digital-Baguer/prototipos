@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AQ-028 · Estado de cada envío y celular bloqueado por Infobip · mockup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config={theme:{extend:{colors:{primary:'hsl(0 0% 9%)','muted-foreground':'hsl(0 0% 45.1%)',input:'hsl(0 0% 89.8%)',border:'hsl(0 0% 92.8%)'}}}};
+</script>
+<style>
+html,body{font-family:ui-sans-serif,system-ui,sans-serif;font-size:16px}
+.nums{font-variant-numeric:tabular-nums}
+.mk-btn{border:1px solid #d4d4d4;background:#fff;border-radius:6px;padding:4px 10px;font-size:12px}
+.mk-btn.on{background:#171717;color:#fff;border-color:#171717}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:9999px;padding:2px 10px;font-size:12px;font-weight:500;white-space:nowrap}
+.chip-gris{background:#f5f5f5;color:#525252}.chip-verde{background:#ecfdf5;color:#047857}.chip-negro{background:#171717;color:#fff}.chip-rosa{background:#fdf2f8;color:#be185d}
+.btn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:6px;border:1px solid #d4d4d4;background:#fff;font-size:14px;font-weight:500;color:#171717;white-space:nowrap}
+.btn:hover{background:#fafafa}.btn.rec{border-color:#34d399;box-shadow:0 0 0 1px #34d399}
+.cambia{outline:2px dashed #f472b6;outline-offset:4px;border-radius:6px;position:relative}
+.cambia::after{content:'cambia';position:absolute;top:-16px;right:0;font-size:10px;font-weight:700;color:#be185d;background:#fdf2f8;padding:0 6px;border-radius:4px}
+.sk{background:linear-gradient(90deg,#f5f5f5,#e5e5e5,#f5f5f5);background-size:200% 100%;animation:sk 1.2s infinite;border-radius:6px}
+@keyframes sk{to{background-position:-200% 0}}
+/* App Quac (calcado de AQ-031) */
+.app{font-family:'Nunito Sans',sans-serif;color:#140F26}
+.h3-app{font-family:'Poppins',sans-serif;font-size:18px;font-weight:700;line-height:1.25;color:#140F26}
+.body-app{font-size:16px;line-height:1.4;color:#140F26}
+.link-app{font-size:16px;font-weight:700;color:#7633FF}
+.velo{position:absolute;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:0 20px}
+.snack-m{position:absolute;bottom:16px;left:12px;right:12px;z-index:30;background:#323232;color:#fff;border-radius:6px;padding:14px 16px;font-size:14px}
+.tag{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:2px 10px;border-radius:999px}
+.otp{height:56px;flex:1;border:1px solid #A19EB5;border-radius:10px;background:#fff;font-family:'Poppins',sans-serif;font-weight:700;font-size:22px;display:flex;align-items:center;justify-content:center}
+</style>
+</head>
+<body class="bg-neutral-200 antialiased">
+
+<!-- Barra del mockup -->
+<div class="sticky top-0 z-50 border-b border-neutral-300 bg-neutral-100 px-6 py-3 text-sm">
+  <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+    <span class="font-semibold">AQ-028 · mockup</span>
+    <div class="flex items-center gap-1"><span class="mr-1 text-neutral-500">Pantalla</span>
+      <button class="mk-btn" data-p="bloq">Diagnóstico · SMS bloqueado</button>
+      <button class="mk-btn" data-p="lib">Diagnóstico · después de reenviar</button>
+      <button class="mk-btn" data-p="todos">Diagnóstico · todos los estados</button>
+      <button class="mk-btn" data-p="app">App Quac · lo que ve el cliente</button>
+    </div>
+    <div class="flex items-center gap-1" id="grpVista"><span class="mr-1 text-neutral-500">Vista</span>
+      <button class="mk-btn" data-v="hoy">Hoy</button>
+      <button class="mk-btn" data-v="nuevo">Con el ajuste</button>
+    </div>
+    <div class="flex items-center gap-1" id="grpEst"><span class="mr-1 text-neutral-500">Estado</span>
+      <button class="mk-btn" data-e="ok">Con datos</button>
+      <button class="mk-btn" data-e="carga">Cargando</button>
+      <button class="mk-btn" data-e="error">Error</button>
+      <button class="mk-btn" data-e="vacio">Vacío</button>
+    </div>
+  </div>
+  <p class="mt-2 text-neutral-600">Solo cambia la columna «Estado» de los envíos, el recuadro de «Qué hacer» cuando el celular está bloqueado por Infobip y el aviso al pie. El resto de Diagnóstico de la app queda igual que en AQ-033 (v2). Los recuadros con borde rosa punteado marcan lo que cambia.</p>
+</div>
+
+<div id="raiz"></div>
+
+<script>
+const ic=(n,c='h-4 w-4')=>`<i data-lucide="${n}" class="${c}"></i>`;
+const chip=(t,x,i)=>`<span class="chip chip-${t}">${i?ic(i,'h-3 w-3'):''}${x}</span>`;
+const TONO={negro:'border-neutral-900 bg-white',gris:'border-neutral-200 bg-white',verde:'border-emerald-200 bg-emerald-50/60',rosa:'border-pink-200 bg-pink-50'};
+const TONO_IC={negro:'bg-neutral-900 text-white',gris:'bg-neutral-100 text-neutral-600',verde:'bg-emerald-600 text-white',rosa:'bg-pink-600 text-white'};
+let P='bloq', V='nuevo', E='ok';
+
+/* Estados del envío (AQ-028). Paleta: verde positivo, negro en curso, gris neutro, rosa bloqueante */
+const ST={
+  entregado:['verde','Entregado','check'],
+  camino:['negro','En camino','loader'],
+  noEntregado:['gris','No entregado'],
+  vencido:['gris','Vencido'],
+  sinResp:['gris','Sin respuesta'],
+  rechazado:['rosa','Rechazado'],
+  bloqueado:['rosa','Bloqueado por Infobip','ban'],
+  frenado:['rosa','No se envió','ban'],
+  srvOk:['verde','Aceptado por el servidor'],
+  srvNo:['rosa','Rechazado por el servidor'],
+  sinEstado:['gris','Sin estado'],
+};
+/* fila: [día, hora, título, subtítulo, por dónde, estadoHoy, estadoNuevo, detalleNuevo] */
+const FILAS={
+  bloq:[
+    ['23-nov','15:22','Pidió reenviar el código','Por la app · autorizar este teléfono','SMS al 320 •••• 2350','sinEstado','frenado','El celular está bloqueado por Infobip. No se gastó intento'],
+    ['23-nov','15:16','Código enviado','Por la app · reenviado','Correo fe•••@hotmail.com','srvOk','entregado','Infobip lo entregó a las 15:16'],
+    ['23-nov','15:15','Pidió reenviar el código','Por la app · autorizar este teléfono','SMS al 320 •••• 2350','sinEstado','frenado','El celular está bloqueado por Infobip. No se gastó intento'],
+    ['23-nov','15:13','Código enviado','Por la app · nuevo','SMS al 320 •••• 2350','sinEstado','bloqueado','Infobip: número en lista negra (2052) · 15:13:04'],
+    ['23-nov','15:12','Aviso de teléfono nuevo','Al dueño de la cuenta','SMS al 320 •••• 2350','sinEstado','bloqueado','Infobip: número en lista negra (2052)'],
+    ['23-nov','15:12','Aviso de teléfono nuevo','Al dueño de la cuenta','Correo fe•••@hotmail.com','srvOk','entregado','Infobip lo entregó a las 15:12'],
+  ],
+  lib:[
+    ['23-nov','16:40','Código reenviado por soporte','Por Carolina Mejía · Diagnóstico de la app','SMS al 320 •••• 2350','sinEstado','entregado','Infobip lo entregó a las 16:40. El SMS vuelve a funcionar'],
+    ['23-nov','15:22','Pidió reenviar el código','Por la app · autorizar este teléfono','SMS al 320 •••• 2350','sinEstado','frenado','El celular estaba bloqueado por Infobip. No se gastó intento'],
+    ['23-nov','15:13','Código enviado','Por la app · nuevo','SMS al 320 •••• 2350','sinEstado','bloqueado','Infobip: número en lista negra (2052) · 15:13:04'],
+  ],
+  todos:[
+    ['23-nov','10:02','Código enviado','Por la app · nuevo','SMS al 315 •••• 8812','sinEstado','camino','Infobip lo recibió; aún no confirma la entrega'],
+    ['23-nov','09:58','Código enviado','Por la app · nuevo','WhatsApp al 315 •••• 8812','sinEstado','entregado','Infobip lo entregó a las 09:58'],
+    ['23-nov','09:40','Código enviado','Por la app · nuevo','SMS al 315 •••• 8812','sinEstado','noEntregado','Infobip: el celular no respondió (apagado o sin señal)'],
+    ['23-nov','09:35','Llamada con el código','Por la app · nuevo','Llamada al 315 •••• 8812','sinEstado','srvOk','El proveedor de llamadas la aceptó; no informa si contestó'],
+    ['23-nov','09:30','Código enviado','Por la app · reenviado','Correo ju•••@gmail.com','srvOk','srvNo','El servidor de correo lo rechazó (550 buzón no disponible)'],
+    ['22-nov','18:10','Código enviado','Por la app · nuevo','Correo ju•••@gmail.com','srvOk','rechazado','Infobip: el correo no existe (rebote)'],
+    ['22-nov','14:00','Código enviado','Por la app · nuevo','SMS al 315 •••• 8812','sinEstado','vencido','Infobip no logró entregarlo antes de que venciera'],
+    ['20-nov','11:05','Código enviado','Por la app · nuevo','SMS al 315 •••• 8812','sinEstado','sinResp','Pasaron 48 h y Infobip no informó el resultado'],
+  ],
+};
+
+function chrome(contenido){
+  return `<div class="w-full bg-white"><div class="flex min-h-screen">
+<aside class="relative flex w-[272px] shrink-0 flex-col bg-[#18181b]">
+  <div class="flex h-14 shrink-0 items-center justify-between border-b border-[#27272a] px-4">
+    <div class="flex items-center gap-2"><span class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fafafa] text-[13px] font-black text-neutral-900">g</span><span class="text-lg font-bold tracking-tight text-white">get</span></div>
+    ${ic('panel-left-close','h-[18px] w-[18px] text-[#a1a1aa]')}
+  </div>
+  <nav class="flex flex-col gap-1 p-2 pt-3 text-sm">
+    <a class="mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-[#a1a1aa]">${ic('layout-dashboard','h-4 w-4 text-[#71717a]')}Dashboard${ic('chevron-right','ml-auto h-4 w-4 text-[#71717a]')}</a>
+    <a class="mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-[#a1a1aa]">${ic('package','h-4 w-4 text-[#71717a]')}Pedidos${ic('chevron-right','ml-auto h-4 w-4 text-[#71717a]')}</a>
+    <a class="mx-2 flex h-8 items-center gap-2 rounded-md px-2 font-semibold text-[#fafafa]">${ic('wallet','h-4 w-4 text-[#34d399]')}QUAC${ic('chevron-down','ml-auto h-4 w-4 text-[#71717a]')}</a>
+    <div class="mx-3.5 my-2 flex flex-col gap-1 border-l border-[#3f3f46] px-2.5 py-0.5 text-[13px]">
+      <a class="flex h-8 items-center gap-3 rounded-lg px-3 font-medium text-[#a1a1aa]">${ic('calculator','h-4 w-4 text-[#71717a]')}Consulta de Planes</a>
+      <a class="flex h-8 items-center gap-3 rounded-lg px-3 font-medium text-[#a1a1aa]">${ic('scan-face','h-4 w-4 text-[#71717a]')}Validación de fotos</a>
+      <a class="flex h-8 items-center gap-3 rounded-lg px-3 font-medium text-[#a1a1aa]">${ic('credit-card','h-4 w-4 text-[#71717a]')}Pagos Portal/App</a>
+      <a class="relative flex h-8 items-center gap-3 rounded-lg bg-white/10 px-3 font-medium text-white"><span class="absolute left-0 top-[7px] h-[18px] w-[2px] rounded-sm bg-[#34d399]"></span>${ic('smartphone','h-4 w-4 text-[#34d399]')}Diagnóstico de la app</a>
+    </div>
+    <a class="mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-[#a1a1aa]">${ic('settings','h-4 w-4 text-[#71717a]')}Configuración${ic('chevron-right','ml-auto h-4 w-4 text-[#71717a]')}</a>
+  </nav>
+</aside>
+<main class="flex min-w-0 flex-1 flex-col bg-white">
+  <header class="flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-[hsl(0_0%_91%)] px-8 py-3">
+    <div class="relative w-[448px] text-muted-foreground"><span class="absolute left-0 top-0 flex h-10 w-12 items-center justify-center">${ic('search','h-5 w-5')}</span>
+      <input type="search" placeholder="Filtrar menú..." class="h-10 w-full rounded-md border border-input bg-transparent pl-12 pr-3 text-sm shadow-sm outline-none"></div>
+    <div class="flex items-center gap-2"><span class="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold text-neutral-700">CM</span>
+      <div class="text-sm leading-tight"><div class="font-medium">Carolina Mejía</div><div class="text-xs text-muted-foreground">cmejia@empresa-ejemplo.co</div></div></div>
+  </header>
+  <div class="flex flex-col gap-6 px-8 py-6">${contenido}</div>
+</main></div></div>`;
+}
+
+function ficha(){
+  return `<div class="flex flex-wrap items-end justify-between gap-4">
+    <div><p class="text-sm text-neutral-500">QUAC › Diagnóstico de la app</p>
+      <h1 class="mt-1 text-2xl font-semibold tracking-tight">${P==='todos'?'Julián Andrés Pardo':'Fernanda Ortiz Rueda'}</h1>
+      <p class="mt-1 text-sm text-neutral-600 nums">${P==='todos'?'CC 1.098.765.432 · Celular 315 •••• 8812 · ju•••@gmail.com':'CC 1.023.456.789 · Celular 320 •••• 2350 · fe•••@hotmail.com'}</p></div>
+    <div class="flex items-center gap-2 text-sm"><span class="text-neutral-500">Equipo</span><span class="font-medium">Samsung Galaxy A14 · Android 14</span></div>
+  </div>`;
+}
+
+function veredicto(){
+  if(P==='todos') return '';
+  let v;
+  if(V==='hoy'){
+    v={tono:'negro',icono:'message-circle',titulo:'Está autorizando este teléfono',hacer:'Pídale el código que le llegó por SMS o reenvíelo.',rec:'reenviar',cambia:false};
+  } else if(P==='bloq'){
+    v={tono:'rosa',icono:'ban',titulo:'El SMS no le llega: su celular está bloqueado por Infobip',
+      hacer:'Infobip tiene el 320 •••• 2350 en lista negra (código 2052) desde las 15:13. La app ya no le manda SMS y le pidió usar otro medio. Pida a quien administra Infobip que quite el número de la lista y luego toque «Reenviar código vigente» por SMS. Si llega, el SMS vuelve a funcionar para el cliente.',rec:'reenviar',cambia:true};
+  } else {
+    v={tono:'verde',icono:'check',titulo:'El SMS ya le llega',hacer:'El reenvío de las 16:40 llegó. El celular dejó de estar bloqueado y la app vuelve a mandarle SMS.',rec:null,cambia:true};
+  }
+  const b=(k,i,t)=>`<button class="btn ${v.rec===k?'rec':''}">${ic(i)}${t}</button>`;
+  return `<section class="rounded-xl border-2 ${TONO[v.tono]} p-5 ${v.cambia?'cambia':''}">
+    <div class="flex items-start gap-4">
+      <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${TONO_IC[v.tono]}">${ic(v.icono,'h-5 w-5')}</span>
+      <div class="min-w-0 flex-1">
+        <h2 class="text-xl font-semibold tracking-tight">${v.titulo}</h2>
+        <p class="mt-1 text-xs uppercase tracking-wide text-neutral-500">Qué hacer</p>
+        <p class="mt-1 max-w-[70ch] text-[15px] text-neutral-700">${v.hacer}</p>
+        <div class="mt-4 flex flex-wrap items-center gap-2">${b('reenviar','send','Reenviar código vigente')}${b('reiniciar','rotate-ccw','Reiniciar límite de códigos')}</div>
+      </div>
+      <div class="shrink-0 text-right text-sm text-neutral-600"><div>Vence a las <span class="nums font-semibold text-neutral-900">16:13</span></div><div class="mt-1 nums">Códigos pedidos: ${V==='hoy'?'3':'1'} de 6</div></div>
+    </div></section>`;
+}
+
+function tabla(){
+  if(E==='carga') return `<div class="space-y-3 p-5">${[1,2,3,4].map(()=>`<div class="flex gap-4"><div class="sk h-4 w-28"></div><div class="sk h-4 flex-1"></div><div class="sk h-4 w-40"></div><div class="sk h-4 w-32"></div></div>`).join('')}</div>`;
+  if(E==='error') return `<div class="px-5 py-12 text-center"><span class="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-pink-50 text-pink-700">${ic('triangle-alert','h-5 w-5')}</span><p class="mt-3 text-sm text-neutral-700">No pudimos cargar el movimiento.</p><button class="btn mt-3">${ic('refresh-cw')}Intentar de nuevo</button></div>`;
+  if(E==='vacio') return `<p class="px-5 py-10 text-center text-sm text-neutral-500">Sin movimiento en este periodo.</p>`;
+  const filas=FILAS[P];
+  return `<table class="w-full text-sm"><thead><tr class="border-b border-neutral-200 text-left text-xs font-medium text-neutral-500">
+    <th class="px-5 py-2.5 font-medium">Fecha y hora</th><th class="px-3 py-2.5 font-medium">Qué pasó</th><th class="px-3 py-2.5 font-medium">Por dónde</th><th class="px-5 py-2.5 font-medium"><span class="${V==='nuevo'?'cambia':''}">Estado</span></th></tr></thead>
+    <tbody>${filas.map(m=>{
+      const s=ST[V==='hoy'?m[5]:m[6]];
+      const nota=V==='hoy'?(m[5]==='sinEstado'?'Infobip no devuelve aún el estado a esta pantalla':''):m[7];
+      return `<tr class="border-b border-neutral-100 last:border-0 align-top">
+      <td class="nums whitespace-nowrap px-5 py-2.5"><span class="text-neutral-500">${m[0]}</span> <span class="font-medium">${m[1]}</span></td>
+      <td class="px-3 py-2.5"><div class="flex items-start gap-2">${ic(m[4].startsWith('Correo')?'mail':m[4].startsWith('Llamada')?'phone':'message-circle','mt-0.5 h-4 w-4 text-gray-400')}<div><div class="font-medium text-neutral-900">${m[2]}</div><div class="text-xs text-neutral-500">${m[3]}</div></div></div></td>
+      <td class="px-3 py-2.5 text-neutral-700">${m[4]}</td>
+      <td class="px-5 py-2.5">${chip(...s)}${nota?`<div class="mt-1 max-w-[42ch] text-xs text-neutral-500">${nota}</div>`:''}</td></tr>`;}).join('')}</tbody></table>`;
+}
+
+function leyenda(){
+  if(P!=='todos'||V!=='nuevo') return '';
+  const r=(k,q)=>`<tr class="border-b border-neutral-100 last:border-0"><td class="px-5 py-2">${chip(...ST[k])}</td><td class="px-3 py-2 text-neutral-700">${q}</td></tr>`;
+  return `<section class="rounded-xl border border-neutral-200">
+    <div class="border-b border-neutral-200 px-5 py-3"><h3 class="text-base font-semibold">Qué significa cada estado</h3><p class="text-xs text-neutral-500">Ayuda para soporte; se muestra al pasar el cursor por el chip. Aquí va en tabla solo para revisar los textos.</p></div>
+    <table class="w-full text-sm"><tbody>
+    ${r('entregado','Llegó al celular o al buzón.')}
+    ${r('camino','Infobip lo recibió y aún no confirma. Suele cambiar en segundos o minutos.')}
+    ${r('noEntregado','No llegó esta vez: celular apagado, sin señal o fuera de servicio. Un reenvío puede llegar.')}
+    ${r('vencido','Infobip lo intentó y no lo entregó a tiempo.')}
+    ${r('rechazado','Infobip lo rechazó: número o correo inválido, o correo que no existe.')}
+    ${r('bloqueado','El número está en la lista negra de Infobip (2052). La app deja de mandar por ese medio hasta que un reenvío de soporte llegue.')}
+    ${r('frenado','La app no lo mandó porque ese medio está bloqueado por Infobip. No gastó intento.')}
+    ${r('sinResp','Pasaron 48 h y Infobip no informó el resultado.')}
+    ${r('srvOk','Llamadas y reenvíos de correo: el proveedor lo aceptó. No informa si llegó.')}
+    ${r('srvNo','Llamadas y reenvíos de correo: el proveedor no lo aceptó.')}
+    </tbody></table></section>`;
+}
+
+function diag(){
+  const pie=V==='hoy'
+    ?`<p class="flex items-start gap-2 text-sm text-neutral-600">${ic('info','mt-0.5 h-4 w-4 shrink-0')}Hoy no guardamos la respuesta de Infobip: los envíos por SMS, WhatsApp y llamada salen «Sin estado». El correo sí muestra si el servidor lo aceptó.</p>`
+    :`<p class="flex items-start gap-2 text-sm text-neutral-600 cambia">${ic('info','mt-0.5 h-4 w-4 shrink-0')}El estado de SMS, WhatsApp y correo lo informa Infobip y se actualiza solo. La llamada y los reenvíos de correo solo dicen si el proveedor los aceptó.</p>`;
+  return chrome(`${ficha()}${veredicto()}
+    <section class="rounded-xl border border-neutral-200">
+      <div class="flex items-center justify-between border-b border-neutral-200 px-5 py-3"><h3 class="text-base font-semibold">Lo último que pasó</h3><span class="text-xs text-neutral-500">Hoy · 7 días · 30 días</span></div>
+      ${tabla()}
+    </section>${pie}${leyenda()}`);
+}
+
+/* ---------- App Quac ---------- */
+function telefono(etiqueta,tono,contenido){
+  return `<div class="shrink-0">
+    <div class="mb-2"><span class="tag ${tono==='hoy'?'bg-slate-200 text-slate-700':'bg-emerald-100 text-emerald-700'}">${etiqueta}</span></div>
+    <div style="zoom:.8"><div class="app relative overflow-hidden rounded-[2.5rem] bg-[#F8F8F8] shadow-2xl ring-8 ring-slate-900" style="width:390px;height:844px">
+      <div class="absolute inset-x-0 top-0 z-[40] flex h-11 items-center justify-between px-7 text-[13px] font-semibold"><span>9:41</span><span>100%</span></div>
+      <div class="relative h-full">${contenido}</div></div></div></div>`;
+}
+const pantallaSms=`<div class="px-6 pt-20">
+  <p class="h3-app" style="font-size:24px;color:#321185">Ingresa el código</p>
+  <p class="body-app mt-3">Te enviamos un SMS al 320 •••• 2350.</p>
+  <div class="mt-8 flex gap-2">${[1,2,3,4,5,6].map(()=>'<div class="otp"></div>').join('')}</div>
+  <p class="mt-6 text-center link-app">Reenviar código</p></div>`;
+const ayuda=`<p class="mt-3 text-center" style="font-size:12px;line-height:1.4;color:#4a4560">Si necesitas ayuda, comunícate con servicio al cliente al 607 700 0225, de lunes a viernes de 8:00 a. m. a 6:30 p. m.</p>`;
+const modal=(icono,titulo,texto)=>`<div class="velo"><div class="w-full rounded-[20px] bg-white p-6 cambia">
+  <div class="flex items-center gap-2">${icono}<p class="h3-app flex-1">${titulo}</p></div>
+  <p class="body-app mt-4">${texto}</p>
+  <p class="mt-6 text-center link-app">Cerrar</p>${ayuda}</div></div>`;
+const svgBan=`<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>`;
+const svgOff=`<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4 20-7z"/><path d="M2 2l20 20"/></svg>`;
+
+function app(){
+  const hoy=telefono('Hoy · toca «Reenviar código»','hoy',`${pantallaSms}<div class="snack-m">Te enviamos un nuevo código.</div>`);
+  const b2052=telefono('Con el ajuste · SMS bloqueado (2052)','nuevo',`${pantallaSms}${modal(svgBan,'Tu celular no está recibiendo SMS','No pudimos enviarte el código por SMS al 320 •••• 2350 porque tu número está bloqueado para recibir mensajes. Pide el código por correo o comunícate con servicio al cliente para que lo habiliten. No gastaste ningún intento.')}`);
+  const nada=telefono('Con el ajuste · no salió por ningún medio','nuevo',`${pantallaSms}${modal(svgOff,'No pudimos enviarte el código','Intentamos enviarlo y no salió. No gastaste ningún intento. Inténtalo de nuevo en unos minutos.')}`);
+  return `<div class="px-8 py-6">
+    <div class="mb-6 max-w-[90ch] text-sm text-neutral-700">
+      <p class="font-semibold text-neutral-900">App Quac: la app no cambia. Título y texto los manda el api (ADR-004); la app solo agrega «Cerrar» y la ayuda de SAC (ADR-008).</p>
+      <p class="mt-1">El primer SMS se envía como hoy: Infobip lo rechaza segundos después, cuando el cliente ya vio «Código enviado». El aviso sale en el siguiente «Reenviar código» por ese medio. Pasa igual en registro, autorizar teléfono y restablecer contraseña.</p>
+    </div>
+    <div class="flex flex-wrap gap-8">${hoy}${b2052}${nada}</div></div>`;
+}
+
+function pintar(){
+  document.querySelectorAll('[data-p]').forEach(b=>b.classList.toggle('on',b.dataset.p===P));
+  document.querySelectorAll('[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===V));
+  document.querySelectorAll('[data-e]').forEach(b=>b.classList.toggle('on',b.dataset.e===E));
+  document.getElementById('grpVista').style.display=P==='app'?'none':'';
+  document.getElementById('grpEst').style.display=P==='app'?'none':'';
+  document.getElementById('raiz').innerHTML=P==='app'?app():diag();
+  lucide.createIcons();
+}
+document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{P=b.dataset.p;pintar()});
+document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{V=b.dataset.v;pintar()});
+document.querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>{E=b.dataset.e;pintar()});
+pintar();
+</script>
+</body>
+</html>
