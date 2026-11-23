@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REQ-QUINTA-086 · Guía de pruebas · descuento de la promoción vigente</title>
+<style>
+  :root { --verde:#047857; --verde-claro:#ecfdf5; --gris:#64748b; --borde:#e2e8f0; --tinta:#0f172a; --rojo:#b91c1c; --ambar:#b45309; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--tinta); background:#f8fafc; line-height:1.5; }
+  main { max-width:920px; margin:0 auto; padding:24px 20px 60px; }
+  nav { position:sticky; top:0; background:#fff; border-bottom:1px solid var(--borde); padding:8px 20px; z-index:5; font-size:13px; overflow-x:auto; white-space:nowrap; }
+  nav a { color:var(--verde); text-decoration:none; margin-right:14px; font-weight:600; }
+  h1 { font-size:24px; margin:6px 0 4px; }
+  h2 { font-size:18px; margin:32px 0 10px; }
+  .sub { color:var(--gris); font-size:13px; margin:0; }
+  .caja { background:#fff; border:1px solid var(--borde); border-radius:12px; padding:14px 16px; margin:12px 0; }
+  .caso { border-left:4px solid var(--verde); }
+  .ojo { border-left:4px solid var(--ambar); }
+  .num { display:inline-block; width:26px; height:26px; border-radius:50%; background:var(--verde); color:#fff; text-align:center; font-weight:700; line-height:26px; margin-right:8px; font-size:14px; }
+  .caso h3 { margin:0 0 8px; font-size:16px; display:flex; align-items:center; }
+  .donde { font-size:13px; color:var(--gris); margin:0 0 8px; }
+  ol, ul { margin:6px 0; padding-left:22px; }
+  li { margin:3px 0; }
+  .ver { background:var(--verde-claro); border-radius:8px; padding:8px 12px; margin:8px 0; font-size:14px; }
+  .ver b { color:var(--verde); }
+  code, pre { font-family:ui-monospace,Menlo,monospace; font-size:12.5px; }
+  code { background:#f1f5f9; padding:1px 5px; border-radius:4px; }
+  pre { background:#0f172a; color:#e2e8f0; border-radius:10px; padding:10px 12px; overflow-x:auto; white-space:pre; }
+  .resultado { display:flex; gap:16px; flex-wrap:wrap; margin-top:10px; font-size:14px; align-items:center; }
+  .resultado label { display:flex; gap:6px; align-items:center; cursor:pointer; }
+  .resultado input[type=text] { flex:1; min-width:200px; border:1px solid var(--borde); border-radius:6px; padding:5px 8px; font:inherit; }
+  .btn { display:inline-block; background:var(--verde); color:#fff; padding:8px 14px; border-radius:8px; text-decoration:none; font-weight:600; font-size:14px; }
+  .cifras { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; margin:8px 0; }
+  .cifras div { background:#fff; border:1px solid var(--borde); border-radius:8px; padding:8px 10px; font-size:13px; }
+  .cifras b { display:block; font-size:17px; }
+  .descuento b { color:var(--rojo); }
+  @media print { nav { display:none; } body { background:#fff; } .caja { break-inside:avoid; } }
+</style>
+</head>
+<body>
+<nav>
+  <a href="#prep">Antes de empezar</a><a href="#c1">1 Bot</a><a href="#c2">2 Cotización</a><a href="#c3">3 Nueva reserva</a><a href="#c4">4 SIREQ</a><a href="#c5">5 Sin promoción</a><a href="#c6">6 Editar</a><a href="#c7">7 Descuento a mano</a><a href="#ojo">Parece error</a><a href="#sql">Consultas</a>
+</nav>
+<main>
+
+<header>
+  <p class="sub">REQ-QUINTA-086 · Jira QUIN-68 · auditoría APPROVED el 2026-11-22 · fuente: <code>qa.md</code> del REQ (si algo no cuadra, manda <code>qa.md</code>)</p>
+  <h1>Guía de pruebas: descuento de la promoción vigente en cotizaciones y reservas</h1>
+  <p>Durante la promoción Black Friday 15 % (del 21 al 30 de noviembre de 2026), el bot de WhatsApp, el admin viejo y SIREQ aplican el descuento al crear cotizaciones y reservas de hospedaje. El descuento queda guardado aparte, con el nombre de la promoción como motivo.</p>
+  <p><a class="btn" href="REQ-QUINTA-086-descuento-de-promocion.html">Abrir el mockup aprobado</a></p>
+</header>
+
+<h2 id="prep">Antes de empezar</h2>
+<div class="caja">
+  <ol>
+    <li>Las cuatro ramas <code>feature/REQ-QUINTA-086</code> desplegadas en el ambiente de prueba: quinta-web, api-quinta, api-chatbot y quinta-admin-laravel.</li>
+    <li>La variable 23 de <code>adm_varentorno</code> creada con el script OPS-086-1. Sin ella nada cambia: es el interruptor.</li>
+    <li>Un usuario asesor del admin viejo y de SIREQ. No se necesitan permisos nuevos.</li>
+    <li>Para el caso 1, un número de WhatsApp de prueba. <b>Infobip escribe de verdad.</b></li>
+    <li>No probar con clientes reales: las reservas cuentan en ocupación.</li>
+  </ol>
+  <p>La cifra de referencia en todos los casos es un hospedaje de <b>$1.000.000</b>:</p>
+  <div class="cifras">
+    <div>Precio normal<b>$1.000.000</b></div>
+    <div class="descuento">Descuento 15 %<b>−$150.000</b></div>
+    <div>Total<b>$850.000</b></div>
+    <div>Anticipo 30 % (bot)<b>$255.000</b></div>
+  </div>
+</div>
+
+<h2>Casos</h2>
+
+<div class="caja caso" id="c1">
+  <h3><span class="num">1</span>El bot cotiza con la promoción</h3>
+  <p class="donde">WhatsApp, número de prueba · mockup: <a href="REQ-QUINTA-086-descuento-de-promocion.html#p1">pantalla 1</a> y <a href="REQ-QUINTA-086-descuento-de-promocion.html#p2">pantalla 2</a></p>
+  <ol>
+    <li>Pedir una cotización de El Paraíso, sede completa, 2 noches (tarifa de $500.000 la noche).</li>
+    <li>Pedir el PDF de la cotización.</li>
+    <li>Aceptar y dejar que el bot cree la reserva.</li>
+    <li>Preguntarle al bot por otra promoción (por ejemplo «2x1 de Instagram»).</li>
+  </ol>
+  <div class="ver"><b>Debe verse:</b> el mensaje trae precio normal $1.000.000, «Descuento BLACK FRIDAY 15 %» −$150.000, total $850.000 y anticipo $255.000. El enlace y el PDF muestran la línea «Descuento BLACK FRIDAY 15 %» en negrilla y el total en una sola línea. La reserva nace con variación −150.000, motivo «BLACK FRIDAY 15 %» y usuario 300, y en el admin viejo se ve el bloque «Variación de tarifa». Por la otra promoción, el bot pasa a un asesor como hoy.</div>
+  <div class="resultado"><label><input type="checkbox"> Pasa</label><label><input type="checkbox"> Falla</label><input type="text" placeholder="Notas"></div>
+</div>
+
+<div class="caja caso" id="c2">
+  <h3><span class="num">2</span>Cotización del admin viejo</h3>
+  <p class="donde">Admin viejo · <code>?ruta=cotizacion&amp;accion=nuevo</code> · paso de hospedaje · mockup: <a href="REQ-QUINTA-086-descuento-de-promocion.html#p3">pantalla 3</a></p>
+  <ol>
+    <li>Sede completa con subtotal de $1.000.000.</li>
+    <li>Desmarcar la casilla y volver a marcarla.</li>
+    <li>Con la casilla marcada, cambiar las fechas.</li>
+    <li>Guardar y abrir el enlace de la cotización.</li>
+    <li>Empezar otra cotización con «¿Es un evento? Sí».</li>
+  </ol>
+  <div class="ver"><b>Debe verse:</b> la casilla «Promoción BLACK FRIDAY 15 %» marcada, «Descuentos» en 150.000 sin poder editarse y «Total hospedaje» en 850.000. Al desmarcar, «Descuentos» queda vacío y editable, el total vuelve a 1.000.000 y, si se digita un descuento, pide el motivo como hoy. Al cambiar fechas, el descuento se recalcula al 15 % del nuevo subtotal. La página muestra «Descuento BLACK FRIDAY 15 %: $ 150,000» en negrilla. En la cotización de evento la casilla <b>no</b> aparece.</div>
+  <div class="resultado"><label><input type="checkbox"> Pasa</label><label><input type="checkbox"> Falla</label><input type="text" placeholder="Notas"></div>
+</div>
+
+<div class="caja caso" id="c3">
+  <h3><span class="num">3</span>«Nueva reserva» del admin viejo</h3>
+  <p class="donde">Admin viejo · <code>?ruta=reservas&amp;accion=nuevo</code> · mockup: <a href="REQ-QUINTA-086-descuento-de-promocion.html#p4">pantalla 4</a> y <a href="REQ-QUINTA-086-descuento-de-promocion.html#p6">pantalla 6</a></p>
+  <ol>
+    <li>Tipo habitaciones con total de $1.000.000; crear la reserva con la casilla marcada.</li>
+    <li>Crear otra igual con la casilla desmarcada.</li>
+    <li>Cambiar el tipo a sede completa y luego a pasadía, sin crear.</li>
+    <li>En la reserva del paso 1, cambiar la estadía de 2 a 3 noches.</li>
+  </ol>
+  <div class="ver"><b>Debe verse:</b> antes del paso del titular, el bloque marcado con hospedaje $1.000.000, descuento −$150.000 y total $850.000. La reserva nace con variación −150.000, motivo «BLACK FRIDAY 15 %» y el usuario del asesor; la desmarcada nace sin variación. En sede completa el bloque muestra solo el porcentaje, sin cifras; en pasadía no aparece. Al pasar a 3 noches, la variación sigue en −150.000 y el motivo no cambia.</div>
+  <div class="resultado"><label><input type="checkbox"> Pasa</label><label><input type="checkbox"> Falla</label><input type="text" placeholder="Notas"></div>
+</div>
+
+<div class="caja caso" id="c4">
+  <h3><span class="num">4</span>SIREQ</h3>
+  <p class="donde">SIREQ · <code>/reservas/nueva</code> · tarjeta «Resumen» · mockup: <a href="REQ-QUINTA-086-descuento-de-promocion.html#p5">pantalla 5</a></p>
+  <ol>
+    <li>Sede completa de $1.000.000.</li>
+    <li>Desmarcar la casilla y volver a marcarla.</li>
+    <li>Crear la reserva con la casilla marcada y abrirla en el admin viejo.</li>
+  </ol>
+  <div class="ver"><b>Debe verse:</b> marcada, −$150.000, base $714.286, IVA $135.714 y total $850.000. Desmarcada, base $840.336, IVA $159.664 y total $1.000.000. En el admin viejo la reserva muestra el bloque «Variación de tarifa» con el motivo.</div>
+  <div class="resultado"><label><input type="checkbox"> Pasa</label><label><input type="checkbox"> Falla</label><input type="text" placeholder="Notas"></div>
+</div>
+
+<div class="caja caso" id="c5">
+  <h3><span class="num">5</span>Sin promoción todo es como hoy</h3>
+  <p class="donde">El arquitecto apaga la variable con el bloque A del script (<code>activa</code> en 0)</p>
+  <ol>
+    <li>Repetir de forma rápida los casos 1 a 4.</li>
+    <li>Abrir las cotizaciones creadas en los casos anteriores.</li>
+    <li>Volver a encender la variable (bloque B) al terminar.</li>
+  </ol>
+  <div class="ver"><b>Debe verse:</b> ningún canal muestra la casilla ni el descuento; el bot cotiza a precio completo. Las cotizaciones ya creadas siguen mostrando «Descuento BLACK FRIDAY 15 %» y las reservas conservan su variación.</div>
+  <div class="resultado"><label><input type="checkbox"> Pasa</label><label><input type="checkbox"> Falla</label><input type="text" placeholder="Notas"></div>
+</div>
+
+<div class="caja caso" id="c6">
+  <h3><span class="num">6</span>Editar una cotización conserva el motivo</h3>
+  <p class="donde">Admin viejo · <code>?ruta=cotizacion&amp;accion=edit</code></p>
+  <ol>
+    <li>Abrir la cotización del caso 2 y avanzar por los pasos sin tocar el descuento.</li>
+    <li>Repetir con la promoción apagada.</li>
+  </ol>
+  <div class="ver"><b>Debe verse:</b> en los dos casos la cotización sigue con descuento 150.000 y motivo «BLACK FRIDAY 15 %», y su página sigue mostrando la línea en negrilla.</div>
+  <div class="resultado"><label><input type="checkbox"> Pasa</label><label><input type="checkbox"> Falla</label><input type="text" placeholder="Notas"></div>
+</div>
+
+<div class="caja caso" id="c7">
+  <h3><span class="num">7</span>Cotización con descuento a mano</h3>
+  <p class="donde">Admin viejo · cotización desmarcando la casilla</p>
+  <ol>
+    <li>Cotización con descuento digitado de 50.000 y motivo «Dto especial com».</li>
+    <li>Abrir su enlace y exportar su PDF.</li>
+  </ol>
+  <div class="ver"><b>Debe verse:</b> igual que hoy: «Descuentos: $ 50,000 (5%)», sin el nombre de la promoción. El PDF se genera (en local no se pudo probar).</div>
+  <div class="resultado"><label><input type="checkbox"> Pasa</label><label><input type="checkbox"> Falla</label><input type="text" placeholder="Notas"></div>
+</div>
+
+<h2 id="ojo">Cosas que parecen error y no lo son</h2>
+<div class="caja ojo">
+  <ul>
+    <li>Con el código desplegado pero sin la variable 23, nada cambia.</li>
+    <li>En sede completa de «Nueva reserva» del admin viejo el bloque muestra solo el porcentaje: el valor se calcula al crear.</li>
+    <li>En reservas sin IVA el porcentaje va sobre el hospedaje sin IVA: $1.000.000 con IVA da descuento $126.050.</li>
+    <li>Un ajuste de tarifa posterior reemplaza la promoción, y la reserva deja de salir en la consulta por motivo.</li>
+    <li>Al editar una cotización de boda durante la vigencia, la casilla puede aparecer: la cotización no guarda si era evento. Se desmarca a mano.</li>
+    <li>Si el bot no puede recalcular (capacidad o tarifa), la cotización se guarda sin descuento y queda un aviso en el log de api-quinta.</li>
+    <li>SIREQ muestra «-$150.000» y no «− $ 150.000»: es el formato de todo SIREQ.</li>
+  </ul>
+</div>
+
+<h2 id="sql">Consultas para confirmar</h2>
+<div class="caja">
+  <p>Después de cada caso, lo creado debe aparecer aquí con el descuento exacto. Antes del deploy (2026-11-22) las dos dan 0 filas.</p>
+<pre>-- Reservas con la promoción, por quien las creó (300 = bot)
+SELECT reserva_variacion_usuario, COUNT(*) n, SUM(reservacion_variacion_valor) total
+FROM reservacion WHERE reserva_variacion_motivo = 'BLACK FRIDAY 15 %'
+GROUP BY reserva_variacion_usuario;
+
+-- Cotizaciones con la promoción, por quien las creó
+SELECT usuario_id, COUNT(*) n, SUM(vlr_descuento_hospedaje) total
+FROM cotizacion
+WHERE motivo_descuento_hospedaje = 'BLACK FRIDAY 15 %' AND vlr_descuento_hospedaje &gt; 0
+GROUP BY usuario_id;</pre>
+</div>
+
+</main>
+</body>
+</html>

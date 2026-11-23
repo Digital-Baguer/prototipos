@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REQ-QUINTA-086 · Descuento de la promoción en cotizaciones y reservas</title>
+<link rel="preconnect" href="https://fonts.bunny.net">
+<link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+tailwind.config = { theme: { extend: {
+  fontFamily: { sans: ['Instrument Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+  colors: {
+    background: 'hsl(0 0% 100%)', foreground: 'hsl(0 0% 3.9%)', card: 'hsl(0 0% 100%)',
+    primary: { DEFAULT: 'hsl(218 68% 42%)', foreground: 'hsl(0 0% 98%)' },
+    muted: { DEFAULT: 'hsl(0 0% 96.1%)', foreground: 'hsl(0 0% 45.1%)' },
+    border: 'hsl(0 0% 92.8%)'
+  } } } };
+</script>
+<style>
+  body { background:#eef0f3; margin:0; }
+  /* Barra del mockup (no es parte de ninguna pantalla) */
+  .mk-bar { background:#111; color:#fff; font:500 13px/1.3 'Instrument Sans',system-ui,sans-serif; }
+  .mk-tab { padding:9px 13px; border-radius:8px; color:#c9cdd3; cursor:pointer; border:0; background:transparent; font:inherit; text-align:left; }
+  .mk-tab.on { background:#fff; color:#111; }
+  .mk-est { padding:5px 11px; border-radius:999px; border:1px solid #555; color:#ddd; background:transparent; font:inherit; font-size:12px; cursor:pointer; }
+  .mk-est.on { background:#10b981; border-color:#10b981; color:#fff; }
+  .mk-nota { font:400 13px/1.5 'Instrument Sans',system-ui,sans-serif; color:#374151; background:#fff; border-left:3px solid #111; padding:10px 14px; border-radius:0 8px 8px 0; }
+  .mk-nota b { color:#111; }
+  .mk-titulo { font:600 17px/1.3 'Instrument Sans',system-ui,sans-serif; color:#111; }
+  .nuevo { outline:2px solid #10b981; outline-offset:3px; border-radius:6px; }
+  .mk-ley { display:inline-block; width:12px; height:12px; outline:2px solid #10b981; border-radius:3px; vertical-align:-1px; margin-right:6px; }
+  .pantalla { display:none; } .pantalla.on { display:block; }
+  body.vencida .solo-vigente { display:none !important; }
+  body:not(.vencida) .solo-vencida { display:none !important; }
+
+  /* ---------- Réplica Dashkit del admin viejo (valores de theme.min.css y site.css) ---------- */
+  .dk { font-family:'Cerebri Sans','Helvetica Neue',Arial,sans-serif; font-size:15px; line-height:1.5; color:#12263f; background:#f9fbfd; }
+  .dk .card { background:#fff; border:1px solid #edf2f9; border-radius:12px; box-shadow:0 .75rem 1.5rem rgba(18,38,63,.03); padding:1.5rem; margin-bottom:1.25rem; }
+  .dk h4 { font-size:15px; font-weight:600; margin:0; color:#12263f; }
+  .dk .paso-badge { width:30px; height:30px; border-radius:50%; background:#2c7ae5; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-weight:600; font-size:14px; margin-right:.75rem; }
+  .dk .paso-badge.done { background:#16a34a; }
+  .dk .text-muted { color:#95aac9; } .dk .text-secondary { color:#6e84a3; } .dk .small { font-size:13px; }
+  .dk .fw { font-weight:600; }
+  .dk .btn { display:inline-block; border-radius:6px; font-size:15px; padding:.5rem 3rem; border:1px solid transparent; cursor:pointer; }
+  .dk .btn-primary { background:#2c7ae5; color:#fff; font-weight:600; }
+  .dk .form-control { display:block; width:100%; min-width:95px; padding:.5rem .75rem; font-size:15px; color:#12263f; background:#fff; border:1px solid #d2ddec; border-radius:6px; }
+  .dk .form-control:disabled { background:#edf2f9; }
+  .dk table { width:100%; border-collapse:collapse; }
+  .dk th { font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:#95aac9; background:#f9fbfd; text-align:left; padding:1rem; border-bottom:1px solid #edf2f9; font-weight:600; }
+  .dk td { padding:1rem; border-top:1px solid #edf2f9; vertical-align:middle; white-space:nowrap; }
+  .dk .hab-fila { background:#f9fbfd; border:1px solid #e3ebf6; border-radius:8px; padding:.75rem 1rem; margin-bottom:.5rem; display:flex; align-items:center; justify-content:space-between; }
+  .dk .bg-light { background:#edf2f9; } .dk .rounded { border-radius:6px; }
+  .dk .check { display:flex; align-items:flex-start; gap:.6rem; }
+  .dk .check input { width:17px; height:17px; margin-top:3px; accent-color:#2c7ae5; }
+  .dk hr { border:0; border-top:2px solid #eee; margin:1.5rem 0; }
+
+  /* ---------- Cotización que ve el cliente (estilos de cotizaciones/cotizacionv2.php) ---------- */
+  .cz { font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#333; background:#f0f0f0; padding:20px 0; }
+  .cz .page-wrapper { max-width:800px; margin:0 auto; background:#fff; padding:40px 50px; }
+  .cz h1 { font-family:Georgia,serif; color:#111; font-size:22px; margin:0 0 4px; font-weight:bold; }
+  .cz .tabla { width:100%; border-collapse:collapse; margin-top:18px; }
+  .cz .tabla th { background:#333; color:#fff; font-size:12px; text-align:left; padding:8px 10px; font-weight:normal; }
+  .cz .tabla td { padding:8px 10px; border-bottom:1px solid #e0e0e0; font-size:13px; }
+  .cz .subtotal-block { display:flex; justify-content:flex-end; margin-top:14px; }
+  .cz .subtotal-table { width:360px; border-collapse:collapse; }
+  .cz .subtotal-table td { padding:6px 10px; font-size:13px; white-space:nowrap; }
+  .cz .subtotal-table .value { text-align:right; }
+  .cz .discount { color:#999; }
+  .cz .total-row td { background:#111; color:#fff; font-family:Georgia,serif; font-weight:bold; }
+  .cz .total-row .value { font-size:16px; }
+  .cz .cz-h { font-family:Georgia,serif; font-weight:bold; font-size:17px; color:#111; margin:26px 0 10px; display:flex; align-items:center; gap:12px; }
+  .cz .cz-h::after { content:''; flex:1; border-top:1px solid #ccc; }
+  .cz.pdf { background:#525659; }
+  .cz.pdf .page-wrapper { max-width:816px; min-height:1056px; font-size:12.5px; box-shadow:0 0 8px rgba(0,0,0,.5); }
+
+  /* ---------- WhatsApp ---------- */
+  .wa { background:#e5ddd5; padding:24px; font-family:'Helvetica Neue',Arial,sans-serif; }
+  .wa .burbuja { background:#fff; border-radius:0 8px 8px 8px; padding:8px 10px 6px; max-width:340px; font-size:14.2px; line-height:1.38; color:#111b21; box-shadow:0 1px .5px rgba(11,20,26,.13); white-space:pre-line; margin-bottom:8px; }
+  .wa .burbuja.mia { background:#d9fdd3; border-radius:8px 0 8px 8px; margin-left:auto; }
+  .wa .hora { display:block; text-align:right; font-size:11px; color:#667781; margin-top:2px; }
+</style>
+</head>
+<body>
+
+<!-- ======= Barra del mockup ======= -->
+<div class="mk-bar px-5 py-3">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div><b>REQ-QUINTA-086</b> · Descuento de la promoción en cotizaciones y reservas</div>
+    <div class="flex items-center gap-2">
+      <span style="color:#9ca3af;font-size:12px">Estado de la promoción:</span>
+      <button class="mk-est on" data-est="vigente">Vigente (21 al 30 nov)</button>
+      <button class="mk-est" data-est="vencida">Vencida o apagada</button>
+    </div>
+  </div>
+  <div class="mt-3 flex flex-wrap gap-1">
+    <button class="mk-tab on" data-p="p1">1 · Bot: mensaje de WhatsApp</button>
+    <button class="mk-tab" data-p="p2">2 · Cotización que ve el cliente</button>
+    <button class="mk-tab" data-p="p3">3 · Admin viejo: cotización</button>
+    <button class="mk-tab" data-p="p4">4 · Admin viejo: crear reserva</button>
+    <button class="mk-tab" data-p="p5">5 · SIREQ: crear reserva</button>
+    <button class="mk-tab" data-p="p6">6 · Reserva ya guardada</button>
+  </div>
+</div>
+
+<div class="px-5 py-4" style="font-family:'Instrument Sans',system-ui,sans-serif">
+  <p style="font-size:12.5px;color:#4b5563;margin:0 0 14px"><span class="mk-ley"></span>El borde verde marca lo único que cambia. Lo demás es la pantalla de hoy. Ejemplo en todas: hospedaje de 2 noches por $1.000.000, descuento de $150.000, total $850.000.</p>
+
+  <!-- ================= 1 · BOT ================= -->
+  <section id="p1" class="pantalla on">
+    <div class="mk-titulo mb-2">El bot cotiza hospedaje durante la promoción</div>
+    <div class="mk-nota mb-4 solo-vigente">El bot muestra precio normal, descuento y total en <b>toda</b> cotización de cabaña o habitación, lo pida o no el cliente. La cuenta la hace el servidor; el bot solo la escribe. Pasadías y bodas se cotizan como hoy, sin descuento. Si el cliente pregunta por <b>otra</b> promoción, lo sigue pasando a un asesor.</div>
+    <div class="mk-nota mb-4 solo-vencida">Sin promoción vigente el bot cotiza exactamente como hoy.</div>
+    <div class="wa" style="max-width:460px;border-radius:10px">
+      <div class="burbuja mia">Hola, quiero cotizar El Paraíso para 8 personas del 12 al 14 de diciembre<span class="hora">5:56 p. m.</span></div>
+      <div class="burbuja solo-vigente">Cotizo tu plan para 8 personas, 2 noches 💙
+💵 $500.000/noche
+<span class="nuevo">🏷️ Precio normal: $1.000.000
+🎉 Descuento BLACK FRIDAY 15 %: −$150.000</span>
+🧾 Total: $850.000 COP (IVA incluido)
+✅ Anticipo 30%: $255.000<span class="hora">5:56 p. m.</span></div>
+      <div class="burbuja solo-vigente"><span class="nuevo">El descuento aplica si reservas antes del 30 de noviembre.</span> ¿Te envío la cotización en PDF?<span class="hora">5:56 p. m.</span></div>
+      <div class="burbuja solo-vencida">Cotizo tu plan para 8 personas, 2 noches 💙
+💵 $500.000/noche
+🧾 Total: $1.000.000 COP (IVA incluido)
+✅ Anticipo 30%: $300.000<span class="hora">5:56 p. m.</span></div>
+    </div>
+  </section>
+
+  <!-- ================= 2 · COTIZACIÓN CLIENTE ================= -->
+  <section id="p2" class="pantalla">
+    <div class="mk-titulo mb-2">Cotización que recibe el cliente: enlace y PDF</div>
+    <div class="mk-nota mb-3">Son <b>dos páginas distintas</b>: la del bot (calcada de la cotización 24042) y la que comparte el asesor desde el admin viejo (calcada de la 23526). En las dos, la línea del descuento lleva el nombre de la promoción y va <b>en negrilla</b>; el resumen y el total de abajo ya salen con el valor descontado, como hoy. Un descuento puesto a mano por el asesor, sin promoción, se sigue viendo como hoy («Descuento (N%)» o «Descuentos: … (N%)»). <b>Cambia el ancho</b> del bloque de totales, de 300 a 360 px, para que el nombre de la promoción quepa en una línea.</div>
+    <div class="mb-3 flex items-center gap-2" style="font-size:12.5px;color:#4b5563">Ver como:
+      <button class="mk-est on" data-cz="web" style="color:#111;border-color:#bbb">Bot · enlace</button>
+      <button class="mk-est" data-cz="pdf" style="color:#111;border-color:#bbb">Bot · PDF</button>
+      <button class="mk-est" data-cz="ase" style="color:#111;border-color:#bbb">Asesor · enlace</button>
+    </div>
+    <div class="cz" id="czMarco" style="border-radius:10px">
+      <div id="czBarraPdf" style="display:none;background:#323639;color:#f1f1f1;font:500 13px Arial;padding:12px 18px;margin:-20px 0 14px">Cotización 24055 <span style="float:right;color:#bbb">1 / 2 &nbsp;·&nbsp; 100% &nbsp;·&nbsp; ⤓ &nbsp; 🖶</span></div>
+      <div id="czBoton" style="text-align:center;margin-bottom:22px"><span style="display:inline-block;background:#111;color:#fff;font:bold 12px Arial;letter-spacing:.04em;padding:9px 22px">Descargar PDF</span></div>
+      <div class="page-wrapper">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #ccc;padding-bottom:14px">
+          <div style="font-family:'Snell Roundhand','Brush Script MT',cursive;font-size:38px;color:#333;line-height:1">Quinta del mar<div style="font:10px Arial;letter-spacing:.12em;text-align:right;color:#666">Beach Houses</div></div>
+          <div style="text-align:right"><div style="font-family:Georgia,serif;font-size:24px;letter-spacing:.06em;color:#111">COTIZACIÓN</div><div style="font-size:10px;letter-spacing:.12em;color:#999">NRO. DE COTIZACIÓN</div><div style="font-family:Georgia,serif;font-weight:bold;font-size:26px;color:#111">24055</div></div>
+        </div>
+        <div style="text-align:right;font-size:12px;color:#666;margin-top:10px">Bucaramanga, 22 de Noviembre de 2026</div>
+        <div style="margin-top:8px">Sr(a)<div style="font-family:Georgia,serif;font-weight:bold;font-size:18px;color:#111">Carolina</div></div>
+        <p style="margin:14px 0 0;line-height:1.6">Deseamos agradecerle por haber seleccionado a <b>Quinta del Mar Beach Houses</b> como destino de sus vacaciones. Nos sentimos muy halagados de tener la oportunidad de ser sus anfitriones.<br>A continuación nos permitimos presentar la cotización bajo las cuales prestaremos nuestros servicios por concepto de hospedaje.</p>
+        <div class="cz-h">Información de estadía</div>
+        <div style="background:#f7f7f7;padding:16px 20px;line-height:1.9"><b>Fecha de entrada:</b> Sábado 12 de Diciembre, 2026<br><b>Fecha de salida:</b> Lunes 14 de Diciembre, 2026<br><b>Sede:</b> El Paraíso<br><b>Duración:</b> 2 noches</div>
+        <table class="tabla">
+          <tr><th>Sede</th><th style="text-align:center">Capacidad máx.</th><th style="text-align:right">Valor noche</th><th style="text-align:right">Total</th></tr>
+          <tr><td>El Paraíso</td><td style="text-align:center">10</td><td style="text-align:right">$ 500,000</td><td style="text-align:right;font-family:Georgia,serif;font-weight:bold">$ 1,000,000</td></tr>
+        </table>
+        <div style="background:#f7f7f7;padding:14px 16px;margin-top:12px;font-size:12.5px;color:#555"><b style="color:#111">Incluye:</b> Snack de bienvenida, servicio de nuestros mayordomos, cocinera experta, personal de limpieza, TV satelital, Wifi, aire acondicionado, playa privada y piscina.</div>
+        <div class="subtotal-block">
+          <table class="subtotal-table">
+            <tr><td class="label">Subtotal hospedaje</td><td class="value">$ 1,000,000</td></tr>
+            <tr class="solo-vigente"><td class="label" style="font-weight:bold;color:#111"><span class="nuevo">Descuento BLACK FRIDAY 15 %</span></td><td class="value" style="font-weight:bold;color:#111">- $ 150,000</td></tr>
+            <tr class="sep"><td colspan="2"><hr style="border:0;border-top:1px solid #ccc;margin:2px 0"></td></tr>
+            <tr class="total-row solo-vigente"><td>Total</td><td class="value">$ 850,000</td></tr>
+            <tr class="total-row solo-vencida"><td>Total</td><td class="value">$ 1,000,000</td></tr>
+          </table>
+        </div>
+        <div class="cz-h">Resumen de cotización</div>
+        <table class="tabla" style="margin-top:0">
+          <tr><th>Producto y servicios</th><th style="text-align:right">Subtotal</th></tr>
+          <tr><td>Servicio de hospedaje sede El Paraíso</td><td style="text-align:right"><span class="solo-vigente">$ 850,000</span><span class="solo-vencida">$ 1,000,000</span></td></tr>
+          <tr><td style="background:#111;color:#fff;font-family:Georgia,serif;font-weight:bold;font-size:15px">Total</td><td style="background:#111;color:#fff;font-family:Georgia,serif;font-weight:bold;font-size:15px;text-align:right"><span class="solo-vigente">$ 850,000</span><span class="solo-vencida">$ 1,000,000</span></td></tr>
+        </table>
+        <div class="cz-h">Formas de pago</div>
+        <div style="background:#f7f7f7;padding:16px 20px;line-height:1.6">Congelamos las fechas con el 30% del valor total correspondiente al servicio de hospedaje, el pago se debe hacer a nuestra cuenta de ahorros Bancolombia No. 793-000044-31 a nombre de Operadora Hotelera QM S.A.S NIT 901920110-8.</div>
+        <div style="margin-top:22px;font-size:11px;color:#999">Elaborado por:<div style="font-family:Georgia,serif;font-weight:bold;font-size:15px;color:#111">Asistente Virtual</div><span style="color:#333;font-size:12px">hola@quintadelmar.co</span></div>
+      </div>
+    </div>
+    <div id="czAsesor" style="display:none;background:#f8f9fa;border-radius:10px;padding:0 0 30px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:16px;color:#212529">
+      <div style="max-width:990px;margin:0 auto;background:#fff;padding:40px 100px 50px;position:relative">
+        <div style="text-align:right">Bucaramanga, 22 de Noviembre de 2026</div>
+        <p style="margin:14px 0 0">Sr(a)<br><b>Carolina Mejía</b></p>
+        <p style="margin:14px 0">Deseamos agradecerle por haber seleccionado a <b>Quinta del Mar Beach Houses</b> como destino de sus vacaciones. Nos sentimos muy halagados de tener la oportunidad de ser sus anfitriones.</p>
+        <p style="margin:14px 0">A continuación nos permitimos presentar la cotización bajo las cuales prestaremos nuestros servicios por concepto de hospedaje.</p>
+        <div style="display:flex;align-items:flex-end;gap:10px;margin:22px 0 26px"><b style="font-size:17px;white-space:nowrap">&nbsp;Información de estadía</b><span style="flex:1;border-bottom:1px solid #000"></span></div>
+        <div style="line-height:1.15">Fecha de entrada: Sábado 12 de Diciembre, 2026<br>Fecha de salida: Lunes 14 de Diciembre, 2026<br>Sede: El Paraíso<br>2 noches.</div>
+        <table style="width:100%;border-collapse:collapse;margin:26px 0 24px">
+          <tr style="background:#f5f5f5;font-weight:bold;color:#444;letter-spacing:.03em;font-size:15px"><td style="border:1px solid #ddd;padding:16px">SEDE</td><td style="border:1px solid #ddd;padding:16px">CAPACIDAD MÁXIMA</td><td style="border:1px solid #ddd;padding:16px">VALOR NOCHE</td><td style="border:1px solid #ddd;padding:16px">TOTAL</td></tr>
+          <tr style="font-size:15px"><td style="border:1px solid #ddd;padding:12px 14px">El Paraíso</td><td style="border:1px solid #ddd;padding:12px 14px">10</td><td style="border:1px solid #ddd;padding:12px 14px;text-align:right">$ 500,000</td><td style="border:1px solid #ddd;padding:12px 14px;text-align:right">$ 1,000,000</td></tr>
+        </table>
+        <p style="margin:0 0 22px"><b>Incluye:</b> Snack de bienvenida, servicio de nuestros mayordomos, cocinera experta, personal de limpieza, TV satelital, Wifi, aire acondicionado, playa privada y piscina.</p>
+        <div style="text-align:right;line-height:1.7">Subtotal Hospedaje: $ 1,000,000<br>
+          <span class="solo-vigente"><b class="nuevo">Descuento BLACK FRIDAY 15 %: $ 150,000</b><br></span>
+          <b class="solo-vigente">Total: $ 850,000</b><b class="solo-vencida">Total: $ 1,000,000</b></div>
+        <div style="display:flex;align-items:flex-end;gap:10px;margin:40px 0 26px"><b style="font-size:17px;white-space:nowrap">&nbsp;Resumen cotización</b><span style="flex:1;border-bottom:1px solid #000"></span></div>
+        <table style="width:100%;border-collapse:collapse;font-size:15px">
+          <tr style="background:#f5f5f5;font-weight:bold;color:#444"><td style="border:1px solid #ddd;padding:5px;text-align:center">PRODUCTO Y SERVICIOS</td><td style="border:1px solid #ddd;padding:5px;text-align:center;width:30%">SUBTOTAL</td></tr>
+          <tr><td style="border:1px solid #ddd;padding:5px">Servicio de hospedaje sede El Paraíso</td><td style="border:1px solid #ddd;padding:5px;text-align:right"><span class="solo-vigente">$ 850,000</span><span class="solo-vencida">$ 1,000,000</span></td></tr>
+          <tr style="background:#f5f5f5;font-weight:bold"><td style="border:1px solid #ddd;padding:5px">TOTAL</td><td style="border:1px solid #ddd;padding:5px;text-align:right"><span class="solo-vigente">$ 850,000</span><span class="solo-vencida">$ 1,000,000</span></td></tr>
+        </table>
+        <p style="margin:26px 0 0"><b>Formas de pago</b></p>
+        <p style="margin:14px 0 40px">Congelamos las fechas con el 30% del valor total correspondiente al servicio de hospedaje, el pago se debe hacer a nuestra cuenta de ahorros Bancolombia No. 793-000044-31 a nombre de Operadora Hotelera QM S.A.S NIT 901920110-8.</p>
+        <p style="margin:0">Elaborado por:</p><p style="margin:14px 0 0"><b>Maria Alejandra Rodriguez Ramirez</b></p>
+        <span style="position:absolute;right:28px;bottom:26px;background:#1a73c8;color:#fff;font-weight:bold;font-size:14px;padding:11px 20px;border-radius:24px">⤓ PDF</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 3 · ADMIN VIEJO COTIZACIÓN ================= -->
+  <section id="p3" class="pantalla">
+    <div class="mk-titulo mb-2">Admin viejo · Cotización, paso de hospedaje</div>
+    <div class="mk-nota mb-4 solo-vigente">La casilla viene marcada y el descuento ya calculado; el asesor no digita valor ni motivo. Si la desmarca, el campo «Descuentos» queda en blanco y funciona como hoy (digita el valor y el sistema le pide el motivo). Si cambia fechas o sede, el descuento se vuelve a calcular. <b>Pruébalo:</b> desmarca la casilla.</div>
+    <div class="mk-nota mb-4 solo-vencida">Sin promoción vigente la casilla no aparece y la pantalla queda igual que hoy.</div>
+    <div class="dk" style="padding:24px;border-radius:10px">
+      <div style="max-width:760px;margin:0 auto">
+        <div class="card">
+          <div style="display:flex;align-items:center;margin-bottom:1rem"><span class="paso-badge">2</span><h4>Hospedaje</h4></div>
+          <table>
+            <thead><tr><th>Sede</th><th>Capacidad máx.</th><th>Valor noche</th><th>Total</th></tr></thead>
+            <tbody>
+              <tr><td>El Paraíso</td><td>10 personas</td><td><input class="form-control" value="500.000" disabled></td><td><input class="form-control" value="1.000.000" disabled></td></tr>
+              <tr class="solo-vigente"><td colspan="3" style="text-align:right">
+                  <label class="check nuevo" style="justify-content:flex-end;padding:4px 6px"><input type="checkbox" id="czChk" checked><span><span class="fw">Promoción BLACK FRIDAY 15 %</span><br><span class="text-secondary small">15 % sobre el hospedaje · vigente hasta el 30 de noviembre</span></span></label>
+                </td><td></td></tr>
+              <tr><td colspan="3" style="text-align:right">Descuentos</td><td><input class="form-control" id="czDesc" value="150.000" disabled></td></tr>
+              <tr><td colspan="3" style="text-align:right">Total hospedaje</td><td><input class="form-control" id="czTot" value="850.000" disabled></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 4 · ADMIN VIEJO CREAR RESERVA ================= -->
+  <section id="p4" class="pantalla">
+    <div class="mk-titulo mb-2">Admin viejo · Nueva reserva (Reservas → Nuevo)</div>
+    <div class="mk-nota mb-4 solo-vigente">Aparece un bloque nuevo antes del botón «Crear reserva», solo en sede completa y habitaciones (en pasadía no). Viene marcado. <b>Ojo:</b> hoy esta pantalla no le muestra al asesor el valor de la sede completa antes de guardar, y eso no cambia: en sede completa el bloque dice el porcentaje y el valor exacto se ve en la reserva ya creada (pestaña 6). En habitaciones, donde hoy sí se ve el total, se muestra también el descuento. <b>Pruébalo:</b> cambia el tipo y desmarca la casilla.</div>
+    <div class="mk-nota mb-4 solo-vencida">Sin promoción vigente el bloque no aparece y la pantalla queda igual que hoy.</div>
+    <div class="dk" style="padding:24px;border-radius:10px">
+      <div style="max-width:820px;margin:0 auto">
+        <div style="margin-bottom:12px;font-size:13px" class="text-secondary">Tipo de reserva en el ejemplo:
+          <label style="margin-left:10px"><input type="radio" name="rvTipo" value="hab" checked> Habitaciones</label>
+          <label style="margin-left:10px"><input type="radio" name="rvTipo" value="sede"> Sede completa</label>
+          <label style="margin-left:10px"><input type="radio" name="rvTipo" value="pas"> Pasadía</label>
+        </div>
+        <div class="card">
+          <div style="display:flex;align-items:center;margin-bottom:1rem"><span class="paso-badge done">2</span><h4>Fechas y destino</h4></div>
+          <div class="text-secondary small" style="margin-bottom:.75rem">12 al 14 de diciembre de 2026 · Sede destino: El Paraíso</div>
+          <div id="rvHab">
+            <div class="hab-fila"><span>Habitación 103</span><span><span class="text-muted small">Personas:</span> 2 <span class="fw" style="margin-left:1rem">$500.000</span></span></div>
+            <div class="hab-fila"><span>Habitación 202</span><span><span class="text-muted small">Personas:</span> 2 <span class="fw" style="margin-left:1rem">$500.000</span></span></div>
+            <div style="text-align:right;margin-top:.5rem"><span class="text-muted">Total: </span><span class="fw">4 personas · $1.000.000</span></div>
+          </div>
+          <div id="rvSede" style="display:none" class="text-secondary small">Sede completa · 8 personas <span class="text-muted">(hoy no se muestra el valor en esta pantalla)</span></div>
+          <div id="rvPas" style="display:none" class="text-secondary small">Pasadía · 4 personas · $315.000 por persona</div>
+        </div>
+        <div class="card">
+          <div style="display:flex;align-items:center"><span class="paso-badge done">3</span><h4>Datos del titular</h4></div>
+          <div class="text-secondary small" style="margin-top:.5rem">Cédula 52.431.908 · Carolina Mejía Duarte</div>
+        </div>
+        <div class="card nuevo solo-vigente" id="rvPromo">
+          <label class="check"><input type="checkbox" id="rvChk" checked><span><span class="fw">Aplicar promoción BLACK FRIDAY 15 %</span><br><span class="text-secondary small">15 % sobre el hospedaje. Queda registrado en la reserva como variación de tarifa con el motivo «BLACK FRIDAY 15 %».</span></span></label>
+          <div id="rvCuenta" style="margin-top:1rem;padding-top:1rem;border-top:1px solid #edf2f9">
+            <div style="display:flex;justify-content:space-between"><span class="text-secondary">Hospedaje</span><span>$1.000.000</span></div>
+            <div style="display:flex;justify-content:space-between"><span class="text-secondary">Descuento BLACK FRIDAY 15 %</span><span>−$150.000</span></div>
+            <div style="display:flex;justify-content:space-between;margin-top:.35rem"><span class="fw">Total hospedaje</span><span class="fw" style="font-size:17px">$850.000</span></div>
+          </div>
+          <div id="rvSinCuenta" style="display:none;margin-top:.75rem" class="text-secondary small">El valor del descuento se calcula al crear la reserva y se ve en su detalle.</div>
+          <div id="rvOff" style="display:none;margin-top:.75rem" class="text-secondary small">Esta reserva se crea sin el descuento de la promoción.</div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <a class="text-muted" href="#" onclick="return false">Cancelar</a>
+          <button class="btn btn-primary" type="button">Crear reserva</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 5 · SIREQ ================= -->
+  <section id="p5" class="pantalla">
+    <div class="mk-titulo mb-2">SIREQ · Nueva reserva, tarjeta «Resumen»</div>
+    <div class="mk-nota mb-4 solo-vigente">La casilla va en el resumen de la derecha, donde hoy ya se ven los valores, y viene marcada. Aparece en sede completa y habitaciones; en pasadía no. <b>Pruébalo:</b> desmarca la casilla.</div>
+    <div class="mk-nota mb-4 solo-vencida">Sin promoción vigente la casilla y la fila del descuento no aparecen; el resumen queda igual que hoy.</div>
+    <div class="font-sans rounded-xl bg-background p-6 text-[13.5px] text-foreground">
+      <div class="grid items-start gap-7 lg:grid-cols-[1fr_372px]">
+        <section class="space-y-4">
+          <article class="rounded-2xl border border-border bg-card p-5"><h2 class="text-[15px] font-semibold">3 · Sede completa y tarifa</h2><p class="mt-1 text-muted-foreground">El Paraíso · 12 al 14 de diciembre · 2 noches en temporada baja</p></article>
+          <article class="rounded-2xl border border-border bg-card p-5"><h2 class="text-[15px] font-semibold">4 · Titular</h2><p class="mt-1 text-muted-foreground">Cédula 52.431.908 · Carolina Mejía Duarte</p></article>
+          <div class="flex items-center gap-4">
+            <button class="rounded-lg bg-primary px-5 py-2.5 text-[14px] font-semibold text-primary-foreground">✓ Crear reserva</button>
+            <span class="text-muted-foreground">Se vuelve a verificar la disponibilidad y queda en el historial quién la creó.</span>
+          </div>
+        </section>
+        <aside>
+          <div class="rounded-2xl border border-border bg-card p-5">
+            <div class="mb-3 flex items-baseline justify-between"><h2 class="text-[15px] font-semibold text-foreground">Resumen</h2><span class="text-[15px] tabular-nums text-muted-foreground">QM-<span class="text-muted-foreground/50">·····</span></span></div>
+            <div class="flex justify-between gap-4 py-1.5"><span class="text-muted-foreground">Tipo</span><span class="text-right font-medium">Sede completa</span></div>
+            <div class="flex justify-between gap-4 border-t border-dashed border-border py-1.5"><span class="text-muted-foreground">Sede</span><span class="text-right font-medium">El Paraíso</span></div>
+            <div class="flex justify-between gap-4 border-t border-dashed border-border py-1.5"><span class="text-muted-foreground">Fechas</span><span class="text-right font-medium">12 al 14 dic · 2 noches</span></div>
+            <div class="mt-4 border-t border-border pt-3">
+              <div class="flex justify-between gap-4 py-1.5"><span class="text-foreground/80">sáb 12 dic <span class="text-muted-foreground">· TB</span></span><span class="tabular-nums">$ 500.000</span></div>
+              <div class="flex justify-between gap-4 border-t border-dashed border-border py-1.5"><span class="text-foreground/80">dom 13 dic <span class="text-muted-foreground">· TB</span></span><span class="tabular-nums">$ 500.000</span></div>
+              <div class="solo-vigente nuevo mt-2 rounded-lg bg-muted px-3 py-2.5">
+                <label class="flex cursor-pointer items-start gap-2.5">
+                  <input type="checkbox" id="sqChk" checked class="mt-0.5 h-4 w-4 accent-[hsl(218_68%_42%)]">
+                  <span class="flex-1"><span class="font-medium text-foreground">Promoción BLACK FRIDAY 15 %</span><br><span class="text-[12px] text-muted-foreground">15 % sobre el hospedaje · hasta el 30 nov</span></span>
+                  <span class="whitespace-nowrap tabular-nums font-medium" id="sqDesc">− $ 150.000</span>
+                </label>
+              </div>
+              <div class="mt-1 flex justify-between gap-4 border-t border-dashed border-border py-1.5"><span class="text-muted-foreground">Base</span><span class="tabular-nums" id="sqBase">$ 714.286</span></div>
+              <div class="flex justify-between gap-4 border-t border-dashed border-border py-1.5"><span class="text-muted-foreground">IVA 19 %</span><span class="tabular-nums" id="sqIva">$ 135.714</span></div>
+              <div class="flex items-baseline justify-between gap-4 border-t border-dashed border-border py-1.5"><span class="text-[15px] font-semibold text-foreground">Total</span><span class="text-[17px] font-semibold tabular-nums text-foreground" id="sqTot">$ 850.000</span></div>
+              <p class="mt-2 text-muted-foreground">Nace pendiente de pago, gestionada por Ivan Daniel Jiménez.</p>
+            </div>
+            <div class="mt-3"><span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[12px] font-medium text-emerald-700">✓ Lista para crear</span></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 6 · RESERVA GUARDADA ================= -->
+  <section id="p6" class="pantalla">
+    <div class="mk-titulo mb-2">Admin viejo · Detalle de valores de la reserva ya creada</div>
+    <div class="mk-nota mb-4">Esta pantalla <b>no cambia</b>: el descuento se guarda en la variación de tarifa que ya existe, así que se ve en el bloque de hoy, con el nombre de la promoción como motivo. Igual sale para una reserva creada por el asesor (en cualquiera de los dos admin) o por el bot; en la del bot, «Registrado» dice Asistente Virtual. Desde aquí el asesor puede quitar o cambiar el ajuste con el botón de siempre; si lo cambia, la reserva deja de contar como Black Friday.</div>
+    <div class="dk" style="padding:24px;border-radius:10px">
+      <div class="card" style="max-width:720px;margin:0 auto">
+        <div style="display:flex;justify-content:space-between">
+          <div style="max-width:340px;font-size:16px"><p class="bg-light fw rounded" style="min-width:230px;display:inline-block;padding:.5rem;margin:0 0 .5rem">Reserva base hospedaje</p><p style="margin:0" class="text-secondary"><span class="fw" style="color:#12263f">EL PARAÍSO</span> 8 adultos</p><p style="margin:0">Nro noches: 2 noches.</p></div>
+          <div style="text-align:right;font-size:16px"><p class="fw" style="margin:0">$1.000.000</p></div>
+        </div>
+        <hr>
+        <div style="display:flex;justify-content:space-between" class="nuevo">
+          <div style="max-width:340px;font-size:16px"><p class="bg-light fw rounded" style="min-width:230px;display:inline-block;padding:.5rem;margin:0 0 .5rem">Variación de tarifa</p><p style="margin:0"><b>Motivo:</b> BLACK FRIDAY 15 %</p><p style="margin:0;font-size:14px" class="text-secondary">Registrado: 2026-11-21 17:56 Ivan Daniel Jiménez López</p></div>
+          <div style="text-align:right"><p class="fw" style="margin:0;font-size:16px">$-150.000</p><p class="text-secondary" style="margin:0">Este valor incluye <span class="fw">19</span>% de IVA <span class="fw">$-23.950</span></p></div>
+        </div>
+        <hr>
+        <div style="display:flex;border-top:2px solid #e3ebf6;border-bottom:2px solid #e3ebf6;font-size:17px">
+          <div style="flex:1;padding:1rem;border-right:2px solid #e3ebf6;text-align:right"><b>TOTAL</b></div>
+          <div style="padding:1rem 1rem 1rem 3rem;text-align:right;font-size:20px"><b>$850.000</b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="mk-nota mt-6"><b>Qué no cubre este mockup:</b> la variable de configuración de la promoción no tiene pantalla (la crea y la cambia un script). El sitio público, Booking y Airbnb no se tocan. La edición de una reserva ya creada no cambia: al mover fechas el descuento queda fijo en pesos.</div>
+</div>
+
+<script>
+  // Pestañas
+  document.querySelectorAll('.mk-tab').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.mk-tab').forEach(function (x) { x.classList.toggle('on', x === b); });
+      document.querySelectorAll('.pantalla').forEach(function (s) { s.classList.toggle('on', s.id === b.dataset.p); });
+    });
+  });
+  // Estado de la promoción
+  document.querySelectorAll('.mk-est').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.mk-est').forEach(function (x) { x.classList.toggle('on', x === b); });
+      document.body.classList.toggle('vencida', b.dataset.est === 'vencida');
+    });
+  });
+  // 2 · Enlace o PDF
+  document.querySelectorAll('[data-cz]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var pdf = b.dataset.cz === 'pdf', ase = b.dataset.cz === 'ase';
+      document.getElementById('czMarco').style.display = ase ? 'none' : '';
+      document.getElementById('czAsesor').style.display = ase ? '' : 'none';
+      document.querySelectorAll('[data-cz]').forEach(function (x) { x.classList.toggle('on', x === b); });
+      document.getElementById('czMarco').classList.toggle('pdf', pdf);
+      document.getElementById('czBarraPdf').style.display = pdf ? '' : 'none';
+      document.getElementById('czBoton').style.display = pdf ? 'none' : '';
+    });
+  });
+  // 3 · Cotización admin viejo
+  var czChk = document.getElementById('czChk'), czDesc = document.getElementById('czDesc'), czTot = document.getElementById('czTot');
+  czChk.addEventListener('change', function () {
+    czDesc.disabled = czChk.checked;
+    czDesc.value = czChk.checked ? '150.000' : '';
+    czDesc.placeholder = czChk.checked ? '' : '0';
+    czTot.value = czChk.checked ? '850.000' : '1.000.000';
+  });
+  // 4 · Crear reserva admin viejo
+  var rvChk = document.getElementById('rvChk');
+  function rv() {
+    var t = document.querySelector('input[name=rvTipo]:checked').value;
+    document.getElementById('rvHab').style.display = t === 'hab' ? '' : 'none';
+    document.getElementById('rvSede').style.display = t === 'sede' ? '' : 'none';
+    document.getElementById('rvPas').style.display = t === 'pas' ? '' : 'none';
+    document.getElementById('rvPromo').style.display = t === 'pas' ? 'none' : '';
+    document.getElementById('rvCuenta').style.display = (rvChk.checked && t === 'hab') ? '' : 'none';
+    document.getElementById('rvSinCuenta').style.display = (rvChk.checked && t === 'sede') ? '' : 'none';
+    document.getElementById('rvOff').style.display = rvChk.checked ? 'none' : '';
+  }
+  document.querySelectorAll('input[name=rvTipo]').forEach(function (r) { r.addEventListener('change', rv); });
+  rvChk.addEventListener('change', rv); rv();
+  // 5 · SIREQ
+  var sqChk = document.getElementById('sqChk');
+  sqChk.addEventListener('change', function () {
+    var on = sqChk.checked;
+    document.getElementById('sqDesc').textContent = on ? '− $ 150.000' : '$ 0';
+    document.getElementById('sqBase').textContent = on ? '$ 714.286' : '$ 840.336';
+    document.getElementById('sqIva').textContent = on ? '$ 135.714' : '$ 159.664';
+    document.getElementById('sqTot').textContent = on ? '$ 850.000' : '$ 1.000.000';
+  });
+</script>
+</body>
+</html>
