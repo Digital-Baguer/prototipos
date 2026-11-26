@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-241 · Guía de pruebas · Portal de pagos: pedir el correo cuando el del cliente no es entregable</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Nunito Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  /* Calco del portal (pagosquac-client/src/style/styles.scss), igual que el mockup del REQ */
+  .tel { width:300px; flex:0 0 300px; border:8px solid #1f2937; border-radius:28px; background:#fff; overflow:hidden; box-shadow:0 4px 14px #0002; }
+  .tel .top { background:#fff; padding:.55rem .8rem; display:flex; justify-content:center; border-bottom:1px solid #eee; }
+  .tel .top b { font-family:Poppins,sans-serif; color:#7633FF; font-size:18px; }
+  .tel .crumb { background:#F3F3F8; padding:.3rem .8rem; font-size:11px; color:#7633FF; font-weight:700; }
+  .tel .body { padding:1rem .9rem 1.2rem; text-align:center; min-height:430px; font-size:13px; }
+  .step-icon { background:#E9F0FD; width:44px; height:44px; display:flex; justify-content:center; align-items:center; margin:0 auto .6rem; border-radius:18px; }
+  .ttl { font-family:Poppins,sans-serif; font-weight:800; color:#2E1380; font-size:17px; line-height:1.25; margin-bottom:.6rem; }
+  .sub { color:#333; margin-bottom:.8rem; }
+  .pay { border:2px solid #e9f0fd; border-radius:10px; padding:.45rem .7rem; display:flex; justify-content:space-between; align-items:center; text-align:start; margin-bottom:.55rem; box-shadow:1px 1px 3px 1px #00000010; }
+  .pay.tap { border-color:#802EFF; box-shadow:0 0 0 3px #802EFF33; }
+  .val { font-weight:700; font-size:15px; }
+  .state { border-radius:10px; background:#F0F0FF; padding:.5rem .7rem; display:flex; justify-content:space-between; align-items:center; text-align:start; margin-bottom:.9rem; }
+  .golink { color:#802EFF; text-decoration:underline; font-weight:700; }
+  .lbl { text-align:start; font-weight:700; margin-bottom:.3rem; }
+  .inp { border:1px solid #B6C1D3; border-radius:12px; min-height:38px; padding:0 .7rem; display:flex; align-items:center; text-align:start; color:#111; }
+  .inp.ph { color:#9ca3af; }
+  .inp.err { border-color:#FF5D5D; background:#fff6f6; }
+  .msg { color:#dc3545; font-size:12px; text-align:start; margin-top:.3rem; }
+  .btn { margin-top:.9rem; border-radius:40px; background:#7633FF; color:#fff; font-weight:700; min-height:38px; display:flex; align-items:center; justify-content:center; }
+  .btn.off { background:#E3E3E3; color:#979796; }
+  .btn.tap { box-shadow:0 0 0 3px #7633FF55; }
+  .nota { color:#7F7FB4; font-size:12px; margin-top:.6rem; }
+  .volver { color:#802EFF; font-weight:700; margin-top:.9rem; }
+  .volver.tap { text-decoration:underline; outline:2px solid #802EFF55; border-radius:6px; padding:0 .3rem; display:inline-block; }
+  .medio { border:2px solid #e9f0fd; border-radius:10px; padding:.5rem .7rem; display:flex; gap:.6rem; align-items:center; text-align:start; margin-bottom:.5rem; }
+  .medio i { width:30px; height:30px; border-radius:9px; background:#E9F0FD; display:block; flex:0 0 30px; }
+  .loader { display:flex; flex-direction:column; align-items:center; justify-content:center; height:330px; color:#7F7FB4; gap:.8rem; }
+  .spin { width:34px; height:34px; border:4px solid #7633FF33; border-top-color:#7633FF; border-radius:50%; animation:s .8s linear infinite; }
+  @keyframes s { to { transform:rotate(360deg); } }
+  .chip { font-size:11px; font-weight:700; padding:.15rem .55rem; border-radius:999px; display:inline-block; }
+  .chip.toca { background:#ede9fe; color:#5b21b6; }
+  .chip.ver { background:#dcfce7; color:#166534; }
+  .chip.err { background:#fee2e2; color:#991b1b; }
+  .chip.bd { background:#e0f2fe; color:#075985; }
+  .flecha { align-self:center; color:#9ca3af; font-size:26px; flex:0 0 auto; }
+  .tab.on { background:#111827; color:#fff; border-color:#111827; }
+  pre { white-space:pre-wrap; word-break:break-word; }
+  .escala { zoom:.82; }
+  @media (max-width: 700px){ .escala { zoom:.7; } }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+<div class="max-w-[1500px] mx-auto px-5 py-6">
+
+  <header class="mb-5">
+    <p class="text-xs uppercase tracking-wide text-gray-500">GW-241 · Guía visual de pruebas · Tarjeta GW-241 · Sin tren (nace de master)</p>
+    <h1 class="text-2xl font-bold">Portal de pagos: pedir el correo cuando el del cliente no es entregable</h1>
+    <p class="text-sm text-gray-600 mt-1 max-w-5xl">Un caso por cada caso mínimo de <code>qa.md</code> §6, con el mismo número. Cada caso muestra qué preparar, qué tocar, qué debe verse en el portal y qué debe quedar en la base. Los datos son de ejemplo: usa un cliente de prueba tuyo.</p>
+    <div class="flex flex-wrap gap-2 mt-3 text-xs">
+      <span class="bg-white border rounded-full px-3 py-1">api-pagos-quac <b>feature/GW-241</b> · dd3c6</span>
+      <span class="bg-white border rounded-full px-3 py-1">pagosquac-client <b>feature/GW-241</b> · 1dcde</span>
+      <span class="bg-white border rounded-full px-3 py-1">Ejemplo: CC 1000000001 · celular 300 000 0001 · Pago total $ 294.418</span>
+    </div>
+  </header>
+
+  <section class="bg-white rounded-xl border p-5 mb-5">
+    <h2 class="font-bold text-lg mb-2">Antes de empezar</h2>
+    <div class="grid md:grid-cols-2 gap-5 text-sm">
+      <div>
+        <p class="font-semibold mb-1">1. SQL antes del API (OPS-GW-241-2)</p>
+        <p class="text-gray-600 mb-2">Correr <code>api-pagos-quac/docs/sql/GW-241-migracion.sql</code> en <code>quacapi</code>, una sola vez. Sin las columnas nuevas se caen todos los cobros. Esta query debe dar 10 filas:</p>
+        <pre class="bg-gray-900 text-gray-100 rounded-lg p-3 text-xs">SELECT TABLE_NAME, COLUMN_NAME
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA='quacapi'
+  AND (TABLE_NAME='client_payment_emails'
+   OR (TABLE_NAME IN ('payments','pre_payments')
+       AND COLUMN_NAME LIKE 'payer%'));</pre>
+        <p class="font-semibold mt-3 mb-1">2. Ramas</p>
+        <pre class="bg-gray-900 text-gray-100 rounded-lg p-3 text-xs"># api-pagos-quac
+git checkout feature/GW-241 &amp;&amp; composer install
+vendor/bin/phpunit   # OK (47 tests, 231 assertions)
+
+# pagosquac-client
+git checkout feature/GW-241 &amp;&amp; npm install</pre>
+      </div>
+      <div>
+        <p class="font-semibold mb-1">3. Datos que hay que pedir</p>
+        <ul class="list-disc pl-5 text-gray-700 space-y-1">
+          <li>Un cliente QUAC con crédito activo cuyo correo en el CRM no sea entregable (por ejemplo <code>NOTIENE@gmail.com</code>), con su celular.</li>
+          <li>Un cliente con correo entregable en el CRM, para la regresión.</li>
+          <li>Un buzón real tuyo para escribirlo en la pantalla del correo.</li>
+          <li>Un enlace del portal con valor y comercio, para el caso 7.</li>
+        </ul>
+        <p class="font-semibold mt-3 mb-1">4. Dónde ver lo que pasó</p>
+        <pre class="bg-gray-900 text-gray-100 rounded-lg p-3 text-xs">-- último cobro del cliente de prueba
+SELECT payment_id, channel, payment_gateway, payment_status,
+       payer_email_source, payer_email
+FROM quacapi.payments
+WHERE client_document = '{cédula de prueba}'
+ORDER BY payment_id DESC LIMIT 3;
+
+-- correo de pago guardado
+SELECT client_document, channel, updated_at
+FROM quacapi.client_payment_emails
+WHERE client_document = '{cédula de prueba}';</pre>
+        <p class="text-gray-600 mt-2">En el navegador, pestaña Red: <code>payer-email/status</code> y <code>payer-email</code>. Ninguna respuesta debe traer un correo.</p>
+      </div>
+    </div>
+  </section>
+
+  <nav id="tabs" class="flex flex-wrap gap-2 mb-4"></nav>
+  <main id="caso"></main>
+
+  <footer class="text-xs text-gray-500 mt-8">Fuente: <code>docs/requirements/GW-241/qa.md</code> §6 y el código de las ramas. Si algo de esta guía no cuadra con <code>qa.md</code>, manda <code>qa.md</code>.</footer>
+</div>
+
+<script>
+const ICON_SOBRE = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>';
+const ICON_TARJ = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>';
+
+function marco(inner){ return `<div class="tel"><div class="top"><b>Quac</b></div><div class="crumb">Hola, Marta</div><div class="body">${inner}</div></div>`; }
+
+const P = {
+  valor: (tap) => marco(`<div class="step-icon">${ICON_TARJ}</div><div class="ttl">Selecciona el valor a pagar</div>
+    <div class="pay ${tap==='min'?'tap':''}"><div><p>Pago mínimo</p><p class="val">$ 98.140</p></div><span>›</span></div>
+    <div class="pay ${tap==='total'?'tap':''}"><div><p>Pago total</p><p class="val">$ 294.418</p></div><span>›</span></div>
+    <div class="pay ${tap==='otro'?'tap':''}"><div><p class="val">Otro valor</p></div><span>›</span></div>`),
+  loader: () => marco(`<div class="loader"><div class="spin"></div><span>Cargando…</span></div>`),
+  correo: ({total='$ 294.418', texto='', ph=true, err='', btn='off', volver=true, tapVolver=false, tapCambiar=false}={}) => marco(`<div class="step-icon">${ICON_SOBRE}</div>
+    <div class="ttl">¿Dónde quieres recibir el comprobante?</div>
+    <div class="sub">Escribe tu correo electrónico. Allí te enviaremos el comprobante de tu pago.</div>
+    <div class="state"><div><p>Total a pagar</p><p class="val" style="font-size:19px">${total}</p></div>${volver?`<p class="golink" ${tapCambiar?'style="outline:2px solid #802EFF55;border-radius:6px;padding:0 .3rem"':''}>Cambiar valor</p>`:''}</div>
+    <div class="lbl">Correo electrónico</div>
+    <div class="inp ${ph&&!texto?'ph':''} ${err?'err':''}">${texto||'nombre@gmail.com'}</div>
+    ${err?`<div class="msg">${err}</div>`:''}
+    <div class="btn ${btn==='off'||btn==='verif'?'off':''} ${btn==='tap'?'tap':''}">${btn==='verif'?'Verificando correo…':'Continuar'}</div>
+    <div class="nota">Lo guardamos para tus próximos pagos.</div>
+    ${volver?`<div class="volver ${tapVolver?'tap':''}">Volver</div>`:''}`),
+  metodo: () => marco(`<div class="step-icon">${ICON_TARJ}</div><div class="ttl">Selecciona el método de pago</div>
+    <div class="medio"><i></i><b>Efecty</b></div><div class="medio"><i></i><b>PSE</b></div><div class="medio"><i></i><b>Tarjeta</b></div><div class="medio"><i></i><b>Bancolombia</b></div>`),
+  otro: (tap) => marco(`<div class="ttl">Ingresa el valor a pagar</div><div class="sub"><b style="color:#802EFF">Marta</b> escribe el valor que deseas pagar.</div>
+    <div class="inp">$ 120.000</div><div class="btn ${tap?'tap':''}">Pagar $ 120.000</div>`),
+  bd: (lineas) => `<div class="tel" style="border-color:#075985"><div class="top"><b style="color:#075985">Base quacapi</b></div><div class="body" style="text-align:left;font-family:ui-monospace,monospace;font-size:11.5px">${lineas}</div></div>`,
+  app: () => marco(`<div class="ttl">App Quac</div><div class="sub">Pagar cuota → Efecty</div><div class="medio"><i></i><b>Efecty</b></div><div class="nota">Sin pantalla nueva: la app no cambia en GW-241.</div>`),
+};
+
+const ERR_FMT = 'Escribe un correo válido, por ejemplo nombre@gmail.com.';
+const ERR_UND = 'No pudimos verificar este correo. Revisa que esté bien escrito o escribe otro.';
+
+const CASOS = [
+ { n:1, t:'Correo no entregable', para:'El problema original: el cliente sin correo entregable ya no llega al medio de pago con el correo genérico.',
+   prep:'Cliente con <code>NOTIENE@gmail.com</code> en el CRM y sin fila en <code>client_payment_emails</code>. Entra al portal con cédula y celular.',
+   pasos:[ [P.valor('total'),'toca','«Pago total».'], [P.loader(),'ver','Loader del portal mientras consulta el correo.'], [P.correo(),'ver','La pantalla nueva con el total y el botón deshabilitado.'] ],
+   pasa:'Aparece «¿Dónde quieres recibir el comprobante?» con «Total a pagar» igual al valor tocado.',
+   falla:'Pasa directo a «Selecciona el método de pago», o el total no coincide.',
+   noes:'Se ve el loader general del portal y no la tarjeta «Un momento…» del mockup: es la decisión aceptada.',
+   json:'POST /api/v1/payment/payer-email/status\n→ 200 {"email_required": true}' },
+ { n:2, t:'Formato inválido y correo no entregable', para:'El portal no deja seguir con un correo mal escrito ni con uno que no existe.',
+   prep:'Sigue en la pantalla del caso 1.',
+   pasos:[ [P.correo({texto:'marta@', err:ERR_FMT}),'err','Escribe <code>marta@</code> y sal del campo: botón deshabilitado y mensaje.'], [P.correo({texto:'marta.no.existe.xyz@gmail.com', btn:'tap'}),'toca','Escribe un correo que no exista y toca «Continuar».'], [P.correo({texto:'marta.no.existe.xyz@gmail.com', err:ERR_UND, btn:'on'}),'err','Mensaje bajo el campo; sigue en la misma pantalla.'] ],
+   pasa:'Los dos mensajes salen tal cual y no hay fila nueva en <code>client_payment_emails</code>.',
+   falla:'Avanza al método de pago, o se guarda el correo inválido.',
+   json:'POST /api/v1/payment/payer-email\n→ 422 {"message": "No pudimos verificar este correo. Revisa que esté bien escrito o escribe otro.", "reason": "undeliverable"}' },
+ { n:3, t:'Correo válido llega a la pasarela', para:'El correo que deja el cliente queda guardado y es el que viaja a MercadoPago.',
+   prep:'Sigue en la pantalla del correo. Ten a mano un buzón real tuyo.',
+   pasos:[ [P.correo({texto:'tu.correo@gmail.com', btn:'verif'}),'ver','Toca «Continuar»: el botón dice «Verificando correo…».'], [P.metodo(),'toca','Pasa a «Selecciona el método de pago». Elige Efecty y genera el cupón.'], [P.bd(`<b>client_payment_emails</b><br>1000000001 · CC<br>channel: portalpagos.quac.co<br><br><b>payments</b> (último)<br>payment_gateway: efecty<br>payer_email_source: <b>saved</b><br>payer_email: tu.correo@…`),'bd','Revisa las dos queries de «Antes de empezar».'] ],
+   pasa:'Fila con canal <code>portalpagos.quac.co</code> y el cobro con <code>payer_email_source = saved</code>; <code>json_sent_payment_vendor</code> lleva tu correo.',
+   falla:'El cobro lleva <code>pagosquac2@gmail.com</code> o <code>payer_email_source</code> distinto de <code>saved</code>.',
+   json:'POST /api/v1/payment/payer-email\n→ 200 {"saved": true}' },
+ { n:4, t:'Pago siguiente', para:'El cliente que ya dejó su correo no lo vuelve a escribir.',
+   prep:'El mismo cliente del caso 3. Sal del portal y vuelve a entrar.',
+   pasos:[ [P.valor('min'),'toca','Elige otro valor, por ejemplo «Pago mínimo».'], [P.loader(),'ver','Consulta el correo.'], [P.metodo(),'ver','Directo a «Selecciona el método de pago».'] ],
+   pasa:'No aparece la pantalla del correo.',
+   falla:'Vuelve a pedir el correo.',
+   json:'POST /api/v1/payment/payer-email/status\n→ 200 {"email_required": false}' },
+ { n:5, t:'Regresión: cliente con correo entregable', para:'El cliente con correo bueno en el CRM no ve nada nuevo.',
+   prep:'Cliente con correo entregable en el CRM y sin fila en <code>client_payment_emails</code>.',
+   pasos:[ [P.valor('total'),'toca','«Pago total».'], [P.metodo(),'ver','Directo a «Selecciona el método de pago», como hoy.'], [P.bd(`<b>payments</b> (último)<br>payer_email_source: <b>crm</b>`),'bd','Paga con cualquier medio y revisa el cobro.'] ],
+   pasa:'Sin pantalla nueva y el cobro con <code>payer_email_source = crm</code>.',
+   falla:'Le pide el correo, o el cobro sale con <code>generic</code>.',
+   json:'POST /api/v1/payment/payer-email/status\n→ 200 {"email_required": false}' },
+ { n:6, t:'Otro valor y Volver', para:'Desde Otro valor se aplica la misma validación, y los dos regresos llevan a la pantalla de origen.',
+   prep:'Cliente sin correo entregable ni guardado (otro distinto al del caso 3, o borra su fila).',
+   pasos:[ [P.valor('otro'),'toca','«Otro valor».'], [P.otro(true),'toca','Escribe 120.000 y toca «Pagar $ 120.000».'], [P.correo({total:'$ 120.000', tapVolver:true}),'toca','Toca «Volver» (luego repite con «Cambiar valor»).'], [P.otro(false),'ver','Regresa a «Ingresa el valor a pagar».'] ],
+   pasa:'Los dos botones regresan a «Ingresa el valor a pagar».',
+   falla:'Regresan a «Selecciona el valor a pagar» o al inicio.',
+   noes:'Con el campo vacío, «Pagar» avanza con $ 0 hasta la pantalla del correo. Ya pasaba antes de GW-241.' },
+ { n:7, t:'Atajo por enlace', para:'El enlace que trae valor y comercio también pasa por la validación. La auditoría no lo recorrió contra el CRM real: es el caso a mirar con más cuidado.',
+   prep:'Enlace del portal con valor y comercio, de un cliente sin correo entregable. Si el enlace trae <code>payment_request_reference</code>, mira el segundo resultado.',
+   pasos:[ [P.loader(),'ver','Después de validar el celular, una sola consulta del correo.'], [P.correo({total:'$ 150.000'}),'ver','Enlace con valor y comercio: pantalla del correo antes del medio de pago.'], [P.correo({total:'$ 150.000', volver:false}),'ver','Enlace con <code>payment_request_reference</code>: sin «Cambiar valor» ni «Volver».'] ],
+   pasa:'La pantalla del correo aparece antes de «Selecciona el método de pago», y en la pestaña Red hay una sola llamada a <code>payer-email/status</code>.',
+   falla:'Salta directo al método de pago o consulta dos veces.' },
+ { n:8, t:'App Quac sin cambios', para:'La app sigue pagando como hoy: este REQ no le agrega pantalla.',
+   prep:'Cliente sin correo guardado ni entregable que pague desde la App Quac.',
+   pasos:[ [P.app(),'toca','Paga con Efecty desde la app.'], [P.bd(`<b>payments</b> (último)<br>channel: app.quac<br>payer_email_source: <b>generic</b>`),'bd','Revisa el cobro.'] ],
+   pasa:'Cobro con canal <code>app.quac</code> y <code>payer_email_source = generic</code>.',
+   falla:'La app muestra algo nuevo o el cobro falla por columnas.',
+   noes:'Con el genérico, Efecty puede seguir rechazando en la app: eso lo resuelve el REQ AQ aparte, no este.' },
+];
+
+const REG = { n:'R', t:'Regresión: versión publicada', para:'Así funciona hoy en PROD (master/main), para comparar: todos pasan directo al medio de pago, aunque el correo no sea entregable.',
+  prep:'Solo de referencia. No hay nada que probar en esta pestaña.',
+  pasos:[ [P.valor('total'),'toca','«Pago total».'], [P.metodo(),'ver','Hoy: directo a «Selecciona el método de pago».'], [P.bd(`<b>payments</b> (Efecty portal, 26-nov)<br>estado 6: 83<br>con genérico: 76`),'bd','Línea base del problema, query 3 de qa.md §5.'] ],
+  pasa:'Después del deploy del portal, la query 3 da 0 cobros del portal con el genérico.', falla:'Siguen apareciendo cobros Efecty del portal con <code>pagosquac2@gmail.com</code>.' };
+
+const TODOS = [...CASOS, REG];
+const CHIP = { toca:['toca','toca'], ver:['ver','debe verse'], err:['err','error esperado'], bd:['bd','en la base'] };
+
+function render(i){
+  const c = TODOS[i];
+  document.querySelectorAll('.tab').forEach((b,j)=>b.classList.toggle('on', j===i));
+  const pasos = c.pasos.map(([html,ch,txt],k)=>`${k?'<div class="flecha">→</div>':''}<div class="flex flex-col gap-2 items-center"><div class="escala">${html}</div><div class="max-w-[260px] text-sm text-center"><span class="chip ${CHIP[ch][0]}">${CHIP[ch][1]}</span> ${txt}</div></div>`).join('');
+  document.getElementById('caso').innerHTML = `
+  <section class="bg-white rounded-xl border p-5">
+    <h2 class="text-xl font-bold">${c.n==='R'?'':'Caso '+c.n+' · '}${c.t}</h2>
+    <p class="text-gray-700 mt-1">${c.para}</p>
+    <p class="text-sm mt-2"><b>Preparar:</b> ${c.prep}</p>
+    <div class="flex gap-3 overflow-x-auto py-4">${pasos}</div>
+    <div class="grid md:grid-cols-2 gap-3 text-sm">
+      <div class="bg-green-50 border border-green-200 rounded-lg p-3"><b>Pasa si:</b> ${c.pasa}</div>
+      <div class="bg-red-50 border border-red-200 rounded-lg p-3"><b>Falla si:</b> ${c.falla}</div>
+    </div>
+    ${c.noes?`<div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm mt-3"><b>No es error:</b> ${c.noes}</div>`:''}
+    ${c.json?`<p class="font-semibold text-sm mt-4 mb-1">Respuesta del api</p><pre class="bg-gray-900 text-gray-100 rounded-lg p-3 text-xs">${c.json}</pre>`:''}
+    <p class="text-xs text-gray-500 mt-4">Reportar en la tarjeta GW-241: «Caso ${c.n}: pasa» o «Caso ${c.n}: falla» con la captura y el <code>payment_id</code>.</p>
+  </section>`;
+}
+
+const nav = document.getElementById('tabs');
+TODOS.forEach((c,i)=>{ const b=document.createElement('button'); b.className='tab px-3 py-1.5 rounded-full border border-gray-300 bg-white text-sm'; b.textContent = c.n==='R' ? 'Regresión' : `${c.n}. ${c.t}`; b.onclick=()=>render(i); nav.appendChild(b); });
+render(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-241 · Portal de pagos: pedir el correo cuando el del cliente no es entregable</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&family=Poppins:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Nunito Sans', sans-serif; }
+  /* ---- Calco del portal (pagosquac-client/src/style/styles.scss, Header.vue, App.vue) ---- */
+  .portal { font-family: 'Nunito Sans', sans-serif; color:#000; font-size:16px; background:#fff url('assets-gw-241/background_layout__1.svg') no-repeat bottom right; background-size:60%; min-height:760px; }
+  .portal p { margin:0; }
+  .nav-menu { min-height:60px; display:flex; align-items:center; justify-content:space-between; padding:1rem; }
+  .title-header h1 { font-family:Poppins,sans-serif; font-weight:600; font-size:28px; color:#7633FF; text-align:center; }
+  .breadcrumb-q { background:#F3F3F8; padding:.5rem 2rem; display:flex; justify-content:space-between; align-items:center; font-size:14px; }
+  .breadcrumb-q .hola { color:#7633FF; font-weight:700; display:flex; gap:.4rem; align-items:center; }
+  .card-cuota { margin:3rem auto 0; padding-bottom:3rem; width:85%; max-width:411px; text-align:center; }
+  .step-icon { background:#E9F0FD; width:60px; height:60px; display:flex; justify-content:center; align-items:center; margin:0 auto 1rem; border-radius:25px; }
+  .title { font-family:Poppins,sans-serif; font-weight:800; max-width:350px; margin:0 auto 1.5rem; color:#2E1380; font-size:24px; line-height:1.25; }
+  .subtitle { max-width:350px; margin:0 auto 1.5rem; }
+  .form { max-width:380px; margin:0 auto 3rem; }
+  .form-v2 { max-width:430px; }
+  .pay-quota { width:100%; background:#fff; padding:.5rem 1rem; border-radius:10px; min-height:74px; display:flex; justify-content:space-between; align-items:center; text-align:start; border:2px solid #e9f0fd; box-shadow:1px 1px 3px 1px #00000010; margin-bottom:1rem; cursor:pointer; }
+  .pay-quota:hover { border-color:#802EFF; }
+  .value-pay { font-size:20px; font-weight:700; }
+  .state-acount { border-radius:10px; background:#F0F0FF; min-height:70px; display:flex; padding:.5rem 1rem; text-align:start; margin-bottom:2rem; align-items:center; justify-content:space-between; }
+  .go-link { color:#802EFF; text-decoration:underline; font-weight:700; cursor:pointer; }
+  .medio { background:#fff; border:2px solid #e9f0fd; border-radius:10px; box-shadow:1px 1px 3px 1px #00000010; padding:.75rem 1rem; display:flex; align-items:center; gap:.75rem; text-align:start; margin-bottom:1rem; cursor:pointer; }
+  .medio .ic { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:#E9F0FD; }
+  .medio .t { font-weight:700; } .medio .d { font-size:14px; color:#7F7FB4; }
+  .input-quac { width:100%; min-height:50px; border:1px solid #B6C1D3; border-radius:15px; padding:0 1rem; font-size:16px; outline:none; }
+  .input-quac:focus { border-color:#7633FF; }
+  .input-quac.err { border-color:#FF5D5D; background:#fff6f6; }
+  .msg-err { color:#dc3545; font-size:14px; text-align:start; margin-top:.4rem; }
+  .btn-primary { width:100%; min-height:50px; border-radius:40px; background:#7633FF; color:#fff; font-weight:700; font-size:16px; }
+  .btn-primary:hover { opacity:.9; }
+  .btn-primary:disabled { background:#E3E3E3; color:#979796; cursor:not-allowed; opacity:1; }
+  .volver a { font-weight:700; color:#802EFF; font-size:18px; }
+  .nota { font-size:14px; color:#7F7FB4; }
+  .spin { width:18px; height:18px; border:3px solid #ffffff80; border-top-color:#fff; border-radius:50%; display:inline-block; animation:s .8s linear infinite; vertical-align:-3px; }
+  .spin-dark { border-color:#7633FF33; border-top-color:#7633FF; width:36px; height:36px; }
+  @keyframes s { to { transform:rotate(360deg); } }
+  .input-doc { display:flex; align-items:stretch; margin-bottom:.5rem; }
+  .input-doc span { width:46px; min-height:50px; display:flex; align-items:center; justify-content:center; font-weight:700; background:#fff; border-radius:15px 0 0 15px; box-shadow:0 0 3px 2px #00000010; }
+  .input-doc input { flex:1; min-height:50px; border:1px solid #B6C1D3; border-left:0; border-radius:0 15px 15px 0; padding:0 1rem; font-size:16px; outline:none; }
+  .input-doc.err span { background:#F9CED1; color:#FF5D5D; } .input-doc.err input { border-color:#FF5D5D; }
+  .nuevo { outline:2px dashed #7633FF; outline-offset:10px; border-radius:12px; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+<div class="max-w-[1500px] mx-auto px-6 py-6">
+  <header class="mb-5">
+    <p class="text-xs uppercase tracking-wide text-gray-500">GW-241 · Mockup · portalpagos.quac.co</p>
+    <h1 class="text-2xl font-bold">Portal de pagos: pedir el correo cuando el del cliente no es entregable</h1>
+    <p class="text-sm text-gray-600 mt-1 max-w-4xl">Al elegir el valor a pagar, el portal revisa si el correo del cliente es entregable. Si lo es, el cliente pasa directo a elegir el medio de pago, como hoy. Si no lo es, el portal le pide el correo donde quiere recibir el comprobante antes de seguir.</p>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+    <!-- Panel de control del mockup -->
+    <aside class="space-y-4 text-sm">
+      <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <p class="font-semibold mb-2">1. Correo que tiene el cliente</p>
+        <label class="flex gap-2 items-start mb-2"><input type="radio" name="esc" value="no" checked> <span><b>No entregable</b><br><span class="text-gray-500">CRM con «NOTIENE@gmail.com». Se pide el correo.</span></span></label>
+        <label class="flex gap-2 items-start mb-2"><input type="radio" name="esc" value="si"> <span><b>Entregable</b><br><span class="text-gray-500">Flujo de hoy: pasa directo al medio de pago.</span></span></label>
+        <label class="flex gap-2 items-start mb-2"><input type="radio" name="esc" value="guardado"> <span><b>Ya dejó un correo de pago</b><br><span class="text-gray-500">Lo escribió en un pago anterior: no se le vuelve a pedir.</span></span></label>
+        <label class="flex gap-2 items-start"><input type="radio" name="esc" value="falla"> <span><b>La validación no responde</b><br><span class="text-gray-500">Se trata como no entregable: se pide el correo.</span></span></label>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <p class="font-semibold mb-2">2. Ancho</p>
+        <div class="flex gap-2">
+          <button data-w="390" class="wbtn px-3 py-1 rounded-full border border-gray-900 bg-gray-900 text-white">Celular 390</button>
+          <button data-w="1280" class="wbtn px-3 py-1 rounded-full border border-gray-300">Escritorio 1280</button>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <p class="font-semibold mb-2">3. Pantalla</p>
+        <div id="pasos" class="flex flex-col gap-1"></div>
+        <button id="reiniciar" class="mt-3 text-sm underline text-gray-700">Volver a empezar</button>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <p class="font-semibold mb-2">Correos de prueba en el campo</p>
+        <ul class="space-y-1 text-gray-600">
+          <li><code>marta.rojas@gmail.com</code> → entregable</li>
+          <li><code>notiene@gmail.com</code> → no entregable</li>
+          <li><code>marta@</code> → formato inválido</li>
+        </ul>
+        <p class="mt-2 text-gray-500">El recuadro punteado marca lo nuevo; lo demás está calcado del portal.</p>
+      </div>
+    </aside>
+
+    <!-- Lienzo -->
+    <main class="overflow-x-auto">
+      <div id="marco" class="mx-auto bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-200 transition-all" style="width:390px">
+        <div class="portal">
+          <div class="nav-menu">
+            <img src="assets-gw-241/logo-quac2.svg" style="height:32px" alt="QUAC">
+            <div class="title-header"><h1>Paga tu cuota</h1></div>
+            <img src="assets-gw-241/icon-close.svg" style="height:22px" alt="Salir">
+          </div>
+          <div class="breadcrumb-q">
+            <span>Inicio · Comercio: <b>Stirpe</b></span>
+            <span class="hola"><img src="assets-gw-241/icon-user.svg" style="height:16px">Hola Marta!</span>
+          </div>
+          <div id="pantalla"></div>
+        </div>
+      </div>
+      <p id="leyenda" class="text-center text-sm text-gray-500 mt-3"></p>
+    </main>
+  </div>
+
+  <section class="mt-8 bg-white rounded-xl border border-gray-200 p-5 text-sm max-w-5xl">
+    <h2 class="font-semibold text-base mb-2">Flujos cubiertos</h2>
+    <ul class="list-disc pl-5 space-y-1 text-gray-700">
+      <li>Correo no entregable → «¿Dónde quieres recibir el comprobante?» → correo válido → «Selecciona el método de pago».</li>
+      <li>Correo escrito con formato inválido: el botón sigue deshabilitado y aparece un mensaje bajo el campo.</li>
+      <li>Correo escrito no entregable: mensaje bajo el campo y no deja seguir.</li>
+      <li>Validando el correo: carga en la pantalla y en el botón.</li>
+      <li>Correo entregable, o un correo de pago ya guardado: el flujo de hoy, sin pantallas nuevas.</li>
+      <li>La validación no responde: se pide el correo, igual que si no fuera entregable.</li>
+      <li>Otro valor: «Ingresa el valor a pagar» (sin cambios, con su validación de tope) → «Pagar $X» → validación del correo → si hace falta, «¿Dónde quieres recibir el comprobante?» → medio de pago. «Cambiar valor» y «Volver» regresan a «Ingresa el valor a pagar».</li>
+      <li>Si el cliente ya dejó el correo y luego cambia el valor, no se le vuelve a pedir: el correo quedó guardado.</li>
+      <li>Aplica igual con Pago mínimo, Pago total, Otro valor y pronto pago: el paso va justo antes de elegir el medio.</li>
+    </ul>
+    <h2 class="font-semibold text-base mt-4 mb-2">Fuera de este mockup</h2>
+    <ul class="list-disc pl-5 space-y-1 text-gray-700">
+      <li>Las pantallas de cada medio (Efecty, PSE, tarjeta, Bancolombia) no cambian.</li>
+      <li>La App Quac no cambia (REQ aparte).</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const fmt = v => '$ ' + v.toLocaleString('es-CO');
+let guardadoSesion = false, esc = 'no', paso = 'valor', origen = 'valor', otroValor = '', otroErr = '', valor = 294418, correo = '', estadoCampo = 'vacio';
+
+const PASOS = [
+  ['valor','Selecciona el valor a pagar'],
+  ['otro','Ingresa el valor a pagar (Otro valor)'],
+  ['cargando','Validando correo'],
+  ['correo','¿Dónde quieres recibir el comprobante?'],
+  ['metodo','Selecciona el método de pago'],
+];
+
+function montoCard(){ return `
+  <div class="state-acount">
+    <div><p>Total a pagar</p><p class="value-pay" style="font-size:26px">${fmt(valor)}</p></div>
+    <p class="go-link" onclick="ir(origen)">Cambiar valor</p>
+  </div>`; }
+
+const vistas = {
+  valor: () => `
+    <div class="card-cuota">
+      <div class="step-icon" style="background:#fff"><img src="assets-gw-241/icon-wallet.svg"></div>
+      <h2 class="title">Selecciona el valor a pagar</h2>
+      <p class="subtitle">Selecciona una de las siguientes opciones para realizar tu pago:</p>
+      <div class="form">
+        <div class="pay-quota" onclick="elegir(150000)"><div><p>Pago mínimo</p><p class="value-pay">${fmt(150000)}</p></div><img src="assets-gw-241/arrow-pay.svg" style="max-width:9px"></div>
+        <div class="pay-quota" onclick="elegir(294418)"><div><p>Pago total</p><p class="value-pay">${fmt(294418)}</p></div><img src="assets-gw-241/arrow-pay.svg" style="max-width:9px"></div>
+        <div class="pay-quota" onclick="ir('otro')"><div><p class="value-pay">Otro valor</p></div><img src="assets-gw-241/arrow-pay.svg" style="max-width:9px"></div>
+      </div>
+    </div>`,
+  otro: () => `
+    <div class="card-cuota">
+      <div class="step-icon"><img src="assets-gw-241/wallet-card.svg"></div>
+      <h2 class="title" style="font-size:22px">Ingresa el valor a pagar</h2>
+      <p class="subtitle"><b style="color:#802EFF">Marta</b> escribe el valor que deseas pagar.</p>
+      <div class="form form-v2">
+        <div class="state-acount" style="justify-content:center;text-align:center"><div><p>Deuda a la fecha</p><p class="value-pay" style="font-size:18px">${fmt(294418)}</p></div></div>
+        <div class="input-doc ${otroErr?'err':''}"><span>$</span><input id="otroValor" type="number" placeholder="Valor a pagar" value="${otroValor}"></div>
+        ${otroErr ? `<p class="msg-err" style="text-align:center">${otroErr}</p>` : ''}
+        <button id="pagarOtro" class="btn-primary mt-2">Pagar ${otroValor ? fmt(Number(otroValor)) : ''}</button>
+        <div class="volver"><a href="#" onclick="ir('valor');return false">Volver</a></div>
+      </div>
+    </div>`,
+  cargando: () => `
+    <div class="card-cuota" style="padding-top:4rem">
+      <span class="spin spin-dark"></span>
+      <p class="mt-4" style="color:#7F7FB4">Un momento…</p>
+    </div>`,
+  correo: () => {
+    const err = estadoCampo === 'formato' ? 'Escribe un correo válido, por ejemplo nombre@gmail.com.'
+              : estadoCampo === 'noentregable' ? 'No pudimos verificar este correo. Revisa que esté bien escrito o escribe otro.' : '';
+    const verificando = estadoCampo === 'verificando';
+    const ok = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(correo);
+    return `
+    <div class="card-cuota">
+      <div class="nuevo">
+        <div class="step-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></div>
+        <h2 class="title">¿Dónde quieres recibir el comprobante?</h2>
+        <p class="subtitle">Escribe tu correo electrónico. Allí te enviaremos el comprobante de tu pago.</p>
+        <div class="form form-v2" style="margin-bottom:0">
+          ${montoCard()}
+          <div style="text-align:start">
+            <label for="correo" style="font-weight:600">Correo electrónico</label>
+            <input id="correo" type="email" autocomplete="email" inputmode="email" class="input-quac mt-2 ${err?'err':''}" placeholder="nombre@gmail.com" value="${correo}" ${verificando?'disabled':''}>
+            ${err ? `<p class="msg-err">${err}</p>` : ''}
+          </div>
+          <button id="continuar" class="btn-primary mt-6" ${(!ok || verificando)?'disabled':''}>${verificando ? '<span class="spin"></span> Verificando correo…' : 'Continuar'}</button>
+          <p class="nota mt-3">Lo guardamos para tus próximos pagos.</p>
+        </div>
+      </div>
+      <div class="volver" style="margin-top:2rem"><a href="#" onclick="ir(origen);return false">Volver</a></div>
+    </div>`;
+  },
+  metodo: () => `
+    <div class="card-cuota">
+      <div class="step-icon"><img src="assets-gw-241/method-pay-check.svg"></div>
+      <h2 class="title">Selecciona el método de pago</h2>
+      <div class="form form-v2">
+        ${montoCard()}
+        <div class="medio"><div class="ic" style="background:#FFF6D6"><img src="assets-gw-241/icon-efecty.svg" style="height:26px"></div><div class="flex-1"><p class="t">Efecty</p><p class="d">Paga en efectivo en puntos Efecty.</p></div><img src="assets-gw-241/arrow-pay.svg" style="max-width:9px"></div>
+        <div class="medio"><div class="ic"><img src="assets-gw-241/icon-pse.svg" style="height:26px"></div><div class="flex-1"><p class="t">PSE</p><p class="d">Débito desde tu cuenta bancaria.</p></div><img src="assets-gw-241/arrow-pay.svg" style="max-width:9px"></div>
+        <div class="medio"><div class="ic"><img src="assets-gw-241/icon-tarjeta.svg" style="height:22px"></div><div class="flex-1"><p class="t">Tarjeta</p><p class="d">Crédito o débito.</p></div><img src="assets-gw-241/arrow-pay.svg" style="max-width:9px"></div>
+        <div class="volver mt-8"><a href="#" onclick="ir('valor');return false">Volver</a></div>
+      </div>
+    </div>`,
+};
+
+const LEYENDAS = {
+  valor: 'Pantalla de hoy, sin cambios. Toca un valor para seguir.',
+  otro: 'Pantalla de hoy, sin cambios. Al pulsar «Pagar» se valida el correo, igual que con Pago mínimo o Pago total.',
+  cargando: 'Nuevo: mientras se valida el correo del cliente (máx. unos segundos).',
+  correo: 'Nuevo: solo aparece si el correo no es entregable o la validación no responde.',
+  metodo: 'Pantalla de hoy, sin cambios.',
+};
+
+function render(){
+  $('#pantalla').innerHTML = vistas[paso]();
+  $('#leyenda').textContent = LEYENDAS[paso];
+  $('#pasos').innerHTML = PASOS.map(([k,t]) => `<button class="text-left px-2 py-1 rounded ${k===paso?'bg-gray-900 text-white':'hover:bg-gray-100'}" onclick="ir('${k}')">${t}</button>`).join('');
+  const ov = $('#otroValor');
+  if (ov) {
+    ov.oninput = e => { otroValor = e.target.value; otroErr=''; $('#pagarOtro').textContent = 'Pagar ' + (otroValor ? fmt(Number(otroValor)) : ''); };
+    $('#pagarOtro').onclick = () => {
+      if (!otroValor || Number(otroValor) <= 0) { otroErr = 'Escribe el valor que deseas pagar.'; render(); return; }
+      if (Number(otroValor) > 294418 + 5000) { otroErr = 'El valor a pagar supera el total de la deuda'; render(); return; }
+      origen = 'otro'; elegir(Number(otroValor), true);
+    };
+  }
+  const inp = $('#correo');
+  if (inp) {
+    inp.oninput = e => { correo = e.target.value.trim(); estadoCampo = 'vacio'; const b = $('#continuar'); b.disabled = !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(correo); };
+    inp.onblur = () => { if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(correo)) { estadoCampo='formato'; render(); } };
+    $('#continuar').onclick = verificar;
+  }
+}
+function ir(p){ paso = p; if (p==='correo' && estadoCampo==='verificando') estadoCampo='vacio'; render(); }
+function elegir(v, desdeOtro){
+  valor = v; if (!desdeOtro) origen = 'valor';
+  if (esc === 'si' || esc === 'guardado' || guardadoSesion) { ir('cargando'); setTimeout(()=>ir('metodo'), 700); return; }
+  ir('cargando'); setTimeout(()=>{ correo=''; estadoCampo='vacio'; ir('correo'); }, esc==='falla'?1600:700);
+}
+function verificar(){
+  estadoCampo = 'verificando'; render();
+  setTimeout(()=>{
+    if (/notiene|no\s?tiene|consumidorfinal/i.test(correo)) { estadoCampo='noentregable'; render(); }
+    else { estadoCampo='vacio'; guardadoSesion = true; ir('metodo'); }
+  }, 900);
+}
+document.querySelectorAll('input[name=esc]').forEach(r => r.onchange = e => { esc = e.target.value; guardadoSesion = false; correo=''; estadoCampo='vacio'; ir('valor'); });
+document.querySelectorAll('.wbtn').forEach(b => b.onclick = () => {
+  $('#marco').style.width = b.dataset.w + 'px';
+  document.querySelectorAll('.wbtn').forEach(x => x.className = 'wbtn px-3 py-1 rounded-full border border-gray-300');
+  b.className = 'wbtn px-3 py-1 rounded-full border border-gray-900 bg-gray-900 text-white';
+});
+$('#reiniciar').onclick = () => { guardadoSesion = false; correo=''; estadoCampo='vacio'; otroValor=''; otroErr=''; origen='valor'; ir('valor'); };
+render();
+</script>
+</body>
+</html>
