@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>GW-240 · Gestión de ventas: conversaciones por asesor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .tip { position: relative; }
+  .tip:hover::after {
+    content: attr(data-tip); position: absolute; z-index: 50; bottom: calc(100% + 6px); right: 0;
+    width: max-content; max-width: 15rem; white-space: normal; text-align: left;
+    background: #111827; color: #fff; font-size: 11px; line-height: 1.35; font-weight: 500;
+    padding: 6px 12px; border-radius: 6px; text-transform: none; letter-spacing: 0;
+  }
+  @keyframes pulse { 50% { opacity: .5 } }
+  .sk { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; background: #f3f4f6; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+<!-- Barra del mockup (no es parte de la pantalla) -->
+<div class="sticky top-0 z-40 border-b bg-white/95 px-6 py-3 backdrop-blur">
+  <div class="flex flex-wrap items-center gap-3">
+    <span class="text-sm font-bold text-gray-800">GW-240 · Mockup</span>
+    <div class="inline-flex rounded-lg border border-gray-200 p-0.5 text-[12px] font-medium" id="vista">
+      <button data-v="actual" class="rounded-md px-3 py-1">Actual</button>
+      <button data-v="propuesta" class="rounded-md px-3 py-1">Propuesta</button>
+    </div>
+    <div class="inline-flex flex-wrap gap-1 text-[12px]" id="estados">
+      <button data-e="datos" class="rounded-md border px-2.5 py-1">Con datos</button>
+      <button data-e="sinconv" class="rounded-md border px-2.5 py-1">Asesor sin conversaciones</button>
+      <button data-e="oculta" class="rounded-md border px-2.5 py-1">Columna oculta</button>
+      <button data-e="orden" class="rounded-md border px-2.5 py-1">Ordenada por Chats</button>
+      <button data-e="carga" class="rounded-md border px-2.5 py-1">Cargando</button>
+      <button data-e="error" class="rounded-md border px-2.5 py-1">Error</button>
+    </div>
+  </div>
+  <p id="nota" class="mt-2 text-[12px] text-gray-500"></p>
+</div>
+
+<div class="flex min-h-screen">
+  <!-- Menú lateral (resumido) -->
+  <aside class="hidden w-56 shrink-0 border-r bg-white px-3 py-4 text-[13px] text-gray-600 lg:block">
+    <div class="mb-4 px-2 text-sm font-bold text-gray-900">GET</div>
+    <div class="space-y-0.5">
+      <div class="rounded-md px-2 py-1.5">Pedidos</div>
+      <div class="rounded-md px-2 py-1.5">Mis ventas</div>
+      <div class="rounded-md bg-gray-100 px-2 py-1.5 font-medium text-gray-900">Gestión de ventas</div>
+      <div class="rounded-md px-2 py-1.5">Gestión de entregas</div>
+      <div class="rounded-md px-2 py-1.5">Comisiones</div>
+    </div>
+  </aside>
+
+  <main class="min-w-0 flex-1 space-y-4 p-6">
+    <div>
+      <h1 class="text-lg font-bold text-gray-900">Gestión de ventas</h1>
+      <p class="text-[12px] text-gray-500">Tienda 0 · Período 1 al 24 de noviembre de 2026</p>
+    </div>
+
+    <div class="space-y-2">
+      <div class="rounded-2xl border bg-white shadow-sm">
+        <div class="flex flex-wrap items-center gap-2 rounded-t-2xl border-b bg-gray-50 px-4 py-2.5">
+          <h2 class="text-[13px] font-bold tracking-wide text-gray-500 uppercase">Asesores</h2>
+          <div class="ml-auto flex items-center gap-3" id="derecha">
+            <span class="text-[11px] text-gray-400">Meta del mes: UPT 2,00 · VPT $ 500.000 · PPT sin meta · TCV 15,0%</span>
+            <div class="relative">
+              <button id="btnCol" class="flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-[12px] font-medium text-gray-600 hover:bg-gray-50">
+                Columnas <span id="badgeCol"></span><i data-lucide="chevron-down" class="h-3.5 w-3.5 text-gray-400"></i>
+              </button>
+              <div id="panelCol" class="absolute right-0 z-50 mt-1 hidden max-h-[420px] w-60 overflow-y-auto rounded-md border bg-white p-1 shadow-md"></div>
+            </div>
+          </div>
+        </div>
+        <div id="cuerpo"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const pesos = (n) => n == null ? '—' : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+const ent = (n) => n.toLocaleString('es-CO');
+const dec = (n, d) => n.toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
+const META_VPT = 500000, META_UPT = 2, META_TCV = 15;
+
+const base = [
+  { nom: 'Laura Sofía Méndez Gil', corto: 'Laura Méndez',  color: 'bg-violet-600',  meta: 52000000, web: [9800000, 18], fac: [41200000, 74], dev: 1900000, tf: 800000, ped: 92, uni: 198, conv: 1040, carr: 160, bono: [100000, 4] },
+  { nom: 'Diego Armando Torres Ruiz',    corto: 'Diego Torres',  color: 'bg-pink-600',    meta: 50000000, web: [7100000, 12], fac: [38900000, 70], dev: 2400000, tf: 0,      ped: 82, uni: 170, conv: 981,  carr: 141, bono: [75000, 3] },
+  { nom: 'Sofía Elena Rincón Mora',       corto: 'Sofía Rincón',    color: 'bg-blue-600',    meta: 48000000, web: [5300000, 9],  fac: [34000000, 66], dev: 900000,  tf: 450000, ped: 75, uni: 140, conv: 977,  carr: 118, bono: [25000, 1] },
+  { nom: 'Andrés Camilo Cárdenas Vela',    corto: 'Andrés Cárdenas',    color: 'bg-teal-600',    meta: 48000000, web: [6000000, 11], fac: [39500000, 71], dev: 1200000, tf: 300000, ped: 82, uni: 181, conv: 940,  carr: 150, bono: [75000, 3] },
+  { nom: 'Valentina Ortiz Lara',        corto: 'Valentina Ortiz',    color: 'bg-sky-600',     meta: 45000000, web: [4200000, 8],  fac: [30100000, 60], dev: 600000,  tf: 0,      ped: 68, uni: 128, conv: 933,  carr: 104, bono: [0, 0] },
+  { nom: 'Camilo José Herrera Díaz',  corto: 'Camilo Herrera',  color: 'bg-indigo-600',  meta: 45000000, web: [3900000, 7],  fac: [31800000, 63], dev: 1100000, tf: 200000, ped: 70, uni: 137, conv: 958,  carr: 121, bono: [25000, 1] },
+];
+
+function derivar(a) {
+  const total = a.web[0] + a.fac[0] + a.tf - a.dev;
+  const tcv = a.conv > 0 ? a.carr / a.conv * 100 : null;
+  const comision = Math.round(total * 0.01 / 1000) * 1000;
+  return { ...a, total, cumpl: total / a.meta * 100, vpt: total / a.ped, upt: a.uni / a.ped, ppt: total / a.uni, tcv,
+    itemsUpt: Math.max(0, Math.ceil(META_UPT * a.ped) - a.uni),
+    pedFaltan: a.conv > 0 ? Math.max(0, Math.ceil(META_TCV * a.conv / 100) - a.carr) : null,
+    comision, comisionTotal: comision + a.bono[0] };
+}
+const iniciales = (n) => { const p = n.split(' '); return (p[0][0] + p[p.length - 1][0]).toUpperCase(); };
+
+// Estado
+let vista = 'propuesta', estado = 'datos', orden = null, dir = null, ocultas = new Set();
+const BANDA = { web: '#f7f9fc', fac: '#f3f6fa', dev: '#eff3f8', tf: '#eaeff6', total: '#e3e9f2' };
+
+function semTexto(v, meta) { if (v == null || !meta) return 'text-gray-800'; const p = v / meta * 100; return p >= 95 ? 'text-emerald-900' : p >= 80 ? 'text-amber-900' : 'text-red-900'; }
+function semFondo(v, meta) { if (v == null || !meta) return ''; const p = v / meta * 100; return p >= 95 ? 'bg-emerald-100 text-emerald-900' : p >= 80 ? 'bg-amber-100 text-amber-900' : 'bg-red-100 text-red-900'; }
+function chipCumpl(p) { const c = p >= 95 ? 'bg-emerald-600' : p >= 80 ? 'bg-amber-500' : 'bg-red-500'; return `<span class="inline-block min-w-[46px] rounded px-1.5 py-0.5 text-center text-xs font-bold text-white ${c}">${Math.round(p)}%</span>`; }
+const cumple = '<span class="inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">Cumple</span>';
+const raya = '<span class="text-gray-300">—</span>';
+const SIN_TRAFICO = 'Sin tráfico atendido en los días con archivo del período';
+
+function porCumplir(a, f, color) { const falta = a.meta * f - a.total; return falta <= 0 ? cumple : `<span class="font-semibold ${color}">${pesos(falta)}</span>`; }
+
+function columnas() {
+  const cols = [
+    { k: 'nombre', t: 'Nombre', al: 'left', fija: true, ord: (a) => a.nom,
+      c: (a) => `<span class="inline-flex items-center gap-2"><span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${a.color}">${iniciales(a.nom)}</span><span class="font-medium text-gray-800" title="${a.nom}">${a.corto}</span></span>`,
+      p: () => '<span class="text-gray-800">Total</span>' },
+    { k: 'meta', t: 'Meta', fija: true, ord: (a) => a.meta, c: (a) => `<span class="text-gray-800">${pesos(a.meta)}</span>`, p: (t) => `<span class="text-gray-800">${pesos(t.meta)}</span>` },
+    { k: 'web', t: 'Pedidos web', banda: 'web', ord: (a) => a.web[0], c: (a) => `<span class="text-gray-800">${pesos(a.web[0])}</span><span class="ml-1 text-[11px] text-gray-400">(${a.web[1]})</span>`, p: (t) => `<span class="text-gray-800">${pesos(t.web)}</span>` },
+    { k: 'fac', t: 'Facturado', banda: 'fac', ord: (a) => a.fac[0], c: (a) => `<span class="text-gray-800">${pesos(a.fac[0])}</span><span class="ml-1 text-[11px] text-gray-400">(${a.fac[1]})</span>`, p: (t) => `<span class="text-gray-800">${pesos(t.fac)}</span>` },
+    { k: 'dev', t: 'Devoluciones', banda: 'dev', ord: (a) => a.dev, c: (a) => a.dev ? `<span class="text-red-600">−${pesos(a.dev)}</span>` : '<span class="text-gray-400">—</span>', p: (t) => `<span class="text-red-600">−${pesos(t.dev)}</span>` },
+    { k: 'tf', t: 'Tienda física', banda: 'tf', ord: (a) => a.tf, c: (a) => a.tf ? `<span class="text-emerald-700">+${pesos(a.tf)}</span>` : '<span class="text-gray-400">—</span>', p: (t) => `<span class="text-emerald-700">+${pesos(t.tf)}</span>` },
+    { k: 'total', t: 'Total venta', banda: 'total', fija: true, thExtra: 'text-gray-900', ord: (a) => a.total, c: (a) => `<span class="font-bold text-gray-900">${pesos(a.total)}</span>`, p: (t) => `<span class="text-gray-900">${pesos(t.total)}</span>` },
+    { k: 'cumpl', t: 'Cumplimiento', al: 'center', fija: true, ord: (a) => a.cumpl, c: (a) => chipCumpl(a.cumpl), p: (t) => chipCumpl(t.total / t.meta * 100) },
+    { k: 'pc80', t: 'Por cumplir 80%', ord: (a) => a.meta * .8 - a.total, c: (a) => porCumplir(a, .8, 'text-red-600'), p: () => '' },
+    { k: 'pc90', t: 'Por cumplir 90%', ord: (a) => a.meta * .9 - a.total, c: (a) => porCumplir(a, .9, 'text-orange-500'), p: () => '' },
+    { k: 'pc100', t: 'Por cumplir 100%', ord: (a) => a.meta - a.total, c: (a) => porCumplir(a, 1, 'text-emerald-700'), p: () => '' },
+    { k: 'bono', t: 'Bono acumulado', ord: (a) => a.bono[0], c: (a) => a.bono[1] ? `<span class="font-semibold text-gray-800">${pesos(a.bono[0])}</span> <span class="text-[11px] text-gray-400">(${a.bono[1]})</span>` : raya, p: (t) => `<span class="text-gray-800">${pesos(t.bono)}</span>` },
+    { k: 'ped', t: 'Nro pedidos', ord: (a) => a.ped, c: (a) => `<span class="font-semibold text-gray-800">${a.ped}</span>`, p: (t) => `<span class="text-gray-800">${ent(t.ped)}</span>` },
+    { k: 'uni', t: 'Unidades', ord: (a) => a.uni, c: (a) => `<span class="font-semibold text-gray-800">${a.uni}</span>`, p: (t) => `<span class="text-gray-800">${ent(t.uni)}</span>` },
+    { k: 'vpt', t: 'VPT', ord: (a) => a.vpt, c: (a) => `<span class="font-semibold ${semTexto(a.vpt, META_VPT)}">${pesos(Math.round(a.vpt))}</span>`, p: () => '' },
+    { k: 'itemsUpt', t: 'Ítems UPT', ord: (a) => a.itemsUpt, c: (a) => a.itemsUpt === 0 ? cumple : `<span class="font-semibold text-gray-800">${a.itemsUpt}</span>`, p: () => '' },
+    { k: 'upt', t: 'UPT', ord: (a) => a.upt, c: (a) => `<span class="font-semibold ${semTexto(a.upt, META_UPT)}">${dec(a.upt, 2)}</span>`, p: () => '' },
+    { k: 'ppt', t: 'PPT', ord: (a) => a.ppt, c: (a) => `<span class="font-semibold text-gray-800">${pesos(Math.round(a.ppt))}</span>`, p: () => '' },
+  ];
+  if (vista === 'propuesta') cols.push({ k: 'conv', t: 'Chats', tip: 'Conversaciones de WhatsApp que el asesor cerró en el período', nuevo: true, ord: (a) => a.conv,
+    c: (a) => a.conv > 0 ? `<span class="font-semibold text-gray-800">${ent(a.conv)}</span>` : `<span class="tip cursor-help text-gray-300" data-tip="${SIN_TRAFICO}">—</span>`,
+    p: (t) => `<span class="text-gray-800">${ent(t.conv)}</span>` });
+  cols.push(
+    { k: 'tcv', t: 'TCV', ord: (a) => a.tcv ?? -1, td: (a) => semFondo(a.tcv, META_TCV),
+      c: (a) => a.tcv == null ? `<span class="tip cursor-help text-gray-300" data-tip="${SIN_TRAFICO}">—</span>` : `<span class="tip cursor-help font-semibold" data-tip="Carritos pagados ${a.carr} ÷ Tráfico atendido ${ent(a.conv)}">${dec(a.tcv, 1)}%</span>`,
+      tdP: (t) => semFondo(t.carr / t.conv * 100, META_TCV),
+      p: (t) => `<span class="tip cursor-help" data-tip="Carritos pagados ${ent(t.carr)} ÷ Tráfico atendido ${ent(t.conv)}">${dec(t.carr / t.conv * 100, 1)}%</span>` },
+    { k: 'carr', t: 'Ped. para TC', ord: (a) => a.carr, c: (a) => `<span class="font-semibold text-gray-800">${a.carr}</span>`, p: () => '' },
+    { k: 'pedFaltan', t: 'Ped. que faltan', ord: (a) => a.pedFaltan ?? -1, c: (a) => a.pedFaltan == null ? raya : a.pedFaltan === 0 ? cumple : `<span class="font-semibold text-gray-800">${a.pedFaltan}</span>`, p: () => '' },
+    { k: 'com', t: 'Comisión proy.', ord: (a) => a.comision, c: (a) => `<span class="text-gray-500">${pesos(a.comision)}</span>`, p: (t) => `<span class="text-gray-800">${pesos(t.com)}</span>` },
+    { k: 'comT', t: 'Comisión total proy.', fija: true, stickyR: true, ord: (a) => a.comisionTotal, c: (a) => `<span class="font-bold text-emerald-800">${pesos(a.comisionTotal)}</span>`, p: (t) => `<span class="text-emerald-900">${pesos(t.comT)}</span>` },
+  );
+  return cols;
+}
+
+function filas() {
+  return base.map((a) => (estado === 'sinconv' && a.corto === 'Camilo Herrera') ? derivar({ ...a, conv: 0, carr: 0 }) : derivar(a));
+}
+
+function th(col) {
+  const al = col.al === 'left' ? 'text-left' : col.al === 'center' ? 'text-center' : 'text-right';
+  const activo = orden === col.k;
+  const icono = activo ? (dir === 'desc' ? 'arrow-down' : 'arrow-up') : 'arrow-up-down';
+  const icCls = activo ? 'h-3 w-3 shrink-0 text-gray-900' : 'h-3 w-3 shrink-0 text-gray-300 group-hover/orden:text-gray-500';
+  let sticky = '';
+  if (col.k === 'nombre') sticky = 'bg-white md:sticky md:left-0 md:z-10 md:shadow-[2px_0_0_0_#e5e7eb]';
+  if (col.stickyR) sticky = 'bg-emerald-50 text-emerald-700 md:sticky md:right-0 md:z-10 md:shadow-[-2px_0_0_0_#e5e7eb]';
+  const nuevo = col.nuevo ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200' : '';
+  const style = col.banda ? `style="background:${BANDA[col.banda]}"` : '';
+  const flex = col.al === 'left' || col.al === 'center' ? '' : 'flex-row-reverse';
+  return `<th scope="col" ${style} class="px-3 py-2 font-medium whitespace-nowrap ${al} ${sticky} ${col.thExtra || ''} ${nuevo}">
+    <button data-ord="${col.k}" class="group/orden inline-flex items-center gap-1 rounded-sm tracking-wide whitespace-nowrap uppercase ${flex} ${activo ? 'text-gray-900' : 'hover:text-gray-700'}">
+      <i data-lucide="${icono}" class="${icCls}"></i>${col.tip ? `<span class="tip cursor-help border-b border-dotted border-gray-300 pb-px" data-tip="${col.tip}">${col.t}</span>` : `<span>${col.t}</span>`}
+    </button>${col.nuevo ? '<div class="mt-0.5 text-[9px] font-semibold tracking-normal text-emerald-600 normal-case">Nuevo</div>' : ''}</th>`;
+}
+
+function render() {
+  // Barra del mockup
+  document.querySelectorAll('#vista button').forEach((b) => b.className = 'rounded-md px-3 py-1 ' + (b.dataset.v === vista ? 'bg-gray-900 text-white' : 'text-gray-600'));
+  document.querySelectorAll('#estados button').forEach((b) => b.className = 'rounded-md border px-2.5 py-1 ' + (b.dataset.e === estado ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-600'));
+  $('#estados').style.display = vista === 'propuesta' ? '' : 'none';
+  $('#nota').innerHTML = vista === 'actual'
+    ? 'Así se ve hoy la tabla Asesores: las conversaciones solo aparecen dentro del tooltip del TCV.'
+    : ({
+      datos: 'Nueva columna <b>Chats</b> antes del TCV: conversaciones de WhatsApp que el asesor cerró en el período (las mismas sobre las que se calcula el TCV). El pie suma el equipo.',
+      sinconv: 'Camilo Herrera no tiene conversaciones cargadas en el período (sin archivo o sin cruce con Infobip): «—» y, al pasar el mouse, el mismo aviso del TCV.',
+      oculta: 'Se oculta desde «Columnas» como cualquier otra; la preferencia queda guardada para el usuario.',
+      orden: 'Ordenable como las demás: primer clic de mayor a menor, segundo de menor a mayor, tercero vuelve al orden original.',
+      carga: 'Mientras carga, igual que hoy.',
+      error: 'Si falla la carga, igual que hoy.',
+    })[estado];
+
+  const enCarga = vista === 'propuesta' && (estado === 'carga' || estado === 'error');
+  $('#derecha').style.display = enCarga ? 'none' : '';
+
+  if (vista === 'propuesta' && estado === 'carga') {
+    $('#cuerpo').innerHTML = '<div class="space-y-2 p-4">' + '<div class="sk h-10 rounded-lg"></div>'.repeat(5) + '</div>';
+    return;
+  }
+  if (vista === 'propuesta' && estado === 'error') {
+    $('#cuerpo').innerHTML = '<div class="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center"><p class="text-sm text-gray-500">No se pudieron cargar los datos.</p><button class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100">Reintentar</button></div>';
+    return;
+  }
+
+  const todas = columnas();
+  const cols = todas.filter((c) => c.fija || !ocultas.has(c.k));
+  let fs = filas();
+  if (orden) {
+    const c = todas.find((x) => x.k === orden);
+    fs = [...fs].sort((a, b) => { const va = c.ord(a), vb = c.ord(b); const r = typeof va === 'string' ? va.localeCompare(vb) : va - vb; return dir === 'desc' ? -r : r; });
+  }
+  const t = fs.reduce((s, a) => ({
+    meta: s.meta + a.meta, web: s.web + a.web[0], fac: s.fac + a.fac[0], dev: s.dev + a.dev, tf: s.tf + a.tf, total: s.total + a.total,
+    bono: s.bono + a.bono[0], ped: s.ped + a.ped, uni: s.uni + a.uni, conv: s.conv + a.conv, carr: s.carr + a.carr, com: s.com + a.comision, comT: s.comT + a.comisionTotal,
+  }), { meta: 0, web: 0, fac: 0, dev: 0, tf: 0, total: 0, bono: 0, ped: 0, uni: 0, conv: 0, carr: 0, com: 0, comT: 0 });
+
+  const al = (c) => c.al === 'left' ? 'text-left' : c.al === 'center' ? 'text-center' : 'text-right';
+  const body = fs.map((a) => '<tr class="group cursor-pointer border-b border-gray-50 hover:bg-gray-50">' + cols.map((c) => {
+    let sticky = '';
+    if (c.k === 'nombre') sticky = 'bg-white group-hover:bg-gray-50 md:sticky md:left-0 md:z-10 md:shadow-[2px_0_0_0_#e5e7eb]';
+    if (c.stickyR) sticky = 'bg-emerald-50 group-hover:bg-emerald-100 md:sticky md:right-0 md:z-10 md:shadow-[-2px_0_0_0_#e5e7eb]';
+    const style = c.banda ? `style="background:${BANDA[c.banda]}"` : '';
+    return `<td ${style} class="px-3 py-2 whitespace-nowrap ${al(c)} ${sticky} ${c.td ? c.td(a) : ''}">${c.c(a)}</td>`;
+  }).join('') + '</tr>').join('');
+
+  const pie = '<tr class="border-t-2 border-gray-200 bg-gray-50 font-bold">' + cols.map((c) => {
+    let sticky = '';
+    if (c.k === 'nombre') sticky = 'bg-gray-50 md:sticky md:left-0 md:z-10 md:shadow-[2px_0_0_0_#e5e7eb]';
+    if (c.stickyR) sticky = 'bg-emerald-100 md:sticky md:right-0 md:z-10 md:shadow-[-2px_0_0_0_#e5e7eb]';
+    const style = c.banda ? `style="background:${BANDA[c.banda]}"` : '';
+    return `<td ${style} class="px-3 py-2.5 whitespace-nowrap ${al(c)} ${sticky} ${c.tdP ? c.tdP(t) : ''}">${c.p(t)}</td>`;
+  }).join('') + '</tr>';
+
+  $('#cuerpo').innerHTML = `<div class="overflow-x-auto"><table class="w-full text-[13px] tabular-nums">
+    <thead><tr class="border-b border-gray-100 text-[11px] tracking-wide text-gray-400 uppercase">${cols.map(th).join('')}</tr></thead>
+    <tbody>${body}</tbody><tfoot>${pie}</tfoot></table></div>
+    <p class="border-t border-gray-100 px-4 py-2.5 text-[11px] text-gray-400">La <b>banda gris</b> marca las columnas que suman al <b>Total venta</b>: la misma cifra que el asesor ve en Mis Ventas y sobre la que se paga la comisión. Un <b>bono provisional</b> se ganó contando pedidos pagados que aún no se facturan. Clic en la fila para ver el detalle diario del asesor. <b>Nombre</b>, <b>Meta</b>, <b>Total venta</b>, <b>Cumplimiento</b> y <b>Comisión total proy.</b> no se pueden ocultar.</p>`;
+
+  // Selector de columnas
+  const ocultables = todas.filter((c) => !c.fija);
+  const visibles = ocultables.filter((c) => !ocultas.has(c.k)).length;
+  $('#badgeCol').outerHTML = ocultas.size ? `<span id="badgeCol" class="rounded bg-gray-800 px-1.5 text-[10px] font-semibold text-white tabular-nums">${visibles}/${ocultables.length}</span>` : '<span id="badgeCol"></span>';
+  $('#panelCol').innerHTML = ocultables.map((c) => `<label class="relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-[12px] select-none hover:bg-gray-100 ${c.nuevo ? 'text-emerald-700 font-medium' : ''}">
+      <span class="absolute left-2 flex size-3.5 items-center justify-center">${ocultas.has(c.k) ? '' : '<i data-lucide="check" class="h-3.5 w-3.5"></i>'}</span>
+      <input type="checkbox" class="hidden" data-col="${c.k}" ${ocultas.has(c.k) ? '' : 'checked'}>${c.t}</label>`).join('')
+    + '<div class="-mx-1 my-1 h-px bg-gray-200"></div><button id="todas" class="w-full rounded px-2 py-1.5 text-left text-[12px] text-gray-500 hover:bg-gray-100">Mostrarlas todas</button>';
+
+  lucide.createIcons();
+  const itConv = document.querySelector('#panelCol [data-col="conv"]');
+  if (estado === 'oculta' && itConv) itConv.closest('label').scrollIntoView({ block: 'nearest' });
+}
+
+// Eventos
+$('#vista').addEventListener('click', (e) => { const v = e.target.dataset.v; if (!v) return; vista = v; estado = 'datos'; orden = dir = null; ocultas.clear(); $('#panelCol').classList.add('hidden'); render(); });
+$('#estados').addEventListener('click', (e) => {
+  const v = e.target.dataset.e; if (!v) return; estado = v; orden = dir = null; ocultas.clear(); $('#panelCol').classList.add('hidden');
+  if (v === 'oculta') { ocultas.add('conv'); $('#panelCol').classList.remove('hidden'); }
+  if (v === 'orden') { orden = 'conv'; dir = 'desc'; }
+  render();
+});
+$('#btnCol').addEventListener('click', () => $('#panelCol').classList.toggle('hidden'));
+$('#panelCol').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (e.target.id === 'todas') { ocultas.clear(); render(); return; }
+  const lab = e.target.closest('label'); if (!lab) return; e.preventDefault();
+  const k = lab.querySelector('input').dataset.col; ocultas.has(k) ? ocultas.delete(k) : ocultas.add(k); render();
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#btnCol') && !e.target.closest('#panelCol') && !e.target.closest('#estados')) $('#panelCol').classList.add('hidden');
+  const b = e.target.closest('[data-ord]'); if (!b) return;
+  const k = b.dataset.ord;
+  if (orden !== k) { orden = k; dir = 'desc'; } else if (dir === 'desc') dir = 'asc'; else { orden = dir = null; }
+  render();
+});
+render();
+</script>
+</body>
+</html>

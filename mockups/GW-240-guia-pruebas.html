@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>GW-240 · Guía visual de pruebas · Chats por asesor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .tipbox { position: absolute; z-index: 30; background: #111827; color: #fff; font-size: 11px; line-height: 1.35; font-weight: 500;
+    padding: 6px 10px; border-radius: 6px; width: max-content; max-width: 15rem; white-space: normal; text-align: left; text-transform: none; letter-spacing: 0; }
+  .marca { outline: 2px solid #059669; outline-offset: -2px; border-radius: 4px; }
+  .cursor-dot::after { content: ""; position: absolute; width: 14px; height: 14px; border-radius: 9999px; background: rgba(5,150,105,.35); border: 2px solid #059669; right: -4px; bottom: -6px; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+<header class="border-b bg-white px-6 py-4">
+  <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+    <h1 class="text-lg font-bold">GW-240 · Guía visual de pruebas</h1>
+    <span class="text-sm text-gray-500">Gestión de ventas: columna «Chats» en la tabla Asesores</span>
+  </div>
+  <div class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-[12px] text-gray-600">
+    <span><b>Tarjeta:</b> GW-240</span>
+    <span><b>Repo y rama:</b> get-web · <code>feature/GW-240</code> (sale de <code>master</code>)</span>
+    <span><b>Tren:</b> ninguno, va sola</span>
+    <span><b>Datos:</b> los nombres son de ejemplo. Las cifras 1.040 y 10.922 son las de PROD del 2026-11-26.</span>
+  </div>
+</header>
+
+<nav class="sticky top-0 z-40 border-b bg-white/95 px-6 py-2 backdrop-blur">
+  <div id="tabs" class="flex flex-wrap gap-1 text-[12px] font-medium"></div>
+</nav>
+
+<main id="contenido" class="mx-auto max-w-[1400px] p-6"></main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const ent = (n) => n.toLocaleString('es-CO');
+const pesos = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+const dec = (n, d) => n.toLocaleString('es-CO', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+// Textos copiados de la rama (tablaAsesoresCumplimiento.celdas.ts)
+const TIP_CHATS = 'Conversaciones de WhatsApp que el asesor cerró en el período';
+const TIP_SIN_TRAFICO = 'Sin tráfico atendido en los días con archivo del período';
+const tipTcv = (carr, traf) => `Carritos pagados ${ent(carr)} ÷ Tráfico atendido ${ent(traf)}`;
+const META_TCV = 15;
+
+// Datos de ejemplo (nombres ficticios). La fila «Asesor 239» lleva la cifra real de PROD.
+const TIENDA0 = [
+  { id: 239, nom: 'Laura Méndez', color: 'bg-violet-600', vpt: 512000, upt: 2.15, ppt: 238000, chats: 1040, carr: 160, comT: 612000 },
+  { id: 0, nom: 'Diego Torres', color: 'bg-pink-600', vpt: 534000, upt: 2.07, ppt: 258000, chats: 981, carr: 141, comT: 512000 },
+  { id: 0, nom: 'Sofía Rincón', color: 'bg-blue-600', vpt: 501000, upt: 1.87, ppt: 268000, chats: 977, carr: 118, comT: 418000 },
+  { id: 0, nom: 'Andrés Cárdenas', color: 'bg-teal-600', vpt: 541000, upt: 2.21, ppt: 245000, chats: 940, carr: 150, comT: 532000 },
+  { id: 0, nom: 'Valentina Ortiz', color: 'bg-sky-600', vpt: 494000, upt: 1.88, ppt: 262000, chats: 933, carr: 104, comT: 336000 },
+];
+const PIE0 = { chats: 10922, carr: 1612 };
+const STIRPE = [
+  { id: 0, nom: 'Mateo Salazar', color: 'bg-indigo-600', vpt: 389000, upt: 1.92, ppt: 202000, chats: 412, carr: 61, comT: 298000 },
+  { id: 0, nom: 'Juliana Prieto', color: 'bg-rose-600', vpt: 372000, upt: 1.81, ppt: 205000, chats: null, carr: 0, comT: 241000 },
+  { id: 0, nom: 'Samuel Vargas', color: 'bg-amber-600', vpt: 401000, upt: 2.04, ppt: 196000, chats: 377, carr: 49, comT: 287000 },
+  { id: 0, nom: 'Daniela Rojas', color: 'bg-emerald-600', vpt: 355000, upt: 1.76, ppt: 201000, chats: null, carr: 0, comT: 205000 },
+];
+const PIE_STIRPE = { chats: 789, carr: 110 };
+
+const iniciales = (n) => n.split(' ').map((p) => p[0]).join('').toUpperCase();
+const tcv = (f) => (f.chats ? f.carr / f.chats * 100 : null);
+const fondoTcv = (v) => v == null ? '' : v >= META_TCV * .95 ? 'bg-emerald-100 text-emerald-900' : v >= META_TCV * .8 ? 'bg-amber-100 text-amber-900' : 'bg-red-100 text-red-900';
+
+// Columnas recortadas de la tabla real (24 en total). «⋯» resume las que no cambian.
+const COLS = [
+  { k: 'nombre', t: 'Nombre', al: 'text-left', fija: true },
+  { k: 'mas', t: '⋯', al: 'text-center', fija: true },
+  { k: 'vpt', t: 'VPT' },
+  { k: 'upt', t: 'UPT' },
+  { k: 'ppt', t: 'PPT' },
+  { k: 'chats', t: 'Chats', tip: TIP_CHATS, nueva: true },
+  { k: 'tcv', t: 'TCV' },
+  { k: 'carr', t: 'Ped. para TC' },
+  { k: 'comT', t: 'Comisión total proy.', fija: true },
+];
+
+function ordenar(filas, k, dir) {
+  if (!k) return filas;
+  const val = (f) => k === 'tcv' ? tcv(f) : f[k];
+  return [...filas].sort((a, b) => {
+    const va = val(a), vb = val(b);
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;        // «—» al final en los dos sentidos
+    if (vb == null) return -1;
+    return dir === 'desc' ? vb - va : va - vb;
+  });
+}
+
+/* o: { filas, pie, sinChats, ocultas:Set, orden, dir, tip:{en:'thChats'|'celdaChats'|'tcv'|'pieTcv', i}, marca:Set, panel:{marcadas:Set}, nota } */
+function tabla(o) {
+  const ocultas = o.ocultas || new Set();
+  const marca = o.marca || new Set();
+  const cols = COLS.filter((c) => !(o.sinChats && c.k === 'chats') && (c.fija || !ocultas.has(c.k)));
+  const filas = ordenar(o.filas, o.orden, o.dir);
+  const tipHtml = (txt, pos = 'right-0 top-full mt-1') => `<span class="tipbox ${pos}">${txt}</span>`;
+
+  const th = (c) => {
+    const activo = o.orden === c.k;
+    const ic = c.k === 'mas' || c.k === 'nombre' && false ? '' :
+      `<i data-lucide="${activo ? (o.dir === 'desc' ? 'arrow-down' : 'arrow-up') : 'arrow-up-down'}" class="h-3 w-3 ${activo ? 'text-gray-900' : 'text-gray-300'}"></i>`;
+    const titulo = c.tip ? `<span class="border-b border-dotted border-gray-300 pb-px">${c.t}</span>` : `<span>${c.t}</span>`;
+    const tip = o.tip && o.tip.en === 'thChats' && c.k === 'chats' ? tipHtml(TIP_CHATS) : '';
+    const cls = `${c.al || 'text-right'} ${marca.has('th:' + c.k) ? 'marca' : ''} ${c.k === 'comT' ? 'bg-emerald-50 text-emerald-700' : ''}`;
+    if (c.k === 'mas') return `<th class="px-2 py-2 text-center font-medium text-gray-300" title="17 columnas que no cambian">⋯</th>`;
+    return `<th class="relative px-3 py-2 font-medium whitespace-nowrap ${cls}">
+      <span class="inline-flex items-center gap-1 tracking-wide uppercase ${c.al === 'text-left' ? '' : 'flex-row-reverse'} ${activo ? 'text-gray-900' : ''} ${tip ? 'cursor-dot relative' : ''}">${ic}${titulo}</span>${tip}</th>`;
+  };
+
+  const td = (c, f, i) => {
+    const m = marca.has(`${c.k}:${i}`) ? 'marca' : '';
+    switch (c.k) {
+      case 'nombre': return `<td class="px-3 py-2 text-left whitespace-nowrap ${m}"><span class="inline-flex items-center gap-2"><span class="inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white ${f.color}">${iniciales(f.nom)}</span><span class="font-medium text-gray-800">${f.nom}</span>${f.id ? `<span class="text-[10px] text-gray-400">id ${f.id}</span>` : ''}</span></td>`;
+      case 'mas': return '<td class="px-2 py-2 text-center text-gray-300">⋯</td>';
+      case 'vpt': return `<td class="px-3 py-2 text-right font-semibold text-gray-800 ${m}">${pesos(f.vpt)}</td>`;
+      case 'upt': return `<td class="px-3 py-2 text-right font-semibold text-gray-800 ${m}">${dec(f.upt, 2)}</td>`;
+      case 'ppt': return `<td class="px-3 py-2 text-right font-semibold text-gray-800 ${m}">${pesos(f.ppt)}</td>`;
+      case 'chats': {
+        const tip = o.tip && o.tip.en === 'celdaChats' && o.tip.i === i ? tipHtml(TIP_SIN_TRAFICO) : '';
+        const txt = f.chats ? `<span class="font-semibold text-gray-800">${ent(f.chats)}</span>` : `<span class="cursor-help font-semibold text-gray-300 ${tip ? 'cursor-dot relative' : ''}">—</span>`;
+        return `<td class="relative px-3 py-2 text-right whitespace-nowrap ${m}">${txt}${tip}</td>`;
+      }
+      case 'tcv': {
+        const v = tcv(f);
+        const tip = o.tip && o.tip.en === 'tcv' && o.tip.i === i ? tipHtml(v == null ? TIP_SIN_TRAFICO : tipTcv(f.carr, f.chats)) : '';
+        return `<td class="relative px-3 py-2 text-right whitespace-nowrap ${fondoTcv(v)} ${m}"><span class="cursor-help font-semibold ${v == null ? 'text-gray-300' : ''} ${tip ? 'cursor-dot relative' : ''}">${v == null ? '—' : dec(v, 1) + '%'}</span>${tip}</td>`;
+      }
+      case 'carr': return `<td class="px-3 py-2 text-right font-semibold text-gray-800 ${m}">${f.chats ? Math.ceil(f.chats * META_TCV / 100) : '—'}</td>`;
+      case 'comT': return `<td class="bg-emerald-50 px-3 py-2 text-right font-bold text-emerald-800 ${m}">${pesos(f.comT)}</td>`;
+    }
+  };
+
+  const pieTd = (c) => {
+    const m = marca.has('pie:' + c.k) ? 'marca' : '';
+    const p = o.pie;
+    if (c.k === 'nombre') return '<td class="px-3 py-2.5 text-left">Total</td>';
+    if (c.k === 'chats') return `<td class="px-3 py-2.5 text-right text-gray-800 ${m}">${ent(p.chats)}</td>`;
+    if (c.k === 'tcv') {
+      const v = p.carr / p.chats * 100;
+      const tip = o.tip && o.tip.en === 'pieTcv' ? `<span class="tipbox right-0 bottom-full mb-1">${tipTcv(p.carr, p.chats)}</span>` : '';
+      return `<td class="relative px-3 py-2.5 text-right ${fondoTcv(v)} ${m}"><span class="cursor-help ${tip ? 'cursor-dot relative' : ''}">${dec(v, 1)}%</span>${tip}</td>`;
+    }
+    if (c.k === 'comT') return '<td class="bg-emerald-100 px-3 py-2.5 text-right text-emerald-900">…</td>';
+    return '<td class="px-3 py-2.5"></td>';
+  };
+
+  const panel = o.panel ? (() => {
+    const items = ['Pedidos web', 'Facturado', '⋯', 'VPT', 'Ítems UPT', 'UPT', 'PPT', 'Chats', 'TCV', 'Ped. para TC', 'Ped. que faltan', 'Comisión proy.'];
+    const mapa = { VPT: 'vpt', UPT: 'upt', PPT: 'ppt', Chats: 'chats', TCV: 'tcv', 'Ped. para TC': 'carr' };
+    return `<div class="absolute right-3 top-11 z-30 w-56 rounded-md border bg-white p-1 text-[12px] shadow-md">
+      ${items.map((t) => t === '⋯' ? '<div class="px-8 py-0.5 text-gray-300">⋯</div>' :
+        `<div class="relative flex items-center rounded-sm py-1.5 pr-2 pl-8 ${o.panel.marca === t ? 'marca bg-emerald-50' : ''}">
+          <span class="absolute left-2">${ocultas.has(mapa[t]) ? '' : '<i data-lucide="check" class="h-3.5 w-3.5"></i>'}</span>${t}</div>`).join('')}
+      <div class="-mx-1 my-1 h-px bg-gray-200"></div>
+      <div class="rounded px-2 py-1.5 text-gray-500 ${o.panel.marca === 'todas' ? 'marca bg-emerald-50' : ''}">Mostrarlas todas</div></div>`;
+  })() : '';
+
+  const ocultables = 19 - (o.sinChats ? 1 : 0);
+  const nOcultas = [...ocultas].length;
+  const badge = nOcultas ? `<span class="rounded bg-gray-800 px-1.5 text-[10px] font-semibold text-white">${ocultables - nOcultas}/${ocultables}</span>` : '';
+
+  return `<div class="relative rounded-xl border bg-white shadow-sm">
+    <div class="flex items-center gap-2 rounded-t-xl border-b bg-gray-50 px-3 py-2">
+      <span class="text-[12px] font-bold tracking-wide text-gray-500 uppercase">Asesores</span>
+      <span class="ml-auto flex items-center gap-1.5 rounded-md border bg-white px-2 py-0.5 text-[11px] text-gray-600 ${o.marcaBtnCol ? 'marca' : ''}">Columnas ${badge}<i data-lucide="chevron-down" class="h-3 w-3 text-gray-400"></i></span>
+    </div>
+    ${panel}
+    <div class="overflow-x-auto"><table class="w-full text-[12px] tabular-nums">
+      <thead><tr class="border-b border-gray-100 text-[10px] text-gray-400">${cols.map(th).join('')}</tr></thead>
+      <tbody>${filas.map((f, i) => `<tr class="border-b border-gray-50">${cols.map((c) => td(c, f, o.filas.indexOf(f))).join('')}</tr>`).join('')}</tbody>
+      ${o.pie ? `<tfoot><tr class="border-t-2 border-gray-200 bg-gray-50 font-bold">${cols.map(pieTd).join('')}</tr></tfoot>` : ''}
+    </table></div></div>`;
+}
+
+const CHIP = {
+  toca: 'bg-blue-100 text-blue-800',
+  ver: 'bg-emerald-100 text-emerald-800',
+  error: 'bg-red-100 text-red-800',
+};
+const CHIP_TXT = { toca: 'toca', ver: 'debe verse', error: 'error esperado' };
+
+function paso(n, chip, frase, contenido) {
+  return `<div class="min-w-0">
+    <div class="mb-2 flex items-start gap-2 text-[13px]">
+      <span class="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-900 text-[11px] font-bold text-white">${n}</span>
+      <span class="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold ${CHIP[chip]}">${CHIP_TXT[chip]}</span>
+      <span class="text-gray-700">${frase}</span>
+    </div>${contenido}</div>`;
+}
+const flecha = '<div class="flex justify-center py-1 text-gray-300"><i data-lucide="arrow-down" class="h-5 w-5"></i></div>';
+const filtro = (tienda, periodo) => `<div class="mb-2 flex flex-wrap gap-2 text-[11px]">
+  <span class="rounded-md border bg-white px-2 py-1">Tienda: <b>${tienda}</b></span>
+  <span class="rounded-md border bg-white px-2 py-1">Período: <b>${periodo}</b></span></div>`;
+
+function bloque(titulo, cls, items) {
+  return `<div class="rounded-lg border ${cls} p-3 text-[13px]"><div class="mb-1 font-semibold">${titulo}</div><ul class="list-disc space-y-0.5 pl-5">${items.map((x) => `<li>${x}</li>`).join('')}</ul></div>`;
+}
+const reportar = (n) => `<div class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-[12px] text-gray-600"><b>Cómo reportarlo:</b> comentario en GW-240 con «Caso ${n}: pasa» o «Caso ${n}: falla», la captura de la tabla y, si falla, lo que se vio contra lo esperado. Antes de reportar un error, revisa <code>qa.md</code> §7 Gotchas.</div>`;
+
+function caso(n, titulo, para, preparar, pasos, pasa, falla, noEsError) {
+  return `<section class="space-y-4">
+    <div><h2 class="text-base font-bold">Caso ${n} · ${titulo}</h2><p class="text-[13px] text-gray-600">${para}</p></div>
+    ${bloque('Preparar', 'border-gray-200 bg-white', preparar)}
+    <div class="space-y-1">${pasos.join(flecha)}</div>
+    <div class="grid gap-3 md:grid-cols-2">
+      ${bloque('Pasa si', 'border-emerald-200 bg-emerald-50 text-emerald-900', pasa)}
+      ${bloque('Falla si', 'border-red-200 bg-red-50 text-red-900', falla)}
+    </div>
+    ${noEsError ? bloque('No es error', 'border-amber-200 bg-amber-50 text-amber-900', noEsError) : ''}
+    ${reportar(n)}
+  </section>`;
+}
+
+const ACCESO = 'get-web · Venta asistida → Gestión de ventas · tabla «Asesores» · usuario supervisor con acceso al módulo';
+
+const PESTANAS = [
+  { id: 'antes', t: 'Antes de empezar', html: () => `<section class="space-y-4 text-[13px]">
+    <h2 class="text-base font-bold">Antes de empezar</h2>
+    ${bloque('Ambiente', 'border-gray-200 bg-white', [
+      'Repo <code>get-web</code>, rama <code>feature/GW-240</code>. No hay variables de entorno nuevas ni permisos nuevos.',
+      'Solo cambia el frontend. No hay SQL que correr antes.',
+    ])}
+    <pre class="overflow-x-auto rounded-lg bg-gray-900 p-3 text-[12px] text-gray-100">git fetch origin && git checkout feature/GW-240
+npm ci
+npm run test:front:gw127-tabla-asesores   # 108/108
+npm run build</pre>
+    ${bloque('Datos de prueba', 'border-gray-200 bg-white', [
+      'Usuario supervisor que hoy ve Gestión de ventas.',
+      'Tienda 0, período Personalizado del 1 al 24 de nov de 2026: asesor 239 y el total del equipo.',
+      'Tienda stirpe, Q2 de noviembre: dos asesores sin tráfico (para el «—»).',
+      'Para el caso 5: un usuario que ya tenga ocultas VPT y UPT desde antes del deploy.',
+    ])}
+    ${bloque('Cifra de referencia', 'border-gray-200 bg-white', [
+      'La query de <code>qa.md</code> §5 corre en <code>get</code>, 3308 PROD, solo lectura.',
+      'Esperado el 2026-11-26: total 10.922 · días 24 · asesor_239 1.040.',
+      'Si se cargaron o corrigieron archivos de Infobip de esos días, la cifra cambia. Vale lo que dé la query ese día.',
+    ])}
+    <p class="text-[12px] text-gray-500">Las tablas de esta guía están recortadas: se ven Nombre, VPT, UPT, PPT, Chats, TCV, Ped. para TC y Comisión total proy. El «⋯» reemplaza las 17 columnas que no cambian. La tabla real tiene 24 columnas.</p>
+  </section>` },
+
+  { id: 'c1', t: 'Caso 1 · Chats por asesor', html: () => caso(1, 'Chats por asesor (problema original)',
+    'Que cada fila muestre en «Chats» lo mismo que el «Tráfico atendido» del tooltip de su TCV, y el pie el total del equipo.',
+    [ACCESO, 'Tienda 0, período Personalizado del 1 al 24 de nov de 2026.', 'La carga contra PROD tarda varios minutos.'],
+    [
+      paso(1, 'toca', 'Elige tienda 0 y el período Personalizado del 1 al 24 de nov de 2026.', filtro('0', '1 nov – 24 nov 2026')),
+      paso(2, 'ver', 'La columna «Chats» aparece justo antes de «TCV», con enteros y separador de miles.', tabla({ filas: TIENDA0, pie: PIE0, marca: new Set(['th:chats']) })),
+      paso(3, 'toca', 'Pasa el mouse por el TCV del asesor 239. El tooltip dice «Tráfico atendido 1.040», igual que su celda «Chats».', tabla({ filas: TIENDA0, pie: PIE0, tip: { en: 'tcv', i: 0 }, marca: new Set(['chats:0']) })),
+      paso(4, 'ver', 'En el pie, «Chats» = 10.922, el total de la query de §5. El tooltip del TCV del pie dice el mismo tráfico atendido.', tabla({ filas: TIENDA0, pie: PIE0, tip: { en: 'pieTcv' }, marca: new Set(['pie:chats']) })),
+    ],
+    ['En cada fila, «Chats» = «Tráfico atendido» del tooltip de su TCV.', 'Asesor 239: 1.040 (o lo que dé §5 ese día).', 'Pie: 10.922 (o el total de §5 ese día).'],
+    ['Alguna fila no coincide con su tooltip. En ese caso no hay merge.', 'El pie no coincide con la query de §5.', '«Chats» no está justo antes de «TCV».'],
+    ['Las filas de esta guía no suman 10.922 porque es un recorte. En la tabla real el pie viene del backend (<code>tcv_equipo.trafico</code>), no de sumar filas en pantalla.',
+     'Puede haber más chats que conversaciones asignadas: se cierran conversaciones asignadas en días anteriores (asesor 239: 904 asignadas, 1.040 cerradas).']) },
+
+  { id: 'c2', t: 'Caso 2 · Encabezado y «—»', html: () => caso(2, 'Encabezado y «—»',
+    'Que el encabezado explique la columna y que un asesor sin tráfico muestre «—», nunca «0».',
+    [ACCESO, 'Para el «—»: tienda stirpe, Q2 de noviembre (hay dos asesores sin tráfico).'],
+    [
+      paso(1, 'toca', 'Pasa el mouse por el encabezado «Chats».', tabla({ filas: TIENDA0, pie: PIE0, tip: { en: 'thChats' } })),
+      paso(2, 'ver', `Aparece «${TIP_CHATS}».`, ''),
+      paso(3, 'toca', 'Cambia a tienda stirpe, Q2 de noviembre, y pasa el mouse por el «—» de un asesor sin tráfico.', filtro('stirpe', 'Q2 nov 2026') + tabla({ filas: STIRPE, pie: PIE_STIRPE, tip: { en: 'celdaChats', i: 1 }, marca: new Set(['chats:3']) })),
+      paso(4, 'ver', `«—» gris y el aviso «${TIP_SIN_TRAFICO}». Su TCV también muestra «—».`, ''),
+    ],
+    [`El tooltip del encabezado dice «${TIP_CHATS}».`, 'Los asesores sin tráfico muestran «—» gris con el aviso del TCV.'],
+    ['Un asesor sin tráfico muestra «0».', 'El «—» no tiene aviso o el aviso es otro.'],
+    ['El «—» sale en negrita, igual que el del TCV vecino. Es un P3 aceptado.',
+     'El mockup marca el encabezado con fondo verde y la etiqueta «Nuevo». Producción no la lleva.']) },
+
+  { id: 'c3', t: 'Caso 3 · Orden', html: () => caso(3, 'Orden',
+    'Que «Chats» se ordene como las demás columnas, con los «—» siempre al final.',
+    [ACCESO, 'Sirve tienda stirpe, Q2 de noviembre, para ver dónde quedan los «—».'],
+    [
+      paso(1, 'toca', 'Primer clic en «Chats»: de mayor a menor. Los «—» al final.', tabla({ filas: STIRPE, pie: PIE_STIRPE, orden: 'chats', dir: 'desc', marca: new Set(['th:chats']) })),
+      paso(2, 'toca', 'Segundo clic: de menor a mayor. Los «—» siguen al final.', tabla({ filas: STIRPE, pie: PIE_STIRPE, orden: 'chats', dir: 'asc', marca: new Set(['th:chats']) })),
+      paso(3, 'toca', 'Tercer clic: vuelve el orden original de la tabla.', tabla({ filas: STIRPE, pie: PIE_STIRPE })),
+    ],
+    ['Mayor a menor, menor a mayor, orden original, en ese orden.', 'Los «—» quedan al final en los dos sentidos.', 'La fila «Total» no se mueve.'],
+    ['Los «—» quedan arriba al ordenar de menor a mayor.', 'El tercer clic no devuelve el orden original.']) },
+
+  { id: 'c4', t: 'Caso 4 · Ocultar y recargar', html: () => caso(4, 'Ocultar y recargar',
+    'Que «Chats» se oculte desde «Columnas», que siga oculta al recargar y que «Mostrarlas todas» la devuelva.',
+    [ACCESO],
+    [
+      paso(1, 'toca', 'Abre «Columnas» y desmarca «Chats».', tabla({ filas: TIENDA0, pie: PIE0, ocultas: new Set(['chats']), panel: { marca: 'Chats' }, marcaBtnCol: true })),
+      paso(2, 'toca', 'Recarga la página (F5). La columna sigue oculta y «Columnas» muestra 18/19.', tabla({ filas: TIENDA0, pie: PIE0, ocultas: new Set(['chats']), marcaBtnCol: true, marca: new Set(['th:tcv']) })),
+      paso(3, 'toca', 'Abre «Columnas» y pulsa «Mostrarlas todas». «Chats» vuelve antes de «TCV».', tabla({ filas: TIENDA0, pie: PIE0, panel: { marca: 'todas' }, marca: new Set(['th:chats']) })),
+    ],
+    ['«Chats» aparece en el selector, visible por defecto.', 'Oculta, sigue oculta después de recargar.', '«Mostrarlas todas» la devuelve.'],
+    ['«Chats» no aparece en «Columnas».', 'Al recargar vuelve a aparecer sola.']) },
+
+  { id: 'c5', t: 'Caso 5 · Preferencia anterior', html: () => caso(5, 'Preferencia anterior (regresión)',
+    'Que un usuario que ya tenía columnas ocultas las siga viendo ocultas, y que «Chats» le aparezca visible.',
+    [ACCESO, 'Un usuario que ya tenía ocultas VPT y UPT antes del deploy. La preferencia vive en el navegador con la clave <code>gw156.tabla.columnas.ocultas.{userId}</code>, que no cambia.'],
+    [
+      paso(1, 'toca', 'Entra con ese usuario y abre la tabla Asesores.', ''),
+      paso(2, 'ver', 'VPT y UPT siguen ocultas. «Chats» se ve, antes de «TCV».', tabla({ filas: TIENDA0, pie: PIE0, ocultas: new Set(['vpt', 'upt']), marca: new Set(['th:chats']), marcaBtnCol: true })),
+    ],
+    ['Las columnas que el usuario tenía ocultas siguen ocultas.', '«Chats» aparece visible.'],
+    ['Se perdieron las preferencias: VPT y UPT vuelven a verse.', '«Chats» aparece oculta sin que el usuario la ocultara.']) },
+
+  { id: 'c6', t: 'Caso 6 · Nada más cambia', html: () => caso(6, 'Nada más cambia',
+    'Que las demás cifras y el orden por defecto queden como en PROD antes del deploy.',
+    [ACCESO, 'Una captura de la tabla en PROD antes del deploy, con el mismo período y la misma tienda.'],
+    [
+      paso(1, 'ver', 'Antes del deploy (PROD): sin «Chats». Anota TCV y Ped. para TC de cada asesor.', tabla({ filas: TIENDA0, pie: PIE0, sinChats: true, marca: new Set(['th:tcv', 'th:carr']) })),
+      paso(2, 'ver', 'Después del deploy: las mismas cifras de TCV, Ped. para TC y las demás. Solo se agrega «Chats».', tabla({ filas: TIENDA0, pie: PIE0, marca: new Set(['th:tcv', 'th:carr']) })),
+    ],
+    ['TCV, Ped. para TC y las demás cifras son iguales a las de PROD antes del deploy.', 'El orden por defecto de los asesores es el mismo.'],
+    ['Alguna cifra fuera de «Chats» cambió.', 'Los asesores salen en otro orden al abrir la tabla.'],
+    ['En celular, con 24 columnas, la tabla se desplaza más a lo ancho. El scroll y las columnas ancladas siguen funcionando.']) },
+
+  { id: 'reg', t: 'Regresión · versión publicada', html: () => `<section class="space-y-4">
+    <div><h2 class="text-base font-bold">Regresión · la versión publicada hoy</h2>
+    <p class="text-[13px] text-gray-600">Así se ve la tabla en PROD antes del deploy: las conversaciones solo aparecen dentro del tooltip del TCV. Sirve de comparación para los casos 1 y 6.</p></div>
+    ${paso(1, 'ver', 'Sin columna «Chats». El tooltip del TCV del asesor 239 dice «Tráfico atendido 1.040».', tabla({ filas: TIENDA0, pie: PIE0, sinChats: true, tip: { en: 'tcv', i: 0 } }))}
+    ${bloque('Fuera de esta tarjeta', 'border-gray-200 bg-white', [
+      'La tabla «Indicadores diarios del canal», las conversaciones asignadas, el modal del asesor, Mis Ventas y el cargue de Infobip no cambian.',
+      'Si ves <code>conv_no_gestionadas</code> o <code>clientes_atendidos</code> en 0, no es de este ticket: Infobip los manda vacíos en noviembre.',
+      'Si <code>npm run test:front</code> completo se corta en <code>gw161-rotulo</code>, no es de este ticket (GW-161).',
+    ])}
+  </section>` },
+];
+
+let activa = 'antes';
+function pintar() {
+  $('#tabs').innerHTML = PESTANAS.map((p) => `<button data-t="${p.id}" class="rounded-md px-3 py-1.5 ${p.id === activa ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}">${p.t}</button>`).join('');
+  $('#contenido').innerHTML = PESTANAS.find((p) => p.id === activa).html();
+  lucide.createIcons();
+}
+$('#tabs').addEventListener('click', (e) => { const t = e.target.closest('[data-t]'); if (!t) return; activa = t.dataset.t; pintar(); window.scrollTo(0, 0); });
+pintar();
+</script>
+</body>
+</html>
