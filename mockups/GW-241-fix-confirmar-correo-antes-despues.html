@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW-241 fix 2 · Antes y después · confirmar un correo que no se pudo verificar</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Nunito Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  /* Calco del portal (pagosquac-client/src/style/styles.scss), igual que la guía de pruebas de GW-241 */
+  .tel { width:300px; flex:0 0 300px; border:8px solid #1f2937; border-radius:28px; background:#fff; overflow:hidden; box-shadow:0 4px 14px #0002; }
+  .tel .top { background:#fff; padding:.55rem .8rem; display:flex; justify-content:center; border-bottom:1px solid #eee; }
+  .tel .top b { font-family:Poppins,sans-serif; color:#7633FF; font-size:18px; }
+  .tel .body { padding:1rem .9rem 1.2rem; text-align:center; min-height:470px; font-size:13px; }
+  .tel.foto .body { padding:0; min-height:470px; display:flex; align-items:center; background:#e5e7eb; }
+  .tel.foto img { width:100%; display:block; }
+  .step-icon { background:#E9F0FD; width:44px; height:44px; display:flex; justify-content:center; align-items:center; margin:0 auto .6rem; border-radius:18px; }
+  .ttl { font-family:Poppins,sans-serif; font-weight:800; color:#2E1380; font-size:17px; line-height:1.25; margin-bottom:.6rem; }
+  .sub { color:#333; margin-bottom:.8rem; }
+  .pay { border:2px solid #e9f0fd; border-radius:10px; padding:.45rem .7rem; display:flex; justify-content:space-between; align-items:center; text-align:start; margin-bottom:.55rem; box-shadow:1px 1px 3px 1px #00000010; }
+  .pay.tap, .medio.tap { border-color:#802EFF; box-shadow:0 0 0 3px #802EFF33; }
+  .val { font-weight:700; font-size:15px; }
+  .state { border-radius:10px; background:#F0F0FF; padding:.5rem .7rem; display:flex; justify-content:space-between; align-items:center; text-align:start; margin-bottom:.9rem; }
+  .golink { color:#802EFF; text-decoration:underline; font-weight:700; }
+  .lbl { text-align:start; font-weight:700; margin-bottom:.3rem; }
+  .inp { border:1px solid #B6C1D3; border-radius:12px; min-height:38px; padding:0 .7rem; display:flex; align-items:center; text-align:start; color:#111; }
+  .btn { margin-top:.9rem; border-radius:40px; background:#7633FF; color:#fff; font-weight:700; min-height:38px; display:flex; align-items:center; justify-content:center; }
+  .btn.tap { box-shadow:0 0 0 3px #7633FF55; }
+  .nota { color:#7F7FB4; font-size:12px; margin-top:.6rem; }
+  .volver { color:#802EFF; font-weight:700; margin-top:.9rem; }
+  .medio { border:2px solid #e9f0fd; border-radius:10px; padding:.5rem .7rem; display:flex; gap:.6rem; align-items:center; text-align:start; margin-bottom:.5rem; }
+  .medio i { width:30px; height:30px; border-radius:9px; background:#E9F0FD; display:block; flex:0 0 30px; }
+  .sel { border:2px solid #e9f0fd; border-radius:10px; padding:.55rem .7rem; text-align:start; display:flex; justify-content:space-between; align-items:center; }
+  .msel { border:1px solid #e9f0fd; border-radius:10px; padding:.5rem .7rem; display:flex; justify-content:space-between; align-items:center; text-align:start; margin-bottom:1rem; }
+  .errapi { color:#dc3545; margin:.8rem 0; }
+  .ok { background:#ecfdf5; color:#065f46; border-radius:12px; padding:.8rem; margin-top:.4rem; }
+  .flecha { align-self:center; color:#9ca3af; font-size:26px; flex:0 0 auto; }
+  .tab { border:1px solid #d1d5db; background:#fff; border-radius:999px; padding:.35rem .9rem; font-size:14px; }
+  .tab.on { background:#111827; color:#fff; border-color:#111827; }
+  .et { font-size:11px; font-weight:700; padding:.15rem .55rem; border-radius:999px; display:inline-block; }
+  .et.igual { background:#f3f4f6; color:#374151; }
+  .et.pasa { background:#dcfce7; color:#166534; }
+  .et.queda { background:#fee2e2; color:#991b1b; }
+  .et.cambia { background:#16a34a; color:#fff; }
+  .et.repite { background:#fef3c7; color:#92400e; }
+  .sel.ph span { color:#9ca3af; }
+  .chipprop { background:#ede9fe; color:#5b21b6; font-size:12px; font-weight:700; border-radius:999px; padding:.15rem .6rem; margin-left:.5rem; vertical-align:middle; }
+  .escala { zoom:.78; }
+  @media (max-width: 700px){ .escala { zoom:.62; } }
+  .err { color:#dc3545; font-size:12px; text-align:start; margin-top:.3rem; }
+  .inp.mal { border-color:#FF5D5D; background:#fff6f6; }
+  .velo { position:absolute; inset:0; background:#0007; display:flex; align-items:center; justify-content:center; padding:.8rem; }
+  .modal { background:#fff; border-radius:16px; padding:1rem .9rem; width:100%; text-align:center; }
+  .btn2 { margin-top:.6rem; border-radius:40px; border:1.5px solid #7633FF; color:#7633FF; font-weight:700; min-height:36px; display:flex; align-items:center; justify-content:center; }
+  .btn2.tap { box-shadow:0 0 0 3px #7633FF55; }
+  .warn { width:40px; height:40px; border-radius:12px; background:#E9F0FD; display:flex; align-items:center; justify-content:center; margin:0 auto .5rem; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+<div class="max-w-[1600px] mx-auto px-5 py-6">
+
+  <header class="mb-4">
+    <p class="text-xs uppercase tracking-wide text-gray-500">GW-241 fix 2 · Antes y después</p>
+    <h1 class="text-2xl font-bold">Portal de pagos: el cliente que insiste con un correo que no se pudo verificar puede confirmarlo y pagar</h1>
+    <div class="flex flex-wrap gap-2 mt-3 text-xs">
+      <span class="bg-white border rounded-full px-3 py-1">api-pagos-quac <b>fix/GW-241</b> · b605c</span>
+      <span class="bg-white border rounded-full px-3 py-1">pagosquac-client <b>fix/GW-241</b> · 362ad</span>
+      <span class="bg-white border rounded-full px-3 py-1">Caso real: 27-nov 11:05, el cliente insiste con <b>jefer•••@gmail.com</b> (Emailable: undeliverable / rejected_email) y no puede seguir (foto)</span>
+      <span class="bg-white border rounded-full px-3 py-1">Valores de ejemplo: $ 100.000 · correos nombre@gmail.com y nombre@yahoo.es</span>
+    </div>
+  </header>
+
+  <section class="bg-white rounded-xl border p-4 mb-4">
+    <div class="flex flex-wrap gap-6">
+      <div>
+        <p class="text-xs font-bold text-gray-500 mb-2">QUÉ DICE EMAILABLE DEL CORREO QUE ESCRIBE</p>
+        <div class="flex flex-wrap gap-2" id="selEstado"></div>
+      </div>
+      <div id="bloqueAccion">
+        <p class="text-xs font-bold text-gray-500 mb-2">EN LA MODAL, EL CLIENTE…</p>
+        <div class="flex flex-wrap gap-2" id="selAccion"></div>
+      </div>
+    </div>
+    <p class="mt-4 text-[15px] max-w-5xl" id="resumen"></p>
+  </section>
+
+  <section class="mb-4">
+    <h2 class="font-bold text-lg mb-2">Hoy en producción</h2>
+    <div class="overflow-x-auto pb-3"><div class="escala flex gap-3 items-start" id="filaHoy"></div></div>
+  </section>
+
+  <section class="mb-5">
+    <h2 class="font-bold text-lg mb-2">Con el ajuste</h2>
+    <div class="overflow-x-auto pb-3"><div class="escala flex gap-3 items-start" id="filaAjuste"></div></div>
+  </section>
+
+  <section class="bg-white rounded-xl border p-5 text-[15px] grid md:grid-cols-2 gap-6">
+    <div>
+      <h2 class="font-bold text-lg mb-2">La regla nueva</h2>
+      <p><b>risky</b> (correo real que el servidor no confirma, por ejemplo Yahoo) se acepta con el correo del cliente. Se puede apagar en el API con <code>PAYER_EMAIL_ACCEPT_RISKY=false</code>; apagado, risky se trata como undeliverable.</p>
+      <p class="mt-2"><b>undeliverable</b> o <b>unknown</b>: si el cliente vuelve a enviar el mismo correo, el portal le pregunta «¿Confirmas este correo?». Si confirma, el pago sale con el correo genérico <b>pagosquac3@gmail.com</b>, su correo no se guarda y por 2 horas no se le vuelve a pedir. En su próxima visita se le pide otra vez.</p>
+    </div>
+    <div>
+      <h2 class="font-bold text-lg mb-2">Alcance</h2>
+      <ul class="list-disc pl-5 space-y-1">
+        <li>Desde el deploy (26-nov 15:34), <b>42 clientes</b> dejaron un correo que sí se verificó. No cambian.</li>
+        <li><b>Se arreglan</b> los clientes cuyo correo da risky (pasan directo) y los que insisten con uno undeliverable o unknown (pueden confirmar y pagar). Hoy los dos se quedan en la pantalla del correo. No hay cifra: el portal no registra los intentos rechazados.</li>
+        <li><b>Sigue abierto:</b> quien confirma y elige PSE puede recibir de MercadoPago un código enviado al genérico, como en la foto del 27-nov 08:08. Efecty depende de que MercadoPago no bloquee pagosquac3.</li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="text-xs text-gray-500 mt-4">Textos de pantalla tomados de pagosquac-client: versión publicada d4580 (main be949) para «Hoy» y 362ad para «Con el ajuste» (CorreoComprobante.vue). El mensaje de error es el del API (CreditController::storePayerEmail). Los estados de Emailable son los de baguer_analytics.emails_score.</p>
+</div>
+
+<script>
+const TOTAL = '$ 100.000';
+const BARRA = '<div class="top"><b>QUAC</b></div>';
+const tel = (html, velo) => `<div class="tel" style="position:relative">${BARRA}<div class="body">${html}</div>${velo ? `<div class="velo">${velo}</div>` : ''}</div>`;
+const sobre = '<div class="step-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></div>';
+const ERR = 'No pudimos verificar este correo. Revisa que esté bien escrito o escribe otro.';
+const tarjeta = '<div class="step-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7633FF" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg></div>';
+
+const correo = (email, error, tap) => `${sobre}<div class="ttl">¿Dónde quieres recibir el comprobante?</div><p class="sub">Escribe tu correo electrónico. Allí te enviaremos el comprobante de tu pago.</p>
+  <div class="state"><div><p>Total a pagar</p><p class="val" style="font-size:22px">${TOTAL}</p></div><span class="golink">Cambiar valor</span></div>
+  <p class="lbl">Correo electrónico</p><div class="inp ${error ? 'mal' : ''}">${email}</div>${error ? `<p class="err">${ERR}</p>` : ''}
+  <div class="btn ${tap ? 'tap' : ''}">Continuar</div><p class="nota">Lo guardamos para tus próximos pagos.</p><p class="volver">Volver</p>`;
+
+const P = {
+  correo: (email, error, tap = true) => tel(correo(email, error, tap)),
+  modal: (email, accion) => tel(correo(email, false, false), `<div class="modal">
+      <div class="warn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2E1380" stroke-width="2"><path d="M12 3 2 21h20z"/><path d="M12 10v5M12 18h.01"/></svg></div>
+      <div class="ttl" style="font-size:16px">¿Confirmas este correo?</div>
+      <p>No pudimos verificar</p><p style="font-weight:700;word-break:break-all;margin-bottom:.5rem">${email}</p>
+      <p>Si está bien escrito, puedes seguir con tu pago, pero es posible que el comprobante no te llegue a este correo.</p>
+      <div class="btn ${accion === 'confirma' ? 'tap' : ''}">Sí, es correcto</div>
+      <div class="btn2 ${accion === 'corrige' ? 'tap' : ''}">Corregir correo</div></div>`),
+  metodo: () => tel(`${tarjeta}<div class="ttl">Selecciona el método de pago</div>
+    <div class="state"><div><p>Total a pagar</p><p class="val" style="font-size:22px">${TOTAL}</p></div><span class="golink">Cambiar valor</span></div>
+    <div class="medio tap"><i></i><div><b>Efecty</b><br><span class="text-gray-500">Paga en efectivo en puntos efecty.</span></div></div>
+    <div class="medio"><i></i><div><b>PSE</b><br><span class="text-gray-500">Transferencia electrónica</span></div></div>
+    <p class="volver">Volver</p>`),
+  pago: (email, generico) => tel(`<div class="ttl">Cupón de pago Efecty</div>
+    <div class="ok">MercadoPago genera la referencia de pago con el correo <b>${email}</b>.</div>
+    <p class="nota">${generico ? 'El comprobante no le llega al cliente: va al correo genérico.' : 'El comprobante llega al correo del cliente.'}</p>`),
+};
+
+const ESC = {
+  undeliverable: {
+    confirma: {
+      resumen: 'El cliente escribe un correo que el servidor rechaza (no existe o está mal escrito) e insiste con el mismo. Hoy el portal le repite el error y no lo deja seguir; con el ajuste le pregunta si lo confirma y, si dice que sí, paga con el correo genérico.',
+      hoy: [
+        [P.correo('nombre@gmail.com', false), 'igual', 'Escribe su correo y toca «Continuar».'],
+        [P.correo('nombre@gmail.com', true), 'igual', 'El correo no se pudo verificar.'],
+        [P.correo('nombre@gmail.com', true), 'queda', 'Toca «Continuar» otra vez con el mismo correo: el mismo error. No puede pagar (foto del 27-nov 11:05).'],
+      ],
+      ajuste: [
+        [P.correo('nombre@gmail.com', false), 'igual', 'Escribe su correo y toca «Continuar».'],
+        [P.correo('nombre@gmail.com', true), 'igual', 'El correo no se pudo verificar.'],
+        [P.modal('nombre@gmail.com', 'confirma'), 'cambia', 'Toca «Continuar» otra vez con el mismo correo: se abre la modal. Toca «Sí, es correcto».'],
+        [P.metodo(), 'cambia', 'Pasa al método de pago. El correo no se guarda.'],
+        [P.pago('pagosquac3@gmail.com', true), 'pasa', 'El pago sale con el genérico.'],
+      ],
+    },
+    corrige: {
+      resumen: 'El cliente insiste con el mismo correo, ve la modal y se da cuenta de que lo escribió mal. Corrige y sigue con su propio correo.',
+      hoy: null,
+      ajuste: [
+        [P.correo('nombre@gmail.com', true), 'igual', 'El correo no se pudo verificar.'],
+        [P.modal('nombre@gmail.com', 'corrige'), 'cambia', 'Toca «Continuar» otra vez: se abre la modal. Toca «Corregir correo».'],
+        [P.correo('nombre.bien@gmail.com', false), 'cambia', 'La modal se cierra con el cursor en el campo. Corrige el correo y toca «Continuar».'],
+        [P.metodo(), 'pasa', 'El correo se verificó y queda guardado para sus próximos pagos.'],
+        [P.pago('nombre.bien@gmail.com', false), 'pasa', 'El pago sale con su correo.'],
+      ],
+    },
+  },
+  risky: {
+    resumen: 'El correo es real, pero el servidor de destino no confirma si el buzón existe (típico de Yahoo); Emailable lo marca risky. Hoy se rechaza igual que uno inexistente; con el ajuste pasa directo con el correo del cliente.',
+    hoy: [
+      [P.correo('nombre@yahoo.es', false), 'igual', 'Escribe su correo y toca «Continuar».'],
+      [P.correo('nombre@yahoo.es', true), 'queda', 'Risky cuenta como no entregable: el mismo error, aunque insista.'],
+    ],
+    ajuste: [
+      [P.correo('nombre@yahoo.es', false), 'igual', 'Escribe su correo y toca «Continuar».'],
+      [P.metodo(), 'cambia', 'Risky cuenta como entregable: el correo se guarda y pasa al método de pago, sin modal.'],
+      [P.pago('nombre@yahoo.es', false), 'pasa', 'El pago sale con su correo.'],
+    ],
+  },
+  deliverable: {
+    resumen: 'El correo se verifica a la primera. No hay error ni modal: igual que hoy.',
+    hoy: null,
+    ajuste: null,
+  },
+};
+const filaDeliverable = [
+  [P.correo('nombre@gmail.com', false), 'igual', 'Escribe su correo y toca «Continuar».'],
+  [P.metodo(), 'igual', 'El correo se verifica y queda guardado.'],
+  [P.pago('nombre@gmail.com', false), 'igual', 'El pago sale con su correo.'],
+];
+ESC.deliverable.hoy = ESC.deliverable.ajuste = filaDeliverable;
+ESC.undeliverable.corrige.hoy = ESC.undeliverable.confirma.hoy;
+ESC.unknown = {
+  confirma: { ...ESC.undeliverable.confirma, resumen: 'Emailable no pudo comprobar el correo (unknown: el servidor no respondió) y el cliente insiste. Mismo camino que undeliverable: hoy no puede seguir; con el ajuste confirma y paga con el genérico.' },
+  corrige: ESC.undeliverable.corrige,
+};
+
+const ESTADOS = [['undeliverable', 'undeliverable (el caso real)'], ['unknown', 'unknown'], ['risky', 'risky'], ['deliverable', 'deliverable (no cambia)']];
+const ACCIONES = [['confirma', 'Confirma («Sí, es correcto»)'], ['corrige', 'Corrige («Corregir correo»)']];
+let estado = 'undeliverable', accion = 'confirma';
+
+const ET = { igual: 'igual', pasa: 'pasa', queda: 'se queda aquí', cambia: 'cambia con el ajuste' };
+const fila = (pasos) => pasos.map(([html, et, frase], i) =>
+  (i ? '<div class="flecha">→</div>' : '') +
+  `<div style="width:300px;flex:0 0 300px">${html}<div class="mt-2 text-[13px]"><b>${i + 1}.</b> <span class="et ${et}">${ET[et]}</span> ${frase}</div></div>`
+).join('');
+
+function pintar() {
+  const conModal = estado === 'undeliverable' || estado === 'unknown';
+  document.getElementById('bloqueAccion').style.display = conModal ? '' : 'none';
+  document.getElementById('selEstado').innerHTML = ESTADOS.map(([k, t]) => `<button class="tab ${k === estado ? 'on' : ''}" data-e="${k}">${t}</button>`).join('');
+  document.getElementById('selAccion').innerHTML = ACCIONES.map(([k, t]) => `<button class="tab ${k === accion ? 'on' : ''}" data-a="${k}">${t}</button>`).join('');
+  const e = conModal ? ESC[estado][accion] : ESC[estado];
+  document.getElementById('resumen').textContent = e.resumen;
+  document.getElementById('filaHoy').innerHTML = fila(e.hoy);
+  document.getElementById('filaAjuste').innerHTML = fila(e.ajuste);
+}
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('button');
+  if (!b) return;
+  if (b.dataset.e) estado = b.dataset.e;
+  if (b.dataset.a) accion = b.dataset.a;
+  pintar();
+});
+pintar();
+</script>
+</body>
+</html>
