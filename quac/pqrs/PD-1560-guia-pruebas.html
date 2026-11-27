@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PD-1560 · Guía de pruebas · PQRS: un adjunto de 5 MB y aviso cuando reCAPTCHA no carga</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  /* Calco del formulario /pqrs de quac.co (quac-cliente-fuente, fix/PD-1560) */
+  .web { width:440px; flex:0 0 440px; border:1px solid #d1d5db; border-radius:12px; background:#fff; overflow:hidden; box-shadow:0 4px 14px #0002; position:relative; }
+  .web .bar { background:#f3f4f6; padding:.4rem .7rem; display:flex; gap:.35rem; align-items:center; border-bottom:1px solid #e5e7eb; font-size:11px; color:#6b7280; }
+  .web .bar i { width:9px; height:9px; border-radius:50%; background:#d1d5db; display:block; }
+  .web .bar span { margin-left:.5rem; background:#fff; border-radius:6px; padding:.1rem .5rem; flex:1; }
+  .web .body { padding:1rem 1.1rem 1.2rem; min-height:430px; font-size:12.5px; position:relative; }
+  .h3 { text-align:center; font-weight:600; font-size:15px; margin-bottom:.7rem; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:.35rem .6rem; }
+  .fld { border:1px solid #B6C1D3; border-radius:10px; min-height:30px; padding:.25rem .6rem; color:#111; font-size:11.5px; display:flex; align-items:center; }
+  .fld.ph { color:#9ca3af; }
+  .full { grid-column:span 2; }
+  .file { display:flex; margin-top:.3rem; }
+  .file .b { border:1px solid #9ca3af; padding:.35rem .6rem; font-size:11px; white-space:nowrap; }
+  .file .n { border:1px solid #9ca3af; border-left:0; flex:1; padding:.35rem .6rem; font-size:11px; color:#6b7280; background:#fafafa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .err { color:#dc2626; font-size:11px; margin-top:.2rem; }
+  .btn { margin:.8rem auto 0; border-radius:40px; background:#7633FF; color:#fff; font-weight:700; min-height:34px; display:flex; align-items:center; justify-content:center; width:150px; }
+  .btn.out { background:#fff; color:#7633FF; border:2px solid #7633FF; }
+  .tap { box-shadow:0 0 0 4px #7633FF55 !important; }
+  .velo { position:absolute; inset:0; background:#0007; display:flex; align-items:center; justify-content:center; padding:1rem; }
+  .modal { background:#fff; border-radius:14px; padding:1rem 1.1rem; width:100%; font-size:12px; }
+  .modal h4 { font-weight:600; font-size:15px; text-align:center; margin-bottom:.5rem; }
+  .modal ol { list-style:decimal; padding-left:1.2rem; margin:.4rem 0 .6rem; }
+  .modal li { margin-bottom:.2rem; }
+  .modal .bts { display:flex; gap:.5rem; justify-content:center; margin-top:.7rem; }
+  .modal .bts div { margin:0; width:auto; padding:0 1rem; }
+  .toast { position:absolute; top:.6rem; right:.6rem; left:.6rem; background:#fee2e2; border:1px solid #fca5a5; color:#991b1b; border-radius:8px; padding:.45rem .6rem; font-size:11.5px; }
+  .ticket { background:#d9d9d9; border-radius:20px; padding:.25rem .8rem; display:inline-block; }
+  .api { outline:2px dashed #7633FF88; outline-offset:2px; border-radius:4px; }
+  .alerta { position:absolute; top:.6rem; left:50%; transform:translateX(-50%); width:88%; background:#fff; border:1px solid #9ca3af; border-radius:8px; box-shadow:0 6px 18px #0003; padding:.6rem .7rem; font-size:11.5px; }
+  .dev { background:#1f2937; color:#e5e7eb; font-family:ui-monospace,monospace; font-size:11px; padding:.6rem; border-radius:8px; }
+  .chip { font-size:11px; font-weight:700; padding:.15rem .55rem; border-radius:999px; display:inline-block; }
+  .chip.toca { background:#ede9fe; color:#5b21b6; }
+  .chip.ver { background:#dcfce7; color:#166534; }
+  .chip.err { background:#fee2e2; color:#991b1b; }
+  .chip.bd { background:#e0f2fe; color:#075985; }
+  .flecha { align-self:center; color:#9ca3af; font-size:26px; flex:0 0 auto; }
+  .tab.on { background:#111827; color:#fff; border-color:#111827; }
+  pre { white-space:pre-wrap; word-break:break-word; }
+  .escala { zoom:.8; }
+  @media (max-width: 700px){ .escala { zoom:.65; } }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+<div class="max-w-[1500px] mx-auto px-5 py-6">
+
+  <header class="mb-5">
+    <p class="text-xs uppercase tracking-wide text-gray-500">PD-1560 · Guía visual de pruebas · Tarjeta PD-1560 · Sin tren</p>
+    <h1 class="text-2xl font-bold">PQRS: un solo adjunto de máximo 5 MB, y aviso cuando reCAPTCHA no carga en quac.co</h1>
+    <p class="text-sm text-gray-600 mt-1 max-w-5xl">Un caso por cada caso mínimo de <code>qa.md</code> §6, con el mismo número. Los casos 1 a 4 son el ajuste del 2026-11-27 (rama <code>fix/PD-1560</code>, nunca visto en navegador). Los casos 5 a 7 son la entrega original, ya mergeada. Los textos con borde punteado los manda el API.</p>
+    <div class="flex flex-wrap gap-2 mt-3 text-xs">
+      <span class="bg-white border rounded-full px-3 py-1">quac-cliente-fuente <b>fix/PD-1560</b> · ecd30d7</span>
+      <span class="bg-white border rounded-full px-3 py-1">api-qac y get-api: rama base (PD-1560 mergeada)</span>
+      <span class="bg-white border rounded-full px-3 py-1">Ejemplo: CC 1000000001 · Ana Prueba · 300 000 0001 · ana@ejemplo.com</span>
+    </div>
+  </header>
+
+  <section class="bg-white rounded-xl border p-5 mb-5">
+    <h2 class="font-bold text-lg mb-2">Antes de empezar</h2>
+    <div class="grid md:grid-cols-2 gap-5 text-sm">
+      <div>
+        <p class="font-semibold mb-1">1. Rama del ajuste</p>
+        <pre class="bg-gray-900 text-gray-100 rounded-lg p-3 text-xs"># quac-cliente-fuente
+git fetch origin &amp;&amp; git checkout fix/PD-1560
+bun install &amp;&amp; bun run lint &amp;&amp; bun run dev    # abrir /pqrs</pre>
+        <p class="font-semibold mt-3 mb-1">2. Cómo bloquear reCAPTCHA (casos 1 a 3)</p>
+        <p class="text-gray-600">DevTools → Network → clic derecho en cualquier petición → <b>Block request URL</b> → patrón <code>www.google.com/recaptcha*</code>. También sirve uBlock Origin. Recargar <code>/pqrs</code> con el bloqueo activo.</p>
+        <p class="font-semibold mt-3 mb-1">3. SQL</p>
+        <p class="text-gray-600">No hay. El ajuste no toca la BD.</p>
+      </div>
+      <div>
+        <p class="font-semibold mb-1">4. Archivos de prueba</p>
+        <p class="text-gray-600">Un PDF de 4,5 MB, un PDF de 5,5 MB y un <code>.docx</code>.</p>
+        <p class="font-semibold mt-3 mb-1">5. Dónde ver si la PQRS llegó (bd-prod, 3308, solo lectura)</p>
+        <pre class="bg-gray-900 text-gray-100 rounded-lg p-3 text-xs">SELECT id, id_incidente_erp, estado_erp, fecha_creacion
+FROM quac_pqr.pqrs ORDER BY id DESC LIMIT 5;
+-- 2026-11-27: última id 7615 (radicado CRM 12268)</pre>
+        <p class="text-red-700 text-xs mt-2 font-semibold">No registrar PQRS de prueba en producción: llegan al CRM como reales. El caso 1 no crea PQRS; los casos 2 y 5 sí, solo en pruebas.</p>
+      </div>
+    </div>
+  </section>
+
+  <nav id="tabs" class="flex flex-wrap gap-2 mb-4"></nav>
+  <main id="caso"></main>
+
+  <footer class="text-xs text-gray-500 mt-8">Fuente: <code>docs/requirements/PD-1560/qa.md</code> §6 y el código de <code>fix/PD-1560</code>. Si algo no cuadra, manda <code>qa.md</code>.</footer>
+</div>
+
+<script>
+function web(inner, url){ return `<div class="web"><div class="bar"><i></i><i></i><i></i><span>${url||'localhost:5173/pqrs'}</span></div><div class="body">${inner}</div></div>`; }
+
+function formulario(o){
+  o = o || {};
+  const v = (t,ph) => `<div class="fld ${o.vacio?'ph':''}">${o.vacio?ph:t}</div>`;
+  return `<div class="h3">¡Conocer tu opinión nos ayuda a descubrir un mundo de posibilidades!</div>
+  <div class="grid2">
+    ${v('Cédula de ciudadanía','Tipo de documento')}${v('1000000001','Documento')}
+    ${v('Ana','Nombres')}${v('Prueba','Apellidos')}
+    ${v('Calle 1 # 2-3','Dirección')}${v('Bogotá','Ciudad')}
+    ${v('3000000001','Celular')}${v('ana@ejemplo.com','Email')}
+    <div class="fld full ${o.vacio?'ph':''}" style="min-height:44px;align-items:flex-start">${o.vacio?'Descripción de la solicitud':'No me llegó el extracto de noviembre.'}</div>
+    <div class="full"><b>Adjunta aquí los soportes de tu PQRS</b><div style="margin-top:.2rem">Puedes adjuntar 1 archivo JPG, JPEG, PNG o PDF de máximo 5 MB.</div>
+      <div class="file"><div class="b">Cargar archivo</div><div class="n">${o.archivo || 'Documento'}</div></div>${o.errArchivo?`<div class="err">${o.errArchivo}</div>`:''}</div>
+  </div>
+  <div style="margin-top:.5rem;font-size:11px">☑ Acepto la política de tratamiento de datos personales…</div>
+  <div class="btn ${o.tapEnviar?'tap':''}">${o.cargando?'Cargando...':'Enviar'}</div>`;
+}
+
+function modalVerif(tap){
+  return `<div class="velo"><div class="modal">
+    <h4>No pudimos enviar tu PQRS</h4>
+    <p>Tu navegador o tu red no dejaron cargar la verificación de seguridad del formulario. Para intentarlo de nuevo:</p>
+    <ol>
+      <li>Desactiva el bloqueador de anuncios para quac.co, o usa otro navegador (Chrome o Safari actualizados).</li>
+      <li>Si estás en una red de empresa o con VPN, conéctate desde los datos de tu celular.</li>
+      <li>Recarga la página y vuelve a enviar.</li>
+    </ol>
+    <p>Si aún no puedes, escríbenos a <u><b>contacto@quac.co</b></u> y radicamos tu PQRS.</p>
+    <div class="bts"><div class="btn ${tap==='recargar'?'tap':''}">Recargar página</div><div class="btn out ${tap==='cerrar'?'tap':''}">Cerrar</div></div>
+  </div></div>`;
+}
+
+function modalRadicado(){
+  return `<div class="velo"><div class="modal" style="text-align:center">
+    <h4 class="api">¡Gracias por contactarnos!</h4>
+    <div style="margin:.5rem 0"><span class="ticket">Número de ticket: <b class="api">12269</b></span></div>
+    <p class="api">Uno de nuestros asesores atenderá su caso a la brevedad posible. Puede hacer seguimiento a su caso utilizando el número de ticket proporcionado.</p>
+    <div class="btn">Entendido</div></div></div>`;
+}
+
+const toastViejo = `<div class="toast">No pudimos verificar el formulario. Recarga la página e inténtalo de nuevo.</div>`;
+const toastRed = `<div class="toast">No pudimos conectarnos. Revisa tu conexión a internet e inténtalo de nuevo.</div>`;
+
+function paso(chip, texto, pantalla){
+  const cls = {toca:'toca', ver:'ver', err:'err', bd:'bd'}[chip[0]];
+  return `<div class="flex flex-col gap-2" style="flex:0 0 auto"><div><span class="chip ${cls}">${chip[1]}</span></div><p class="text-sm text-gray-700" style="max-width:440px">${texto}</p>${pantalla}</div>`;
+}
+const F = '<div class="flecha">→</div>';
+
+const CASOS = [
+ { n:'1', t:'El problema reportado', tipo:'ajuste',
+   para:'Que el cliente con reCAPTCHA bloqueado vea qué hacer, en lugar del aviso rojo.',
+   prep:'reCAPTCHA bloqueado (Antes de empezar, 2) y <code>/pqrs</code> recargado con el bloqueo.',
+   pasos:[
+     paso(['toca','toca'],'Llenar todo el formulario, adjuntar el PDF de 4,5 MB y tocar «Enviar».', web(formulario({archivo:'extracto.pdf', tapEnviar:true}))),
+     paso(['ver','debe verse'],'Se abre el modal «No pudimos enviar tu PQRS» con los tres pasos y el correo.', web(formulario({archivo:'extracto.pdf'})+modalVerif())),
+     paso(['bd','en la BD'],'No se crea fila nueva: la PQRS no salió del navegador.', `<pre class="dev" style="width:300px">SELECT MAX(id) FROM quac_pqr.pqrs;
+-- igual que antes de enviar</pre>`)
+   ],
+   pasa:'Sale el modal, con los tres pasos y <code>contacto@quac.co</code> como enlace de correo.',
+   falla:'Sale el aviso rojo «No pudimos verificar el formulario…», o el botón queda en «Cargando...», o aparece una fila nueva en <code>quac_pqr.pqrs</code>.',
+   noerr:'Con el bloqueo activo, el modal sale en cada intento. Es lo esperado.' },
+
+ { n:'2', t:'«Cerrar» conserva lo escrito', tipo:'ajuste',
+   para:'Que el cliente no pierda lo escrito, y que al quitar el bloqueo pueda enviar sin recargar.',
+   prep:'El modal del caso 1 abierto. Solo en pruebas: este caso crea una PQRS.',
+   pasos:[
+     paso(['toca','toca'],'Tocar «Cerrar».', web(formulario({archivo:'extracto.pdf'})+modalVerif('cerrar'))),
+     paso(['ver','debe verse'],'El formulario sigue lleno, con el adjunto. Ahora quitar el bloqueo de la URL en DevTools.', web(formulario({archivo:'extracto.pdf'}))),
+     paso(['toca','toca'],'Sin recargar, tocar «Enviar» otra vez.', web(formulario({archivo:'extracto.pdf', tapEnviar:true}))),
+     paso(['ver','debe verse'],'Modal de radicado con el número de ticket del CRM.', web(formulario({archivo:'extracto.pdf'})+modalRadicado()))
+   ],
+   pasa:'Los datos siguen al cerrar y el segundo envío radica sin recargar la página.',
+   falla:'El formulario queda vacío al cerrar, o el segundo envío vuelve a mostrar el modal con el bloqueo ya quitado.',
+   noerr:'Si en local <code>grecaptcha.execute</code> falla por la clave del sitio (dominio no registrado), también sale el modal. Probar este caso en un dominio con clave válida.' },
+
+ { n:'3', t:'«Recargar página»', tipo:'ajuste',
+   para:'Que el botón recargue la página.',
+   prep:'El modal del caso 1 abierto.',
+   pasos:[
+     paso(['toca','toca'],'Tocar «Recargar página».', web(formulario({archivo:'extracto.pdf'})+modalVerif('recargar'))),
+     paso(['ver','debe verse'],'La página recarga y el formulario queda vacío.', web(formulario({vacio:true})))
+   ],
+   pasa:'La página recarga.',
+   falla:'No pasa nada, o el modal sigue abierto.',
+   noerr:'Que el formulario quede vacío es lo esperado al recargar.' },
+
+ { n:'4', t:'Los errores del API no cambian', tipo:'ajuste',
+   para:'Que el modal salga solo por reCAPTCHA, no por errores de red o del servidor.',
+   prep:'Sin bloqueo de reCAPTCHA. Backend apagado, o DevTools → Network → «Offline» justo antes de enviar.',
+   pasos:[
+     paso(['toca','toca'],'Llenar el formulario y tocar «Enviar».', web(formulario({archivo:'extracto.pdf', tapEnviar:true}))),
+     paso(['err','error esperado'],'Sale el aviso «No pudimos conectarnos…». No sale el modal.', web(toastRed + formulario({archivo:'extracto.pdf'})))
+   ],
+   pasa:'Aviso de conexión, sin modal. Un 422 del backend sigue marcando los campos debajo de cada uno.',
+   falla:'Sale el modal «No pudimos enviar tu PQRS» por un error de red o del servidor.',
+   noerr:'' },
+
+ { n:'5', t:'Un adjunto de 4,5 MB', tipo:'original',
+   para:'Que un archivo de hasta 5 MB llegue al CRM desde los ocho sitios.',
+   prep:'Ambiente de pruebas con <code>api-qac</code> y <code>get-api</code> desplegados y PHP con <code>upload_max_filesize</code> de 5M o más. Sitios: quac.co, Factory, Stirpe, Typer, U82, Derek, Kampot y TuAval.',
+   pasos:[
+     paso(['toca','toca'],'Adjuntar el PDF de 4,5 MB y enviar.', web(formulario({archivo:'soporte-4,5MB.pdf', tapEnviar:true}))),
+     paso(['ver','debe verse'],'Modal de radicado. En el CRM, la PQRS con su adjunto completo.', web(formulario({archivo:'soporte-4,5MB.pdf'})+modalRadicado()))
+   ],
+   pasa:'Se registra en los ocho sitios y el CRM muestra el adjunto.',
+   falla:'El backend responde «El campo archivos.0 no se pudo subir.» o el CRM no trae el adjunto.',
+   noerr:'«El campo archivos.0 no se pudo subir.» con archivos de 3 a 5 MB es PHP en 2M en ese servidor, no código.' },
+
+ { n:'6', t:'Peso y formato', tipo:'original',
+   para:'Que el formulario rechace lo que no cumple, con los textos unificados.',
+   prep:'El PDF de 5,5 MB y el <code>.docx</code>.',
+   pasos:[
+     paso(['err','error esperado'],'Elegir el PDF de 5,5 MB: no se adjunta.', web(formulario({errArchivo:'El archivo debe pesar máximo 5 MB.'}))),
+     paso(['err','error esperado'],'En el selector, pasar a «Todos los archivos» y elegir el <code>.docx</code>.', web(formulario({errArchivo:'El archivo debe ser JPG, JPEG, PNG o PDF.'}))),
+     paso(['ver','en TuAval'],'El mismo texto sale en la alerta del navegador.', web(`<div class="alerta"><b>tuaval.com dice</b><br>El archivo debe pesar máximo 5 MB.<div style="text-align:right;margin-top:.4rem"><span class="chip toca">Aceptar</span></div></div>`+formulario({}),'tuaval.com/pqrs'))
+   ],
+   pasa:'Los dos textos exactos y ningún archivo adjunto.',
+   falla:'Se adjunta el archivo, o el texto es otro (por ejemplo «2 MB» o «3 archivos»).',
+   noerr:'Si ya había un archivo válido y se elige uno no válido, el anterior se conserva y es el que se envía.' },
+
+ { n:'7', t:'Stirpe, Typer, U82 y Derek', tipo:'original',
+   para:'Ver en pantalla las cuatro tiendas que no se abrieron durante la implementación.',
+   prep:'<code>npm ci &amp;&amp; npm run dev</code> en cada una (U82 con pnpm). Página <code>/pqrs</code>.',
+   pasos:[
+     paso(['ver','debe verse'],'Bajo el campo: «Puedes adjuntar 1 archivo JPG, JPEG, PNG o PDF de máximo 5 MB.». Botón «Seleccionar archivo», sin «Agregar archivo».', web(`<b>Adjuntar soportes</b><div style="margin:.3rem 0">Puedes adjuntar 1 archivo JPG, JPEG, PNG o PDF de máximo 5 MB.</div><div style="border:2px dashed #d1d5db;border-radius:10px;padding:.8rem;text-align:center;color:#4b5563">Haz clic para seleccionar un archivo<div class="btn out" style="margin:.4rem auto 0;width:190px">+ Seleccionar archivo</div></div>`,'stirpe.co/pqrs')),
+     paso(['toca','toca'],'Repetir el caso 6 y elegir dos archivos seguidos.', web(`<b>Adjuntar soportes</b><div style="margin:.3rem 0">Puedes adjuntar 1 archivo JPG, JPEG, PNG o PDF de máximo 5 MB.</div><div class="fld">segundo.pdf</div>`,'stirpe.co/pqrs'))
+   ],
+   pasa:'Mismos textos que Factory y solo queda el último archivo elegido.',
+   falla:'Aparece «Agregar archivo», se acumulan dos archivos o el texto es distinto.',
+   noerr:'El ícono «+» del botón no agrega archivos: cambia el que hay.' },
+
+ { n:'R', t:'Regresión: la versión publicada', tipo:'regresion',
+   para:'Cómo se ve hoy en producción el caso 1, para comparar. No se prueba en esta tarjeta.',
+   prep:'quac.co en producción con reCAPTCHA bloqueado.',
+   pasos:[
+     paso(['err','hoy'],'Aviso rojo genérico. El cliente no sabe qué hacer y vuelve a intentar.', web(toastViejo + formulario({archivo:'extracto.pdf'}),'quac.co/pqrs')),
+     paso(['ver','con el ajuste'],'El modal con los pasos y el correo.', web(formulario({archivo:'extracto.pdf'})+modalVerif(),'quac.co/pqrs'))
+   ],
+   pasa:'Después del deploy de quac.co, el caso 1 en producción ya no muestra el aviso rojo.',
+   falla:'Después del deploy sigue saliendo el aviso rojo.',
+   noerr:'' }
+];
+
+function render(i){
+  const c = CASOS[i];
+  document.querySelectorAll('.tab').forEach((b,j)=>b.classList.toggle('on', i===j));
+  const etiqueta = {ajuste:'Ajuste 2026-11-27', original:'Entrega original', regresion:'Regresión'}[c.tipo];
+  document.getElementById('caso').innerHTML = `
+  <section class="bg-white rounded-xl border p-5">
+    <p class="text-xs uppercase text-gray-500">${etiqueta}</p>
+    <h2 class="text-xl font-bold">Caso ${c.n} · ${c.t}</h2>
+    <p class="text-sm text-gray-700 mt-1">${c.para}</p>
+    <p class="text-sm mt-2"><b>Preparar:</b> ${c.prep}</p>
+    <div class="escala mt-4 flex gap-4 overflow-x-auto pb-3">${c.pasos.join(F)}</div>
+    <div class="grid md:grid-cols-3 gap-4 mt-4 text-sm">
+      <div class="bg-green-50 border border-green-200 rounded-lg p-3"><b class="text-green-800">Pasa si</b><p>${c.pasa}</p></div>
+      <div class="bg-red-50 border border-red-200 rounded-lg p-3"><b class="text-red-800">Falla si</b><p>${c.falla}</p></div>
+      ${c.noerr ? `<div class="bg-amber-50 border border-amber-200 rounded-lg p-3"><b class="text-amber-800">No es error</b><p>${c.noerr}</p></div>` : ''}
+    </div>
+    <p class="text-xs text-gray-500 mt-4">Reportar en la tarjeta PD-1560: «Caso ${c.n}: pasa» o «Caso ${c.n}: falla» con captura y, si aplica, la id de <code>quac_pqr.pqrs</code>.</p>
+  </section>`;
+}
+
+const nav = document.getElementById('tabs');
+CASOS.forEach((c,i)=>{
+  const b = document.createElement('button');
+  b.className = 'tab border rounded-full px-3 py-1 text-sm bg-white';
+  b.textContent = (c.n==='R' ? 'Regresión' : 'Caso ' + c.n + ' · ' + c.t);
+  b.onclick = () => render(i);
+  nav.appendChild(b);
+});
+render(0);
+</script>
+</body>
+</html>
