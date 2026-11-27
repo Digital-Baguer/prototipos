@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>SOP-004-1 · Guía visual de pruebas · Consultar abonos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={theme:{extend:{colors:{primary:'hsl(0 0% 9%)','primary-foreground':'hsl(0 0% 98%)',secondary:'hsl(161.38 93.55% 30.39%)',muted:'hsl(0 0% 96.1%)','muted-foreground':'hsl(0 0% 45.1%)',accent:'hsl(0 0% 96.1%)',input:'hsl(0 0% 89.8%)',border:'hsl(0 0% 92.8%)'}}}};
+</script>
+<style>
+  html, body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .marca { outline: 2px solid #059669; outline-offset: -2px; border-radius: 4px; }
+  .sel-nativo { appearance: none; background-repeat: no-repeat; background-position: right 8px center; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23737373' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
+  .p-dt th { background: #fff; color: #334155; font-weight: 600; text-align: left; padding: .75rem 1rem; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+  .p-dt td { padding: .75rem 1rem; border-bottom: 1px solid #e2e8f0; color: #334155; vertical-align: middle; }
+  .p-dt.compacta th, .p-dt.compacta td { padding-left: .75rem; padding-right: .75rem; }
+  .p-pg-btn { min-width: 2.5rem; height: 2.5rem; border-radius: 9999px; display: inline-flex; align-items: center; justify-content: center; color: #64748b; }
+  .p-pg-btn:disabled { opacity: .5; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .girar { animation: spin 1s linear infinite; }
+  @keyframes pulso { 50% { opacity: .5; } }
+  .pulsa { animation: pulso 2s cubic-bezier(.4,0,.6,1) infinite; }
+  pre { white-space: pre-wrap; word-break: break-all; }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+<header class="border-b bg-white px-6 py-4">
+  <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+    <h1 class="text-lg font-bold">SOP-004-1 · Guía visual de pruebas</h1>
+    <span class="text-sm text-gray-500">Consultar abonos: orden por columna, tabla «Por canal» y «Enviar al CRM» desde la fila</span>
+  </div>
+  <div class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-[12px] text-gray-600">
+    <span><b>Tarjeta:</b> SOP-004-1 (subtarea de GW-231)</span>
+    <span><b>Repo y rama:</b> get-web · <code>feature/SOP-004-1</code> (sale de <code>master</code> y trae <code>fix/SOP-004</code> dentro)</span>
+    <span><b>Tren:</b> ninguno, va sola. Sin app ni api que compilar.</span>
+    <span><b>Datos:</b> la cédula 1000000001, las referencias <code>APP…</code>, los montos y el recibo 1234567 son de ejemplo. Las cifras por canal también.</span>
+  </div>
+</header>
+
+<nav class="sticky top-0 z-40 border-b bg-white/95 px-6 py-2 backdrop-blur">
+  <div id="tabs" class="flex flex-wrap gap-1 text-[12px] font-medium"></div>
+</nav>
+
+<main id="contenido" class="mx-auto max-w-[1400px] p-6"></main>
+
+<script>
+const ICONOS = {
+  'search': '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+  'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+  'house': '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  'calendar-days': '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>',
+  'package': '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/>',
+  'align-justify': '<path d="M3 12h18"/><path d="M3 18h18"/><path d="M3 6h18"/>',
+  'layout-dashboard': '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+  'undo-2': '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>',
+  'undo': '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>',
+  'image': '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  'check': '<path d="M20 6 9 17l-5-5"/>',
+  'phone': '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  'map-pin': '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  'map': '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>',
+  'calendar': '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  'user': '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  'x': '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  'triangle-alert': '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  'info': '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  'lock': '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  'history': '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  'loader': '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+  'message-circle': '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  'credit-card': '<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>',
+  'truck': '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  'bike': '<circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>',
+  'shopping-bag': '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  'shopping-cart': '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
+  'percent': '<line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+  'users': '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  'settings': '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  'chart-column': '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  'user-plus': '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/>',
+  'eye': '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+  'dollar-sign': '<line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  'panel-left-close': '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>',
+  'circle-check': '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  'calendar-check': '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/>',
+  'refresh-cw': '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  'clock': '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  'file-text': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  'wallet': '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  'banknote': '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+  'gift': '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/>',
+  'landmark': '<line x1="3" x2="21" y1="22" y2="22"/><line x1="6" x2="6" y1="18" y2="11"/><line x1="10" x2="10" y1="18" y2="11"/><line x1="14" x2="14" y1="18" y2="11"/><line x1="18" x2="18" y1="18" y2="11"/><polygon points="12 2 20 7 4 7"/>',
+  'refresh': '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  'scan-face': '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/>',
+  'images': '<path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/>',
+  'folder': '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  'smartphone': '<rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>',
+  'calculator': '<rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/>',
+  'arrow-left': '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  'copy': '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c0-1.1.9-2 2-2h2"/><path d="M4 8V6c0-1.1.9-2 2-2h8c1.1 0 2 .9 2 2"/>',
+  'flask': '<path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/>',
+  'shield-alert': '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  'arrow-up-down': '<path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>',
+  'arrow-up': '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+  'arrow-down': '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+  'chevrons-left': '<path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/>',
+  'chevrons-right': '<path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>',
+  'chevron-left': '<path d="m15 18-6-6 6-6"/>',
+  'upload': '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>',
+  'wifi-off': '<path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/>',
+};
+
+/* ───── Utilidades ───── */
+const $ = (s) => document.querySelector(s);
+const num = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const peso = (v) => '$ ' + num(v);
+const pad = (n, l) => String(n).padStart(l, '0');
+const ic = (n, c) => '<svg class="' + (c || 'h-4 w-4') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + (ICONOS[n] || '') + '</svg>';
+const json = (o) => (typeof o === 'string' ? o : JSON.stringify(o, null, 2)).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+/* Chips (ConsultarAbonos.vista.ts): textos y colores de la rama */
+const CHIP = {
+  aprobado: ['Aprobado', 'bg-emerald-100 text-emerald-700'],
+  pendiente: ['Pendiente', 'bg-gray-100 text-gray-700'],
+  rechazado: ['Rechazado', 'bg-rose-100 text-rose-700'],
+  sinc: ['En el CRM', 'bg-emerald-100 text-emerald-700'],
+  porsinc: ['Por sincronizar', 'border border-rose-300 bg-white text-rose-700'],
+  noaplica: ['No aplica', 'bg-gray-100 text-gray-500'],
+};
+const chip = (k) => '<span class="inline-flex items-center gap-1 whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium ' + CHIP[k][1] + '">' + CHIP[k][0] + '</span>';
+
+/* ───── Datos de ejemplo (ninguno es de un cliente real) ───── */
+const HEX = '0123456789ABCDEF';
+const refDe = (n, doc) => 'APP' + pad(n, 7) + '-' + doc + '-0000ABC' + HEX[n % 16];
+const CANALES = ['app.quac', 'portalpagos.quac.co', 'app.quac', 'chatbot.quac', 'portalpagos.quac.co', 'app.quac', 'siria.appbaguer'];
+const VALORES = [100000, 250000, 300000, 400000, 150000, 200000, 500000, 75000, 120000, 350000];
+const MEDIOS = ['PSE', 'Tarjeta', 'Botón Bancolombia', 'Efecty', 'PSE'];
+
+/* 24 abonos del 12/11/2026. Por sincronizar: filas 3, 8, 13, 18 y 23. Rechazados: 6, 14 y 22. La fila 12 no trae canal. */
+const DIA = Array.from({ length: 24 }, (_, i) => {
+  const canal = i === 11 ? '' : CANALES[i % 7];
+  const ep = i % 8 === 5 ? 'rechazado' : i % 6 === 3 ? 'pendiente' : 'aprobado';
+  const ec = ep !== 'aprobado' ? 'noaplica' : i % 5 === 2 ? 'porsinc' : 'sinc';
+  const min = 650 - i * 13;
+  const doc = String(1000000001 + (i * 7) % 9);
+  return { tipo: 'Abono', f: '12/11/2026 ' + pad(Math.floor(min / 60), 2) + ':' + pad(min % 60, 2), ref: refDe(i + 1, doc), doc, org: canal === 'app.quac' ? 'App' : 'Portal', canal, val: VALORES[i % 10], pas: 'MercadoPago', medio: MEDIOS[i % 5], ep, ec, rec: ec === 'sinc' ? String(1234501 + i) : '' };
+});
+const PRONTOS = [
+  ['09:05', 'app.quac', 800000, 'aprobado', 'sinc'],
+  ['08:20', 'portalpagos.quac.co', 1200000, 'aprobado', 'sinc'],
+  ['07:40', 'app.quac', 500000, 'pendiente', 'noaplica'],
+  ['06:15', 'portalpagos.quac.co', 450000, 'aprobado', 'sinc'],
+].map(([h, canal, val, ep, ec], k) => {
+  const doc = String(1000000001 + k);
+  return { tipo: 'Pronto pago', f: '12/11/2026 ' + h, ref: refDe(9001 + k, doc), doc, org: canal === 'app.quac' ? 'App' : 'Portal', canal, val, pas: 'MercadoPago', medio: 'PSE', ep, ec, rec: ec === 'sinc' ? String(1234601 + k) : '' };
+});
+const DS = { abonos: DIA, todos: DIA.concat(PRONTOS) };
+
+/* 12 pagos de la cédula de prueba (sin rango de fechas). Dos sin canal. */
+const CED_VALORES = [250000, 1000, 600000, 100000, 1000000, 20000, 450000, 300000, 850000, 150000, 50000, 200000];
+const CED_FECHAS = ['12/11/2026 09:10', '11/11/2026 17:42', '10/11/2026 12:05', '07/11/2026 16:30', '05/11/2026 10:15', '03/11/2026 08:50', '30/10/2026 14:20', '27/10/2026 11:00', '21/10/2026 15:45', '15/10/2026 09:30', '08/10/2026 18:10', '01/10/2026 13:25'];
+const CED = CED_VALORES.map((val, i) => {
+  const canal = i === 4 || i === 9 ? '' : CANALES[i % 7];
+  return { tipo: 'Abono', f: CED_FECHAS[i], ref: refDe(101 + i, '1000000001'), doc: '1000000001', org: canal === 'app.quac' ? 'App' : 'Portal', canal, val, pas: 'MercadoPago', medio: MEDIOS[i % 5], ep: 'aprobado', ec: 'sinc', rec: String(1234701 + i) };
+});
+
+/* ───── «Motor»: lo que haría el servidor con los filtros y el orden ───── */
+const clave = (f) => f.slice(6, 10) + f.slice(3, 5) + f.slice(0, 2) + f.slice(11);
+const EP = { pendiente: 0, aprobado: 4, rechazado: 6 };
+const KEY = { f: (r) => clave(r.f), ref: (r) => r.ref, doc: (r) => r.doc, canal: (r) => r.canal || '', val: (r) => r.val, pas: (r) => r.pas, ep: (r) => EP[r.ep], ec: (r) => Number(r.rec) || 0 };
+function porCanal(filas) {
+  const m = new Map();
+  filas.forEach((r) => { const c = r.canal || null; const e = m.get(c) || { canal: c, cantidad: 0, valor: 0 }; e.cantidad++; e.valor += r.val; m.set(c, e); });
+  return [...m.values()].sort((a, b) => b.valor - a.valor);
+}
+function consulta(o) {
+  const col = o.orden || 'f', dir = o.dir || 'desc', k = KEY[col];
+  const todas = o.ds.filter((r) => r._fijo || (o.fil === 'porsinc' ? r.ec === 'porsinc' : o.fil === 'rechazado' ? r.ep === 'rechazado' : true) && (!o.origen || r.org === o.origen) && (!o.q || r.ref === o.q || r.doc === o.q))
+    .sort((a, b) => {
+      const x = k(a), y = k(b);
+      let c = typeof x === 'number' ? x - y : String(x).localeCompare(String(y));
+      if (dir === 'desc') c = -c;
+      return c || clave(b.f).localeCompare(clave(a.f)) || b.ref.localeCompare(a.ref);
+    });
+  const per = o.per || 20, page = o.page || 1;
+  return { total: todas.length, filas: todas.slice((page - 1) * per, page * per), todas, canal: porCanal(todas) };
+}
+/* Porcentaje por mayor resto (consultarAbonos.vista.ts): la columna suma exactamente 100,00 */
+function porcentajes(vals) {
+  const s = vals.reduce((a, b) => a + b, 0);
+  const c = vals.map((v) => Math.floor(v * 10000 / s));
+  const r = vals.map((v) => (v * 10000) % s);
+  let faltan = 10000 - c.reduce((a, b) => a + b, 0);
+  r.map((_, i) => i).sort((a, b) => (r[a] === r[b] ? a - b : r[b] - r[a])).forEach((i) => { if (faltan > 0) { c[i]++; faltan--; } });
+  return c.map((x) => x / 100);
+}
+const pct = (p) => p.toFixed(2).replace('.', ',') + ' %';
+
+/* ───── Marcas, barra de dirección y marcos ───── */
+const barra = (u) => '<div class="flex items-center gap-2 border-b bg-neutral-100 px-3 py-1.5 text-[11px] text-neutral-600"><span class="rounded bg-white px-2 py-0.5 font-mono break-all">' + u + '</span></div>';
+const pantalla = (html, marcas, url) => '<div class="pantalla overflow-hidden rounded-lg border border-neutral-300 bg-white shadow-sm" data-marcas="' + (marcas || '') + '">' + (url ? barra(url) : '') + '<div class="overflow-x-auto"><div class="min-w-[1080px] space-y-6 bg-gray-50 p-6 text-[hsl(0_0%_3.9%)]">' + html + '</div></div></div>';
+const movil = (html, marcas, etiqueta) => '<div class="pantalla mx-auto w-[390px] max-w-full overflow-hidden rounded-lg border border-neutral-300 bg-white shadow-sm" data-marcas="' + (marcas || '') + '"><div class="border-b bg-neutral-100 px-3 py-1 text-center text-[11px] text-neutral-500">' + (etiqueta || 'Ventana de 390 px de ancho') + '</div><div class="space-y-4 bg-gray-50 p-6 text-[hsl(0_0%_3.9%)]">' + html + '</div></div>';
+function marcar() {
+  document.querySelectorAll('.pantalla').forEach((p) => (p.dataset.marcas || '').split('|').filter(Boolean).forEach((s) => p.querySelectorAll(s).forEach((e) => e.classList.add('marca'))));
+  // Tailwind por CDN pinta después: se repite el desplazamiento cuando ya hay estilos.
+  const alFinal = () => document.querySelectorAll('[data-scroll=fin]').forEach((e) => { e.scrollLeft = e.scrollWidth; });
+  alFinal(); setTimeout(alFinal, 400); setTimeout(alFinal, 1500);
+}
+
+/* ───── Piezas del listado (ConsultarAbonos.vue y componentes de la rama) ───── */
+const SIN_RES = { todos: 'pagos', abonos: 'abonos', prontos: 'pronto pagos' };
+const COLS = [['f', 'Fecha'], ['ref', 'Referencia'], ['doc', 'Cédula'], ['canal', 'Canal'], ['val', 'Valor', 1], ['pas', 'Pasarela'], ['ep', 'Estado en la pasarela'], ['ec', 'Estado en el CRM']];
+const ANCHOS_TABLA = 1060; // suma de los min-width de las 9 columnas de la rama
+
+function titulo(o) {
+  const tab = (k, l) => '<span class="rounded-md px-3 py-1.5 text-sm font-medium ' + ((o.tab || 'todos') === k ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600') + '">' + l + '</span>';
+  return '<div class="flex flex-wrap items-center justify-between gap-4"><h1 class="!mb-0 text-xl font-semibold text-gray-900">Consultar abonos</h1><div class="inline-flex rounded-lg bg-gray-200/70 p-1">' + tab('todos', 'Todos') + tab('abonos', 'Abonos') + tab('prontos', 'Pronto pagos') + '</div></div>';
+}
+const cifras = (m) => '<div class="rounded-lg border border-dashed border-gray-300 p-3 text-center text-xs text-gray-400">' + (m || '⋯ las seis cifras del encabezado y su línea «Cifras actualizadas hace N min» (no cambian en este ticket)') + '</div>';
+
+function filtros(o) {
+  const sel = (l, ops, v) => '<div><label class="mb-1 block text-sm font-medium text-gray-700">' + l + '</label><select class="sel-nativo w-full rounded-md border border-gray-300 bg-white px-3 py-2 pr-8 text-sm">' + ops.map((x) => '<option' + (x === v ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></div>';
+  const q = o.q || '';
+  const fechas = q === '' && !o.solo;
+  const fecha = (l) => '<div><label class="mb-1 block text-sm font-medium text-gray-700">' + l + '</label><input type="date" value="2026-11-12"' + (fechas ? '' : ' disabled') + ' class="w-full rounded-md border border-gray-300 px-2 py-2 text-sm text-gray-900' + (fechas ? '' : ' opacity-50') + '"></div>';
+  const origen = o.origen === 'App' ? 'App Quac' : o.origen === 'Portal' ? 'Portal de pagos' : 'Todos';
+  const pie = q.trim() !== '' ? 'Con cédula o referencia se buscan todas las fechas; la descarga trae todo su historial.' : 'La descarga trae lo filtrado, en el orden de la tabla, hasta 31 días por archivo.';
+  return '<div class="rounded-lg border border-gray-200 bg-white p-4"><div class="grid grid-cols-8 items-end gap-3">' +
+    '<div class="col-span-2"><label class="mb-1 block text-sm font-medium text-gray-700">Cédula o referencia</label><input type="text" value="' + q + '" placeholder="Ej: 1000000001 o APP0000001-1000000001-0000ABCD" class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"></div>' +
+    sel('Origen', ['Todos', 'App Quac', 'Portal de pagos'], origen) +
+    sel('En la pasarela', ['Todos', 'Aprobado', 'Pendiente', 'Rechazado'], o.fil === 'rechazado' ? 'Rechazado' : 'Todos') +
+    sel('En el CRM', ['Todos', 'En el CRM', 'Por sincronizar'], o.fil === 'porsinc' ? 'Por sincronizar' : 'Todos') +
+    fecha('Desde') + fecha('Hasta') +
+    '<div><button type="button" data-buscar class="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm">Buscar</button></div></div>' +
+    '<div class="mt-3 flex items-center justify-between gap-2"><label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox"' + (o.solo ? ' checked' : '') + ' class="h-4 w-4 rounded border-gray-300"> Solo pendientes de llegar al CRM (todas las fechas)</label>' +
+    '<button type="button" data-excel class="inline-flex h-8 items-center gap-1.5 rounded-md border bg-white px-3 text-sm font-medium shadow-sm">' + ic('file-text') + 'Descargar Excel</button></div>' +
+    '<p class="mt-2 text-xs text-gray-500">' + pie + '</p></div>';
+}
+
+const ESQ = 'inline-block h-3.5 pulsa rounded bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100';
+function tablaCanal(o) {
+  const cab = '<thead><tr><th>Canal</th><th class="!text-right">Valor total</th><th class="!text-right">Cantidad</th><th class="!text-right">Porcentaje</th></tr></thead>';
+  const marco = (c) => '<div class="rounded-lg border border-gray-200 bg-white p-4"><div class="mb-3 flex items-baseline justify-between"><h2 class="text-base font-semibold text-gray-900">Por canal</h2><span class="text-xs text-gray-500">Con los filtros de arriba</span></div><div class="overflow-x-auto" ' + (o.scroll ? 'data-scroll="' + o.scroll + '"' : '') + '><table class="p-dt compacta w-full text-sm" style="min-width:' + (o.angosto ? 440 : 0) + 'px">' + cab + '<tbody>' + c + '</tbody></table></div></div>';
+  if (o.estado === 'cargando') return marco(Array.from({ length: 3 }).map(() => '<tr>' + [120, 90, 40, 50].map((w, i) => '<td' + (i ? ' class="text-right"' : '') + '><span class="' + ESQ + '" style="width:' + w + 'px"></span></td>').join('') + '</tr>').join(''));
+  const f = consulta(o).canal;
+  const p = porcentajes(f.map((x) => x.valor));
+  const tv = f.reduce((a, x) => a + x.valor, 0), tn = f.reduce((a, x) => a + x.cantidad, 0);
+  return marco(f.map((x, i) => '<tr><td>' + (x.canal || 'Sin canal') + '</td><td class="whitespace-nowrap text-right tabular-nums">' + peso(x.valor) + '</td><td class="text-right tabular-nums">' + num(x.cantidad) + '</td><td class="whitespace-nowrap text-right tabular-nums">' + pct(p[i]) + '</td></tr>').join('') +
+    '<tr data-total><td class="font-semibold">Total</td><td class="whitespace-nowrap text-right font-semibold tabular-nums">' + peso(tv) + '</td><td class="text-right font-semibold tabular-nums">' + num(tn) + '</td><td class="whitespace-nowrap text-right font-semibold tabular-nums">100,00 %</td></tr>');
+}
+
+function th(o) {
+  const orden = o.orden || 'f', dir = o.dir || 'desc';
+  return (c) => {
+    const on = orden === c[0];
+    const icono = on ? (dir === 'asc' ? 'arrow-up' : 'arrow-down') : 'arrow-up-down';
+    return '<th data-ord="' + c[0] + '" class="' + (c[2] ? '!text-right' : '') + '"><span class="inline-flex items-center gap-1.5 font-semibold ' + (c[2] ? 'justify-end' : '') + '">' + c[1] + ic(icono, 'h-3.5 w-3.5 ' + (on ? 'text-gray-900' : 'text-gray-400')) + '</span></th>';
+  };
+}
+function celdaCrm(r, o) {
+  const envio = o.env && o.env[r.ref];
+  let boton = '';
+  if (o.puede !== false && r.ec === 'porsinc') {
+    boton = envio === 'enviando'
+      ? '<div class="mt-1 flex h-7 items-center gap-1.5 text-xs text-gray-500">' + ic('loader', 'h-3.5 w-3.5 girar') + 'Enviando…</div>'
+      : '<button type="button" data-enviar class="mt-1 flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md border border-[#34d399] bg-white px-2.5 text-xs font-medium text-gray-900 shadow-sm">' + ic('upload', 'h-3.5 w-3.5') + 'Enviar al CRM</button>';
+    if (envio && envio !== 'enviando') boton += '<div class="mt-0.5 max-w-[11rem] text-xs text-rose-700">' + envio.nota + '</div>';
+  }
+  return chip(r.ec) + boton + (r.rec ? '<div class="text-xs text-gray-500 tabular-nums">Recibo ' + r.rec + '</div>' : '');
+}
+const fila = (r, i, o) => '<tr data-n="' + i + '" class="' + (r.ep === 'aprobado' ? 'bg-emerald-50' : '') + '"><td class="whitespace-nowrap tabular-nums">' + r.f.slice(0, 10) + '<div class="text-xs text-gray-500">' + r.f.slice(11) + '</div></td><td class="whitespace-nowrap tabular-nums">' + r.ref + (o.tab === 'todos' || !o.tab ? '<div class="text-xs text-gray-500">' + r.tipo + '</div>' : '') + '</td><td class="tabular-nums">' + r.doc + '</td><td>' + (r.canal || '—') + '<div class="text-xs text-gray-500">' + (r.org === 'App' ? 'App Quac' : 'Portal de pagos') + '</div></td><td class="whitespace-nowrap text-right tabular-nums">' + peso(r.val) + '</td><td>' + r.pas + '<div class="text-xs text-gray-500">' + r.medio + '</div></td><td>' + chip(r.ep) + '</td><td>' + celdaCrm(r, o) + '</td><td class="text-right"><span class="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-white shadow-sm">' + ic('eye') + '</span></td></tr>';
+
+function paginador(o, c) {
+  const per = o.per || 20, page = o.page || 1, ini = (page - 1) * per + 1, fin = Math.min(page * per, c.total), ult = fin >= c.total;
+  return '<div class="flex items-center justify-center gap-1 px-4 py-2 text-sm text-slate-600"><select class="sel-nativo mr-2 h-10 rounded-md border border-slate-300 bg-white pl-3 pr-8 text-sm">' + [20, 10, 50].map((n) => '<option' + (n === per ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>' +
+    '<span class="p-pg-btn"' + (page === 1 ? ' style="opacity:.5"' : '') + '>' + ic('chevrons-left') + '</span><span class="p-pg-btn"' + (page === 1 ? ' style="opacity:.5"' : '') + '>' + ic('chevron-left') + '</span>' +
+    '<span data-pag class="whitespace-nowrap px-3 tabular-nums">' + ini + ' a ' + fin + ' de ' + num(c.total) + '</span>' +
+    '<span data-sig class="p-pg-btn"' + (ult ? ' style="opacity:.5"' : '') + '>' + ic('chevron-right') + '</span><span class="p-pg-btn"' + (ult ? ' style="opacity:.5"' : '') + '>' + ic('chevrons-right') + '</span></div>';
+}
+/* o.estado: datos | cargando | vacio | error · o.corto: cuántas filas dibujar (las demás se resumen en «⋯») */
+function tabla(o) {
+  const marco = (c) => '<div class="rounded-lg border border-gray-200 bg-white">' + c + '</div>';
+  if (o.estado === 'vacio') return marco('<div class="p-8 text-center text-gray-500">No hay ' + SIN_RES[o.tab || 'todos'] + ' con estos filtros. Prueba con otro rango de fechas o con la cédula sola.</div>');
+  if (o.estado === 'error') return marco('<div class="flex flex-col items-center gap-3 p-8 text-center">' + ic('wifi-off', 'h-8 w-8 text-rose-600') + '<div class="text-sm text-gray-700">No se pudo cargar el listado. Revisa tu conexión e intenta de nuevo.</div><span class="inline-flex h-8 items-center gap-1.5 rounded-md border bg-white px-3 text-sm font-medium shadow-sm">' + ic('refresh') + 'Reintentar</span></div>');
+  const c = consulta(o);
+  let cuerpo;
+  if (o.estado === 'cargando') cuerpo = Array.from({ length: 6 }).map(() => '<tr>' + [90, 110, 90, 70, 80, 110, 80, 90, 40].map((w) => '<td><span class="' + ESQ + '" style="width:' + w + 'px"></span></td>').join('') + '</tr>').join('');
+  else {
+    const n = o.corto || c.filas.length;
+    cuerpo = c.filas.slice(0, n).map((r, i) => fila(r, i, o)).join('');
+    if (c.filas.length > n) cuerpo += '<tr><td colspan="9" class="text-center text-xs text-gray-400">⋯ ' + (c.filas.length - n) + ' filas más</td></tr>';
+  }
+  return marco('<div class="overflow-x-auto" ' + (o.scroll ? 'data-scroll="' + o.scroll + '"' : '') + '><table class="p-dt compacta w-full text-sm" style="min-width:' + (o.angosto ? ANCHOS_TABLA : 0) + 'px"><thead><tr>' + COLS.map(th(o)).join('') + '<th></th></tr></thead><tbody>' + cuerpo + '</tbody></table></div>' + (o.estado === 'cargando' ? '' : paginador(o, c)));
+}
+/* partes: t título y pestañas · c cifras · f filtros · p «Por canal» · l listado */
+function listado(o, partes) {
+  const mapa = { t: () => titulo(o), c: () => cifras(), f: () => filtros(o), p: () => tablaCanal(o), l: () => tabla(o) };
+  return partes.split('').map((k) => mapa[k]()).join('');
+}
+
+/* ───── Diálogo, devtools y detalle ───── */
+const dialogo = (ref, val, texto, boton, marcas) => '<div class="flex min-h-[270px] items-center justify-center rounded-lg bg-black/70 p-6"><div class="relative w-full max-w-lg rounded-lg border bg-white p-6 shadow-lg"><span class="absolute right-4 top-4 opacity-70">' + ic('x') + '</span><h2 class="text-lg font-semibold text-gray-900">Procesar pago</h2><p class="mt-2 text-sm text-gray-600">' + texto + '</p><div class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 rounded-md bg-gray-50 p-3 text-sm"><div><div class="text-xs text-gray-500">Referencia</div><div class="tabular-nums text-gray-900">' + ref + '</div></div><div><div class="text-xs text-gray-500">Valor</div><div class="tabular-nums text-gray-900">' + peso(val) + '</div></div></div><div class="mt-6 flex justify-end gap-2"><span class="inline-flex h-9 items-center rounded-md border bg-white px-4 text-sm font-medium shadow-sm">Cancelar</span><span data-confirmar class="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm">' + boton + '</span></div></div></div>';
+
+const red = (metodo, url, estado, req, res, nota) => '<div class="rounded-lg border border-gray-700 bg-gray-900 text-[12px] text-gray-100"><div class="flex flex-wrap items-center gap-2 border-b border-gray-700 px-3 py-2 font-mono"><span class="rounded bg-gray-700 px-1.5">' + metodo + '</span><span class="break-all">' + url + '</span><span class="ml-auto rounded px-1.5 font-semibold ' + (estado < 300 ? 'bg-emerald-700' : 'bg-red-700') + '">' + estado + '</span></div>' +
+  (req ? '<div class="px-3 pt-2 text-gray-400">Payload</div><pre class="px-3 pb-1 font-mono">' + json(req) + '</pre>' : '') +
+  '<div class="px-3 pt-2 text-gray-400">Response</div><pre class="px-3 pb-2 font-mono">' + json(res) + '</pre>' + (nota ? '<div class="border-t border-gray-700 px-3 py-2 text-gray-400">' + nota + '</div>' : '') + '</div>';
+
+const AHORA = '12/11/2026 11:05', USUARIO = 'Carolina Mejía';
+const TARJETA = 'rounded-lg border border-gray-200 bg-white p-4';
+const BOTON_DET = (t, dis) => '<span class="mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm' + (dis ? ' opacity-50' : '') + '" data-procesar>' + (dis ? '' : ic('refresh')) + t + '</span>';
+/* Tarjeta «Procesar pago» del detalle (TarjetaProcesarPago.vue + .vista.ts) */
+function tarjetaProcesar(estado, recibo) {
+  const t = (c) => '<div class="' + TARJETA + '"><h2 class="mb-0 text-base font-semibold text-gray-900">Procesar pago</h2>' + c + '</div>';
+  if (estado === 'enviar') return t('<p class="mt-3 text-sm text-gray-600">El pago está aprobado pero no tiene recibo del CRM. Al procesar, se envía al CRM ahora mismo.</p>' + BOTON_DET('Enviar al CRM ahora'));
+  if (estado === 'sinpermiso') return t('<p class="mt-3 text-sm text-gray-600">El pago está aprobado pero no tiene recibo del CRM. Al procesar, se envía al CRM ahora mismo.</p><div class="mt-4 flex items-center gap-2 rounded-md bg-gray-50 p-3 text-xs text-gray-500" data-sinpermiso>' + ic('lock', 'h-4 w-4') + 'Tu usuario puede consultar pagos, pero no procesarlos.</div>');
+  if (estado === 'procesando') return t('<div class="mt-4 flex items-center gap-3 rounded-md bg-gray-50 p-4 text-sm text-gray-700">' + ic('loader', 'h-5 w-5 girar') + '<div>Enviando el pago al CRM…<div class="text-xs text-gray-500">Puede tardar hasta 45 segundos. No cierres la página.</div></div></div>' + BOTON_DET('Procesando…', true));
+  if (estado === 'registrado') return t('<div class="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800" data-resultado><div class="flex items-start gap-2">' + ic('circle-check', 'mt-0.5 h-4 w-4 shrink-0') + '<div><div class="font-medium">El CRM registró el pago</div><div class="mt-0.5 text-xs">Recibo ' + recibo + '.</div></div></div></div><p class="mt-3 text-sm text-gray-600">Este pago ya está en el CRM con el recibo ' + recibo + '. No hay nada que procesar.</p>');
+}
+function detalle(o) {
+  const r = o.r;
+  const filasEnv = o.envios && o.envios.length
+    ? '<table class="w-full text-sm"><thead><tr class="border-b border-slate-200 text-left font-semibold text-slate-700"><th class="px-3 py-2">Hora</th><th class="px-3 py-2">Respuesta del CRM</th><th class="px-3 py-2"></th></tr></thead><tbody>' + o.envios.map((e) => '<tr class="border-b border-slate-200"><td class="whitespace-nowrap px-3 py-2 tabular-nums text-slate-700">' + e[0] + '</td><td class="px-3 py-2 text-emerald-700">' + e[1] + '</td><td class="px-3 py-2 text-right"><span class="text-xs font-medium text-gray-600 underline">Ver lo enviado</span></td></tr>').join('') + '</tbody></table>'
+    : '<p class="text-sm text-gray-500">Aún no se ha enviado al CRM. Solo se envían los pagos aprobados.</p>';
+  const hist = (o.hist || []).concat([[r.f.slice(0, 10) + ' ' + r.f.slice(11), 'Sistema', 'Pago creado desde la App Quac']]);
+  return '<div class="flex items-center gap-3"><span data-volver class="inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium">' + ic('arrow-left') + 'Volver</span><h1 class="!mb-0 text-xl font-semibold text-gray-900">Abono ' + r.ref + '</h1></div>' +
+    '<div class="' + TARJETA + '"><div class="flex flex-wrap items-center justify-between gap-3"><div class="flex items-center gap-2 text-sm text-gray-700"><span class="text-xs text-gray-500">Pasarela</span>' + chip('aprobado') + '<span class="ml-3 text-xs text-gray-500">CRM</span><span data-chipcrm>' + chip(o.recibo ? 'sinc' : 'porsinc') + '</span></div><div class="text-2xl font-semibold tabular-nums text-gray-900">' + peso(r.val) + '</div></div>' +
+    '<div class="mt-3 text-xs text-gray-400">⋯ cédula, fechas, canal, pasarela y demás datos del pago (no cambian)</div></div>' +
+    '<div class="grid grid-cols-3 gap-6"><div class="col-span-2 space-y-6"><div class="' + TARJETA + '" data-envios><h2 class="mb-3 text-base font-semibold text-gray-900">Envíos al CRM</h2>' + filasEnv + '</div></div>' +
+    '<div class="space-y-6">' + tarjetaProcesar(o.tarjeta, o.recibo) + '<div class="' + TARJETA + '" data-historial><h2 class="mb-3 text-base font-semibold text-gray-900">Quién lo ha procesado</h2><ol class="space-y-3 text-sm">' + hist.map((x) => '<li class="flex gap-3"><span class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-gray-400"></span><div><div class="text-gray-900">' + x[2] + '</div><div class="text-xs tabular-nums text-gray-500">' + x[0] + ' · ' + x[1] + '</div></div></li>').join('') + '</ol></div></div></div>';
+}
+
+/* ───── Estructura de la guía (la misma de GW-240) ───── */
+const CHIPS = { toca: 'bg-blue-100 text-blue-800', ver: 'bg-emerald-100 text-emerald-800', error: 'bg-red-100 text-red-800' };
+const CHIP_TXT = { toca: 'toca', ver: 'debe verse', error: 'error esperado' };
+function paso(n, chipK, frase, contenido) {
+  return '<div class="min-w-0"><div class="mb-2 flex items-start gap-2 text-[13px]"><span class="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-900 text-[11px] font-bold text-white">' + n + '</span><span class="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold ' + CHIPS[chipK] + '">' + CHIP_TXT[chipK] + '</span><span class="text-gray-700">' + frase + '</span></div>' + contenido + '</div>';
+}
+const flecha = '<div class="flex justify-center py-1 text-gray-300">' + ic('arrow-down', 'h-5 w-5') + '</div>';
+function bloque(t, cls, items) {
+  return '<div class="rounded-lg border ' + cls + ' p-3 text-[13px]"><div class="mb-1 font-semibold">' + t + '</div><ul class="list-disc space-y-0.5 pl-5">' + items.map((x) => '<li>' + x + '</li>').join('') + '</ul></div>';
+}
+const reportar = (n) => '<div class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-[12px] text-gray-600"><b>Cómo reportarlo:</b> comentario en la tarjeta SOP-004-1 con «Caso ' + n + ': pasa» o «Caso ' + n + ': falla», la captura de la pantalla y, si falla, lo que viste contra lo esperado. Antes de reportar un error, revisa <code>qa.md</code> §7 Gotchas.</div>';
+function caso(n, t, para, preparar, pasos, pasa, falla, noEsError, extra) {
+  return '<section class="space-y-4"><div><h2 class="text-base font-bold">Caso ' + n + ' · ' + t + '</h2><p class="text-[13px] text-gray-600">' + para + '</p></div>' +
+    bloque('Preparar', 'border-gray-200 bg-white', preparar) +
+    '<div class="space-y-1">' + pasos.join(flecha) + '</div>' +
+    '<div class="grid gap-3 md:grid-cols-2">' + bloque('Pasa si', 'border-emerald-200 bg-emerald-50 text-emerald-900', pasa) + bloque('Falla si', 'border-red-200 bg-red-50 text-red-900', falla) + '</div>' +
+    (noEsError && noEsError.length ? bloque('No es error', 'border-amber-200 bg-amber-50 text-amber-900', noEsError) : '') + (extra || '') + reportar(n) + '</section>';
+}
+
+const BASE = '/quac/pagos-portal-app/consultar-abonos';
+const Q12 = '&desde=2026-11-12&hasta=2026-11-12';
+const ACCESO = 'get › QUAC › Pagos Portal/App › Consultar abonos · <code>' + BASE + '</code> · usuario con el módulo y la operación <code>procesar_pago</code>';
+const CEDULA = 'la cédula de prueba de <code>qa.md</code> §5 query B';
+const MEDIO_COD = { PSE: 'pse', Tarjeta: 'tarjeta', Efecty: 'efecty', 'Botón Bancolombia': 'bancolombia' };
+const filaJson = (r) => ({ tipo: r.tipo === 'Abono' ? 'abono' : 'pronto_pago', referencia: r.ref, cedula: r.doc, origen: r.org === 'App' ? 1 : 2, canal: r.canal || null, valor: r.val, pasarela: r.pas, medio: MEDIO_COD[r.medio], estado_pasarela: EP[r.ep], recibo: r.rec ? Number(r.rec) : null, fecha: r.f.slice(6, 10) + '-' + r.f.slice(3, 5) + '-' + r.f.slice(0, 2) + ' ' + r.f.slice(11) + ':00' });
+const cabDetalle = (r) => '<div class="flex items-center gap-3"><span data-volver class="inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium">' + ic('arrow-left') + 'Volver</span><h1 class="!mb-0 text-xl font-semibold text-gray-900">Abono ' + r.ref + '</h1></div><div class="text-xs text-gray-400">⋯ el detalle del pago (no cambia)</div>';
+const nota = (t) => '<div class="rounded-md border border-dashed border-gray-300 bg-white p-3 text-[12px] text-gray-600">' + t + '</div>';
+
+/* ───── Caso 1 ───── */
+const C1 = { ds: CED, tab: 'abonos', q: '1000000001' };
+const C1_URL = BASE + '?tab=abonos&page=1&per_page=20&q=1000000001';
+const c1desc = consulta({ ...C1, orden: 'val', dir: 'desc' }).filas;
+const c1json = { data: c1desc.slice(0, 2).map(filaJson), total: 12, page: 1, per_page: 20 };
+
+/* ───── Caso 3 ───── */
+const c3json = (o) => ({ por_canal: consulta({ ds: DIA, ...o }).canal });
+
+/* ───── Caso 5 y 7 ───── */
+const T5 = DIA[2], T7 = DIA[2];
+const enCrm = (r, rec) => DIA.map((x) => (x.ref === r.ref ? { ...x, ec: 'sinc', rec, _fijo: true } : x));
+
+/* ───── Excel del caso 2 ───── */
+function excel() {
+  const f = consulta({ ds: DIA, orden: 'val', dir: 'desc' }).todas.slice(0, 4);
+  return '<div class="overflow-x-auto rounded-lg border bg-white"><table class="w-full text-[12px] tabular-nums"><thead><tr class="bg-gray-100 text-left font-semibold">' + ['Tipo', 'Fecha y hora', 'Referencia', 'Cédula', 'Origen', 'Canal', 'Valor', '⋯'].map((h) => '<th class="px-3 py-1.5">' + h + '</th>').join('') + '</tr></thead><tbody>' +
+    f.map((r, i) => '<tr class="border-t ' + (i === 0 ? 'marca' : '') + '"><td class="px-3 py-1">Abono</td><td class="px-3 py-1">' + r.f.slice(0, 10) + ' ' + r.f.slice(11) + '</td><td class="px-3 py-1">' + r.ref + '</td><td class="px-3 py-1">' + r.doc + '</td><td class="px-3 py-1">' + (r.org === 'App' ? 'App Quac' : 'Portal de pagos') + '</td><td class="px-3 py-1">' + r.canal + '</td><td class="px-3 py-1 text-right">' + r.val + '</td><td class="px-3 py-1 text-gray-400">⋯</td></tr>').join('') + '<tr class="border-t text-gray-400"><td class="px-3 py-1" colspan="8">⋯ el resto de las filas, siempre de mayor a menor Valor</td></tr></tbody></table></div>';
+}
+
+const PESTANAS = [
+  { id: 'antes', t: 'Antes de empezar', html: () => '<section class="space-y-4 text-[13px]"><h2 class="text-base font-bold">Antes de empezar</h2>' +
+    bloque('Ambiente', 'border-gray-200 bg-white', [
+      'Repo <code>get-web</code>, rama <code>feature/SOP-004-1</code>. No hay variables de entorno nuevas (usa <code>API_CRONTAB_V2_URL</code> y <code>TOKEN_PAGOS_GET</code> de SOP-004, ya en PROD) ni permisos nuevos.',
+      'No hay SQL que correr antes: el REQ no toca esquema ni datos. Tampoco hay app ni api que compilar.',
+      'Sin <code>.env</code> en el checkout al correr phpunit: si hay, apártalo antes.',
+    ]) +
+    '<pre class="overflow-x-auto rounded-lg bg-gray-900 p-3 text-[12px] text-gray-100">git fetch origin &amp;&amp; git checkout feature/SOP-004-1\ncomposer install &amp;&amp; npm ci &amp;&amp; npm run build\nphp -d memory_limit=-1 vendor/bin/phpunit --no-progress --filter=\'ConsultarAbonos|ProcesarPago\'\nnpm run test:front:sop004-consultar-abonos &amp;&amp; npm run test:front:sop004-procesar-pago\n# 2026-11-27: 95 tests / 472 aserciones; front 33 + 25 en verde.</pre>' +
+    bloque('Usuarios y datos de prueba', 'border-gray-200 bg-white', [
+      'Un usuario con el módulo <code>quac.pagosPortalApp.consultarAbonos</code> y la operación <code>procesar_pago</code> (casos 1 a 5, 7 y 8).',
+      'Para el caso 6, un usuario con el módulo y sin la operación. Hoy no existe ninguno activo en PROD: hay que quitársela a un usuario de prueba.',
+      'Para los casos 1, 4 y 6, ' + CEDULA + ' (la que da pagos de varios canales, algunos sin canal).',
+      'Los pagos de prueba son <b>pagos reales de clientes</b>. Para el caso 5, usa uno que la mesa reporte o uno de «Ver pendientes» con más de 10 min (los recientes los baja Task27/28 sola). No procesar en lote.',
+    ]) +
+    bloque('Dónde ver la respuesta del api', 'border-gray-200 bg-white', [
+      'DevTools › Network › Fetch/XHR. El listado es un <code>GET ' + BASE + '?…</code> que devuelve JSON con <code>data</code>, <code>total</code>, <code>resumen</code> y <code>por_canal</code>.',
+      '«Enviar al CRM» es un <code>POST ' + BASE + '/procesar</code>. La descarga es un <code>GET ' + BASE + '/descargar?…</code>.',
+    ]) +
+    bloque('Queries de visto bueno (solo lectura, PROD <code>quacapi</code>; el SQL completo está en <code>qa.md</code> §5)', 'border-gray-200 bg-white', [
+      '<b>A.</b> «Por canal» del 12-nov en Abonos: canal, cantidad y valor. Debe ser lo que muestra la tabla (caso 3).',
+      '<b>B.</b> Cantidad, mayor, menor y pagos sin canal de ' + CEDULA + ' (casos 1, 4 y 6). Los valores esperados están en <code>qa.md</code> §5.',
+      '<b>C.</b> Pagos aprobados sin recibo, en abonos y en pronto pagos: el universo de «Enviar al CRM» (caso 5). Es una cifra viva: Task27/28 la vacía cada pocos minutos.',
+      '<b>D.</b> Últimas 5 filas de <code>get.quac_pagos_procesados</code>: cada envío desde la fila deja una (caso 5); el 422 no deja ninguna (caso 7).',
+    ]) +
+    '<p class="text-[12px] text-gray-500">Las pantallas de esta guía son las del mockup aprobado, con los textos de la rama (<code>ConsultarAbonos.vue</code>, <code>consultarAbonos.vista.ts</code>, <code>CeldaEstadoCrm.vue</code>, <code>TablaPorCanal.vue</code>, <code>EncabezadoOrden.vue</code> y <code>ConsultarAbonosController.php</code>). Todos los datos son de ejemplo: lo que verás en PROD tendrá otras cifras, pero la misma forma. El ejemplo gris del campo «Cédula o referencia» es de ejemplo también. Las seis cifras del encabezado no cambian en este ticket y se resumen en un recuadro punteado. Las marcas verdes señalan dónde mirar.</p></section>' },
+
+  { id: 'c1', t: 'Caso 1 · Orden por Valor', html: () => caso(1, 'Orden por Valor (problema original)',
+    'Que un clic en el título «Valor» ordene todo lo filtrado en el servidor y que la flecha diga hacia dónde.',
+    [ACCESO, 'Pestaña «Abonos» y ' + CEDULA + '.'],
+    [
+      paso(1, 'toca', 'Elige la pestaña «Abonos», escribe la cédula en «Cédula o referencia» y pulsa «Buscar». Con cédula, «Desde» y «Hasta» se apagan.', pantalla(titulo(C1) + filtros(C1), 'button[data-buscar]')),
+      paso(2, 'toca', 'Pulsa el título «Valor». Hoy la tabla viene por fecha, de la más nueva a la más vieja.', pantalla(tabla({ ...C1, corto: 4 }), 'th[data-ord=val]')),
+      paso(3, 'ver', 'Página 1 con el valor más alto primero ($ 1.000.000 en el ejemplo) y flecha hacia abajo en «Valor». Los demás títulos muestran la flecha doble gris.', pantalla(tabla({ ...C1, orden: 'val', dir: 'desc', corto: 5 }), 'th[data-ord=val]|tbody tr[data-n=\'0\'] td:nth-child(5)') + '<div class="mt-2">' + red('GET', C1_URL + '&orden=valor&dir=desc', 200, null, c1json, 'Recortado: solo las dos primeras filas de <code>data</code>; faltan <code>resumen</code> y <code>por_canal</code>. El orden se hace en el servidor, no en la pantalla.') + '</div>'),
+      paso(4, 'toca', 'Pulsa «Valor» otra vez.', pantalla(tabla({ ...C1, orden: 'val', dir: 'desc', corto: 3 }), 'th[data-ord=val]')),
+      paso(5, 'ver', 'Ahora el valor más bajo va primero ($ 1.000 en el ejemplo) y la flecha apunta hacia arriba.', pantalla(tabla({ ...C1, orden: 'val', dir: 'asc', corto: 5 }), 'th[data-ord=val]|tbody tr[data-n=\'0\'] td:nth-child(5)')),
+    ],
+    ['Con el primer clic, la página 1 trae el mayor valor primero y «Valor» lleva flecha abajo.', 'Con el segundo, el menor valor primero y flecha arriba.', 'Los otros siete títulos muestran la flecha doble gris.'],
+    ['El primer clic deja el orden por fecha o ordena solo las filas de la página.', 'El segundo clic no invierte el orden.', 'Otro título distinto de «Valor» muestra flecha de orden activo.'],
+    ['«Estado en el CRM» ordena por número de recibo, y «Pasarela» por el nombre de la pasarela. No es el orden alfabético que muestran los chips.', 'Un <code>?orden=xyz</code> o <code>?dir=abc</code> en la URL vuelve al orden por defecto (fecha, desc) sin error. Es intencional.']) },
+
+  { id: 'c2', t: 'Caso 2 · El orden se conserva', html: () => caso(2, 'El orden se conserva',
+    'Que el orden siga en la URL y en la flecha al cambiar de página, al buscar de nuevo y al volver del detalle, y que el Excel baje en el mismo orden (CA 8 y 9).',
+    [ACCESO, 'Pestaña «Abonos», 12/11/2026 a 12/11/2026. Hay 24 pagos, así que la página 2 existe con 20 por página.'],
+    [
+      paso(1, 'toca', 'Pulsa el título «Canal»: orden ascendente. La URL gana <code>orden=canal&amp;dir=asc</code>.', pantalla(tabla({ ds: DIA, tab: 'abonos', orden: 'canal', dir: 'asc', corto: 4 }), 'th[data-ord=canal]', BASE + '?tab=abonos&page=1&per_page=20' + Q12 + '&orden=canal&dir=asc')),
+      paso(2, 'toca', 'Pasa a la página 2 con la flecha ›. La URL pasa a <code>page=2</code> y sigue con <code>orden=canal&amp;dir=asc</code>.', pantalla(tabla({ ds: DIA, tab: 'abonos', orden: 'canal', dir: 'asc', page: 2 }), 'th[data-ord=canal]|[data-pag]', BASE + '?tab=abonos&page=2&per_page=20' + Q12 + '&orden=canal&dir=asc')),
+      paso(3, 'toca', 'Cambia un filtro (por ejemplo «Origen: App Quac») y pulsa «Buscar». Vuelve a la página 1 y el orden sigue.', pantalla(filtros({ origen: 'App' }) + tabla({ ds: DIA, tab: 'abonos', origen: 'App', orden: 'canal', dir: 'asc', corto: 3 }), 'button[data-buscar]|th[data-ord=canal]', BASE + '?tab=abonos&page=1&per_page=20&origen=1' + Q12 + '&orden=canal&dir=asc')),
+      paso(4, 'toca', 'Abre un pago (clic en la fila o en el ojo). El detalle lleva el orden en su URL.', pantalla(cabDetalle(DIA[0]), '[data-volver]', BASE + '/abono/' + DIA[0].ref + '?tab=abonos&page=1&per_page=20&origen=1' + Q12 + '&orden=canal&dir=asc')),
+      paso(5, 'ver', 'Pulsa «Volver»: el listado regresa con «Canal» ascendente, la misma página y el mismo filtro.', pantalla(tabla({ ds: DIA, tab: 'abonos', origen: 'App', orden: 'canal', dir: 'asc', corto: 3 }), 'th[data-ord=canal]', BASE + '?tab=abonos&page=1&per_page=20&origen=1' + Q12 + '&orden=canal&dir=asc')),
+      paso(6, 'toca', 'Ordena por «Valor» de mayor a menor y pulsa «Descargar Excel».', pantalla(filtros({}) + tabla({ ds: DIA, tab: 'abonos', orden: 'val', dir: 'desc', corto: 2 }), 'button[data-excel]|th[data-ord=val]', BASE + '/descargar?tab=abonos&page=1&per_page=20' + Q12 + '&orden=valor&dir=desc')),
+      paso(7, 'ver', 'El archivo baja las filas en ese orden: el mayor valor primero (columnas y filas recortadas).', excel()),
+    ],
+    ['Las tres veces (página 2, nueva búsqueda, «Volver») siguen <code>orden=canal&amp;dir=asc</code> en la URL y en la flecha del título.', 'Con «Valor» descendente, el Excel baja las filas en ese mismo orden.'],
+    ['El orden se pierde en alguno de los tres movimientos y vuelve a la fecha.', 'El Excel baja en el orden de la fecha y no en el de la tabla.', '«Descargar Excel» con más de 31 días baja un archivo en vez de pedir acotar.'],
+    ['Con más de 31 días y sin cédula, la pantalla pide acotar: «El rango pasa de 31 días. Acótalo para descargar el Excel.»']) },
+
+  { id: 'c3', t: 'Caso 3 · «Por canal» con filtros', html: () => caso(3, '«Por canal» con filtros',
+    'Que la tabla «Por canal» sume lo mismo que el listado con los mismos filtros, con el Porcentaje sumando 100,00 % (CA 1 a 3).',
+    [ACCESO, 'Pestaña «Abonos», 12/11/2026 a 12/11/2026. Las cifras de esta guía son de ejemplo; las reales se comparan con la query A de <code>qa.md</code> §5.'],
+    [
+      paso(1, 'toca', 'Elige la pestaña «Abonos», «Desde» y «Hasta» el 12/11/2026 y pulsa «Buscar».', pantalla(titulo({ tab: 'abonos' }) + filtros({}), 'button[data-buscar]')),
+      paso(2, 'ver', 'Entre los filtros y el listado aparece «Por canal»: valor, cantidad y porcentaje por canal, ordenado por valor. La fila «Total» da 100,00 % y su cantidad es la del paginador.', pantalla(tablaCanal({ ds: DIA }) + tabla({ ds: DIA, tab: 'abonos', corto: 2 }), 'tr[data-total]|[data-pag]') + '<div class="mt-2">' + red('GET', BASE + '?tab=abonos&page=1&per_page=20' + Q12, 200, null, c3json({}), 'Recortado: solo <code>por_canal</code>. El canal vacío viaja como <code>null</code> y la pantalla lo escribe «Sin canal». El porcentaje no viene del api: lo calcula la pantalla.') + '</div>'),
+      paso(3, 'toca', 'En «En el CRM» elige «Por sincronizar» y pulsa «Buscar».', pantalla(filtros({ fil: 'porsinc' }), 'button[data-buscar]')),
+      paso(4, 'ver', 'El Total es el dinero que falta por llegar al CRM. Sigue sumando 100,00 % y la cantidad sigue siendo la del paginador.', pantalla(tablaCanal({ ds: DIA, fil: 'porsinc' }) + tabla({ ds: DIA, tab: 'abonos', fil: 'porsinc', corto: 2 }), 'tr[data-total]|[data-pag]')),
+      paso(5, 'toca', 'Deja «En el CRM» en «Todos», elige «En la pasarela: Rechazado» y pulsa «Buscar».', pantalla(filtros({ fil: 'rechazado' }), 'button[data-buscar]')),
+      paso(6, 'ver', '«Por canal» suma solo los pagos rechazados.', pantalla(tablaCanal({ ds: DIA, fil: 'rechazado' }) + tabla({ ds: DIA, tab: 'abonos', fil: 'rechazado', corto: 2 }), 'tr[data-total]|[data-pag]')),
+    ],
+    ['Sin filtro de estado, «Por canal» da lo que la query A de <code>qa.md</code> §5 y su Total es el del paginador.', 'El Porcentaje suma 100,00 % en cada variante.', 'Con «Por sincronizar» el Total es el dinero que falta por llegar; con «Rechazado», suma solo los rechazados.'],
+    ['«Por canal» no cambia al cambiar un filtro.', 'La cantidad del Total no coincide con el paginador.', 'El Porcentaje no suma 100,00 %.', 'Un canal vacío aparece repartido en varias filas en vez de una sola «Sin canal».'],
+    ['«Por canal» no cambia con el orden ni con la página: suma todo lo filtrado.', 'Con «Todos» y «Solo pendientes» el listado y la suma pueden tardar cerca de 1 s más. Con un rango de años en «Todos» ya era lento.']) },
+
+  { id: 'c4', t: 'Caso 4 · Sin resultados y carga', html: () => caso(4, 'Sin resultados y carga',
+    'Que sin resultados desaparezca «Por canal» y que mientras carga se vea el esqueleto (CA 6).',
+    [ACCESO, 'Para el esqueleto: DevTools › Network › Throttling en «Slow 3G».'],
+    [
+      paso(1, 'toca', 'En «Cédula o referencia» escribe <code>NO-EXISTE</code> y pulsa «Buscar».', pantalla(titulo({}) + filtros({ q: 'NO-EXISTE' }), 'button[data-buscar]')),
+      paso(2, 'ver', '«Por canal» no aparece. El listado dice «No hay pagos con estos filtros. Prueba con otro rango de fechas o con la cédula sola.» (en las pestañas dice «abonos» o «pronto pagos» en vez de «pagos»).', pantalla(titulo({}) + filtros({ q: 'NO-EXISTE' }) + tabla({ estado: 'vacio', tab: 'todos' })) + '<div class="mt-2">' + red('GET', BASE + '?tab=todos&page=1&per_page=20&q=NO-EXISTE', 200, null, { data: [], total: 0, page: 1, per_page: 20, por_canal: [] }, 'Recortado: falta <code>resumen</code>.') + '</div>'),
+      paso(3, 'toca', 'Pon la red en «Slow 3G» y pulsa «Buscar» con una búsqueda que sí tenga pagos.', nota('DevTools › Network › Throttling › <b>Slow 3G</b>')),
+      paso(4, 'ver', 'Mientras llega la respuesta, «Por canal» muestra su encabezado con tres filas de barras grises que pulsan, y el listado sus filas de barras. Al llegar, ambos se llenan.', pantalla(tablaCanal({ estado: 'cargando', ds: DIA }) + tabla({ estado: 'cargando', ds: DIA }), 'table')),
+    ],
+    ['Sin resultados no se ve la tabla «Por canal» y el listado muestra el aviso.', 'Con la red lenta, «Por canal» y el listado muestran su esqueleto mientras cargan.'],
+    ['«Por canal» sigue visible con ceros o con los datos de la búsqueda anterior.', 'El listado queda en blanco mientras carga, sin esqueleto.'],
+    []) },
+
+  { id: 'c5', t: 'Caso 5 · Enviar al CRM desde la fila', html: () => caso(5, 'Enviar al CRM desde la fila',
+    'Que un pago aprobado sin recibo se envíe al CRM desde el listado, con la misma ruta y la misma operación del detalle (CA 11). Es la primera prueba contra el CRM real.',
+    [ACCESO, 'Un pago «Por sincronizar» que la mesa reporte, o uno de «Ver pendientes» con más de 10 min. Es un pago real de un cliente: un solo pago, no en lote.', 'Antes del clic, anota la referencia y el valor. Después, corre la query D de <code>qa.md</code> §5.'],
+    [
+      paso(1, 'toca', 'Filtra «En el CRM: Por sincronizar» y pulsa «Buscar». En la fila del pago pulsa «Enviar al CRM» (bajo el chip «Por sincronizar»).', pantalla(filtros({ fil: 'porsinc' }) + tabla({ ds: DIA, tab: 'abonos', fil: 'porsinc', corto: 3 }), 'tr[data-n=\'0\'] button[data-enviar]')),
+      paso(2, 'toca', 'La confirmación muestra la referencia y el valor del pago. Compáralos con los que anotaste y pulsa «Enviar al CRM».', pantalla(dialogo(T5.ref, T5.val, 'Se va a enviar este pago al CRM ahora mismo.', 'Enviar al CRM'), '[data-confirmar]')),
+      paso(3, 'ver', 'La celda se queda en «Enviando…» con el círculo girando, sin salir del listado. Mientras dura, no sale otro envío de ese pago.', pantalla(tabla({ ds: DIA, tab: 'abonos', fil: 'porsinc', corto: 3, env: { [T5.ref]: 'enviando' } }), 'tr[data-n=\'0\'] td:nth-child(8)')),
+      paso(4, 'ver', 'La fila queda «En el CRM» con «Recibo 1234567», sin recargar el listado. El botón desaparece.', pantalla(tabla({ ds: enCrm(T5, '1234567'), tab: 'abonos', fil: 'porsinc', corto: 3 }), 'tr[data-n=\'0\'] td:nth-child(8)') + '<div class="mt-2">' + red('POST', BASE + '/procesar', 200, { tipo: 'abono', referencia: T5.ref, solo_enviar_crm: true }, { accion: 'envio_crm', resultado: 'registrado', recibo: 1234567, mensaje: 'El CRM registró el pago' }, 'La respuesta trae solo estos cuatro campos; la respuesta cruda de la pasarela no viaja a la pantalla.') + '</div>'),
+      paso(5, 'ver', 'Abre el pago: en «Quién lo ha procesado» sale una línea nueva con tu usuario y, en «Envíos al CRM», el envío. El chip del CRM dice «En el CRM».', pantalla(detalle({ r: T5, tarjeta: 'registrado', recibo: '1234567', envios: [[AHORA, 'Registrado · recibo 1234567']], hist: [[AHORA, USUARIO, 'Envió al CRM: registrado con recibo 1234567.']] }), '[data-historial] li:first-child|[data-envios] tbody tr|[data-chipcrm]', BASE + '/abono/' + T5.ref)),
+    ],
+    ['La confirmación muestra la referencia y el valor correctos.', 'La fila pasa por «Enviando…» y queda «En el CRM · Recibo N» sin salir del listado.', 'En el detalle, el envío aparece en «Quién lo ha procesado» y en «Envíos al CRM»; la query D trae una fila por clic.', 'Si el CRM ya lo tenía, el recibo aparece igual (el servidor lo resuelve como «ya estaba en el CRM»).'],
+    ['No sale «Enviar al CRM» en una fila «Por sincronizar» con un usuario que tiene la operación.', 'La fila se queda en «Enviando…» para siempre.', 'La query D no trae fila nueva, o trae dos por un solo clic.', 'El detalle no muestra el envío en «Quién lo ha procesado».'],
+    ['«El CRM respondió con error. Sigue por sincronizar.» también sale cuando la ruta no contestó a tiempo (<code>sin_respuesta</code>): el CRM pudo haberlo registrado. Reintentar es seguro: el siguiente clic recibe 422 o «ya estaba en el CRM».', 'La nota de un envío fallido sigue en la fila tras buscar o cambiar de página (P3 cosmético).', 'Después de enviar desde la fila, las seis cifras del encabezado y «Por canal» no se refrescan hasta buscar de nuevo. Es una decisión (P2), no un bug.', 'Si dos operarios envían el mismo pago a la vez, el segundo lo resuelve api-crontab con «ya estaba en el CRM», igual que en el detalle.'],
+    '<div class="space-y-1"><div class="text-[13px] font-semibold text-amber-900">Así se ve el aviso «El CRM respondió con error»</div>' + pantalla(tabla({ ds: DIA, tab: 'abonos', fil: 'porsinc', corto: 2, env: { [T5.ref]: { nota: 'El CRM respondió con error. Sigue por sincronizar.' } } }), 'tr[data-n=\'0\'] td:nth-child(8)') + '</div>') },
+
+  { id: 'c6', t: 'Caso 6 · Sin operación', html: () => caso(6, 'Sin operación',
+    'Que un usuario con el módulo pero sin la operación procesar pago no pueda enviar nada desde la fila (CA 13).',
+    [ACCESO.replace('y la operación <code>procesar_pago</code>', 'y <b>sin</b> la operación <code>procesar_pago</code>'), 'Hoy no hay un usuario así en PROD: hay que quitarle la operación a uno de prueba.', 'El paso 3 se hace solo con ese usuario.'],
+    [
+      paso(1, 'toca', 'Entra con el usuario sin la operación y filtra «En el CRM: Por sincronizar».', pantalla(filtros({ fil: 'porsinc' }), 'button[data-buscar]')),
+      paso(2, 'ver', 'Las filas «Por sincronizar» muestran solo el chip: ninguna trae «Enviar al CRM».', pantalla(tabla({ ds: DIA, tab: 'abonos', fil: 'porsinc', corto: 3, puede: false }), 'tr[data-n=\'0\'] td:nth-child(8)')),
+      paso(3, 'toca', 'En la consola del navegador, con esa misma sesión, manda el POST a mano. Usa una referencia de la lista y solo con este usuario: con uno que sí tenga la operación enviaría el pago de verdad.', '<pre class="overflow-x-auto rounded-lg bg-gray-900 p-3 text-[12px] text-gray-100">fetch(\'' + BASE + '/procesar\', {\n  method: \'POST\',\n  headers: { \'Content-Type\': \'application/json\', Accept: \'application/json\',\n    \'X-XSRF-TOKEN\': decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)[1]) },\n  body: JSON.stringify({ tipo: \'abono\', referencia: \'&lt;referencia&gt;\', solo_enviar_crm: true }),\n}).then((r) =&gt; r.status)</pre>'),
+      paso(4, 'error', 'El servidor responde acceso denegado (403). No llama a api-crontab-v2 ni deja fila en el historial (query D igual que antes).', red('POST', BASE + '/procesar', 403, { tipo: 'abono', referencia: '<referencia>', solo_enviar_crm: true }, 'texto por confirmar', 'El cuerpo de la respuesta 403 no está en el código de la rama: lo pone el middleware <code>acceso</code>. Anota qué dice.')),
+    ],
+    ['Ninguna fila muestra «Enviar al CRM» para ese usuario.', 'El POST a mano responde 403 y no deja fila nueva en <code>quac_pagos_procesados</code>.'],
+    ['Alguna fila muestra el botón al usuario sin la operación.', 'El POST a mano responde 200 o 422 en vez de 403.'],
+    []) },
+
+  { id: 'c7', t: 'Caso 7 · Guarda del servidor', html: () => caso(7, 'Guarda del servidor',
+    'Que enviar un pago que ya no está por sincronizar no llame al CRM, no deje historial y deje el listado al día.',
+    [ACCESO, 'Un pago «Por sincronizar» de los que Task27 bajará sola (uno reciente de «Ver pendientes»). Sin filtro de estado en el CRM: con ese filtro el servidor ya no devolvería la fila al recargar.'],
+    [
+      paso(1, 'toca', 'Abre el listado con el pago «Por sincronizar» a la vista y no recargues la página.', pantalla(tabla({ ds: DIA, tab: 'abonos', corto: 4 }), 'tr[data-n=\'2\'] td:nth-child(8)')),
+      paso(2, 'toca', 'Espera a que Task27 lo baje (hasta 5 min). Comprueba con la query C de <code>qa.md</code> §5 que el pago ya no está en la lista de aprobados sin recibo. La pantalla sigue mostrando «Por sincronizar».', nota('La pantalla no se entera sola: sigue con el chip «Por sincronizar» y el botón.')),
+      paso(3, 'toca', 'En esa misma pantalla, pulsa «Enviar al CRM» y confirma.', pantalla(dialogo(T7.ref, T7.val, 'Se va a enviar este pago al CRM ahora mismo.', 'Enviar al CRM'), '[data-confirmar]')),
+      paso(4, 'error', 'En la pestaña Network el servidor responde 422 con «El pago ya no está por sincronizar». La fila no muestra ningún mensaje.', red('POST', BASE + '/procesar', 422, { tipo: 'abono', referencia: T7.ref, solo_enviar_crm: true }, { mensaje: 'El pago ya no está por sincronizar' }, 'No llama a api-crontab-v2 ni deja fila en el historial.')),
+      paso(5, 'ver', 'El listado se recarga solo: la fila queda «En el CRM» con el recibo que bajó la tarea.', pantalla(tabla({ ds: enCrm(T7, '1234568'), tab: 'abonos', corto: 4 }), 'tr[data-n=\'2\'] td:nth-child(8)')),
+    ],
+    ['El POST responde 422 con el mensaje de arriba y la fila no muestra texto de error.', 'El listado se recarga solo y la fila queda «En el CRM» con su recibo.', 'La query D no trae fila nueva por ese clic.'],
+    ['El POST responde 200 y se envía un segundo registro al CRM.', 'La fila se queda en «Enviando…» o con una nota de error y el listado no se recarga.', 'La query D trae una fila por ese clic.'],
+    ['La fila no dice nada ante el 422: el cambio de «Por sincronizar» a «En el CRM» es la señal. Es lo previsto.']) },
+
+  { id: 'c8', t: 'Caso 8 · 390 px', html: () => caso(8, '390 px',
+    'Que con el ancho de un celular las tablas se desplacen dentro de su tarjeta y el botón de la celda «Estado en el CRM» se vea completo.',
+    [ACCESO, 'Ventana del navegador (o DevTools en modo dispositivo) a 390 px de ancho, 12/11/2026 en «Abonos» y un pago «Por sincronizar» visible.'],
+    [
+      paso(1, 'toca', 'Reduce la ventana a 390 px y abre Consultar abonos.', nota('La página no se desborda: el desplazamiento horizontal vive dentro de cada tarjeta, no en la página.')),
+      paso(2, 'ver', '«Por canal» se desplaza de lado dentro de su tarjeta. A la izquierda, al inicio; a la derecha, al final, con la columna «Porcentaje».', '<div class="flex flex-wrap items-start justify-center gap-6">' + movil(tablaCanal({ ds: DIA, angosto: true }), 'table', 'Inicio de la tarjeta') + movil(tablaCanal({ ds: DIA, angosto: true, scroll: 'fin' }), 'th:nth-child(4)', 'Al final de la tarjeta') + '</div>'),
+      paso(3, 'ver', 'El listado también se desplaza dentro de su tarjeta. Al llegar a la columna «Estado en el CRM», el botón «Enviar al CRM» se ve completo, sin cortarse.', '<div class="flex flex-wrap items-start justify-center gap-6">' + movil(tabla({ ds: DIA, tab: 'abonos', fil: 'porsinc', corto: 3, angosto: true }), 'th[data-ord=f]', 'Inicio de la tarjeta') + movil(tabla({ ds: DIA, tab: 'abonos', fil: 'porsinc', corto: 3, angosto: true, scroll: 'fin' }), 'tr[data-n=\'0\'] td:nth-child(8)', 'Al final de la tarjeta') + '</div>'),
+    ],
+    ['Ambas tablas se desplazan de lado dentro de su tarjeta.', 'El botón «Enviar al CRM» de la celda «Estado en el CRM» se ve completo.', 'La página en sí no se desplaza de lado.'],
+    ['Alguna tabla se sale de su tarjeta y arrastra toda la página.', 'El botón aparece cortado o tapado por otra columna.'],
+    []) },
+
+  { id: 'reg', t: 'Regresión · detalle del pago', html: () => '<section class="space-y-8"><div><h2 class="text-base font-bold">Regresión · el detalle del pago sigue igual que en SOP-004</h2><p class="text-[13px] text-gray-600">SOP-004-1 no toca el detalle ni la ruta <code>procesar</code>: el detalle procesa igual que en la versión que está en PROD desde el 18-nov. Se comprueban los casos 1 y 3 de <code>SOP-004/qa.md</code> §6. Pagos reales: uno solo, no en lote.</p></div>' +
+    caso('R1', 'Aprobado sin recibo → al CRM desde el detalle (SOP-004, caso 1)',
+      'Que «Enviar al CRM ahora» en el detalle siga registrando el pago.',
+      ['Un usuario con el módulo y la operación <code>procesar_pago</code>.', 'Un pago aprobado sin recibo: de «Ver pendientes», con más de 10 min.'],
+      [
+        paso(1, 'toca', 'Abre el pago. La tarjeta «Procesar pago» explica y ofrece «Enviar al CRM ahora».', pantalla(detalle({ r: T5, tarjeta: 'enviar', recibo: null }), '[data-procesar]', BASE + '/abono/' + T5.ref)),
+        paso(2, 'toca', 'Pulsa el botón. La confirmación pide confirmar con la referencia y el valor; pulsa «Procesar».', pantalla(dialogo(T5.ref, T5.val, 'Se va a enviar este pago al CRM ahora mismo.', 'Procesar'), '[data-confirmar]')),
+        paso(3, 'ver', 'Mientras el CRM responde, «Enviando el pago al CRM…» y el botón «Procesando…».', pantalla(detalle({ r: T5, tarjeta: 'procesando', recibo: null }), '[data-procesar]')),
+        paso(4, 'ver', 'Tarjeta «El CRM registró el pago» con el recibo; el chip pasa a «En el CRM»; fila nueva en «Envíos al CRM» y en «Quién lo ha procesado».', pantalla(detalle({ r: T5, tarjeta: 'registrado', recibo: '1234567', envios: [[AHORA, 'Registrado · recibo 1234567']], hist: [[AHORA, USUARIO, 'Envió al CRM: registrado con recibo 1234567.']] }), '[data-resultado]|[data-chipcrm]|[data-historial] li:first-child|[data-envios] tbody tr')),
+      ],
+      ['Sale la tarjeta «El CRM registró el pago» con el recibo, o «El pago ya estaba en el CRM» si el CRM respondió duplicado.', 'El chip pasa a «En el CRM» y hay una fila nueva en «Envíos al CRM» y en «Quién lo ha procesado». Query C de <code>SOP-004/qa.md</code>.'],
+      ['El botón no aparece, o el clic no produce ningún resultado.', 'El pago queda como «Por sincronizar» tras un resultado verde, o falta la fila en el historial.'],
+      []) +
+    caso('R2', 'Sin operación en el detalle (SOP-004, caso 3)',
+      'Que quien solo consulta pagos no vea el botón en el detalle.',
+      ['Un usuario con el módulo y sin la operación <code>procesar_pago</code>.', 'Para el último punto, otro sin el módulo.'],
+      [
+        paso(1, 'toca', 'Abre un pago aprobado sin recibo.', pantalla(cabDetalle(T5), '', BASE + '/abono/' + T5.ref)),
+        paso(2, 'ver', '«Tu usuario puede consultar pagos, pero no procesarlos.», sin botón.', pantalla(detalle({ r: T5, tarjeta: 'sinpermiso', recibo: null }), '[data-sinpermiso]', BASE + '/abono/' + T5.ref)),
+      ],
+      ['La tarjeta dice «Tu usuario puede consultar pagos, pero no procesarlos.» y no hay botón.', 'Sin el módulo, la URL del detalle da acceso denegado.'],
+      ['Sale el botón «Enviar al CRM ahora» a un usuario sin la operación.', 'Un usuario sin el módulo ve el detalle.'],
+      []) +
+    '</section>' },
+];
+
+let activa = 'antes';
+function pintar() {
+  $('#tabs').innerHTML = PESTANAS.map((p) => '<button data-t="' + p.id + '" class="rounded-md px-3 py-1.5 ' + (p.id === activa ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100') + '">' + p.t + '</button>').join('');
+  $('#contenido').innerHTML = PESTANAS.find((p) => p.id === activa).html();
+  marcar();
+}
+$('#tabs').addEventListener('click', (e) => { const t = e.target.closest('[data-t]'); if (!t) return; activa = t.dataset.t; pintar(); window.scrollTo(0, 0); });
+pintar();
+</script>
+</body>
+</html>
